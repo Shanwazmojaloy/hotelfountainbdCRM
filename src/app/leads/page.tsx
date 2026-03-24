@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { supabase } from '@/services/supabase';
 
 export const revalidate = 0; // Disable static rendering to ensure fresh leads
