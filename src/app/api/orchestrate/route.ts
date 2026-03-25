@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { ProspectorAgent } from '@/agents/prospector';
 import { CloserAgent } from '@/agents/closer';
