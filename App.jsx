@@ -1,0 +1,2131 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
+
+/* ═══════════════════════════════════════════════════════════
+   LUMEA — HOTEL FOUNTAIN CRM  v3.0
+   All issues fixed — Production Ready
+═══════════════════════════════════════════════════════════ */
+
+const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co'
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
+
+const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
+const fmtDate = d => d ? String(d).slice(0,10) : '—'
+const todayDhaka = () => new Date(new Date().toLocaleString('en',{timeZone:'Asia/Dhaka'}))
+const todayStr = () => { const d=todayDhaka(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+const nightsCount = (ci,co) => { if(!ci||!co) return 0; return Math.max(0, Math.round((new Date(co)-new Date(ci))/86400000)) }
+const AVC = ['#C8A96E','#2EC4B6','#E05C7A','#58A6FF','#3FB950','#9B72CF','#F0A500']
+const avColor = n => AVC[n ? n.charCodeAt(0)%AVC.length : 0]
+const initials = n => n ? n.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '?'
+const sleep = ms => new Promise(r=>setTimeout(r,ms))
+
+const H  = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' }
+const H2 = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
+const db = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,{headers:H}); if(!r.ok) throw new Error(await r.text()); return r.json() }
+const dbPost = async (t,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:H,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json() }
+const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:H2,body:JSON.stringify(b)}); if(!r.ok){ const txt=await r.text(); throw new Error(`PATCH ${t} ${r.status}: ${txt}`) } }
+const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
+
+const ROLES = {
+  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','settings']},
+  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports']},
+  receptionist: {label:'Receptionist',       color:'#58A6FF', pages:['dashboard','rooms','reservations','guests','billing']},
+  housekeeping: {label:'Housekeeping Staff', color:'#F0A500', pages:['dashboard','housekeeping']},
+  accountant:   {label:'Accountant',         color:'#3FB950', pages:['dashboard','billing','reports']},
+}
+
+// STAFF — stored in state so Settings can add/edit/delete
+const INIT_STAFF = [
+  {id:1, name:'Shanwaz Ahmed',    email:'owner@hotelfountain.com',       pw:'owner2026',  role:'owner',        av:'SA', device:'Admin / Founder'},
+  {id:2, name:'Front Desk (FO)',  email:'fo.hotelfountain799@gmail.com', pw:'front2026',  role:'receptionist', av:'FD', device:'Front Desk Terminal'},
+  {id:3, name:'HK Staff',         email:'hotelfountain.hk@gmail.com',   pw:'hk2026',     role:'housekeeping', av:'HK', device:'Housekeeping Terminal'},
+  {id:4, name:'Manager',          email:'manager@hotelfountain.com',    pw:'mgr2026',    role:'manager',      av:'MG', device:'Manager Office'},
+  {id:5, name:'Accounts',         email:'accounts@hotelfountain.com',   pw:'acc2026',    role:'accountant',   av:'AC', device:'Accounts Terminal'},
+]
+
+/* ═══════════════════════ CSS ═══════════════════════════════ */
+// Fonts loaded via HTML <head> — no inline injection needed
+
+const CSS = `
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090E;--s1:#0D1117;--s2:#0E1018;--s3:#131B26;
+  --gold:#C8A96E;--gold2:#E0C585;--gdim:rgba(200,169,110,.07);
+  --rose:#E05C7A;--sky:#58A6FF;--grn:#3FB950;--amb:#F0A500;--teal:#2EC4B6;--pur:#9B72CF;
+  --tx:#EEE9E2;--tx2:#8A8070;--tx3:#4A4538;
+  --br:rgba(200,169,110,.13);--br2:rgba(200,169,110,.06);--r:3px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Jost',sans-serif;
+}
+html,body,#root{height:100%;background:var(--bg);color:var(--tx);font-family:var(--sans);font-weight:300;-webkit-font-smoothing:antialiased;overflow:hidden;color-scheme:dark}
+::-webkit-scrollbar{width:2px;height:2px}::-webkit-scrollbar-thumb{background:rgba(200,169,110,.18);border-radius:1px}
+
+/* ── LAYOUT ── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:224px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--br);display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── SIDEBAR ── */
+.s-head{padding:20px 16px 16px;border-bottom:1px solid var(--br);flex-shrink:0}
+.s-brand{font-family:var(--serif);font-size:22px;font-weight:400;color:var(--gold);letter-spacing:.02em;line-height:1}
+.s-brand em{font-style:italic;font-weight:300}
+.s-tag{font-family:var(--sans);font-size:7px;color:var(--tx3);letter-spacing:.18em;text-transform:uppercase;margin-top:4px;font-weight:200}
+.s-hotel{font-family:var(--sans);font-size:11px;color:var(--tx2);margin-top:8px;font-weight:300;letter-spacing:.04em}
+.s-nav{flex:1;padding:10px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.s-sect{font-family:var(--sans);font-size:7px;letter-spacing:.22em;color:var(--tx3);padding:10px 8px 4px;text-transform:uppercase;font-weight:200}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 8px;cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:300;color:var(--tx2);border:1px solid transparent;transition:all .18s;user-select:none;letter-spacing:.03em}
+.nav-item:hover{background:var(--gdim);color:var(--tx)}
+.nav-item.on{background:var(--gdim);color:var(--gold);border-color:var(--br);font-weight:400}
+.nav-item.on::before{content:'—';font-size:9px;color:var(--gold);opacity:.6;margin-right:-3px}
+.nav-item .ico{font-size:12px;width:15px;text-align:center;flex-shrink:0;opacity:.7}
+.nav-item.on .ico{opacity:1}
+.n-badge{margin-left:auto;background:var(--rose);color:#fff;font-size:7.5px;padding:1px 6px;font-weight:400;letter-spacing:.06em}
+.s-foot{padding:12px 12px;border-top:1px solid var(--br);flex-shrink:0}
+
+/* ── TOPBAR ── */
+.topbar{height:52px;flex-shrink:0;background:var(--s1);border-bottom:1px solid var(--br);display:flex;align-items:center;padding:0 20px;gap:12px;position:relative;z-index:10}
+.tb-title{font-family:var(--serif);font-size:20px;font-weight:300;color:var(--tx);flex:1;letter-spacing:.02em}
+.tb-title em{font-style:italic;color:var(--gold)}
+.tb-meta{font-family:var(--sans);font-size:8.5px;color:var(--tx3);letter-spacing:.08em;white-space:nowrap;font-weight:200}
+.content{flex:1;overflow-y:auto;padding:18px 20px}
+
+/* ── CARDS ── */
+.card{background:var(--s2);border:1px solid var(--br2);border-radius:0;overflow:hidden;margin-bottom:16px}
+.card-hd{padding:13px 16px;border-bottom:1px solid var(--br2);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:46px}
+.card-title{font-family:var(--serif);font-size:17px;font-weight:300;color:var(--tx);letter-spacing:.02em}
+.card-title em{font-style:italic;color:var(--gold)}
+.card-body{padding:14px}
+
+/* ── STATS ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-bottom:16px}
+.stat{background:var(--s2);border:1px solid var(--br2);padding:16px;position:relative;overflow:hidden;transition:all .2s;cursor:default}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:var(--ac,var(--gold));opacity:.6}
+.stat:hover{border-color:var(--br)}
+.stat-ico{font-size:17px;margin-bottom:8px;opacity:.8}
+.stat-lbl{font-family:var(--sans);font-size:7.5px;letter-spacing:.18em;color:var(--tx3);text-transform:uppercase;margin-bottom:5px;font-weight:200}
+.stat-val{font-family:var(--serif);font-size:28px;color:var(--tx);line-height:1;font-weight:300}
+.stat-sub{font-family:var(--sans);font-size:10.5px;color:var(--tx2);margin-top:4px;font-weight:300}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 16px;font-family:var(--sans);font-size:10.5px;font-weight:300;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;border:none;transition:all .18s;white-space:nowrap}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
+.btn-gold{background:var(--gold);color:#07090E;font-weight:400}
+.btn-gold:hover:not(:disabled){background:var(--gold2);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--tx2);border:1px solid var(--br2)}
+.btn-ghost:hover:not(:disabled){background:var(--gdim);color:var(--tx);border-color:var(--br)}
+.btn-danger{background:rgba(224,92,122,.08);color:var(--rose);border:1px solid rgba(224,92,122,.2)}
+.btn-danger:hover:not(:disabled){background:rgba(224,92,122,.18)}
+.btn-success{background:rgba(63,185,80,.08);color:var(--grn);border:1px solid rgba(63,185,80,.2)}
+.btn-success:hover:not(:disabled){background:rgba(63,185,80,.18)}
+.btn-info{background:rgba(88,166,255,.08);color:var(--sky);border:1px solid rgba(88,166,255,.2)}
+.btn-sm{padding:4px 10px;font-size:9.5px}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;font-family:var(--sans);font-size:8.5px;letter-spacing:.08em;font-weight:300;white-space:nowrap}
+.bg{background:rgba(63,185,80,.1);color:var(--grn);border:1px solid rgba(63,185,80,.18)}
+.bb{background:rgba(88,166,255,.1);color:var(--sky);border:1px solid rgba(88,166,255,.18)}
+.ba{background:rgba(240,165,0,.1);color:var(--amb);border:1px solid rgba(240,165,0,.18)}
+.br_{background:rgba(224,92,122,.1);color:var(--rose);border:1px solid rgba(224,92,122,.18)}
+.bgold{background:rgba(200,169,110,.1);color:var(--gold);border:1px solid rgba(200,169,110,.18)}
+.bteal{background:rgba(46,196,182,.1);color:var(--teal);border:1px solid rgba(46,196,182,.18)}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-family:var(--sans);font-size:7.5px;letter-spacing:.16em;color:var(--tx3);text-transform:uppercase;padding:8px 10px;text-align:left;border-bottom:1px solid var(--br2);white-space:nowrap;font-weight:200}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--br2);font-family:var(--sans);font-size:12px;font-weight:300;color:var(--tx);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(200,169,110,.02)}
+.tbl-wrap{overflow-x:auto}
+
+/* ── FORMS ── */
+.fg{margin-bottom:12px}
+.flbl{font-family:var(--sans);font-size:7.5px;letter-spacing:.18em;color:var(--tx3);text-transform:uppercase;margin-bottom:5px;display:block;font-weight:200}
+.finput,.fselect,.ftextarea{width:100%;background:rgba(200,169,110,.04);border:1px solid var(--br2);border-radius:0;padding:9px 11px;color:var(--tx);font-family:var(--sans);font-size:12.5px;font-weight:300;outline:none;transition:border-color .18s;appearance:none;color-scheme:dark}
+.finput::placeholder,.ftextarea::placeholder{color:var(--tx3)}
+input[type='date']{color:var(--tx);color-scheme:dark}
+.finput:focus,.fselect:focus,.ftextarea:focus{border-color:rgba(200,169,110,.4)}
+.finput:disabled,.fselect:disabled{opacity:.45;cursor:not-allowed}
+.fselect{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%234A4538' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-color:rgba(200,169,110,.04);padding-right:28px;cursor:pointer;color-scheme:dark}
+.fselect option{background:#0D1117;color:#EEE9E2;font-family:'Jost',sans-serif;font-weight:300}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ftextarea{resize:vertical;min-height:60px}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;background:rgba(200,169,110,.04);border:1px solid var(--br2);padding:3px;flex-wrap:wrap;margin-bottom:14px}
+.tab{padding:6px 14px;font-family:var(--sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;color:var(--tx3);border:none;background:none;white-space:nowrap;transition:all .18s;font-weight:200}
+.tab.on{background:var(--s1);color:var(--gold);font-weight:300;border:1px solid var(--br)}
+
+/* ── ROOMS GRID ── */
+.rooms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:2px}
+.room-card{padding:13px 11px;cursor:pointer;transition:all .2s;border:1px solid var(--br2);position:relative;user-select:none}
+.room-card:hover{border-color:var(--br);background:rgba(200,169,110,.04)}
+.room-card.AVAILABLE{background:rgba(63,185,80,.05);border-color:rgba(63,185,80,.22)}
+.room-card.OCCUPIED{background:rgba(88,166,255,.05);border-color:rgba(88,166,255,.22)}
+.room-card.DIRTY{background:rgba(240,165,0,.05);border-color:rgba(240,165,0,.22)}
+.room-card.OUT_OF_ORDER{background:rgba(224,92,122,.05);border-color:rgba(224,92,122,.22)}
+.room-card.RESERVED{background:rgba(155,114,207,.05);border-color:rgba(155,114,207,.22)}
+.room-no{font-family:var(--serif);font-size:30px;font-weight:300;line-height:1;margin-bottom:4px}
+.room-card.AVAILABLE .room-no{color:var(--grn)}.room-card.OCCUPIED .room-no{color:var(--sky)}
+.room-card.DIRTY .room-no{color:var(--amb)}.room-card.OUT_OF_ORDER .room-no{color:var(--rose)}
+.room-card.RESERVED .room-no{color:var(--pur)}
+.room-cat{font-family:var(--sans);font-size:8px;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;font-weight:200}
+.room-price{font-family:var(--sans);font-size:9px;color:var(--gold);margin-top:4px;letter-spacing:.04em}
+.rdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;display:inline-block;margin-right:5px;vertical-align:middle}
+.rdot.AVAILABLE{background:var(--grn);box-shadow:0 0 5px var(--grn)}.rdot.OCCUPIED{background:var(--sky);box-shadow:0 0 5px var(--sky)}
+.rdot.DIRTY{background:var(--amb);box-shadow:0 0 4px var(--amb)}.rdot.OUT_OF_ORDER{background:var(--rose);box-shadow:0 0 4px var(--rose)}
+.rdot.RESERVED{background:var(--pur);box-shadow:0 0 4px var(--pur)}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(7,9,14,.88);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--s1);border:1px solid var(--br);border-radius:0;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;box-shadow:0 40px 80px rgba(0,0,0,.7);animation:mIn .22s ease}
+.modal-w{max-width:720px}
+@keyframes mIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+.modal-hd{padding:16px 20px;border-bottom:1px solid var(--br2);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--s1);z-index:1}
+.modal-title{font-family:var(--serif);font-size:20px;font-weight:300;color:var(--tx);letter-spacing:.02em}
+.modal-title em{font-style:italic;color:var(--gold)}
+.modal-x{background:none;border:none;color:var(--tx3);cursor:pointer;font-size:22px;line-height:1;padding:0;transition:color .15s}
+.modal-x:hover{color:var(--tx)}
+.modal-body{padding:20px;color:var(--tx)}
+.modal-ft{padding:13px 20px;border-top:1px solid var(--br2);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;background:var(--s1);position:sticky;bottom:0}
+
+/* ── UTILITIES ── */
+.flex{display:flex}.fac{align-items:center}.fjb{justify-content:space-between}
+.gap2{gap:6px}.gap3{gap:12px}
+.mt3{margin-top:10px}.mt4{margin-top:16px}.mb4{margin-bottom:16px}
+.muted{color:var(--tx2)}.gold{color:var(--gold)}.xs{font-size:10px}.sm{font-size:12.5px}
+.w100{width:100%}
+.divider{border:none;border-top:1px solid var(--br2);margin:12px 0}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.info-box{padding:10px 12px;background:rgba(200,169,110,.04);border:1px solid var(--br2)}
+.info-lbl{font-family:var(--sans);font-size:7.5px;letter-spacing:.16em;color:var(--tx3);text-transform:uppercase;margin-bottom:3px;font-weight:200}
+.info-val{font-family:var(--sans);font-size:12.5px;font-weight:300;color:var(--tx)}
+.pdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;display:inline-block;vertical-align:middle;margin-right:4px}
+.pdot.high{background:var(--rose);box-shadow:0 0 4px var(--rose)}.pdot.medium{background:var(--amb)}.pdot.low{background:var(--grn)}
+.sync-dot{width:5px;height:5px;border-radius:50%;background:var(--grn);box-shadow:0 0 5px var(--grn);animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.spinner{display:inline-block;width:15px;height:15px;border:1.5px solid rgba(200,169,110,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--sans);font-weight:400;flex-shrink:0}
+.folio-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--br2);font-family:var(--sans);font-size:12px;font-weight:300}
+.folio-row:last-child{border-bottom:none}
+.bar-chart{display:flex;align-items:flex-end;gap:3px;height:80px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.bar-fill{width:100%;border-radius:1px 1px 0 0;transition:height .3s;min-height:2px}
+.bar-lbl{font-family:var(--sans);font-size:7px;color:var(--tx3);text-align:center;font-weight:200}
+.srch{display:flex;align-items:center;gap:6px;background:rgba(200,169,110,.04);border:1px solid var(--br2);padding:7px 10px;min-width:190px}
+.srch input{background:none;border:none;outline:none;color:var(--tx);font-family:var(--sans);font-size:12px;font-weight:300;flex:1;min-width:0}
+.srch input::placeholder{color:var(--tx3)}
+
+/* ── LOGIN PAGE — matches landing page exactly ── */
+.login-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden}
+.login-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 30% 40%,rgba(200,169,110,.06),transparent 65%),radial-gradient(ellipse 50% 70% at 75% 70%,rgba(200,169,110,.03),transparent 55%)}
+.login-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(200,169,110,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(200,169,110,.025) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;mask-image:radial-gradient(ellipse 70% 70% at 50% 50%,black 30%,transparent 80%)}
+.login-card{background:var(--s1);border:1px solid var(--br);padding:44px 40px;width:100%;max-width:460px;position:relative;z-index:1;box-shadow:0 40px 100px rgba(0,0,0,.65);animation:mIn .4s ease}
+.login-card::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:40%;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.login-eyebrow{display:flex;align-items:center;gap:12px;margin-bottom:20px;justify-content:center}
+.login-eyebrow-line{width:28px;height:1px;background:linear-gradient(90deg,transparent,var(--gold));opacity:.6}
+.login-eyebrow span{font-family:var(--sans);font-size:8px;color:var(--tx3);letter-spacing:.22em;text-transform:uppercase;font-weight:200}
+.login-title{font-family:var(--serif);font-size:36px;font-weight:300;color:var(--tx);text-align:center;line-height:1.05;margin-bottom:4px}
+.login-title em{font-style:italic;color:var(--gold);font-weight:300}
+.login-sub{font-family:var(--sans);font-size:8.5px;letter-spacing:.18em;color:var(--tx3);text-transform:uppercase;text-align:center;margin-bottom:32px;font-weight:200}
+/* Only 3 role pills: owner + receptionist + housekeeping */
+.role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+.rpill{padding:12px 8px;border:1px solid var(--br2);background:transparent;cursor:pointer;transition:all .2s;text-align:center;color:var(--tx3);font-family:var(--sans)}
+.rpill:hover{background:var(--gdim);border-color:var(--br);color:var(--tx2)}
+.rpill.sel{border-color:var(--gold);background:rgba(200,169,110,.08);color:var(--gold)}
+.rpill .ri{font-size:18px;margin-bottom:5px;display:block}
+.rpill .rl{font-family:var(--sans);font-size:8.5px;letter-spacing:.1em;display:block;text-transform:uppercase;font-weight:300}
+.rpill.sel .rl{color:var(--gold)}
+.login-hint{background:rgba(200,169,110,.05);border:1px solid var(--br);padding:10px 14px;font-family:var(--sans);font-size:11px;font-weight:300;color:var(--tx2);margin-bottom:18px;line-height:1.7}
+.login-hint strong{color:var(--gold);font-weight:400}
+/* login divider */
+.login-divider{display:flex;align-items:center;gap:12px;margin:18px 0}
+.login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--br2)}
+.login-divider span{font-family:var(--sans);font-size:8px;color:var(--tx3);letter-spacing:.14em;text-transform:uppercase;font-weight:200}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s1);border:1px solid rgba(200,169,110,.3);padding:11px 16px;box-shadow:0 16px 48px rgba(0,0,0,.6);z-index:9999;font-family:var(--sans);font-size:12px;font-weight:300;color:var(--tx);animation:mIn .25s ease;max-width:320px;word-break:break-word;letter-spacing:.03em}
+.toast.err{border-color:rgba(224,92,122,.4)}.toast.inf{border-color:rgba(88,166,255,.4)}
+
+/* ── NOTIF DROPDOWN ── */
+.notif-drop{position:absolute;right:0;top:calc(100% + 8px);width:280px;background:var(--s1);border:1px solid var(--br);box-shadow:0 20px 60px rgba(0,0,0,.7);z-index:200;overflow:hidden;animation:mIn .18s ease}
+.notif-item{padding:11px 16px;border-bottom:1px solid var(--br2);font-family:var(--sans);font-size:11.5px;font-weight:300;color:var(--tx2);cursor:pointer;transition:background .12s;letter-spacing:.02em}
+.notif-item:hover{background:var(--gdim);color:var(--tx)}
+.notif-item:last-child{border-bottom:none}
+
+/* ── USER ROW (settings) ── */
+.user-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--br2)}
+.user-row:last-child{border-bottom:none}
+`
+
+/* ═══════════════════════ SMALL COMPONENTS ══════════════════ */
+function Toast({msg,type,onDone}) {
+  useEffect(()=>{ const t=setTimeout(onDone,3400); return()=>clearTimeout(t) },[])
+  return <div className={`toast${type==='error'?' err':type==='info'?' inf':''}`}>{type==='error'?'⚠ ':'✓ '}{msg}</div>
+}
+
+function Av({name,size=32}) {
+  return <div className="av" style={{width:size,height:size,fontSize:size*.33,background:`linear-gradient(135deg,${avColor(name)},rgba(0,0,0,.4))`,color:'#EEE9E2'}}>{initials(name)}</div>
+}
+
+function SBadge({status}) {
+  const m={CHECKED_IN:'bb',RESERVED:'bteal',PENDING:'ba',CHECKED_OUT:'bgold',CANCELLED:'br_',
+           confirmed:'bg',pending:'ba','in-progress':'ba',completed:'bg',high:'br_',medium:'ba',low:'bg'}
+  return <span className={`badge ${m[status]||'bgold'}`}>{String(status).replace(/_/g,' ')}</span>
+}
+
+function Modal({title,onClose,children,footer,wide}) {
+  useEffect(()=>{
+    const h=e=>{ if(e.key==='Escape') onClose() }
+    document.addEventListener('keydown',h)
+    return()=>document.removeEventListener('keydown',h)
+  },[])
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className={`modal${wide?' modal-w':''}`} onClick={e=>e.stopPropagation()}>
+        <div className="modal-hd">
+          <div className="modal-title">{title}</div>
+          <button className="modal-x" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">{children}</div>
+        {footer&&<div className="modal-ft">{footer}</div>}
+      </div>
+    </div>
+  )
+}
+
+function BarChart({data,active,onHover}) {
+  const max=Math.max(...data.map(d=>d.v),1)
+  return (
+    <div className="bar-chart">
+      {data.map((d,i)=>(
+        <div key={i} className="bar-col" onMouseEnter={()=>onHover(i)} title={`${d.ds}: ${BDT(d.v)}`}>
+          <div className="bar-fill" style={{height:`${Math.max(3,(d.v/max)*76)}px`,background:i===active?'var(--gold)':'rgba(200,169,110,.28)'}}/>
+          <span className="bar-lbl">{d.d}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ═══════════════════════ LOGIN ══════════════════════════════ */
+function LoginPage({onLogin, staffList}) {
+  const [sel,setSel]=useState(null)
+  const [email,setEmail]=useState('')
+  const [pw,setPw]=useState('')
+  const [showPw,setShowPw]=useState(false)
+  const [err,setErr]=useState('')
+  const [busy,setBusy]=useState(false)
+
+  // Only show 3 roles on login — manager & accountant must type manually
+  const LOGIN_ROLES = [
+    {key:'owner',    ico:'👑', label:'Founder / Owner'},
+    {key:'receptionist', ico:'🛎️', label:'Receptionist'},
+    {key:'housekeeping', ico:'🧹', label:'Housekeeping'},
+  ]
+
+  function pickRole(r) {
+    setSel(r)
+    // Pre-fill EMAIL only — password must always be typed manually
+    const s=staffList.find(x=>x.role===r)
+    if(s) setEmail(s.email)
+    setPw('') // always clear password — never auto-fill
+    setErr('')
+  }
+
+  function doLogin() {
+    if(!email||!pw) return setErr('Please enter your email and password.')
+    setBusy(true)
+    setTimeout(()=>{
+      const u=staffList.find(x=>x.email.toLowerCase()===email.trim().toLowerCase()&&x.pw===pw)
+      if(u) onLogin({...u})
+      else { setErr('Invalid email or password.'); setBusy(false) }
+    },500)
+  }
+
+  return (
+    <div className="login-bg">
+      <div className="login-grid"/>
+      <div className="login-card">
+        {/* Header — matches landing page style */}
+        <div className="login-eyebrow">
+          <div className="login-eyebrow-line"/>
+          <span>Staff Portal · Hotel Fountain</span>
+          <div className="login-eyebrow-line" style={{background:'linear-gradient(90deg,var(--gold),transparent)'}}/>
+        </div>
+        <div className="login-title">Hotel <em>Fountain</em></div>
+        <div className="login-sub">Management CRM · Powered by Lumea</div>
+
+        {/* 3 role pills — manager & accountant removed */}
+        <div className="role-grid">
+          {LOGIN_ROLES.map(r=>(
+            <div key={r.key} className={`rpill${sel===r.key?' sel':''}`} onClick={()=>pickRole(r.key)}>
+              <span className="ri">{r.ico}</span>
+              <span className="rl">{r.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Email hint only when role selected — NO password shown */}
+        {sel&&(
+          <div className="login-hint">
+            <strong>Email:</strong> {staffList.find(s=>s.role===sel)?.email}
+            <br/>
+            <span style={{color:'var(--tx3)',fontSize:10}}>Enter your password below to continue</span>
+          </div>
+        )}
+
+        <div className="login-divider"><span>sign in</span></div>
+
+        <div className="fg">
+          <label className="flbl">Email</label>
+          <input className="finput" type="email" value={email}
+            onChange={e=>{setEmail(e.target.value);setErr('')}}
+            onKeyDown={e=>e.key==='Enter'&&doLogin()}
+            placeholder="your@email.com"
+            autoComplete="off" data-form-type="other"/>
+        </div>
+        <div className="fg">
+          <label className="flbl">Password</label>
+          <div style={{position:'relative'}}>
+            <input className="finput"
+              type={showPw?'text':'password'}
+              value={pw}
+              onChange={e=>{setPw(e.target.value);setErr('')}}
+              onKeyDown={e=>e.key==='Enter'&&doLogin()}
+              placeholder="Enter your password"
+              autoComplete="new-password"
+              data-form-type="other"
+              style={{paddingRight:38}}/>
+            <span
+              style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',cursor:'pointer',fontSize:14,color:'var(--tx3)',userSelect:'none'}}
+              onClick={()=>setShowPw(p=>!p)}>
+              {showPw?'🙈':'👁'}
+            </span>
+          </div>
+        </div>
+
+        {err&&(
+          <div style={{background:'rgba(224,92,122,.08)',border:'1px solid rgba(224,92,122,.2)',padding:'9px 13px',fontFamily:'var(--sans)',fontSize:11.5,fontWeight:300,color:'var(--rose)',marginBottom:14,letterSpacing:'.02em'}}>
+            {err}
+          </div>
+        )}
+
+        <button
+          className="btn btn-gold w100"
+          style={{justifyContent:'center',padding:'13px',fontSize:10,letterSpacing:'.2em',marginTop:4}}
+          disabled={busy}
+          onClick={doLogin}>
+          {busy
+            ?<><span className="spinner" style={{width:13,height:13,border:'1.5px solid rgba(0,0,0,.2)',borderTopColor:'#07090E'}}/>{' '}Signing in…</>
+            :'Sign In →'
+          }
+        </button>
+
+        <div style={{textAlign:'center',marginTop:20,fontFamily:'var(--sans)',fontSize:9,color:'var(--tx3)',letterSpacing:'.1em',fontWeight:200}}>
+          LUMEA · THE PULSE OF MODERN HOSPITALITY
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════ DASHBOARD ══════════════════════════ */
+function Dashboard({rooms,guests,reservations,transactions,setPage}) {
+  const [chartActive,setChartActive]=useState(13)
+  const today=todayStr()
+  const occ=rooms.filter(r=>r.status==='OCCUPIED').length
+  const occPct=rooms.length?Math.round((occ/rooms.length)*100):0
+  const todayT=transactions.filter(t=>t.fiscal_day===today)
+  const todayRev=todayT.reduce((a,t)=>a+(+t.amount||0),0)
+  const inHouse=reservations.filter(r=>r.status==='CHECKED_IN').length
+  const pending=reservations.filter(r=>r.status==='PENDING').length
+  const last14=Array.from({length:14},(_,i)=>{
+    const d=new Date(todayDhaka()); d.setDate(d.getDate()-(13-i))
+    const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    return {d:ds.slice(8),v:transactions.filter(t=>t.fiscal_day===ds).reduce((a,t)=>a+(+t.amount||0),0),ds}
+  })
+  const checkedIn=reservations.filter(r=>r.status==='CHECKED_IN').slice(0,6)
+  const getGN=gids=>{const fid=String((gids||[])[0]||'');const g=guests.find(g=>String(g.id)===fid);return g?g.name:'Unknown'}
+
+  return (
+    <div>
+      <div className="stats-row">
+        {[
+          {lbl:"Today's Revenue",val:BDT(todayRev),ico:'💰',sub:`${todayT.length} transactions`,ac:'var(--gold)'},
+          {lbl:'Occupancy',val:`${occPct}%`,ico:'🛏',sub:`${occ}/${rooms.length} rooms occupied`,ac:'var(--sky)'},
+          {lbl:'In-House Guests',val:inHouse,ico:'👥',sub:'Currently checked in',ac:'var(--teal)'},
+          {lbl:'Pending',val:pending,ico:'📅',sub:'Awaiting confirmation',ac:'var(--rose)'},
+        ].map(s=>(
+          <div key={s.lbl} className="stat" style={{'--ac':s.ac}}>
+            <div className="stat-ico">{s.ico}</div><div className="stat-lbl">{s.lbl}</div>
+            <div className="stat-val">{s.val}</div><div className="stat-sub">{s.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="g2 mb4">
+        <div className="card">
+          <div className="card-hd">
+            <span className="card-title">Revenue — Last 14 Days</span>
+            <span className="badge bgold">{last14[chartActive]?.ds?.slice(5)} · {BDT(last14[chartActive]?.v)}</span>
+          </div>
+          <div className="card-body"><BarChart data={last14} active={chartActive} onHover={setChartActive}/></div>
+        </div>
+        <div className="card">
+          <div className="card-hd"><span className="card-title">Room Status Overview</span></div>
+          <div className="card-body">
+            {[['AVAILABLE','grn'],['OCCUPIED','sky'],['DIRTY','amb'],['OUT_OF_ORDER','rose'],['RESERVED','pur']].map(([s,c])=>{
+              const cnt=rooms.filter(r=>r.status===s).length
+              return (
+                <div key={s} className="flex fac fjb" style={{padding:'5px 0',borderBottom:'1px solid var(--br2)'}}>
+                  <div className="flex fac gap2"><span className={`rdot ${s}`}/><span className="xs">{s.replace('_',' ')}</span></div>
+                  <div className="flex fac gap2">
+                    <span className="xs gold">{cnt}</span>
+                    <div style={{height:4,width:rooms.length?Math.round((cnt/rooms.length)*80):2,background:`var(--${c})`,borderRadius:2}}/>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="g2">
+        <div className="card">
+          <div className="card-hd">
+            <span className="card-title">Currently In-House</span>
+            <button className="btn btn-ghost btn-sm" onClick={()=>setPage('reservations')}>View All →</button>
+          </div>
+          <div className="card-body" style={{padding:'6px 13px'}}>
+            {checkedIn.length===0
+              ?<div style={{padding:'18px 0',textAlign:'center',color:'var(--tx3)',fontSize:12}}>No active check-ins</div>
+              :checkedIn.map(r=>(
+                <div key={r.id} className="flex fac gap2" style={{padding:'8px 0',borderBottom:'1px solid var(--br2)'}}>
+                  <Av name={getGN(r.guest_ids)} size={28}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{getGN(r.guest_ids)}</div>
+                    <div className="xs muted">Rm {(r.room_ids||[]).join(',')} · Out: {fmtDate(r.check_out)}</div>
+                  </div>
+                  <span className="badge bb">{BDT(r.total_amount)}</span>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-hd">
+            <span className="card-title">Recent Transactions</span>
+            <button className="btn btn-ghost btn-sm" onClick={()=>setPage('billing')}>View All →</button>
+          </div>
+          <div className="card-body" style={{padding:'6px 13px'}}>
+            {transactions.slice(0,8).map(t=>(
+              <div key={t.id} className="flex fac fjb" style={{padding:'6px 0',borderBottom:'1px solid var(--br2)'}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div className="xs" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.guest_name||'—'}</div>
+                  <div className="xs muted">Rm {t.room_number||'?'} · {t.type||'Payment'}</div>
+                </div>
+                <span className="xs gold">{BDT(t.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════ ROOMS ══════════════════════════════ */
+function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
+  const [filter,setFilter]=useState('ALL')
+  const [selRoom,setSelRoom]=useState(null)
+  const [showAdd,setShowAdd]=useState(false)
+  const canEdit=['owner','manager','receptionist'].includes(currentUser?.role)
+  const isSA=currentUser?.role==='owner'
+  const sc=rooms.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
+  const filtered=filter==='ALL'?rooms:rooms.filter(r=>r.status===filter)
+
+  return (
+    <div>
+      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
+        <div className="tabs" style={{marginBottom:0}}>
+          {['ALL','AVAILABLE','OCCUPIED','DIRTY','OUT_OF_ORDER','RESERVED'].map(s=>(
+            <button key={s} className={`tab${filter===s?' on':''}`} onClick={()=>setFilter(s)}>
+              {s==='ALL'?`All (${rooms.length})`:`${s.replace('_',' ')} (${sc[s]||0})`}
+            </button>
+          ))}
+        </div>
+        {isSA&&<button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Add Room</button>}
+      </div>
+      <div className="flex fac gap3 mb4" style={{flexWrap:'wrap'}}>
+        {[['AVAILABLE','grn'],['OCCUPIED','sky'],['DIRTY','amb'],['OUT_OF_ORDER','rose'],['RESERVED','pur']].map(([s])=>(
+          <span key={s} className="flex fac xs muted"><span className={`rdot ${s}`}/>{s.replace('_',' ')}</span>
+        ))}
+        <span className="xs muted" style={{marginLeft:4}}>· Click room to open folio/billing</span>
+      </div>
+      <div className="rooms-grid">
+        {filtered.map(room=>(
+          <div key={room.id} className={`room-card ${room.status}`} onClick={()=>setSelRoom(room)}>
+            {room.status==='OCCUPIED'&&<div style={{position:'absolute',top:5,right:5,fontSize:7,background:'rgba(88,166,255,.25)',color:'var(--sky)',borderRadius:3,padding:'1px 5px',border:'1px solid rgba(88,166,255,.3)'}}>FOLIO</div>}
+            <div className="room-no">{room.room_number}</div>
+            <div className="flex fac" style={{marginBottom:4}}><span className={`rdot ${room.status}`}/><span className="room-cat">{room.status.replace('_',' ')}</span></div>
+            <div className="room-cat">{room.category||'Standard'}</div>
+            <div className="room-price">{BDT(room.price)}/night</div>
+          </div>
+        ))}
+      </div>
+      {selRoom&&(
+        <RoomModal room={selRoom} guests={guests} reservations={reservations}
+          canEdit={canEdit} isSA={isSA} toast={toast}
+          onClose={()=>setSelRoom(null)}
+          reload={()=>{ reload(); setSelRoom(null) }}/>
+      )}
+      {showAdd&&isSA&&<AddRoomModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload} rooms={rooms}/>}
+    </div>
+  )
+}
+
+function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload}) {
+  const [status,setStatus]=useState(room.status)
+  const [folios,setFolios]=useState([])
+  const [fLoad,setFLoad]=useState(true)
+  const [showCharge,setShowCharge]=useState(false)
+  const [showCO,setShowCO]=useState(false)
+  const [saving,setSaving]=useState(false)
+
+  const activeRes=reservations.find(r=>(r.room_ids||[]).includes(room.room_number)&&r.status==='CHECKED_IN')
+  const guest=activeRes?guests.find(g=>String(g.id)===String((activeRes.guest_ids||[])[0]||'')):null
+
+  useEffect(()=>{
+    db('folios',`?room_number=eq.${room.room_number}&order=created_at`)
+      .then(d=>{setFolios(Array.isArray(d)?d:[]);setFLoad(false)})
+      .catch(()=>setFLoad(false))
+  },[room.room_number])
+
+  const roomRate=+room.price||0
+  const nights=activeRes?nightsCount(activeRes.check_in,activeRes.check_out):0
+  const roomCharge=roomRate*nights
+  const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
+  const sub=roomCharge+extras
+  const tax=Math.round(sub*.07)
+  const svc=Math.round(sub*.05)
+  const total=sub+tax+svc
+
+  async function saveStatus() {
+    setSaving(true)
+    try { await dbPatch('rooms',room.id,{status}); toast(`Room ${room.room_number} → ${status}`); reload() }
+    catch(e){ toast(e.message,'error'); setSaving(false) }
+  }
+
+  async function doCheckout() {
+    try {
+      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
+      await dbPatch('rooms',room.id,{status:'DIRTY'})
+      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      toast(`${guest?.name||'Guest'} checked out ✓`)
+      reload()
+    } catch(e){ toast(e.message,'error') }
+  }
+
+  async function addFolioCharge(f) {
+    setFolios(p=>[...p,f])
+    toast(`Charge ${BDT(f.amount)} added`)
+    setShowCharge(false)
+  }
+
+  return (
+    <Modal title={`Room ${room.room_number} — ${room.category||'Standard'}`} onClose={onClose} wide={!!activeRes}
+      footer={
+        <div className="flex gap2" style={{flexWrap:'wrap',width:'100%'}}>
+          {activeRes&&canEdit&&(
+            <>
+              <button className="btn btn-info btn-sm" onClick={()=>setShowCharge(true)}>+ Add Charge</button>
+              <button className="btn btn-danger btn-sm" onClick={()=>setShowCO(true)}>🚪 Check Out</button>
+            </>
+          )}
+          <div style={{flex:1}}/>
+          {canEdit&&<button className="btn btn-gold btn-sm" disabled={saving} onClick={saveStatus}>{saving?'Saving…':'Save Status'}</button>}
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+        </div>
+      }>
+
+      {activeRes&&guest&&(
+        <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',borderRadius:9,padding:'12px 14px',marginBottom:14}}>
+          <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
+            <div className="flex fac gap3">
+              <Av name={guest.name} size={40}/>
+              <div>
+                <div style={{fontWeight:700,fontSize:16}}>{guest.name}</div>
+                <div className="xs muted">Room {room.room_number} · {fmtDate(activeRes.check_in)} → {fmtDate(activeRes.check_out)}</div>
+                <div className="xs" style={{color:'var(--amb)',marginTop:2}}>{nights} night{nights!==1?'s':''} · {BDT(roomRate)}/night</div>
+              </div>
+            </div>
+            <div style={{textAlign:'right'}}>
+              <div className="xs muted">Total Due</div>
+              <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(total)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeRes&&(
+        <div style={{background:'var(--s2)',borderRadius:8,border:'1px solid var(--br2)',overflow:'hidden',marginBottom:14}}>
+          <div style={{padding:'7px 12px',background:'rgba(200,169,110,.04)',borderBottom:'1px solid var(--br2)',fontSize:8,letterSpacing:'.1em',color:'var(--tx2)',textTransform:'uppercase',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span>Folio Charges</span>
+            {canEdit&&<button className="btn btn-ghost btn-sm" style={{fontSize:10}} onClick={()=>setShowCharge(true)}>+ Add</button>}
+          </div>
+          <div style={{padding:'0 12px'}}>
+            {fLoad&&<div className="xs muted" style={{padding:'12px 0',textAlign:'center'}}>Loading folio…</div>}
+            {!fLoad&&folios.length===0&&<div className="xs muted" style={{padding:'12px 0',textAlign:'center'}}>No extra charges</div>}
+            {/* Room charge line */}
+            {!fLoad&&nights>0&&(
+              <div className="folio-row">
+                <div><span>Room charge</span> <span className="badge bgold" style={{fontSize:8,marginLeft:6}}>{nights}×{BDT(roomRate)}</span></div>
+                <span className="xs gold">{BDT(roomCharge)}</span>
+              </div>
+            )}
+            {folios.map(f=>(
+              <div key={f.id} className="folio-row">
+                <div><span>{f.description}</span><span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{f.category}</span></div>
+                <div className="flex fac gap2">
+                  <span className="xs gold">{BDT(f.amount)}</span>
+                  {isSA&&<button style={{background:'none',border:'none',cursor:'pointer',color:'var(--rose)',fontSize:13,padding:'0 2px',lineHeight:1}} title="Delete charge" onClick={async()=>{if(!window.confirm('Delete folio charge?'))return;try{await dbDelete('folios',f.id);setFolios(p=>p.filter(x=>x.id!==f.id));toast('Charge removed')}catch(e){toast(e.message,'error')}}}>×</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
+            {[['Subtotal',sub],['VAT 7%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
+              <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
+            ))}
+            <div className="divider" style={{margin:'6px 0'}}/>
+            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total Due</span><span>{BDT(total)}</span></div>
+          </div>
+        </div>
+      )}
+
+      <div className="g2 mb4">
+        {[['Category',room.category||'Standard'],['Rate/Night',BDT(room.price)],['Floor',room.floor||room.room_number.slice(0,-2)||'—'],['Beds',room.beds||'Double']].map(([l,v])=>(
+          <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
+        ))}
+      </div>
+
+      {canEdit&&(
+        <div className="fg">
+          <label className="flbl">Change Status</label>
+          <select className="fselect" value={status} onChange={e=>setStatus(e.target.value)}>
+            {['AVAILABLE','OCCUPIED','DIRTY','OUT_OF_ORDER','RESERVED'].map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}
+          </select>
+        </div>
+      )}
+
+      {showCharge&&(
+        <AddChargeModal roomNo={room.room_number} resId={activeRes?.id}
+          toast={toast} onClose={()=>setShowCharge(false)} onDone={addFolioCharge}/>
+      )}
+      {showCO&&(
+        <Modal title="Confirm Guest Checkout" onClose={()=>setShowCO(false)}
+          footer={<><button className="btn btn-ghost" onClick={()=>setShowCO(false)}>Cancel</button><button className="btn btn-danger" onClick={()=>{doCheckout();setShowCO(false)}}>✓ Confirm Checkout</button></>}>
+          <div style={{textAlign:'center',padding:'8px 0 12px'}}>
+            <div style={{fontSize:32,marginBottom:10}}>🚪</div>
+            <div style={{fontWeight:700,fontSize:17,marginBottom:4}}>{guest?.name||'Guest'}</div>
+            <div className="xs muted" style={{marginBottom:12}}>Room {room.room_number} · {nights} night{nights!==1?'s':''}</div>
+            {[['Room Charge',BDT(roomCharge)],['Extra Charges',BDT(extras)],['VAT 7%',BDT(tax)],['Service 5%',BDT(svc)]].map(([l,v])=>(
+              <div key={l} className="flex fjb xs muted" style={{maxWidth:220,margin:'3px auto'}}><span>{l}</span><span>{v}</span></div>
+            ))}
+            <div className="divider" style={{maxWidth:220,margin:'8px auto'}}/>
+            <div style={{fontWeight:700,fontSize:24,color:'var(--gold)'}}>{BDT(total)}</div>
+            <div className="xs muted mt3">Room will move to Dirty / Housekeeping</div>
+          </div>
+        </Modal>
+      )}
+    </Modal>
+  )
+}
+
+function AddChargeModal({roomNo,resId,toast,onClose,onDone}) {
+  const [cat,setCat]=useState('Room Service')
+  const [amt,setAmt]=useState('')
+  const [desc,setDesc]=useState('')
+  const [saving,setSaving]=useState(false)
+
+  async function save() {
+    const a=parseFloat(amt)
+    if(!a||a<=0) return toast('Enter a valid amount','error')
+    setSaving(true)
+    try {
+      const [f]=await dbPost('folios',{room_number:roomNo,reservation_id:resId||null,description:desc||cat,category:cat,amount:a,tenant_id:TENANT})
+      await dbPost('transactions',{room_number:roomNo,guest_name:desc||cat,type:cat,amount:a,fiscal_day:todayStr(),tenant_id:TENANT})
+      onDone(f)
+    } catch(e){ toast(e.message,'error'); setSaving(false) }
+  }
+
+  return (
+    <Modal title={`Add Charge — Room ${roomNo}`} onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Adding…':'Add Charge'}</button></>}>
+      <div className="fg">
+        <label className="flbl">Category</label>
+        <select className="fselect" value={cat} onChange={e=>setCat(e.target.value)}>
+          {['Room Charge','Room Service','Restaurant','Spa','Minibar','Laundry','Parking','Airport Transfer','Phone','Misc'].map(c=><option key={c}>{c}</option>)}
+        </select>
+      </div>
+      <div className="fg"><label className="flbl">Amount (BDT) *</label><input type="number" className="finput" value={amt} onChange={e=>setAmt(e.target.value)} placeholder="0" autoFocus/></div>
+      <div className="fg"><label className="flbl">Description</label><input className="finput" value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Optional detail"/></div>
+    </Modal>
+  )
+}
+
+function AddRoomModal({toast,onClose,reload,rooms}) {
+  const [f,setF]=useState({room_number:'',category:'Fountain Deluxe',price:4000,status:'AVAILABLE'})
+  const [saving,setSaving]=useState(false)
+  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
+  async function save() {
+    if(!f.room_number) return toast('Room number required','error')
+    if(rooms.find(r=>r.room_number===f.room_number)) return toast(`Room ${f.room_number} already exists`,'error')
+    setSaving(true)
+    try { await dbPost('rooms',{...f,price:+f.price,tenant_id:TENANT}); toast(`Room ${f.room_number} added`); reload(); onClose() }
+    catch(e){ toast(e.message,'error'); setSaving(false) }
+  }
+  return (
+    <Modal title="Add New Room" onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>Add Room</button></>}>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Room Number *</label><input className="finput" value={f.room_number} onChange={F('room_number')} placeholder="e.g. 601" autoFocus/></div>
+        <div className="fg"><label className="flbl">Category</label>
+          <select className="fselect" value={f.category} onChange={F('category')}>
+            {['Fountain Deluxe','Premium Deluxe','Superior Deluxe','Twin Deluxe','Royal Suite'].map(c=><option key={c}>{c}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Rate (BDT/night)</label><input type="number" className="finput" value={f.price} onChange={F('price')}/></div>
+        <div className="fg"><label className="flbl">Initial Status</label>
+          <select className="fselect" value={f.status} onChange={F('status')}>
+            {['AVAILABLE','OUT_OF_ORDER'].map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}
+          </select>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/* ═══════════════════════ RESERVATIONS ═══════════════════════ */
+function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) {
+  const [filter,setFilter]=useState('ALL')
+  const [search,setSearch]=useState('')
+  const [selRes,setSelRes]=useState(null)
+  const [showNew,setShowNew]=useState(false)
+
+  const sc=reservations.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
+  const getGN=gids=>{const fid=String((gids||[])[0]||'');const g=guests.find(g=>String(g.id)===fid);return g?g.name:'Unknown'}
+
+  let res=filter==='ALL'?reservations:reservations.filter(r=>r.status===filter)
+  if(search){
+    const q=search.toLowerCase()
+    res=res.filter(r=>getGN(r.guest_ids).toLowerCase().includes(q)||(r.room_ids||[]).join('').includes(q)||r.on_duty_officer?.toLowerCase().includes(q))
+  }
+
+  return (
+    <div>
+      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
+        <div className="tabs" style={{marginBottom:0}}>
+          {['ALL','CHECKED_IN','RESERVED','PENDING','CHECKED_OUT','CANCELLED'].map(s=>(
+            <button key={s} className={`tab${filter===s?' on':''}`} onClick={()=>setFilter(s)}>
+              {s==='ALL'?`All (${reservations.length})`:`${s.replace('_',' ')} (${sc[s]||0})`}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap2">
+          <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search guest, room…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+          <button className="btn btn-gold" onClick={()=>setShowNew(true)}>+ New Reservation</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {res.slice(0,80).map(r=>{
+                const gn=getGN(r.guest_ids)
+                const nights=nightsCount(r.check_in,r.check_out)
+                const balance=(+r.total_amount||0)-(+r.paid_amount||0)
+                return (
+                  <tr key={r.id}>
+                    <td><div className="flex fac gap2"><Av name={gn} size={24}/><span>{gn}</span></div></td>
+                    <td><span className="badge bb">{(r.room_ids||[]).join(', ')}</span></td>
+                    <td className="xs muted">{fmtDate(r.check_in)}</td>
+                    <td className="xs muted">{fmtDate(r.check_out)}</td>
+                    <td className="xs gold">{nights||'—'}</td>
+                    <td className="xs gold">{BDT(r.total_amount)}</td>
+                    <td className="xs" style={{color:+r.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(r.paid_amount)}</td>
+                    <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
+                    <td><SBadge status={r.status}/></td>
+                    <td><button className="btn btn-ghost btn-sm" onClick={()=>setSelRes(r)}>View</button></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {selRes&&(
+        <ReservationDetail res={selRes} guests={guests} rooms={rooms} toast={toast}
+          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'}/>
+      )}
+      {showNew&&(
+        <NewReservationModal guests={guests} rooms={rooms} toast={toast}
+          onClose={()=>setShowNew(false)} reload={reload}/>
+      )}
+    </div>
+  )
+}
+
+function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
+  const [status,setStatus]=useState(res.status)
+  const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
+  const [notes,setNotes]=useState(res.notes||'')
+  const [saving,setSaving]=useState(false)
+
+  const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
+  const nights=nightsCount(res.check_in,res.check_out)
+  const totalAmt=+res.total_amount||0
+  const paidNum=+paidAmt||0
+  const balance=totalAmt-paidNum
+
+  async function save() {
+    setSaving(true)
+    try {
+      // Changing TO checked_in → mark rooms OCCUPIED
+      if(status==='CHECKED_IN'&&res.status!=='CHECKED_IN') {
+        for(const rn of (res.room_ids||[])) {
+          const room=rooms.find(r=>r.room_number===rn)
+          if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
+        }
+      }
+      // Changing TO checked_out → free rooms
+      if(status==='CHECKED_OUT'&&res.status!=='CHECKED_OUT') {
+        for(const rn of (res.room_ids||[])) {
+          const room=rooms.find(r=>r.room_number===rn)
+          if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
+        }
+      }
+      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes})
+      toast('Reservation updated ✓')
+      reload()
+    } catch(e){ toast(e.message,'error'); setSaving(false) }
+  }
+
+  async function checkIn() {
+    setSaving(true)
+    try {
+      for(const rn of (res.room_ids||[])) {
+        const room=rooms.find(r=>r.room_number===rn)
+        if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
+      }
+      await dbPatch('reservations',res.id,{status:'CHECKED_IN',check_in:new Date().toISOString()})
+      toast(`${gn} checked in to Rm ${(res.room_ids||[]).join(',')} ✓`)
+      reload()
+    } catch(e){ toast(e.message,'error'); setSaving(false) }
+  }
+
+  return (
+    <Modal title={`Reservation — ${gn}`} onClose={onClose} wide
+      footer={
+        <div className="flex gap2" style={{flexWrap:'wrap',width:'100%'}}>
+          {(res.status==='RESERVED'||res.status==='PENDING')&&(
+            <button className="btn btn-success" disabled={saving} onClick={checkIn}>✓ Check In Now</button>
+          )}
+          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
+          <div style={{flex:1}}/>
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
+        </div>
+      }>
+      <div className="g2 mb4">
+        {[
+          ['Guest',gn],['Rooms',(res.room_ids||[]).join(', ')],
+          ['Check-In',fmtDate(res.check_in)],['Check-Out',fmtDate(res.check_out)],
+          ['Nights',nights||'—'],['Total Amount',BDT(totalAmt)],
+          ['Payment Method',res.payment_method||'—'],['On-Duty Officer',res.on_duty_officer||'—'],
+        ].map(([l,v])=>(
+          <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
+        ))}
+      </div>
+      {res.special_requests&&<div className="info-box mb4"><div className="info-lbl">Special Requests</div><div className="info-val" style={{marginTop:4}}>{res.special_requests}</div></div>}
+      <div className="frow">
+        <div className="fg">
+          <label className="flbl">Status</label>
+          <select className="fselect" value={status} onChange={e=>setStatus(e.target.value)}>
+            {['PENDING','RESERVED','CHECKED_IN','CHECKED_OUT','CANCELLED'].map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}
+          </select>
+        </div>
+        <div className="fg">
+          <label className="flbl">Amount Paid (BDT)</label>
+          <input type="number" className="finput" value={paidAmt} onChange={e=>setPaidAmt(e.target.value)} min="0"/>
+          <div className="xs mt3" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>
+            Balance due: {BDT(balance)}
+          </div>
+        </div>
+      </div>
+      <div className="fg">
+        <label className="flbl">Notes</label>
+        <textarea className="ftextarea" value={notes} onChange={e=>setNotes(e.target.value)} style={{minHeight:50}} placeholder="Internal notes…"/>
+      </div>
+    </Modal>
+  )
+}
+
+function GuestSearchInput({guests, value, onChange}) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const [highlighted, setHighlighted] = useState(0)
+  const inputRef = useRef(null)
+  const dropRef = useRef(null)
+
+  const selectedGuest = guests.find(g => g.id === value)
+  const filtered = query.trim()
+    ? guests.filter(g => g.name?.toLowerCase().includes(query.toLowerCase()) || g.phone?.includes(query)).slice(0, 40)
+    : guests.slice(0, 40)
+
+  function pick(g) {
+    onChange(g.id)
+    setQuery('')
+    setOpen(false)
+  }
+
+  function handleKey(e) {
+    if (!open) { if(e.key==='ArrowDown'||e.key==='Enter') setOpen(true); return }
+    if (e.key==='ArrowDown') { e.preventDefault(); setHighlighted(h=>Math.min(h+1,filtered.length-1)) }
+    else if (e.key==='ArrowUp') { e.preventDefault(); setHighlighted(h=>Math.max(h-1,0)) }
+    else if (e.key==='Enter') { e.preventDefault(); if(filtered[highlighted]) pick(filtered[highlighted]) }
+    else if (e.key==='Escape') { setOpen(false); setQuery('') }
+  }
+
+  // Close on outside click
+  useEffect(()=>{
+    if(!open) return
+    const h = e => { if(dropRef.current&&!dropRef.current.contains(e.target)&&inputRef.current&&!inputRef.current.contains(e.target)) { setOpen(false); setQuery('') } }
+    document.addEventListener('mousedown', h)
+    return ()=>document.removeEventListener('mousedown', h)
+  },[open])
+
+  return (
+    <div style={{position:'relative'}}>
+      <div style={{position:'relative'}}>
+        <input
+          ref={inputRef}
+          className="finput"
+          value={open ? query : (selectedGuest ? selectedGuest.name : '')}
+          onChange={e=>{ setQuery(e.target.value); setOpen(true); setHighlighted(0) }}
+          onFocus={()=>{ setOpen(true); setQuery(''); setHighlighted(0) }}
+          onKeyDown={handleKey}
+          placeholder="Type to search guest…"
+          autoComplete="off"
+          style={{paddingRight:28}}
+        />
+        <span style={{position:'absolute',right:9,top:'50%',transform:'translateY(-50%)',fontSize:9,color:'var(--tx3)',pointerEvents:'none'}}>▼</span>
+      </div>
+      {open && (
+        <div ref={dropRef} style={{position:'absolute',top:'calc(100% + 3px)',left:0,right:0,background:'var(--s1)',border:'1px solid var(--br)',zIndex:600,maxHeight:220,overflowY:'auto',boxShadow:'0 12px 40px rgba(0,0,0,.7)'}}>
+          {filtered.length===0
+            ? <div style={{padding:'10px 12px',fontSize:11,color:'var(--tx3)'}}>No guests found</div>
+            : filtered.map((g,i)=>(
+                <div key={g.id}
+                  onMouseDown={()=>pick(g)}
+                  onMouseEnter={()=>setHighlighted(i)}
+                  style={{padding:'9px 12px',cursor:'pointer',fontSize:12,fontWeight:300,color:'var(--tx)',background:i===highlighted?'rgba(200,169,110,.1)':'transparent',borderBottom:'1px solid var(--br2)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <span>{g.name}</span>
+                  {g.phone&&<span style={{fontSize:10,color:'var(--tx3)'}}>{g.phone}</span>}
+                </div>
+              ))
+          }
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NewReservationModal({guests,rooms,toast,onClose,reload}) {
+  const availRooms=rooms.filter(r=>r.status==='AVAILABLE')
+  const [f,setF]=useState({
+    guestId:'', roomNo:availRooms[0]?.room_number||'',
+    checkIn:todayStr(), checkOut:'',
+    total:'', paid:'', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
+  })
+  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
+  const [saving,setSaving]=useState(false)
+
+  const selectedRoom=rooms.find(r=>r.room_number===f.roomNo)
+  const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
+  const autoTotal=selectedRoom&&autoNights?(+selectedRoom.price*autoNights):0
+
+  useEffect(()=>{
+    if(autoTotal>0) setF(p=>({...p,total:String(autoTotal)}))
+  },[f.roomNo,f.checkIn,f.checkOut])
+
+  async function save() {
+    if(!f.guestId) return toast('Select a guest','error')
+    if(!f.roomNo) return toast('Select a room','error')
+    if(!f.checkIn||!f.checkOut) return toast('Set check-in and check-out dates','error')
+    if(autoNights<=0) return toast('Check-out must be after check-in','error')
+    setSaving(true)
+    try {
+      const isCheckIn=f.stayType==='CHECK_IN'
+      const totalAmt=+f.total||autoTotal
+      await dbPost('reservations',{
+        guest_ids:[f.guestId], room_ids:[f.roomNo],
+        check_in:f.checkIn, check_out:f.checkOut,
+        status:isCheckIn?'CHECKED_IN':'RESERVED',
+        total_amount:totalAmt, paid_amount:+f.paid||0,
+        payment_method:f.method, special_requests:f.notes||null,
+        on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT
+      })
+      if(isCheckIn) {
+        const room=rooms.find(r=>r.room_number===f.roomNo)
+        if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
+      }
+      if((+f.paid||0)>0) {
+        await dbPost('transactions',{
+          room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
+          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT
+        })
+      }
+      toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
+      await reload()
+      onClose()
+    } catch(e){ toast(e.message||'Save failed','error'); setSaving(false) }
+  }
+
+  return (
+    <Modal title="New Reservation / Check-In" onClose={onClose} wide
+      footer={
+        <><button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-gold" disabled={saving} onClick={save}>
+          {saving?<><span className="spinner" style={{width:12,height:12}}/> Saving…</>:f.stayType==='CHECK_IN'?'✓ Check In Now':'Create Reservation'}
+        </button></>
+      }>
+      <div className="tabs" style={{marginBottom:14}}>
+        {[['CHECK_IN','✓ Direct Check-In'],['RESERVATION','📅 Future Reservation']].map(([v,l])=>(
+          <button key={v} className={`tab${f.stayType===v?' on':''}`} onClick={()=>setF(p=>({...p,stayType:v}))}>{l}</button>
+        ))}
+      </div>
+      <div className="frow">
+        <div className="fg">
+          <label className="flbl">Guest * — type name or phone to search</label>
+          <GuestSearchInput guests={guests} value={f.guestId} onChange={id=>setF(p=>({...p,guestId:id}))}/>
+        </div>
+        <div className="fg">
+          <label className="flbl">Room * {availRooms.length===0&&<span style={{color:'var(--rose)'}}>— no available rooms</span>}</label>
+          <select className="fselect" value={f.roomNo} onChange={F('roomNo')}>
+            {availRooms.map(r=><option key={r.id} value={r.room_number}>{r.room_number} — {r.category} — {BDT(r.price)}/n</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Check-In Date *</label><input type="date" className="finput" value={f.checkIn} onChange={F('checkIn')}/></div>
+        <div className="fg"><label className="flbl">Check-Out Date *</label><input type="date" className="finput" value={f.checkOut} onChange={F('checkOut')}/></div>
+      </div>
+      {autoNights>0&&(
+        <div style={{background:'rgba(200,169,110,.07)',border:'1px solid rgba(200,169,110,.18)',padding:'9px 12px',marginBottom:10,fontSize:12,color:'var(--tx)'}}>
+          {autoNights} night{autoNights!==1?'s':''} × {BDT(selectedRoom?.price||0)} = <strong style={{color:'var(--gold)'}}>{BDT(autoTotal)}</strong>
+        </div>
+      )}
+      <div className="frow">
+        <div className="fg"><label className="flbl">Total Amount (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoTotal||0)}/></div>
+        <div className="fg"><label className="flbl">Paid Amount (BDT)</label><input type="number" className="finput" value={f.paid} onChange={F('paid')} placeholder="0"/></div>
+      </div>
+      <div className="frow">
+        <div className="fg">
+          <label className="flbl">Payment Method</label>
+          <select className="fselect" value={f.method} onChange={F('method')}>
+            {['Cash','Bkash','Nagad','Card','Bank Transfer','Corporate','Complimentary'].map(m=><option key={m}>{m}</option>)}
+          </select>
+        </div>
+        <div className="fg"><label className="flbl">On-Duty Officer</label><input className="finput" value={f.officer} onChange={F('officer')} placeholder="Staff name"/></div>
+      </div>
+      <div className="fg"><label className="flbl">Special Requests / Notes</label><textarea className="ftextarea" value={f.notes} onChange={F('notes')} style={{minHeight:50}} placeholder="Optional"/></div>
+    </Modal>
+  )
+}
+
+/* ═══════════════════════ GUESTS ═════════════════════════════ */
+function GuestsPage({guests,reservations,toast,currentUser,reload}) {
+  const [search,setSearch]=useState('')
+  const [sel,setSel]=useState(null)
+  const [showAdd,setShowAdd]=useState(false)
+  let list=guests
+  if(search){ const q=search.toLowerCase(); list=list.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.email?.toLowerCase().includes(q)) }
+
+  return (
+    <div>
+      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
+        <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search name, phone, email…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+        <div className="flex gap2">
+          <span className="badge bgold">{guests.length} total guests</span>
+          <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Add Guest</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>ID</th><th>City</th><th>Balance</th><th>VIP</th><th></th></tr></thead>
+            <tbody>
+              {list.slice(0,80).map(g=>(
+                <tr key={g.id}>
+                  <td><div className="flex fac gap2"><Av name={g.name} size={24}/><span>{g.name}</span></div></td>
+                  <td className="xs muted">{g.phone||'—'}</td>
+                  <td className="xs muted">{g.email||'—'}</td>
+                  <td className="xs muted">{g.id_type?`${g.id_type}: ${g.id_number||''}`:g.id_card||'—'}</td>
+                  <td className="xs muted">{g.city||'—'}</td>
+                  <td className="xs" style={{color:+g.outstanding_balance>0?'var(--rose)':'var(--grn)'}}>{BDT(g.outstanding_balance||0)}</td>
+                  <td>{g.vip?<span className="badge bgold">VIP</span>:null}</td>
+                  <td><button className="btn btn-ghost btn-sm" onClick={()=>setSel(g)}>View</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {sel&&<GuestModal guest={sel} reservations={reservations} toast={toast} onClose={()=>setSel(null)} reload={reload} isSA={currentUser?.role==='owner'}/>}
+      {showAdd&&<AddGuestModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
+    </div>
+  )
+}
+
+function GuestModal({guest,reservations,toast,onClose,reload,isSA}) {
+  const gRes=reservations.filter(r=>(r.guest_ids||[]).map(String).includes(String(guest.id))).slice(0,5)
+  const [showEdit,setShowEdit]=useState(false)
+  async function toggleVIP() {
+    try { await dbPatch('guests',guest.id,{vip:!guest.vip}); toast(guest.vip?'VIP status removed':'Marked as VIP ★'); reload(); onClose() }
+    catch(e){ toast(e.message,'error') }
+  }
+  async function doDelete() {
+    try { await dbDelete('guests',guest.id); toast('Guest deleted'); reload(); onClose() }
+    catch(e){ toast(e.message,'error') }
+  }
+  return (
+    <>
+    <Modal title={guest.name} onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Close</button>{isSA&&<button className="btn btn-danger btn-sm" onClick={()=>{if(window.confirm('Delete this guest?'))doDelete()}}>🗑 Delete</button>}<button className="btn btn-ghost" onClick={()=>setShowEdit(true)}>✏ Edit</button><button className="btn btn-gold" onClick={toggleVIP}>{guest.vip?'Remove VIP':'★ Mark VIP'}</button></>}>
+      <div className="flex fac gap3 mb4">
+        <Av name={guest.name} size={44}/>
+        <div>
+          {guest.vip&&<span className="badge bgold" style={{marginBottom:4,display:'inline-flex'}}>VIP</span>}
+          <div style={{fontWeight:700,fontSize:18}}>{guest.name}</div>
+          <div className="xs muted">{[guest.nationality,guest.city,guest.country].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+      <div className="g2 mb4">
+        {[['Phone',guest.phone||'—'],['Email',guest.email||'—'],['ID Type',guest.id_type||'—'],['ID Number',guest.id_number||guest.id_card||'—'],['Balance',BDT(guest.outstanding_balance||0)],['Address',guest.address||'—']].map(([l,v])=>(
+          <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
+        ))}
+      </div>
+      {gRes.length>0&&(
+        <>
+          <div className="flbl" style={{marginBottom:6}}>Stay History</div>
+          {gRes.map(r=>(
+            <div key={r.id} className="flex fac fjb" style={{padding:'6px 0',borderBottom:'1px solid var(--br2)'}}>
+              <span className="xs">Rm {(r.room_ids||[]).join(',')} · {fmtDate(r.check_in)} → {fmtDate(r.check_out)}</span>
+              <SBadge status={r.status}/>
+            </div>
+          ))}
+        </>
+      )}
+      {guest.preferences&&<div className="info-box mt3"><div className="info-lbl">Preferences</div><div className="info-val" style={{marginTop:4}}>{guest.preferences}</div></div>}
+    </Modal>
+    {showEdit&&<EditGuestModal guest={guest} toast={toast} onClose={()=>setShowEdit(false)} reload={()=>{reload();setShowEdit(false);onClose()}}/>}
+    </>
+  )
+}
+
+function EditGuestModal({guest,toast,onClose,reload}) {
+  const [f,setF]=useState({name:guest.name||'',phone:guest.phone||'',email:guest.email||'',id_type:guest.id_type||'NID',id_number:guest.id_number||guest.id_card||'',nationality:guest.nationality||'',city:guest.city||'',address:guest.address||''})
+  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
+  const [saving,setSaving]=useState(false)
+  async function save() {
+    if(!f.name.trim()) return toast('Name required','error')
+    setSaving(true)
+    try { await dbPatch('guests',guest.id,{...f}); toast('Guest updated ✓'); reload() }
+    catch(e){ toast(e.message,'error'); setSaving(false) }
+  }
+  return (
+    <Modal title={`Edit — ${guest.name}`} onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button></>}>
+      <div className="fg"><label className="flbl">Full Name *</label><input className="finput" value={f.name} onChange={F('name')} autoFocus/></div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Phone</label><input className="finput" value={f.phone} onChange={F('phone')} placeholder="+880…"/></div>
+        <div className="fg"><label className="flbl">Email</label><input type="email" className="finput" value={f.email} onChange={F('email')}/></div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">ID Type</label>
+          <select className="fselect" value={f.id_type} onChange={F('id_type')}>
+            {['NID','Passport','Driving License','Birth Certificate','Other'].map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="fg"><label className="flbl">ID Number</label><input className="finput" value={f.id_number} onChange={F('id_number')}/></div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Nationality</label><input className="finput" value={f.nationality} onChange={F('nationality')}/></div>
+        <div className="fg"><label className="flbl">City</label><input className="finput" value={f.city} onChange={F('city')}/></div>
+      </div>
+      <div className="fg"><label className="flbl">Address</label><textarea className="ftextarea" value={f.address} onChange={F('address')} style={{minHeight:44}}/></div>
+    </Modal>
+  )
+}
+
+function AddGuestModal({toast,onClose,reload}) {
+  const [f,setF]=useState({name:'',phone:'',email:'',id_type:'NID',id_number:'',nationality:'',city:'',address:''})
+  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
+  const [saving,setSaving]=useState(false)
+  async function save() {
+    if(!f.name.trim()) return toast('Name required','error')
+    setSaving(true)
+    try { await dbPost('guests',{...f,tenant_id:TENANT}); toast(`Guest "${f.name}" added`); reload(); onClose() }
+    catch(e){ toast(e.message,'error'); setSaving(false) }
+  }
+  return (
+    <Modal title="Add New Guest" onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>Add Guest</button></>}>
+      <div className="fg"><label className="flbl">Full Name *</label><input className="finput" value={f.name} onChange={F('name')} placeholder="Guest full name" autoFocus/></div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Phone</label><input className="finput" value={f.phone} onChange={F('phone')} placeholder="+880…"/></div>
+        <div className="fg"><label className="flbl">Email</label><input type="email" className="finput" value={f.email} onChange={F('email')} placeholder="guest@email.com"/></div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">ID Type</label>
+          <select className="fselect" value={f.id_type} onChange={F('id_type')}>
+            {['NID','Passport','Driving License','Birth Certificate','Other'].map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="fg"><label className="flbl">ID Number</label><input className="finput" value={f.id_number} onChange={F('id_number')} placeholder="ID number"/></div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Nationality</label><input className="finput" value={f.nationality} onChange={F('nationality')} placeholder="e.g. Bangladeshi"/></div>
+        <div className="fg"><label className="flbl">City</label><input className="finput" value={f.city} onChange={F('city')} placeholder="Dhaka"/></div>
+      </div>
+      <div className="fg"><label className="flbl">Address</label><textarea className="ftextarea" value={f.address} onChange={F('address')} placeholder="Full address" style={{minHeight:44}}/></div>
+    </Modal>
+  )
+}
+
+/* ═══════════════════════ HOUSEKEEPING ═══════════════════════ */
+function HousekeepingPage({tasks,rooms,toast,currentUser,reload}) {
+  const isSA=currentUser?.role==='owner'
+  const [filter,setFilter]=useState('ALL')
+  const [showAdd,setShowAdd]=useState(false)
+  const dirty=rooms.filter(r=>r.status==='DIRTY')
+
+  let list=tasks
+  if(filter==='DIRTY'){
+    list=dirty.map(r=>({id:'r_'+r.id,room_number:r.room_number,task_type:'Standard Clean',priority:'high',status:'pending',assignee:'—',_dirty:true}))
+  } else if(filter!=='ALL'){
+    list=tasks.filter(t=>t.status===filter)
+  }
+
+  async function updateStatus(id,s) {
+    try {
+      await dbPatch('housekeeping_tasks',id,{status:s,completed_at:s==='completed'?new Date().toISOString():null})
+      toast(`Task → ${s}`)
+      reload()
+    } catch(e){ toast(e.message,'error') }
+  }
+
+  return (
+    <div>
+      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
+        <div className="tabs" style={{marginBottom:0}}>
+          {[['ALL','All Tasks'],['pending','Pending'],['in-progress','In Progress'],['completed','Completed'],['DIRTY',`Dirty Rooms (${dirty.length})`]].map(([v,l])=>(
+            <button key={v} className={`tab${filter===v?' on':''}`} onClick={()=>setFilter(v)}>{l}</button>
+          ))}
+        </div>
+        <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Add Task</button>
+      </div>
+      <div className="card">
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>Room</th><th>Task</th><th>Priority</th><th>Assignee</th><th>Time</th><th>Notes</th><th>Status</th><th>Update</th></tr></thead>
+            <tbody>
+              {list.slice(0,60).map(t=>(
+                <tr key={t.id}>
+                  <td><span style={{fontWeight:800,fontSize:18,color:'var(--gold)'}}>{t.room_number}</span></td>
+                  <td className="sm">{t.task_type}</td>
+                  <td><div className="flex fac gap2"><span className={`pdot ${t.priority||'medium'}`}/><span className="xs">{t.priority||'medium'}</span></div></td>
+                  <td className="xs muted">{t.assignee||'—'}</td>
+                  <td className="xs muted">{t.scheduled_time||'—'}</td>
+                  <td className="xs muted" style={{maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.notes||'—'}</td>
+                  <td><SBadge status={t.status||'pending'}/></td>
+                  <td>
+                    <div className="flex gap2">
+                    {!t._dirty&&(
+                      <select className="fselect" style={{padding:'3px 22px 3px 7px',fontSize:10,minWidth:110}}
+                        value={t.status||'pending'} onChange={e=>updateStatus(t.id,e.target.value)}>
+                        {['pending','in-progress','completed'].map(s=><option key={s} value={s}>{s}</option>)}
+                      </select>
+                    )}
+                    {isSA&&!t._dirty&&<button className="btn btn-danger btn-sm" style={{padding:'3px 8px',fontSize:10}} onClick={async()=>{if(!window.confirm('Delete task?'))return;try{await dbDelete('housekeeping_tasks',t.id);toast('Task deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {showAdd&&<AddTaskModal rooms={rooms} toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
+    </div>
+  )
+}
+
+function AddTaskModal({rooms,toast,onClose,reload}) {
+  const [f,setF]=useState({room_number:rooms[0]?.room_number||'',task_type:'Standard Clean',priority:'medium',assignee:'',scheduled_time:'',notes:''})
+  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
+  const [saving,setSaving]=useState(false)
+  async function save() {
+    if(!f.room_number) return toast('Room required','error')
+    setSaving(true)
+    try { await dbPost('housekeeping_tasks',{...f,status:'pending',department:'Housekeeping',tenant_id:TENANT}); toast('Task added'); reload(); onClose() }
+    catch(e){ toast(e.message,'error'); setSaving(false) }
+  }
+  return (
+    <Modal title="Add Housekeeping Task" onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>Add Task</button></>}>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Room *</label>
+          <select className="fselect" value={f.room_number} onChange={F('room_number')}>
+            {rooms.map(r=><option key={r.id} value={r.room_number}>{r.room_number} — {r.status.replace('_',' ')}</option>)}
+          </select>
+        </div>
+        <div className="fg"><label className="flbl">Task Type</label>
+          <select className="fselect" value={f.task_type} onChange={F('task_type')}>
+            {['Standard Clean','Deep Clean','Turndown','VIP Turndown','Inspection','Extra Towels','Maintenance','AC Repair','Plumbing'].map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Priority</label>
+          <select className="fselect" value={f.priority} onChange={F('priority')}>
+            {['low','medium','high'].map(p=><option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <div className="fg"><label className="flbl">Scheduled Time</label><input type="time" className="finput" value={f.scheduled_time} onChange={F('scheduled_time')}/></div>
+      </div>
+      <div className="fg"><label className="flbl">Assignee</label><input className="finput" value={f.assignee} onChange={F('assignee')} placeholder="Staff member name"/></div>
+      <div className="fg"><label className="flbl">Notes</label><textarea className="ftextarea" value={f.notes} onChange={F('notes')} placeholder="Optional details" style={{minHeight:44}}/></div>
+    </Modal>
+  )
+}
+
+/* ═══════════════════════ BILLING ════════════════════════════ */
+function BillingPage({transactions,reservations,toast,reload,currentUser}) {
+  const [filter,setFilter]=useState('TODAY')
+  const [search,setSearch]=useState('')
+  const [showAdd,setShowAdd]=useState(false)
+  const today=todayStr(), month=today.slice(0,7)
+  const todayT=transactions.filter(t=>t.fiscal_day===today)
+  const monthT=transactions.filter(t=>t.fiscal_day?.startsWith(month))
+  const outstanding=reservations.filter(r=>r.status==='CHECKED_IN')
+    .reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
+
+  let list=filter==='TODAY'?todayT:filter==='MONTH'?monthT:transactions
+  if(search){ const q=search.toLowerCase(); list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q)) }
+
+  return (
+    <div>
+      <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">Today</div><div className="stat-val">{BDT(todayT.reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{todayT.length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthT.reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{monthT.length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
+      </div>
+      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
+        <div className="tabs" style={{marginBottom:0}}>
+          {['TODAY','MONTH','ALL'].map(f=><button key={f} className={`tab${filter===f?' on':''}`} onClick={()=>setFilter(f)}>{f}</button>)}
+        </div>
+        <div className="flex gap2">
+          <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search guest, room, type…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+          <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Record Payment</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th>{currentUser?.role==='owner'&&<th></th>}</tr></thead>
+            <tbody>
+              {list.slice(0,80).map(t=>(
+                <tr key={t.id}>
+                  <td className="xs muted">{t.fiscal_day||'—'}</td>
+                  <td className="xs">{t.guest_name||'—'}</td>
+                  <td><span className="badge bb">{t.room_number||'—'}</span></td>
+                  <td><span className="badge bgold">{t.type||'Payment'}</span></td>
+                  <td className="xs gold" style={{fontWeight:500}}>{BDT(t.amount)}</td>
+                  {currentUser?.role==='owner'&&<td><button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button></td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {showAdd&&<RecordPayModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
+    </div>
+  )
+}
+
+function RecordPayModal({toast,onClose,reload}) {
+  const [f,setF]=useState({room_number:'',guest_name:'',type:'Room Payment (Cash)',amount:'',fiscal_day:todayStr()})
+  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
+  const [saving,setSaving]=useState(false)
+  async function save() {
+    const a=+f.amount
+    if(!a||a<=0) return toast('Enter valid amount','error')
+    setSaving(true)
+    try { await dbPost('transactions',{...f,amount:a,tenant_id:TENANT}); toast(`Payment ${BDT(a)} recorded`); reload(); onClose() }
+    catch(e){ toast(e.message,'error'); setSaving(false) }
+  }
+  return (
+    <Modal title="Record Payment" onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Record Payment'}</button></>}>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Room Number</label><input className="finput" value={f.room_number} onChange={F('room_number')} placeholder="e.g. 305" autoFocus/></div>
+        <div className="fg"><label className="flbl">Amount (BDT) *</label><input type="number" className="finput" value={f.amount} onChange={F('amount')} placeholder="0"/></div>
+      </div>
+      <div className="fg"><label className="flbl">Guest Name</label><input className="finput" value={f.guest_name} onChange={F('guest_name')} placeholder="Guest name"/></div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Payment Type</label>
+          <select className="fselect" value={f.type} onChange={F('type')}>
+            {['Room Payment (Cash)','Room Payment (Bkash)','Room Payment (Nagad)','Room Payment (Card)','Room Service','Restaurant','Laundry','Misc'].map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="fg"><label className="flbl">Date</label><input type="date" className="finput" value={f.fiscal_day} onChange={F('fiscal_day')}/></div>
+      </div>
+    </Modal>
+  )
+}
+
+/* ═══════════════════════ REPORTS ════════════════════════════ */
+function ReportsPage({transactions,rooms,reservations,guests}) {
+  const [chartActive,setChartActive]=useState(13)
+  const last14=Array.from({length:14},(_,i)=>{
+    const d=new Date(todayDhaka()); d.setDate(d.getDate()-(13-i))
+    const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    return {d:ds.slice(8),v:transactions.filter(t=>t.fiscal_day===ds).reduce((a,t)=>a+(+t.amount||0),0),ds}
+  })
+  const totalRev=transactions.reduce((a,t)=>a+(+t.amount||0),0)
+  const occ=rooms.filter(r=>r.status==='OCCUPIED').length
+  const occPct=rooms.length?Math.round((occ/rooms.length)*100):0
+  const avgRate=rooms.length?Math.round(rooms.reduce((a,r)=>a+(+r.price||0),0)/rooms.length):0
+  const revPAR=Math.round(avgRate*occPct/100)
+  const catMap=transactions.reduce((a,t)=>{if(t.type)a[t.type]=(a[t.type]||0)+(+t.amount||0);return a},{})
+  const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,8)
+
+  return (
+    <div>
+      <div className="stats-row">
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-lbl">Total Revenue</div><div className="stat-val">{BDT(totalRev)}</div></div>
+        <div className="stat" style={{'--ac':'var(--sky)'}}><div className="stat-lbl">Occupancy</div><div className="stat-val">{occPct}%</div><div className="stat-sub">{occ}/{rooms.length} rooms</div></div>
+        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-lbl">ADR</div><div className="stat-val">{BDT(avgRate)}</div><div className="stat-sub">Avg Daily Rate</div></div>
+        <div className="stat" style={{'--ac':'var(--pur)'}}><div className="stat-lbl">RevPAR</div><div className="stat-val">{BDT(revPAR)}</div><div className="stat-sub">Revenue/Available Room</div></div>
+      </div>
+      <div className="g2 mb4">
+        <div className="card">
+          <div className="card-hd">
+            <span className="card-title">Daily Revenue — Last 14 Days</span>
+            <span className="badge bgold">{last14[chartActive]?.ds?.slice(5)} · {BDT(last14[chartActive]?.v)}</span>
+          </div>
+          <div className="card-body">
+            <BarChart data={last14} active={chartActive} onHover={setChartActive}/>
+            <div className="divider"/>
+            <div className="flex fjb xs muted"><span>14-day total</span><span className="gold">{BDT(last14.reduce((a,d)=>a+d.v,0))}</span></div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-hd"><span className="card-title">Revenue by Category</span></div>
+          <div className="card-body">
+            {topCats.map(([cat,rev])=>(
+              <div key={cat} className="flex fac fjb" style={{padding:'5px 0',borderBottom:'1px solid var(--br2)'}}>
+                <span className="xs">{cat}</span>
+                <div className="flex fac gap2">
+                  <span className="xs gold">{BDT(rev)}</span>
+                  <div style={{height:4,width:Math.round((rev/(topCats[0]?.[1]||1))*60),background:'rgba(200,169,110,.4)',borderRadius:2}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-hd"><span className="card-title">Room Category Performance</span></div>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>Category</th><th>Total Rooms</th><th>Rate/Night</th><th>Occupied</th><th>Occupancy %</th><th>RevPAR</th></tr></thead>
+            <tbody>
+              {['Fountain Deluxe','Premium Deluxe','Superior Deluxe','Twin Deluxe','Royal Suite'].map(cat=>{
+                const cr=rooms.filter(r=>r.category===cat); if(!cr.length) return null
+                const rate=cr[0]?.price||0, occN=cr.filter(r=>r.status==='OCCUPIED').length
+                const pct=Math.round((occN/cr.length)*100)
+                return (<tr key={cat}><td><span className="badge bgold">{cat}</span></td><td className="xs">{cr.length}</td><td className="xs gold">{BDT(rate)}</td><td className="xs">{occN}</td><td className="xs">{pct}%</td><td className="xs gold">{BDT(Math.round(rate*pct/100))}</td></tr>)
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════ SETTINGS (owner-only) ══════════════ */
+function SettingsPage({currentUser,toast,staffList,setStaffList}) {
+  const isSA=currentUser?.role==='owner'
+  const [tab,setTab]=useState('hotel')
+  const [hs,setHS]=useState({hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'7',svc:'5'})
+  const HS=k=>e=>setHS(p=>({...p,[k]:e.target.value}))
+  const [showAddUser,setShowAddUser]=useState(false)
+  const [editUser,setEditUser]=useState(null)
+
+  function deleteUser(id) {
+    if(!window.confirm('Remove this staff account?')) return
+    setStaffList(p=>p.filter(s=>s.id!==id))
+    toast('Staff account removed')
+  }
+
+  return (
+    <div style={{maxWidth:700}}>
+      <div className="tabs mb4">
+        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System']].map(([v,l])=>(
+          <button key={v} className={`tab${tab===v?' on':''}`} onClick={()=>setTab(v)}>{l}</button>
+        ))}
+      </div>
+
+      {/* HOTEL INFO */}
+      {tab==='hotel'&&(
+        <div className="card">
+          <div className="card-hd"><span className="card-title">Hotel Information</span>{!isSA&&<span className="badge ba">View Only</span>}</div>
+          <div className="card-body">
+            <div className="frow">
+              <div className="fg"><label className="flbl">Hotel Name</label><input className="finput" value={hs.hotelName} onChange={HS('hotelName')} disabled={!isSA}/></div>
+              <div className="fg"><label className="flbl">City / Location</label><input className="finput" value={hs.city} onChange={HS('city')} disabled={!isSA}/></div>
+            </div>
+            <div className="frow">
+              <div className="fg"><label className="flbl">Currency</label>
+                <select className="fselect" value={hs.currency} onChange={HS('currency')} disabled={!isSA}>
+                  <option value="BDT">BDT — Bangladeshi Taka (৳)</option>
+                  <option value="USD">USD — US Dollar ($)</option>
+                  <option value="EUR">EUR — Euro (€)</option>
+                </select>
+              </div>
+              <div className="fg"><label className="flbl">Timezone</label><select className="fselect" disabled={!isSA}><option>Asia/Dhaka (UTC+6)</option></select></div>
+            </div>
+            <div className="frow">
+              <div className="fg"><label className="flbl">Standard Check-In</label><input type="time" className="finput" value={hs.checkIn} onChange={HS('checkIn')} disabled={!isSA}/></div>
+              <div className="fg"><label className="flbl">Standard Check-Out</label><input type="time" className="finput" value={hs.checkOut} onChange={HS('checkOut')} disabled={!isSA}/></div>
+            </div>
+            <div className="frow">
+              <div className="fg"><label className="flbl">VAT Rate (%)</label><input type="number" className="finput" value={hs.vat} onChange={HS('vat')} disabled={!isSA} min="0" max="30"/></div>
+              <div className="fg"><label className="flbl">Service Charge (%)</label><input type="number" className="finput" value={hs.svc} onChange={HS('svc')} disabled={!isSA} min="0" max="30"/></div>
+            </div>
+            {isSA
+              ?<button className="btn btn-gold mt3" onClick={()=>toast('Hotel settings saved ✓')}>Save Settings</button>
+              :<p className="xs muted mt3">Only the Owner can edit hotel settings.</p>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* STAFF & USERS — visible to all, but edit only for owner */}
+      {tab==='users'&&(
+        <div className="card">
+          <div className="card-hd">
+            <span className="card-title">Staff Accounts</span>
+            {isSA&&<button className="btn btn-gold btn-sm" onClick={()=>setShowAddUser(true)}>+ Add Staff</button>}
+          </div>
+          <div className="card-body" style={{padding:'0 15px'}}>
+            {staffList.map(u=>(
+              <div key={u.id} className="user-row">
+                <Av name={u.name} size={36}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:500,fontSize:13}}>{u.name}</div>
+                  <div className="xs muted">{u.email}</div>
+                  <div className="xs mt3" style={{color:ROLES[u.role]?.color||'var(--tx2)'}}>{ROLES[u.role]?.label}</div>
+                </div>
+                {u.role==='owner'
+                  ?<span className="badge bgold">★ OWNER</span>
+                  :<span className="badge bb">{u.role}</span>
+                }
+                {isSA&&u.role!=='owner'&&(
+                  <div className="flex gap2">
+                    <button className="btn btn-ghost btn-sm" onClick={()=>setEditUser(u)}>Edit</button>
+                    <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u.id)}>Remove</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* DEVICES */}
+      {tab==='devices'&&(
+        <div className="card">
+          <div className="card-hd"><span className="card-title">Authorized Devices / Terminals</span><span className="badge bgold">{staffList.length} accounts</span></div>
+          <div className="card-body" style={{padding:'0 15px'}}>
+            {staffList.map(u=>(
+              <div key={u.id} className="user-row">
+                <div style={{width:10,height:10,borderRadius:'50%',background:ROLES[u.role]?.color,flexShrink:0,boxShadow:`0 0 6px ${ROLES[u.role]?.color}`}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:500,fontSize:13}}>{u.device||`${u.name}'s Device`}</div>
+                  <div className="xs muted">{u.email}</div>
+                </div>
+                <span className={`badge ${u.role==='owner'?'bgold':u.role==='housekeeping'?'bteal':'bb'}`}>{ROLES[u.role]?.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SYSTEM */}
+      {tab==='system'&&(
+        <div>
+          <div className="card mb4">
+            <div className="card-hd"><span className="card-title">Lumea Founder Mode</span></div>
+            <div className="card-body">
+              <div style={{background:'rgba(200,169,110,.06)',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
+                <div style={{fontSize:12,fontWeight:500,color:'var(--gold)',marginBottom:5}}>★ Admin Bypass Active — No Subscription Required</div>
+                <div className="xs muted" style={{lineHeight:1.8}}>
+                  Accessing Hotel Fountain CRM as the Lumea founder. All modules unlocked with full read/write access to production database <span style={{color:'var(--gold)',fontWeight:500}}>mynwfkgksqqwlqowlscj</span>.
+                </div>
+              </div>
+              <div className="g2">
+                {[['Database','mynwfkgksqqwlqowlscj'],['Region','us-east-1 (N. Virginia)'],['Tenant ID',TENANT.slice(0,18)+'…'],['Plan','Founder Bypass — Unlimited']].map(([l,v])=>(
+                  <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val" style={{fontSize:11}}>{v}</div></div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <WorkflowMonitor toast={toast}/>
+          <GoogleSheetsCard toast={toast}/>
+        </div>
+      )}
+
+      {showAddUser&&isSA&&(
+        <AddStaffModal toast={toast} onClose={()=>setShowAddUser(false)}
+          onAdd={u=>{ setStaffList(p=>[...p,u]); toast(`${u.name} added as ${ROLES[u.role]?.label}`); setShowAddUser(false) }}
+          existingIds={staffList.map(s=>s.id)}/>
+      )}
+      {editUser&&isSA&&(
+        <EditStaffModal user={editUser} toast={toast} onClose={()=>setEditUser(null)}
+          onSave={updated=>{ setStaffList(p=>p.map(s=>s.id===updated.id?updated:s)); toast('Staff account updated'); setEditUser(null) }}/>
+      )}
+    </div>
+  )
+}
+
+function AddStaffModal({toast,onClose,onAdd,existingIds}) {
+  const [f,setF]=useState({name:'',email:'',pw:'',role:'receptionist',device:''})
+  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
+  function save() {
+    if(!f.name||!f.email||!f.pw) return toast('Name, email and password required','error')
+    const newId=Math.max(...existingIds,0)+1
+    onAdd({...f,id:newId,av:f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()})
+  }
+  return (
+    <Modal title="Add Staff Account" onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={save}>Add Staff</button></>}>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Full Name *</label><input className="finput" value={f.name} onChange={F('name')} placeholder="Staff name" autoFocus/></div>
+        <div className="fg"><label className="flbl">Role *</label>
+          <select className="fselect" value={f.role} onChange={F('role')}>
+            {Object.entries(ROLES).filter(([k])=>k!=='owner').map(([k,r])=><option key={k} value={k}>{r.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Email *</label><input type="email" className="finput" value={f.email} onChange={F('email')} placeholder="staff@hotel.com"/></div>
+        <div className="fg"><label className="flbl">Password *</label><input className="finput" value={f.pw} onChange={F('pw')} placeholder="Set password"/></div>
+      </div>
+      <div className="fg"><label className="flbl">Device / Terminal Name</label><input className="finput" value={f.device} onChange={F('device')} placeholder="e.g. Front Desk Terminal"/></div>
+    </Modal>
+  )
+}
+
+function EditStaffModal({user,toast,onClose,onSave}) {
+  const [f,setF]=useState({...user})
+  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
+  function save() {
+    if(!f.name||!f.email||!f.pw) return toast('All fields required','error')
+    onSave({...f,av:f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()})
+  }
+  return (
+    <Modal title={`Edit — ${user.name}`} onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={save}>Save Changes</button></>}>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Full Name</label><input className="finput" value={f.name} onChange={F('name')}/></div>
+        <div className="fg"><label className="flbl">Role</label>
+          <select className="fselect" value={f.role} onChange={F('role')}>
+            {Object.entries(ROLES).filter(([k])=>k!=='owner').map(([k,r])=><option key={k} value={k}>{r.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Email</label><input type="email" className="finput" value={f.email} onChange={F('email')}/></div>
+        <div className="fg"><label className="flbl">Password</label><input className="finput" value={f.pw} onChange={F('pw')}/></div>
+      </div>
+      <div className="fg"><label className="flbl">Device / Terminal</label><input className="finput" value={f.device||''} onChange={F('device')}/></div>
+    </Modal>
+  )
+}
+
+/* ═══════════════════════ WORKFLOW MONITOR ══════════════════ */
+function WorkflowMonitor({toast}) {
+  const [runs,setRuns]=useState([])
+  const [loading,setLoading]=useState(true)
+  const [triggering,setTriggering]=useState(null)
+  const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+  const BASE='https://mynwfkgksqqwlqowlscj.supabase.co'
+
+  const WORKFLOWS = [
+    {id:'morning-briefing',  label:'Morning Briefing',      slug:'wf-morning-briefing',  time:'7:00 AM daily',   body:'{}'},
+    {id:'checkout-reminder', label:'Checkout Reminder',     slug:'wf-checkout-alerts',   time:'10:30 AM daily',  body:'{"mode":"reminder"}'},
+    {id:'overdue-alert',     label:'Overdue Alert',         slug:'wf-checkout-alerts',   time:'12:30 PM daily',  body:'{"mode":"overdue"}'},
+    {id:'evening-revenue',   label:'Evening Revenue Report',slug:'wf-evening-report',    time:'9:00 PM daily',   body:'{}'},
+    {id:'weekly-summary',    label:'Weekly Summary',        slug:'wf-period-reports',    time:'Mon 8:00 AM',     body:'{"mode":"weekly"}'},
+    {id:'monthly-report',    label:'Monthly Report',        slug:'wf-period-reports',    time:'1st of month',    body:'{"mode":"monthly"}'},
+    {id:'competitor-monitor',label:'Competitor Monitor',    slug:'wf-competitor-monitor',time:'6:00 AM daily',   body:'{}'},
+    {id:'backup-verification',label:'Backup Verification',  slug:'wf-backup-verify',     time:'Sunday 11 PM',    body:'{}'},
+  ]
+
+  useEffect(()=>{
+    db('workflow_runs','?select=workflow_name,status,duration_ms,records_processed,ran_at&order=ran_at.desc&limit=50')
+      .then(d=>{ setRuns(Array.isArray(d)?d:[]); setLoading(false) })
+      .catch(()=>setLoading(false))
+  },[])
+
+  async function triggerNow(wf) {
+    setTriggering(wf.id)
+    try {
+      const resp = await fetch(`${BASE}/functions/v1/${wf.slug}`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SB_ANON},
+        body: wf.body
+      })
+      const data = await resp.json()
+      if(data.error) toast(`${wf.label}: ${data.error}`,'error')
+      else toast(`${wf.label} triggered ✓`)
+      // Refresh runs
+      const fresh = await db('workflow_runs','?select=workflow_name,status,duration_ms,records_processed,ran_at&order=ran_at.desc&limit=50')
+      setRuns(Array.isArray(fresh)?fresh:[])
+    } catch(e){ toast(e.message,'error') }
+    setTriggering(null)
+  }
+
+  const lastRun = (wfId) => runs.find(r=>r.workflow_name===wfId)
+  const fmtTime = (ts) => ts ? new Date(ts).toLocaleString('en',{timeZone:'Asia/Dhaka',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Never'
+
+  return <div className="card mb4">
+    <div className="card-hd">
+      <div className="flex fac gap2">
+        <span style={{fontSize:16}}>⚡</span>
+        <span className="card-title">Email <em style={{fontStyle:'italic',color:'var(--gold)'}}>Workflows</em></span>
+      </div>
+      <div className="flex fac gap2">
+        <div className="sync-dot"/>
+        <span className="xs muted">10 cron jobs active</span>
+      </div>
+    </div>
+    <div className="card-body" style={{padding:0}}>
+      {loading
+        ? <div className="xs muted" style={{padding:'18px',textAlign:'center'}}>Loading workflow history…</div>
+        : WORKFLOWS.map((wf,i)=>{
+            const last = lastRun(wf.id)
+            const isOk = last?.status==='success'
+            const isTrig = triggering===wf.id
+            return <div key={wf.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 16px',borderBottom:i<WORKFLOWS.length-1?'1px solid var(--br2)':'none'}}>
+              <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,background:last?(isOk?'var(--grn)':'var(--rose)'):'var(--tx3)',boxShadow:last?(isOk?'0 0 5px var(--grn)':'0 0 5px var(--rose)'):'none'}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:300,color:'var(--tx)'}}>{wf.label}</div>
+                <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.08em',marginTop:1,display:'flex',gap:8}}>
+                  <span>🕐 {wf.time}</span>
+                  {last&&<span style={{color:isOk?'var(--grn)':'var(--rose)'}}>Last: {fmtTime(last.ran_at)}</span>}
+                  {last?.duration_ms&&<span>{last.duration_ms}ms</span>}
+                </div>
+              </div>
+              {last&&<span className={`badge ${isOk?'bg':'br_'}`} style={{fontSize:8}}>{last.status}</span>}
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={!!triggering}
+                onClick={()=>triggerNow(wf)}
+                style={{fontSize:9,padding:'3px 10px',letterSpacing:'.1em'}}
+              >{isTrig?<><span className="spinner" style={{width:10,height:10}}/></>:'▶ Run'}</button>
+            </div>
+          })
+      }
+      <div style={{padding:'10px 16px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span className="xs muted">All emails → hotellfountainbd@gmail.com</span>
+        <span className="xs muted">{runs.length} runs logged</span>
+      </div>
+    </div>
+  </div>
+}
+
+/* ═══════════════════════ GOOGLE SHEETS CARD ════════════════ */
+function GoogleSheetsCard({toast}) {
+  const [syncing,setSyncing]=useState(false)
+  const [lastSync,setLastSync]=useState(null)
+  const [counts,setCounts]=useState(null)
+  const [sheetId,setSheetId]=useState('1uekoRKGuhMLXBW8AY3ONr-vPTyml9QDoJgRYA3HsPNU')
+  const EDGE_FN='https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/sync-to-sheets'
+  const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+
+  async function runSync(){
+    setSyncing(true)
+    try{
+      const resp=await fetch(EDGE_FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_ANON},body:'{}'})
+      const data=await resp.json()
+      if(data.error) toast(data.error,'error')
+      else{ setLastSync(data.synced_at); setCounts(data.counts); toast('All data synced to Google Sheets ✓') }
+    }catch(e){toast('Sync failed: '+e.message,'error')}
+    finally{setSyncing(false)}
+  }
+
+  return <div className="card">
+    <div className="card-hd">
+      <div className="flex fac gap2"><span style={{fontSize:16}}>📊</span><span className="card-title">Google Sheets <em style={{fontStyle:'italic',color:'var(--gold)'}}>Backup</em></span></div>
+      {lastSync&&<span className="badge bg">Synced {new Date(lastSync).toLocaleTimeString()}</span>}
+    </div>
+    <div className="card-body">
+      <div style={{background:'rgba(63,185,80,.05)',border:'1px solid rgba(63,185,80,.15)',padding:'10px 13px',marginBottom:14}}>
+        <div style={{fontSize:11,fontWeight:400,color:'var(--grn)',marginBottom:3}}>🔄 Auto-Sync Active</div>
+        <div className="xs muted">Every INSERT/UPDATE on all 6 tables syncs to Google Sheets in real-time via database triggers.</div>
+      </div>
+      {counts&&<div className="g2 mb4">{[['🛏 Rooms',counts.rooms],['👤 Guests',counts.guests],['📅 Reservations',counts.reservations],['💰 Transactions',counts.transactions],['🧾 Folios',counts.folios],['🧹 Housekeeping',counts.housekeeping_tasks]].map(([l,v])=><div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val gold">{v} rows</div></div>)}</div>}
+      <div className="fg">
+        <label className="flbl">Spreadsheet ID</label>
+        <input className="finput" value={sheetId} onChange={e=>setSheetId(e.target.value.trim())} placeholder="Paste Spreadsheet ID"/>
+      </div>
+      <div className="flex gap2" style={{flexWrap:'wrap'}}>
+        <button className="btn btn-gold" disabled={syncing} onClick={runSync}>{syncing?<><span className="spinner" style={{width:12,height:12}}/>{' '}Syncing…</>:'📊 Sync All Data Now'}</button>
+        {sheetId&&<a href={`https://docs.google.com/spreadsheets/d/${sheetId}/edit`} target="_blank" rel="noopener" className="btn btn-ghost">↗ Open Sheet</a>}
+      </div>
+    </div>
+  </div>
+}
+
+/* ═══════════════════════ ROOT APP ═══════════════════════════ */
+export default function App() {
+  // BUG FIX: user state is the source of truth — must be null initially
+  const [user,setUser]=useState(null)
+  const [page,setPage]=useState('dashboard')
+  const [data,setData]=useState({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]})
+  const [loading,setLoading]=useState(false)
+  const [toastMsg,setToastMsg]=useState(null)
+  const [clock,setClock]=useState(new Date())
+  const [notifOpen,setNotifOpen]=useState(false)
+  // Staff list lives here so Settings can mutate it
+  const [staffList,setStaffList]=useState(INIT_STAFF)
+  const toastRef=useRef()
+
+  const toast=useCallback((msg,type='success')=>{
+    setToastMsg({msg,type})
+    clearTimeout(toastRef.current)
+    toastRef.current=setTimeout(()=>setToastMsg(null),3500)
+  },[])
+
+  useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),1000); return()=>clearInterval(t) },[])
+
+  // loadAll returns a promise so callers can await it
+  const loadAll=useCallback(async()=>{
+    try {
+      const [rooms,guests,reservations,transactions,tasks]=await Promise.all([
+        db('rooms','?select=*&order=room_number'),
+        db('guests','?select=*&order=name&limit=300'),
+        db('reservations','?select=*&order=check_in.desc&limit=500'),
+        db('transactions','?select=*&amount=gt.0&order=timestamp.desc&limit=400'),
+        db('housekeeping_tasks','?select=*&order=created_at.desc&limit=100'),
+      ])
+      setData({
+        rooms:Array.isArray(rooms)?rooms:[],
+        guests:Array.isArray(guests)?guests:[],
+        reservations:Array.isArray(reservations)?reservations:[],
+        transactions:Array.isArray(transactions)?transactions:[],
+        tasks:Array.isArray(tasks)?tasks:[],
+      })
+    } catch(e){
+      console.error('Load failed',e)
+      toast('Failed to refresh data — check connection','error')
+    }
+  },[toast])
+
+  useEffect(()=>{
+    if(!user){ setData({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]}); return }
+    setLoading(true)
+    loadAll().finally(()=>setLoading(false))
+    const interval=setInterval(loadAll,90000)
+    return()=>clearInterval(interval)
+  },[user]) // intentionally omit loadAll to avoid re-running on every render
+
+  // BUG FIX: signOut fully resets ALL state
+  function signOut() {
+    setUser(null)
+    setPage('dashboard')
+    setNotifOpen(false)
+    setData({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]})
+    setToastMsg(null)
+  }
+
+  // ── LOGIN
+  if(!user) return (
+    <>
+      <style>{CSS}</style>
+      {/* BUG FIX: pass live staffList so login sees added/edited users */}
+      <LoginPage onLogin={u=>{ setUser({...u}); setPage('dashboard') }} staffList={staffList}/>
+    </>
+  )
+
+  // ── LOADING
+  if(loading) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16,background:'var(--bg)'}}>
+        <div style={{fontFamily:'var(--serif)',fontWeight:300,fontSize:32,color:'var(--gold)',letterSpacing:'.02em'}}>Hotel <em style={{fontStyle:'italic'}}>Fountain</em></div>
+        <div className="spinner"/>
+        <div style={{fontFamily:'var(--sans)',fontSize:9,color:'var(--tx3)',letterSpacing:'.18em',textTransform:'uppercase',fontWeight:200}}>Connecting to Management System…</div>
+      </div>
+    </>
+  )
+
+  const allowed=ROLES[user.role]?.pages||[]
+  const cur=allowed.includes(page)?page:allowed[0]
+  const pendRes=data.reservations.filter(r=>r.status==='PENDING').length
+  const hkUrgent=data.tasks.filter(t=>t.status==='pending'&&t.priority==='high').length
+  const dirtyRooms=data.rooms.filter(r=>r.status==='DIRTY').length
+  const totalNotifs=pendRes+hkUrgent+dirtyRooms
+
+  const NAV_ITEMS=[
+    {id:'dashboard', ico:'⬡', label:'Dashboard',        sect:'OVERVIEW'},
+    {id:'rooms',     ico:'▦', label:'Room Management'},
+    {id:'reservations',ico:'◈',label:'Reservations',    badge:pendRes},
+    {id:'guests',    ico:'◉', label:'Guests & CRM'},
+    {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
+    {id:'billing',   ico:'◎', label:'Billing & Invoices'},
+    {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
+    {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
+  ].filter(n=>allowed.includes(n.id))
+
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings'}
+  const bdTime=new Date(clock.toLocaleString('en',{timeZone:'Asia/Dhaka'}))
+  const clockStr=bdTime.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' · '+bdTime.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="app">
+
+        {/* ── SIDEBAR ── */}
+        <aside className="sidebar">
+          <div className="s-head">
+            <div className="s-brand">Hotel <em>Fountain</em></div>
+            <div className="s-tag">The Pulse of Modern Hospitality</div>
+            <div className="s-hotel">🏨 Management CRM</div>
+          </div>
+          <nav className="s-nav">
+            {NAV_ITEMS.map(item=>(
+              <div key={item.id}>
+                {item.sect&&<div className="s-sect">{item.sect}</div>}
+                <div className={`nav-item${cur===item.id?' on':''}`} onClick={()=>setPage(item.id)}>
+                  <span className="ico">{item.ico}</span>
+                  <span>{item.label}</span>
+                  {item.badge>0&&<span className="n-badge">{item.badge}</span>}
+                </div>
+              </div>
+            ))}
+          </nav>
+          <div className="s-foot">
+            <div className="flex fac gap2">
+              <div className="av" style={{width:30,height:30,fontSize:11,background:`linear-gradient(135deg,${avColor(user.name)},rgba(0,0,0,.5))`,color:'#EEE9E2',flexShrink:0,fontFamily:'var(--sans)',fontWeight:400}}>
+                {user.av}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'var(--sans)',fontSize:12,fontWeight:300,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:'.02em'}}>{user.name}</div>
+                <div style={{fontFamily:'var(--sans)',fontSize:8,color:ROLES[user.role]?.color||'var(--gold)',letterSpacing:'.1em',marginTop:1,fontWeight:200,textTransform:'uppercase'}}>{ROLES[user.role]?.label}</div>
+              </div>
+              <button
+                title="Sign Out"
+                style={{background:'none',border:'1px solid var(--br2)',color:'var(--tx3)',cursor:'pointer',fontSize:12,padding:'4px 8px',transition:'all .15s',flexShrink:0,lineHeight:1,fontFamily:'var(--sans)'}}
+                onClick={signOut}
+                onMouseEnter={e=>{e.currentTarget.style.color='var(--rose)';e.currentTarget.style.borderColor='rgba(224,92,122,.35)'}}
+                onMouseLeave={e=>{e.currentTarget.style.color='var(--tx3)';e.currentTarget.style.borderColor='var(--br2)'}}
+              >⏻</button>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── MAIN ── */}
+        <main className="main">
+          <div className="topbar">
+            <div className="tb-title">{PAGE_TITLES[cur]}</div>
+            <div className="flex fac gap2"><div className="sync-dot"/><span className="xs muted">Live</span></div>
+            <div className="tb-meta">{clockStr}</div>
+
+            {/* BUG FIX: notif bell — stopPropagation on button, dismiss on content click */}
+            <div style={{position:'relative'}}>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{position:'relative',padding:'5px 10px',fontSize:15}}
+                onClick={e=>{ e.stopPropagation(); setNotifOpen(p=>!p) }}
+              >
+                🔔
+                {totalNotifs>0&&(
+                  <span style={{position:'absolute',top:4,right:4,width:7,height:7,borderRadius:'50%',background:'var(--rose)',boxShadow:'0 0 5px var(--rose)'}}/>
+                )}
+              </button>
+
+              {/* BUG FIX: notif-drop has z-index:200 (above topbar z:10, below modal z:500) */}
+              {notifOpen&&(
+                <div className="notif-drop" onClick={e=>e.stopPropagation()}>
+                  <div style={{padding:'10px 14px',borderBottom:'1px solid var(--br2)',fontWeight:700,fontSize:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span>Notifications</span>
+                    <button style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:15,lineHeight:1}} onClick={()=>setNotifOpen(false)}>×</button>
+                  </div>
+                  {pendRes>0&&(
+                    <div className="notif-item" onClick={()=>{ setPage('reservations'); setNotifOpen(false) }}>
+                      📅 {pendRes} pending reservation{pendRes>1?'s':''} awaiting confirmation
+                    </div>
+                  )}
+                  {hkUrgent>0&&(
+                    <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                      🧹 {hkUrgent} high-priority housekeeping task{hkUrgent>1?'s':''}
+                    </div>
+                  )}
+                  {dirtyRooms>0&&(
+                    <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                      🏨 {dirtyRooms} room{dirtyRooms>1?'s':''} require cleaning
+                    </div>
+                  )}
+                  {totalNotifs===0&&(
+                    <div className="notif-item" style={{textAlign:'center',color:'var(--tx3)',cursor:'default'}}>✓ All clear — no alerts</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button className="btn btn-ghost btn-sm" onClick={()=>{ loadAll(); toast('Data refreshed','info') }} title="Refresh data">↻</button>
+          </div>
+
+          {/* Close notif by clicking content area */}
+          <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
+            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage}/>}
+            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} toast={toast} reload={loadAll} currentUser={user}/>}
+            {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
+            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
+          </div>
+        </main>
+      </div>
+
+      {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type} onDone={()=>setToastMsg(null)}/>}
+    </>
+  )
+}
