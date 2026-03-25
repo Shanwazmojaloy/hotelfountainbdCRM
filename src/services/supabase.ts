@@ -1,12 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
+import { Lead, Transaction } from '../types';
 
 dotenv.config();
 
-export function getSupabaseClient() {
-  const supabaseUrl = process.env.SUPABASE_URL || '';
-  const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
-  return createClient(supabaseUrl, supabaseKey);
-}
+const supabaseUrl = process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY ?? 'placeholder';
 
-export const supabase = getSupabaseClient();
+export const supabase = createClient(supabaseUrl, supabaseKey);
