@@ -3528,7 +3528,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
               {[
                 ['🚗','airport_pickup',   'Airport Pickup',            '৳500',  '24h before','Private car from any Dhaka airport → hotel'],
                 ['🌅','early_checkin',   'Early Check-in (9AM-12PM)', '৳1,000','24h before','Guaranteed room from 9:00 AM for morning arrivals'],
-                ['🍽','jet_lag_menu',    "Chef Samim's Jet Lag Menu",  '৳850',  '4h before', 'Light recovery meal ready in room on arrival'],
+                ['🍽','jet_lag_menu',    "Chef Samim’s Jet Lag Menu",  '৳850',  '4h before', 'Light recovery meal ready in room on arrival'],
                 ['👑','room_upgrade',    'Royal Suite Upgrade',        '৳4,000','4h before', 'Room 303 — balcony, premium amenities'],
                 ['📱','sim_card',        'Welcome SIM Pack',           '৳800',  '4h before', 'Local SIM + 10GB data waiting in room'],
                 ['🌙','late_checkout',   'Late Check-out (till 6PM)',  '৳1,500','Day of',    'Keep room for guests with late flights'],
@@ -3568,7 +3568,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
 
             <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
               <button className="btn btn-gold" onClick={()=>runAgent('pre_arrival',null)} disabled={busy==='pre_arrival'}>
-                {busy==='pre_arrival'?'🔄 Running…':'✈ Run for Tomorrow's Arrivals'}
+                {busy==='pre_arrival'?`🔄 Running…`:`✈ Run for Tomorrow’s Arrivals`}
               </button>
             </div>
 
@@ -3635,7 +3635,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
 
             <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
               <button className="btn btn-gold" onClick={()=>runAgent('room_customizer',null)} disabled={busy==='room_customizer'}>
-                {busy==='room_customizer'?'🔄 Running…':'🍽 Run for Today's Arrivals'}
+                {busy==='room_customizer'?`🔄 Running…`:`🍽 Run for Today’s Arrivals`}
               </button>
             </div>
 
@@ -4002,7 +4002,7 @@ function LeadGenSwarmPanel({toast}) {
             </div>
             {[
               {type:'corporate',icon:'🏢',title:'Airport Transit Strategy',target:'HR & Travel Managers at multinationals in Nikunja/Khilkhet/Uttara',pitch:'Dedicated Corporate Wing · 24/7 check-in · High-speed WiFi · Corporate rates'},
-              {type:'event_organizer',icon:'🎪',title:'Small Gathering Strategy',target:'Event planners, training coordinators needing space for 10-30 people',pitch:'30-room boutique · Private meeting room · Chef Samim's Day-Use lunch package'},
+              {type:'event_organizer',icon:'🎪',title:'Small Gathering Strategy',target:'Event planners, training coordinators needing space for 10-30 people',pitch:`30-room boutique · Private meeting room · Chef Samim’s Day-Use lunch package`},
               {type:'long_stay',icon:'🏠',title:'Long-Stay Strategy',target:'Expats & consultants moving to Dhaka, Facebook "Expats in Dhaka" groups',pitch:'Home-Away-From-Home · 24/7 security · Airport proximity · Weekly/monthly rates'},
             ].map(s=>(
               <div key={s.type} style={{background:leadType===s.type?'rgba(200,169,110,.06)':'rgba(0,0,0,.1)',border:`1px solid ${leadType===s.type?'rgba(200,169,110,.3)':'var(--br)'}`,padding:'10px 12px',marginBottom:6,cursor:'pointer'}} onClick={()=>setLeadType(s.type)}>
