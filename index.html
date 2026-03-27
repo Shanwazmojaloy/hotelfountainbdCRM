@@ -2066,7 +2066,7 @@ ${dueRows}
         const r=detailRes
         const gname=getGN(r)
         const roomNo=getRoom(r)
-        const {roomCharge,sub,tax,svc,total,paid,due,folios,nights,roomRate}=computeBill(r)
+        const {roomCharge,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}=computeBill(r)
         const relTx=transactions.filter(t=>t.room_number===roomNo&&t.type!=='Final Settlement')
         return (
           <Modal title={`Bill — ${gname}`} onClose={()=>{setShowBillDetail(false);setDetailRes(null)}}
