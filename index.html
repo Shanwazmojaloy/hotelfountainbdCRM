@@ -1057,15 +1057,32 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
             <button className="btn btn-success" disabled={saving} onClick={checkIn}>✓ Check In Now</button>
           )}
           {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{(async()=>{
-              await dbDelete('reservations',res.id)
-              // Also delete linked transactions to keep billing clean
+              // 1. Reset room status to AVAILABLE (if OCCUPIED or RESERVED)
+              try{
+                for(const rn of (res.room_ids||[])){
+                  const rm=rooms?.find(r=>r.room_number===rn)
+                  if(rm&&(rm.status==='OCCUPIED'||rm.status==='RESERVED')){
+                    await dbPatch('rooms',rm.id,{status:'AVAILABLE'})
+                  }
+                }
+              }catch(e){}
+              // 2. Delete linked transactions
               try{
                 await fetch(`${SB_URL}/rest/v1/transactions?res_id=eq.${res.id}`,{
                   method:'DELETE',
                   headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,Prefer:'return=minimal'}
                 })
               }catch(e){}
-              toast('Reservation deleted');reload()
+              // 3. Delete linked folios
+              try{
+                await fetch(`${SB_URL}/rest/v1/folios?reservation_id=eq.${res.id}`,{
+                  method:'DELETE',
+                  headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,Prefer:'return=minimal'}
+                })
+              }catch(e){}
+              // 4. Delete the reservation itself
+              await dbDelete('reservations',res.id)
+              toast('Reservation deleted — room(s) reset to Available ✓');reload()
             })()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
           <div style={{flex:1}}/>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
