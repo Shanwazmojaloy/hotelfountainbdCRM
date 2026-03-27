@@ -661,7 +661,8 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
   },[])
   const tax=Math.round(sub*rmVat/100)
   const svc=Math.round(sub*rmSvc/100)
-  const total=sub+tax+svc
+  const rmDiscount=activeRes?+activeRes.discount||0:0
+  const total=Math.max(0,sub+tax+svc-rmDiscount)
 
   async function saveStatus() {
     setSaving(true)
@@ -948,7 +949,12 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
               {res.slice(0,80).map(r=>{
                 const gn=getGN(r.guest_ids)
                 const nights=nightsCount(r.check_in,r.check_out)
-                const balance=(+r.total_amount||0)-(+r.paid_amount||0)
+                const resRm2=rooms?.find(rm=>(r.room_ids||[]).includes(rm.room_number))
+                const resNts2=nightsCount(r.check_in,r.check_out)||1
+                const resComp2=resRm2?(+resRm2.price*resNts2):0
+                const resDisc2=+r.discount||0
+                const resTotal2=resComp2>0?Math.max(0,resComp2-resDisc2):(Math.max(0,(+r.total_amount||0)-resDisc2))
+                const balance=Math.max(0,resTotal2-(+r.paid_amount||0))
                 return (
                   <tr key={r.id}>
                     <td><div className="flex fac gap2"><Av name={gn} size={24}/><span>{gn}</span></div></td>
@@ -956,7 +962,13 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
                     <td className="xs muted">{fmtDateTime(r.check_in)||fmtDate(r.check_in)}</td>
                     <td className="xs muted">{fmtDateTime(r.check_out)||fmtDate(r.check_out)}</td>
                     <td className="xs gold">{nights||'—'}</td>
-                    <td className="xs gold">{BDT(r.total_amount)}</td>
+                    <td className="xs gold">{(()=>{
+                      const rm3=rooms?.find(rm=>(r.room_ids||[]).includes(rm.room_number))
+                      const nts3=nightsCount(r.check_in,r.check_out)||1
+                      const comp3=rm3?(+rm3.price*nts3):0
+                      const disc3=+r.discount||0
+                      return BDT(comp3>0?Math.max(0,comp3-disc3):(Math.max(0,(+r.total_amount||0)-disc3)))
+                    })()}</td>
                     <td className="xs" style={{color:+r.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(r.paid_amount)}</td>
                     <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
                     <td><SBadge status={r.status}/></td>
