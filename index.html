@@ -763,6 +763,9 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
             {[['Subtotal',sub],[`VAT ${rmVat}%`,tax],[`Service Charge ${rmSvc}%`,svc]].map(([l,v])=>(
               <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
             ))}
+            {activeRes&&+activeRes.discount>0&&(
+              <div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Discount</span><span>− {BDT(+activeRes.discount)}</span></div>
+            )}
             <div className="divider" style={{margin:'6px 0'}}/>
             <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total Due</span><span>{BDT(total)}</span></div>
           </div>
@@ -986,7 +989,12 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
   const nights=nightsCount(res.check_in,res.check_out)
-  const totalAmt=+res.total_amount||0
+  // Use room rate × nights as source of truth; fall back to stored total_amount
+  const resRoom=rooms?.find(rm=>(res.room_ids||[]).includes(rm.room_number))
+  const resNights=nightsCount(res.check_in,res.check_out)||1
+  const resComputed=resRoom?(+resRoom.price*resNights):0
+  const resDiscount=+res.discount||0
+  const totalAmt=resComputed>0?Math.max(0,resComputed-resDiscount):(Math.max(0,(+res.total_amount||0)-resDiscount))
   const paidNum=+paidAmt||0
   const balance=totalAmt-paidNum
 
@@ -1042,7 +1050,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
       <div className="g2 mb4">
         {[
           ['Guest',gn],['Rooms',(res.room_ids||[]).join(', ')],
-          ['Check-In',fmtDate(res.check_in)],['Check-Out',fmtDate(res.check_out)],
+          ['Check-In',fmtDate(res.check_in)],['Check-Out',fmtDate(res.check_out)],['Discount',BDT(+res.discount||0)],
           ['Nights',nights||'—'],['Total Amount',BDT(totalAmt)],
           ['Payment Method',res.payment_method||'—'],['On-Duty Officer',res.on_duty_officer||'—'],
         ].map(([l,v])=>(
@@ -1692,10 +1700,25 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
   const outstanding=reservations.filter(r=>r.status==='CHECKED_IN')
-    .reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
+    .reduce((a,r)=>{
+      const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number))
+      const nts=nightsCount(r.check_in,r.check_out)||1
+      const comp=rm?(+rm.price*nts):0
+      const disc=+r.discount||0
+      const tot=comp>0?Math.max(0,comp-disc):(Math.max(0,(+r.total_amount||0)-disc))
+      return a+Math.max(0,tot-(+r.paid_amount||0))
+    },0)
   const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
   const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
-  const dueRes=reservations.filter(r=>r.status==='CHECKED_IN'&&(+r.total_amount||0)>(+r.paid_amount||0))
+  const dueRes=reservations.filter(r=>{
+    if(r.status!=='CHECKED_IN') return false
+    const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number))
+    const nts=nightsCount(r.check_in,r.check_out)||1
+    const comp=rm?(+rm.price*nts):0
+    const disc=+r.discount||0
+    const tot=comp>0?Math.max(0,comp-disc):(Math.max(0,(+r.total_amount||0)-disc))
+    return tot>(+r.paid_amount||0)
+  })
 
   function computeBill(r) {
     const room=rooms?.find(rm=>(r.room_ids||[r.room_number]).includes(rm.room_number))
@@ -1711,10 +1734,13 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const svcPct=(+hSettings?.svc||0)/100
     const tax=Math.round(sub*vatPct)
     const svc=Math.round(sub*svcPct)
-    const total=sub+tax+svc||+r.total_amount||0
+    const discount=+r.discount||0
+    // Total: use computed value; only fall back to saved total_amount if room not found
+    const computedTotal=sub+tax+svc
+    const total=computedTotal>0?Math.max(0,computedTotal-discount):(Math.max(0,(+r.total_amount||0)-discount))
     const paid=+r.paid_amount||0
     const due=Math.max(0,total-paid)
-    return {roomCharge,extras,sub,tax,svc,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
+    return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
   }
 
   // Transactions for current filter (for PDF)
@@ -1918,7 +1944,11 @@ ${dueRows}
                     })
                     return Object.values(groups).map(grp=>{
                       const res=reservations?.find(r=>(r.room_ids||[r.room_number]).includes(grp.room_number))
-                      const resTotal=res?+res.total_amount||0:0
+                      const resDisc=res?+res.discount||0:0
+                      const resRm=res?rooms?.find(rm=>(res.room_ids||[]).includes(rm.room_number)):null
+                      const resNts=res?nightsCount(res.check_in,res.check_out)||1:1
+                      const resComp=resRm?(+resRm.price*resNts):0
+                      const resTotal=resComp>0?Math.max(0,resComp-resDisc):(Math.max(0,(+res?.total_amount||0)-resDisc))
                       const resPaid=res?+res.paid_amount||0:0
                       const resDue=Math.max(0,resTotal-resPaid)
                       // Sum all payment amounts for this guest+room
@@ -2106,6 +2136,7 @@ ${dueRows}
                 {[['Subtotal',sub],[`VAT ${rmVat}%`,tax],[`Service Charge ${rmSvc}%`,svc]].map(([l,v])=>(
                   <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
                 ))}
+                {discount>0&&<div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Discount</span><span>− {BDT(discount)}</span></div>}
                 <div className="divider" style={{margin:'6px 0'}}/>
                 <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total</span><span>{BDT(total)}</span></div>
                 <div className="flex fjb xs" style={{marginTop:4}}>
