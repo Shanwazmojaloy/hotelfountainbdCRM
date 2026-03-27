@@ -2771,17 +2771,24 @@ function AIAgentsPanel({toast}) {
     finally{ setAnalyzerBusy(false) }
   }
 
-  async function runCloser() {
-    if(!closerLeadId.trim()) { toast('Enter a lead ID','error'); return }
+  async function runCloserForId(id: string) {
+    const lid = (id||closerLeadId||'').trim()
+    if(!lid) { toast('Enter a lead ID','error'); return }
+    setCloserLeadId(lid)
     setCloserBusy(true); setCloserResult(null)
     try {
-      const res = await callAgent('close', {lead_id: closerLeadId.trim()})
+      const res = await callAgent('close', {lead_id: lid})
       if(res.error) { toast(res.error,'error'); return }
       setCloserResult(res)
+      // Also update the email_draft in pipelineResult leads list
+      if(pipelineResult?.leads) {
+        setPipelineResult((p:any)=>({...p,leads:p.leads.map((l:any)=>l.id===lid?{...l,email_draft:res.email_draft}:l)}))
+      }
       toast(`✓ Email drafted for ${res.lead_name}`)
     } catch(e){ toast(e.message,'error') }
     finally{ setCloserBusy(false) }
   }
+  async function runCloser() { runCloserForId(closerLeadId) }
 
   return (
     <div>
@@ -2855,25 +2862,60 @@ function AIAgentsPanel({toast}) {
         )}
       </div>
 
-      {/* AGENT B — MANUAL CLOSER */}
+      {/* AGENT B — CLOSER (auto-runs after A, or manually re-draft) */}
       <div className="card mb4">
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
           <span style={{fontSize:20}}>✍️</span>
           <div>
             <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent B — The Closer</div>
-            <div style={{fontSize:10,color:'var(--tx3)'}}>Write personalized outreach email for any specific lead by ID</div>
+            <div style={{fontSize:10,color:'var(--tx3)'}}>Auto-runs after Agent A · Click any lead below to re-draft its outreach email</div>
           </div>
         </div>
-        <div className="fg mb3">
-          <label className="flbl">Lead ID (from leads table)</label>
-          <input className="finput" value={closerLeadId} onChange={e=>setCloserLeadId(e.target.value)} placeholder="e.g. 123e4567-e89b-12d3…" style={{fontFamily:'monospace',fontSize:11}}/>
+
+        {/* Show leads from Agent A pipeline or prompt to run A first */}
+        {pipelineResult&&(pipelineResult.leads||[]).length>0?(
+          <div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>Select a lead to re-draft or view their email:</div>
+            {(pipelineResult.leads||[]).map((lead:any,i:number)=>(
+              <div key={i} style={{background:'rgba(200,169,110,.03)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{lead.name}</div>
+                  <div style={{fontSize:10,color:'var(--tx3)'}}>{lead.company} · {lead.email||lead.phone}</div>
+                </div>
+                <button
+                  className="btn btn-gold btn-sm"
+                  style={{padding:'4px 10px',fontSize:10,whiteSpace:'nowrap'}}
+                  disabled={closerBusy&&closerLeadId===lead.id}
+                  onClick={()=>{
+                    if(!lead.id){toast('Lead ID not available — run Agent A first','error');return}
+                    setCloserLeadId(lead.id)
+                    runCloserForId(lead.id)
+                  }}>
+                  {closerBusy&&closerLeadId===lead.id?'Drafting…':'✍️ Re-draft Email'}
+                </button>
+              </div>
+            ))}
+          </div>
+        ):(
+          <div style={{padding:'12px 14px',background:'rgba(200,169,110,.03)',border:'1px dashed var(--br)',fontSize:11,color:'var(--tx3)',textAlign:'center'}}>
+            Run Agent A first → Agent B auto-drafts emails for all leads found
+          </div>
+        )}
+
+        {/* Manual override by lead ID */}
+        <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--br2)'}}>
+          <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:8}}>Or enter any lead ID manually</div>
+          <div style={{display:'flex',gap:8}}>
+            <input className="finput" style={{flex:1,fontFamily:'monospace',fontSize:11}} value={closerLeadId} onChange={e=>setCloserLeadId(e.target.value)} placeholder="Lead UUID from Supabase leads table"/>
+            <button className="btn btn-gold btn-sm" style={{whiteSpace:'nowrap',padding:'0 14px'}} disabled={closerBusy} onClick={()=>runCloserForId(closerLeadId)}>
+              {closerBusy?'Drafting…':'✍️ Draft'}
+            </button>
+          </div>
         </div>
-        <button className="btn btn-gold" onClick={runCloser} disabled={closerBusy}>
-          {closerBusy?'✍️ Writing email…':'✍️ Write Outreach Email'}
-        </button>
+
         {closerResult&&(
-          <div style={{marginTop:14}}>
-            <div style={{fontSize:11,color:'var(--grn)',marginBottom:8}}>✓ Email drafted for {closerResult.lead_name}</div>
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:11,color:'var(--grn)',marginBottom:8}}>✓ Email re-drafted for {closerResult.lead_name}</div>
             <div style={{background:'rgba(0,0,0,.3)',padding:'12px 14px',fontSize:11,color:'var(--tx2)',whiteSpace:'pre-wrap',lineHeight:1.7,fontFamily:'monospace',maxHeight:250,overflow:'auto'}}>
               {closerResult.email_draft}
             </div>
