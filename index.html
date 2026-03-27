@@ -676,7 +676,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
       const finalDue=Math.max(0,total-prevPaid)
       await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total,check_out_time:new Date().toISOString()})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      if(finalDue>0) await dbPost('transactions',{type:'Final Settlement',amount:finalDue,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      if(finalDue>0) await dbPost('transactions',{type:'Final Settlement',amount:finalDue,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT,res_id:activeRes.id,check_in:activeRes.check_in?.slice(0,10),check_out:activeRes.check_out?.slice(0,10),bill_total:total})
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -689,7 +689,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     try {
       const newPaid=Math.min(total,(+activeRes.paid_amount||0)+a)
       await dbPatch('reservations',activeRes.id,{paid_amount:newPaid})
-      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT,res_id:activeRes.id,check_in:activeRes.check_in?.slice(0,10),check_out:activeRes.check_out?.slice(0,10),bill_total:total})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -1056,7 +1056,17 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           {(res.status==='RESERVED'||res.status==='PENDING')&&(
             <button className="btn btn-success" disabled={saving} onClick={checkIn}>✓ Check In Now</button>
           )}
-          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
+          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{(async()=>{
+              await dbDelete('reservations',res.id)
+              // Also delete linked transactions to keep billing clean
+              try{
+                await fetch(`${SB_URL}/rest/v1/transactions?res_id=eq.${res.id}`,{
+                  method:'DELETE',
+                  headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,Prefer:'return=minimal'}
+                })
+              }catch(e){}
+              toast('Reservation deleted');reload()
+            })()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
           <div style={{flex:1}}/>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
@@ -1211,7 +1221,10 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
       if((+f.paid||0)>0) {
         await dbPost('transactions',{
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT
+          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT,
+              check_in:f.checkIn?f.checkIn.slice(0,10):null,
+              check_out:f.checkOut?f.checkOut.slice(0,10):null,
+              bill_total:totalAmt
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
@@ -1992,9 +2005,9 @@ ${dueRows}
                         <tr key={grp.guest_name+'|'+grp.room_number}>
                           <td className="xs">{grp.guest_name||'—'}</td>
                           <td><span className="badge bb">{grp.room_number||'—'}</span></td>
-                          <td className="xs muted">{res?fmtDate(res.check_in):'—'}</td>
-                          <td className="xs muted">{res?fmtDate(res.check_out):'—'}</td>
-                          <td className="xs gold">{res?BDT(resTotal):'—'}</td>
+                          <td className="xs muted">{res?fmtDate(res.check_in):(grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')}</td>
+                          <td className="xs muted">{res?fmtDate(res.check_out):(grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')}</td>
+                          <td className="xs gold">{res?BDT(resTotal):(grp.txs[0]?.bill_total?BDT(+grp.txs[0].bill_total):'—')}</td>
                           <td className="xs" style={{color:'var(--grn)'}}>{BDT(resPaid)}</td>
                           <td className="xs" style={{color:resDue>0?'var(--rose)':'var(--grn)',fontWeight:resDue>0?600:400}}>{BDT(resDue)}</td>
                           <td className="xs" style={{lineHeight:1.8}}>
