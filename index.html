@@ -2512,11 +2512,13 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
   }
 
   return (
-    <div style={{maxWidth:700}}>
-      <div className="tabs mb4">
-        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System'],['agents','🤖 AI Agents'],['b2b','🤝 B2B Partners'],['plang','✈ Plan G Upsell'],['swarm','🎯 Lead Gen Swarm']].map(([v,l])=>(
-          <button key={v} className={`tab${tab===v?' on':''}`} onClick={()=>setTab(v)}>{l}</button>
-        ))}
+    <div style={{maxWidth:'100%'}}>
+      <div style={{overflowX:'auto',marginBottom:16,paddingBottom:4}}>
+        <div className="tabs" style={{flexWrap:'nowrap',minWidth:'max-content',gap:2}}>
+          {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System'],['agents','🤖 AI Agents'],['b2b','🤝 B2B Partners'],['plang','✈ Plan G'],['swarm','🎯 Lead Gen']].map(([v,l])=>(
+            <button key={v} className={`tab${tab===v?' on':''}`} style={{whiteSpace:'nowrap',fontSize:11,padding:'6px 12px'}} onClick={()=>setTab(v)}>{l}</button>
+          ))}
+        </div>
       </div>
 
       {/* HOTEL INFO */}
