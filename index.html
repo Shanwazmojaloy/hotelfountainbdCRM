@@ -2722,175 +2722,185 @@ function AIAgentsPanel({toast}) {
   const EDGE='https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/ai-agents'
   const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
 
-  const [prospectQ,setProspectQ]=useState('event planners in Dhaka needing hotel rooms')
-  const [prospectRes,setProspectRes]=useState(null)
-  const [prospectBusy,setProspectBusy]=useState(false)
-
-  const [leadId,setLeadId]=useState('')
-  const [closerRes,setCloserRes]=useState(null)
+  const [query,setQuery]=useState('corporate event planners in Dhaka needing hotel rooms')
+  const [busy,setBusy]=useState(false)
+  const [pipelineResult,setPipelineResult]=useState(null)
+  const [analystBrief,setAnalystBrief]=useState(null)
+  const [analyzerBusy,setAnalyzerBusy]=useState(false)
+  const [closerLeadId,setCloserLeadId]=useState('')
   const [closerBusy,setCloserBusy]=useState(false)
+  const [closerResult,setCloserResult]=useState(null)
 
-  const [analystRes,setAnalystRes]=useState(null)
-  const [analystBusy,setAnalystBusy]=useState(false)
-  const [discountApproved,setDiscountApproved]=useState(false)
-
-  async function callAgent(action,extra={}) {
-    const r=await fetch(EDGE,{
+  async function callAgent(action, extra={}) {
+    const r = await fetch(EDGE, {
       method:'POST',
-      headers:{Authorization:`Bearer ${ANON}`,'Content-Type':'application/json'},
-      body:JSON.stringify({action,...extra})
+      headers:{'Content-Type':'application/json','apikey':ANON},
+      body: JSON.stringify({action, query, ...extra})
     })
     return r.json()
   }
 
-  async function runProspect(){
-    setProspectBusy(true); setProspectRes(null)
-    try{ setProspectRes(await callAgent('prospect',{query:prospectQ})) }
-    catch(e){ toast(e.message,'error') }
-    finally{ setProspectBusy(false) }
+  async function runPipeline() {
+    setBusy(true); setPipelineResult(null)
+    try {
+      const res = await callAgent('prospect')
+      if(res.error) { toast(res.error,'error'); return }
+      setPipelineResult(res)
+      toast(`✓ ${res.leads_found||res.leads?.length||0} leads found — emails drafted automatically`)
+    } catch(e){ toast(e.message,'error') }
+    finally{ setBusy(false) }
   }
 
-  async function runCloser(){
-    if(!leadId.trim()){ toast('Enter a Lead ID','error'); return }
-    setCloserBusy(true); setCloserRes(null)
-    try{ setCloserRes(await callAgent('close',{lead_id:leadId.trim()})) }
-    catch(e){ toast(e.message,'error') }
+  async function runAnalyst() {
+    setAnalyzerBusy(true); setAnalystBrief(null)
+    try {
+      const res = await callAgent('analyze')
+      if(res.error) { toast(res.error,'error'); return }
+      setAnalystBrief(res)
+      toast(`✓ Front desk brief ready — ${res.leads_briefed} leads handed off`)
+    } catch(e){ toast(e.message,'error') }
+    finally{ setAnalyzerBusy(false) }
+  }
+
+  async function runCloser() {
+    if(!closerLeadId.trim()) { toast('Enter a lead ID','error'); return }
+    setCloserBusy(true); setCloserResult(null)
+    try {
+      const res = await callAgent('close', {lead_id: closerLeadId.trim()})
+      if(res.error) { toast(res.error,'error'); return }
+      setCloserResult(res)
+      toast(`✓ Email drafted for ${res.lead_name}`)
+    } catch(e){ toast(e.message,'error') }
     finally{ setCloserBusy(false) }
   }
 
-  async function runAnalyst(){
-    setAnalystBusy(true); setAnalystRes(null)
-    try{ setAnalystRes(await callAgent('analyze')) }
-    catch(e){ toast(e.message,'error') }
-    finally{ setAnalystBusy(false) }
-  }
-
-  async function approveDiscount(){
-    setDiscountApproved(true)
-    toast(`✅ Discount approved: ${analystRes?.suggested_discount}`)
-    // Save approved discount to hotel_settings for other agents
-    await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
-      method:'POST',
-      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-      body:JSON.stringify({key:'approved_discount',value:analystRes?.suggested_discount,tenant_id:TENANT})
-    }).catch(()=>{})
-  }
-
-  const agentCard=(ico,title,color,desc,children)=>(
-    <div className="card mb4" style={{borderColor:color+'33'}}>
-      <div className="card-hd" style={{background:color+'0d'}}>
-        <span style={{fontSize:18,marginRight:8}}>{ico}</span>
-        <span className="card-title">{title}</span>
-        <span className="xs muted" style={{marginLeft:8}}>{desc}</span>
-      </div>
-      <div className="card-body" style={{padding:16}}>{children}</div>
-    </div>
-  )
-
   return (
     <div>
-      <div style={{background:'rgba(155,114,207,.08)',border:'1px solid rgba(155,114,207,.2)',padding:'10px 14px',marginBottom:16,fontSize:11,color:'var(--pur)'}}>
-        🤖 AI Agents powered by Gemini 1.5 Flash — Connected to your live Supabase data
+      <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.06),rgba(200,169,110,.04))',border:'1px solid rgba(88,166,255,.2)',padding:'10px 14px',marginBottom:16,fontSize:11,color:'var(--sky)',display:'flex',alignItems:'center',gap:8}}>
+        <span>🤖</span>
+        <span>AI Agents powered by Gemini 1.5 Flash — Connected to your live Supabase data</span>
       </div>
 
-      {/* Agent A: Prospector */}
-      {agentCard('🔍','Agent A — The Prospector','#58A6FF','Finds potential leads & saves them to your leads table',(
-        <div>
-          <div className="fg mb4">
-            <label className="flbl">Search Query</label>
-            <input className="finput" value={prospectQ} onChange={e=>setProspectQ(e.target.value)} placeholder="e.g. event planners in Dhaka needing hotel rooms"/>
+      {/* AGENT A + AUTO B PIPELINE */}
+      <div className="card mb4">
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+          <span style={{fontSize:20}}>🔍</span>
+          <div>
+            <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent A — The Prospector</div>
+            <div style={{fontSize:10,color:'var(--tx3)'}}>Finds leads → Agent B auto-drafts outreach emails → saved to leads table</div>
           </div>
-          <button className="btn btn-info" disabled={prospectBusy} onClick={runProspect}>
-            {prospectBusy?'🔍 Scanning…':'🔍 Find Leads'}
-          </button>
-          {prospectRes&&(
-            <div style={{marginTop:12}}>
-              {prospectRes.error
-                ?<div style={{color:'var(--rose)',fontSize:11}}>{prospectRes.error}</div>
-                :<div>
-                  <div className="xs muted mb4">{prospectRes.leads_found} leads found and saved to database</div>
-                  {(prospectRes.raw_leads||[]).map((l:any,i:number)=>(
-                    <div key={i} style={{background:'var(--s2)',border:'1px solid var(--br2)',padding:'8px 12px',marginBottom:6}}>
-                      <div style={{fontWeight:600,fontSize:12}}>{l.name} <span className="xs muted">· {l.company}</span></div>
-                      <div className="xs muted">{l.email}</div>
-                      <div className="xs" style={{color:'var(--sky)',marginTop:3}}>{l.notes}</div>
-                    </div>
-                  ))}
-                </div>
-              }
-            </div>
-          )}
         </div>
-      ))}
-
-      {/* Agent B: Closer */}
-      {agentCard('✉️','Agent B — The Closer','#C8A96E','Writes personalized outreach email for a lead using Gemini',(
-        <div>
-          <div className="fg mb4">
-            <label className="flbl">Lead ID (from leads table)</label>
-            <input className="finput" value={leadId} onChange={e=>setLeadId(e.target.value)} placeholder="e.g. 123e4567-e89b-12d3..."/>
-          </div>
-          <button className="btn btn-gold" disabled={closerBusy} onClick={runCloser}>
-            {closerBusy?'✍️ Writing…':'✍️ Write Outreach'}
-          </button>
-          {closerRes&&(
-            <div style={{marginTop:12}}>
-              {closerRes.error
-                ?<div style={{color:'var(--rose)',fontSize:11}}>{closerRes.error}</div>
-                :<div>
-                  <div className="xs muted mb4">Draft written for <strong>{closerRes.lead_name}</strong> — saved to lead notes</div>
-                  <div style={{background:'var(--s2)',border:'1px solid var(--br)',padding:'12px 14px',fontSize:11,lineHeight:1.8,whiteSpace:'pre-wrap',fontFamily:'monospace',color:'var(--tx2)'}}>{closerRes.email_draft}</div>
-                </div>
-              }
-            </div>
-          )}
+        <div className="fg mb3">
+          <label className="flbl">Search Query</label>
+          <input className="finput" value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. corporate event planners in Dhaka"/>
         </div>
-      ))}
+        <button className="btn btn-gold" onClick={runPipeline} disabled={busy}>
+          {busy?'🔄 Finding leads + drafting emails…':'🔍 Find Leads + Auto-Draft Emails'}
+        </button>
 
-      {/* Agent C: Analyst */}
-      {agentCard('📊','Agent C — The Analyst','#3FB950','Monitors transactions, spots patterns, suggests discounts',(
-        <div>
-          <button className="btn btn-ghost" disabled={analystBusy} onClick={runAnalyst} style={{marginBottom:12}}>
-            {analystBusy?'📊 Analyzing…':'📊 Run Analysis'}
-          </button>
-          {analystRes&&(
-            <div>
-              {analystRes.error
-                ?<div style={{color:'var(--rose)',fontSize:11}}>{analystRes.error}</div>
-                :<div>
-                  {/* Day breakdown */}
-                  <div className="g2 mb4">
-                    {Object.entries(analystRes.day_averages||{}).sort(([,a]:any,[,b]:any)=>b-a).map(([day,avg]:any)=>(
-                      <div key={day} className="info-box" style={{borderColor:day===analystRes.lowest_day?'rgba(224,92,122,.3)':day===analystRes.highest_day?'rgba(63,185,80,.3)':'var(--br2)'}}>
-                        <div className="info-lbl">{day}</div>
-                        <div className="info-val" style={{color:day===analystRes.lowest_day?'var(--rose)':day===analystRes.highest_day?'var(--grn)':'var(--tx)'}}>{BDT(avg)}</div>
-                      </div>
-                    ))}
+        {pipelineResult&&(
+          <div style={{marginTop:14}}>
+            <div style={{fontSize:10,color:'var(--grn)',marginBottom:10,fontWeight:500}}>
+              ✓ {pipelineResult.leads?.length||pipelineResult.leads_found||0} leads found — Agent B auto-drafted emails for each
+            </div>
+            {(pipelineResult.leads||[]).map((lead:any,i:number)=>(
+              <div key={i} style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br)',padding:'12px 14px',marginBottom:8}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:13,color:'var(--tx)'}}>{lead.name}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)'}}>{lead.company} · {lead.source}</div>
+                    <div style={{fontSize:10,color:'var(--sky)',marginTop:2}}>{lead.email} {lead.phone&&`· ${lead.phone}`}</div>
                   </div>
-                  {/* Analysis text */}
-                  <div style={{background:'var(--s2)',border:'1px solid var(--br)',padding:'12px 14px',fontSize:11,lineHeight:1.8,whiteSpace:'pre-wrap',color:'var(--tx2)',marginBottom:12}}>{analystRes.analysis}</div>
-                  {/* Approval */}
-                  {analystRes.needs_approval&&!discountApproved&&(
-                    <div style={{background:'rgba(200,169,110,.08)',border:'1px solid var(--br)',padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                      <div>
-                        <div style={{fontSize:12,fontWeight:600,color:'var(--gold)'}}>Suggested Discount</div>
-                        <div className="xs muted">{analystRes.suggested_discount}</div>
-                      </div>
-                      <button className="btn btn-gold btn-sm" onClick={approveDiscount}>✓ Approve &amp; Apply</button>
-                    </div>
-                  )}
-                  {discountApproved&&<div style={{color:'var(--grn)',fontSize:11,padding:'8px 0'}}>✅ Discount approved and saved — other agents will factor this in</div>}
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
+                    <span style={{fontSize:8,background:'rgba(63,185,80,.15)',color:'var(--grn)',padding:'2px 7px',letterSpacing:'.1em'}}>EMAIL DRAFTED ✓</span>
+                    {lead.id&&<span style={{fontSize:8,color:'var(--tx3)',fontFamily:'monospace'}}>{lead.id?.slice(0,12)}…</span>}
+                  </div>
                 </div>
-              }
-            </div>
-          )}
+                <div style={{fontSize:10,color:'var(--tx2)',marginBottom:8,fontStyle:'italic'}}>{lead.notes}</div>
+                {(lead.email_draft||lead.email_draft)&&(
+                  <details style={{marginTop:4}}>
+                    <summary style={{fontSize:10,color:'var(--gold)',cursor:'pointer',userSelect:'none'}}>📧 View drafted email ▾</summary>
+                    <div style={{marginTop:8,background:'rgba(0,0,0,.3)',padding:'10px 12px',fontSize:11,color:'var(--tx2)',whiteSpace:'pre-wrap',lineHeight:1.6,fontFamily:'monospace',maxHeight:200,overflow:'auto'}}>
+                      {lead.email_draft}
+                    </div>
+                  </details>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* AGENT B — MANUAL CLOSER */}
+      <div className="card mb4">
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+          <span style={{fontSize:20}}>✍️</span>
+          <div>
+            <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent B — The Closer</div>
+            <div style={{fontSize:10,color:'var(--tx3)'}}>Write personalized outreach email for any specific lead by ID</div>
+          </div>
         </div>
-      ))}
+        <div className="fg mb3">
+          <label className="flbl">Lead ID (from leads table)</label>
+          <input className="finput" value={closerLeadId} onChange={e=>setCloserLeadId(e.target.value)} placeholder="e.g. 123e4567-e89b-12d3…" style={{fontFamily:'monospace',fontSize:11}}/>
+        </div>
+        <button className="btn btn-gold" onClick={runCloser} disabled={closerBusy}>
+          {closerBusy?'✍️ Writing email…':'✍️ Write Outreach Email'}
+        </button>
+        {closerResult&&(
+          <div style={{marginTop:14}}>
+            <div style={{fontSize:11,color:'var(--grn)',marginBottom:8}}>✓ Email drafted for {closerResult.lead_name}</div>
+            <div style={{background:'rgba(0,0,0,.3)',padding:'12px 14px',fontSize:11,color:'var(--tx2)',whiteSpace:'pre-wrap',lineHeight:1.7,fontFamily:'monospace',maxHeight:250,overflow:'auto'}}>
+              {closerResult.email_draft}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* AGENT C — ANALYST + FRONT DESK BRIEF */}
+      <div className="card">
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+          <span style={{fontSize:20}}>📊</span>
+          <div>
+            <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent C — The Analyst</div>
+            <div style={{fontSize:10,color:'var(--tx3)'}}>Analyzes revenue + pending leads → generates complete action brief for front desk</div>
+          </div>
+        </div>
+        <button className="btn btn-gold" onClick={runAnalyst} disabled={analyzerBusy}>
+          {analyzerBusy?'📊 Generating brief…':'📊 Generate Front Desk Brief'}
+        </button>
+        {analystBrief&&(
+          <div style={{marginTop:14}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:12}}>
+              <div style={{background:'rgba(88,166,255,.06)',border:'1px solid rgba(88,166,255,.15)',padding:'10px 12px',textAlign:'center'}}>
+                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase'}}>Occupancy</div>
+                <div style={{fontSize:22,color:'var(--sky)',fontFamily:'var(--serif)',marginTop:4}}>{analystBrief.occupancy_rate}%</div>
+              </div>
+              <div style={{background:'rgba(200,169,110,.06)',border:'1px solid rgba(200,169,110,.15)',padding:'10px 12px',textAlign:'center'}}>
+                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase'}}>Week Revenue</div>
+                <div style={{fontSize:18,color:'var(--gold)',fontFamily:'var(--serif)',marginTop:4}}>{BDT(analystBrief.week_revenue)}</div>
+              </div>
+              <div style={{background:'rgba(63,185,80,.06)',border:'1px solid rgba(63,185,80,.15)',padding:'10px 12px',textAlign:'center'}}>
+                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase'}}>Leads Briefed</div>
+                <div style={{fontSize:22,color:'var(--grn)',fontFamily:'var(--serif)',marginTop:4}}>{analystBrief.leads_briefed}</div>
+              </div>
+            </div>
+            <div style={{background:'rgba(200,169,110,.03)',border:'1px solid var(--br)',padding:'14px 16px'}}>
+              <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.16em',textTransform:'uppercase',marginBottom:10}}>Front Desk Action Brief</div>
+              <div style={{fontSize:12,color:'var(--tx)',whiteSpace:'pre-wrap',lineHeight:1.8}}>
+                {analystBrief.brief}
+              </div>
+            </div>
+            <div style={{marginTop:8,fontSize:10,color:'var(--grn)'}}>
+              ✓ Brief saved to CRM · {analystBrief.leads_briefed} leads marked "briefed to front desk"
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-/* ═══════════════════════ WORKFLOW MONITOR ══════════════════ */
 function WorkflowMonitor({toast}) {
   const [runs,setRuns]=useState([])
   const [loading,setLoading]=useState(true)
