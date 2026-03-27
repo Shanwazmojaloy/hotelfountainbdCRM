@@ -2514,7 +2514,7 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
   return (
     <div style={{maxWidth:700}}>
       <div className="tabs mb4">
-        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System'],['agents','🤖 AI Agents']].map(([v,l])=>(
+        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System'],['agents','🤖 AI Agents'],['b2b','🤝 B2B Partners']].map(([v,l])=>(
           <button key={v} className={`tab${tab===v?' on':''}`} onClick={()=>setTab(v)}>{l}</button>
         ))}
       </div>
@@ -2633,6 +2633,13 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
       {tab==='agents'&&(
         <div>
           <AIAgentsPanel toast={toast}/>
+        </div>
+      )}
+
+      {/* B2B SWARM PANEL */}
+      {tab==='b2b'&&(
+        <div>
+          <B2BSwarmPanel toast={toast}/>
         </div>
       )}
 
@@ -2966,6 +2973,387 @@ function AIAgentsPanel({toast}) {
     </div>
   )
 }
+
+/* ═══════════════════════ B2B SWARM PANEL ══════════════════════════ */
+function B2BSwarmPanel({toast}) {
+  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/b2b-agents'
+  const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+
+  const [activeAgent, setActiveAgent] = useState('recruiter')
+  const [partners, setPartners] = useState([])
+  const [loadingPartners, setLoadingPartners] = useState(true)
+  const [busy, setBusy] = useState(null) // null | 'scan'|'invite:id'|'letter:id'|'weekly'|'dashboard'
+  const [dashboard, setDashboard] = useState(null)
+  const [outreach, setOutreach] = useState(null) // invite/letter result
+  const [billingResult, setBillingResult] = useState(null)
+
+  useEffect(() => { loadPartners() }, [])
+
+  async function loadPartners() {
+    setLoadingPartners(true)
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/b2b_partners?tenant_id=eq.${TENANT}&select=*&order=created_at`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } })
+      const d = await r.json()
+      setPartners(Array.isArray(d) ? d : [])
+    } catch(e) { toast(e.message,'error') }
+    finally { setLoadingPartners(false) }
+  }
+
+  async function callB2B(body) {
+    const r = await fetch(EDGE, { method:'POST', headers:{'Content-Type':'application/json','apikey':ANON}, body: JSON.stringify(body) })
+    return r.json()
+  }
+
+  async function doScan() {
+    setBusy('scan')
+    try {
+      const res = await callB2B({ agent:'recruiter', action:'scan' })
+      if(res.error) { toast(res.error,'error'); return }
+      toast(`✓ ${res.agencies_found} new agencies found & saved`)
+      loadPartners()
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function doInvite(partnerId, agencyName) {
+    setBusy(`invite:${partnerId}`)
+    setOutreach(null)
+    try {
+      const res = await callB2B({ agent:'recruiter', action:'invite', partner_id: partnerId })
+      if(res.error) { toast(res.error,'error'); return }
+      setOutreach({ type:'invite', partner: agencyName, content: res.whatsapp_message, portal_link: res.portal_link })
+      toast(`✓ WhatsApp invite generated for ${agencyName}`)
+      loadPartners()
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function doJoiningLetter(partnerId, agencyName) {
+    setBusy(`letter:${partnerId}`)
+    setOutreach(null)
+    try {
+      const res = await callB2B({ agent:'recruiter', action:'joining_letter', partner_id: partnerId })
+      if(res.error) { toast(res.error,'error'); return }
+      setOutreach({ type:'letter', partner: agencyName, content: res.letter })
+      toast(`✓ Joining letter generated — ${agencyName} marked Active`)
+      loadPartners()
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function doBillingDashboard() {
+    setBusy('dashboard')
+    try {
+      const res = await callB2B({ agent:'billing_analyst', action:'get_dashboard' })
+      if(res.error) { toast(res.error,'error'); return }
+      setDashboard(res)
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function doWeeklyRun() {
+    setBusy('weekly')
+    setBillingResult(null)
+    try {
+      const res = await callB2B({ agent:'billing_analyst', action:'weekly_run' })
+      if(res.error) { toast(res.error,'error'); return }
+      setBillingResult(res)
+      toast(`✓ Weekly run complete — ${res.partners_processed} partners processed`)
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  const statusColor = (s) => s==='vip'?'var(--gold)':s==='active'?'var(--grn)':s==='inactive'?'var(--rose)':'var(--tx3)'
+  const statusBg = (s) => s==='vip'?'rgba(200,169,110,.15)':s==='active'?'rgba(63,185,80,.12)':s==='inactive'?'rgba(224,92,122,.12)':'rgba(255,255,255,.05)'
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{background:'linear-gradient(135deg,rgba(63,185,80,.06),rgba(200,169,110,.04))',border:'1px solid rgba(63,185,80,.2)',padding:'10px 14px',marginBottom:16,fontSize:11,color:'var(--grn)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}><span>🤝</span><span>B2B Partner Swarm — 3 AI Agents · Gemini 2.5 Flash</span></div>
+        <div style={{fontSize:10,color:'var(--tx3)'}}>{partners.length} partners · {partners.filter(p=>p.status==='active'||p.status==='vip').length} active</div>
+      </div>
+
+      {/* Agent Tabs */}
+      <div className="tabs mb4">
+        {[['recruiter','🔍 Agent 1 — Recruiter'],['butler','🛎 Agent 2 — Portal Butler'],['billing','💰 Agent 3 — Billing Analyst']].map(([v,l])=>(
+          <button key={v} className={`tab${activeAgent===v?' on':''}`} onClick={()=>setActiveAgent(v)}>{l}</button>
+        ))}
+      </div>
+
+      {/* ── AGENT 1: RECRUITER ── */}
+      {activeAgent==='recruiter'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+              <span style={{fontSize:22}}>🔍</span>
+              <div>
+                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 1 — The Recruiter</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>Scans for travel agencies in Dhaka, Chittagong & Sylhet · Sends WhatsApp invites · Generates joining letters</div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <button className="btn btn-gold" onClick={doScan} disabled={busy==='scan'}>
+                {busy==='scan'?'🔄 Scanning…':'🌐 Scan for New Agencies'}
+              </button>
+              <button className="btn btn-ghost" onClick={loadPartners} disabled={loadingPartners}>
+                {loadingPartners?'Loading…':'↻ Refresh'}
+              </button>
+            </div>
+          </div>
+
+          {/* Partners Table */}
+          <div className="card">
+            <div className="card-hd"><span className="card-title">Partner Agencies ({partners.length})</span></div>
+            {loadingPartners?(
+              <div style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>Loading partners…</div>
+            ):(
+              <table className="tbl">
+                <thead><tr><th>Agency</th><th>City</th><th>Contact</th><th>Status</th><th>Rate/Night</th><th>Bookings</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {partners.length===0?(<tr><td colSpan={7} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)'}}>No partners yet — click Scan to find agencies</td></tr>)
+                  :partners.map(p=>(
+                    <tr key={p.id}>
+                      <td>
+                        <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{p.agency_name}</div>
+                        <div style={{fontSize:10,color:'var(--sky)'}}>{p.email}</div>
+                      </td>
+                      <td className="xs muted">{p.city}</td>
+                      <td>
+                        <div style={{fontSize:11,color:'var(--tx)'}}>{p.contact_name||'—'}</div>
+                        <div style={{fontSize:10,color:'var(--tx3)'}}>{p.phone||'—'}</div>
+                      </td>
+                      <td>
+                        <span style={{fontSize:9,padding:'2px 8px',background:statusBg(p.status),color:statusColor(p.status),letterSpacing:'.08em',textTransform:'uppercase',fontWeight:600}}>
+                          {p.status==='vip'?'⭐ VIP':p.status}
+                        </span>
+                      </td>
+                      <td className="xs gold">৳{Number(p.wholesale_rate||2800).toLocaleString()}</td>
+                      <td className="xs" style={{color:'var(--tx3)'}}>{p.total_bookings||0}</td>
+                      <td>
+                        <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                          <button
+                            className="btn btn-sm"
+                            style={{fontSize:9,padding:'3px 8px',background:p.whatsapp_sent?'rgba(63,185,80,.1)':'rgba(37,211,102,.15)',color:p.whatsapp_sent?'var(--grn)':'#25D366',border:'1px solid currentColor'}}
+                            disabled={busy===`invite:${p.id}`}
+                            onClick={()=>doInvite(p.id, p.agency_name)}>
+                            {busy===`invite:${p.id}`?'Sending…':p.whatsapp_sent?'✓ Resend WA':'📱 WhatsApp Invite'}
+                          </button>
+                          <button
+                            className="btn btn-sm btn-gold"
+                            style={{fontSize:9,padding:'3px 8px',opacity:p.joining_letter_sent?.9:1}}
+                            disabled={busy===`letter:${p.id}`}
+                            onClick={()=>doJoiningLetter(p.id, p.agency_name)}>
+                            {busy===`letter:${p.id}`?'Generating…':p.joining_letter_sent?'✓ Re-generate Letter':'📄 Joining Letter'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Outreach Result */}
+          {outreach&&(
+            <div className="card" style={{marginTop:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>
+                  {outreach.type==='invite'?'📱 WhatsApp Invite':'📄 Joining Letter'} — {outreach.partner}
+                </div>
+                {outreach.type==='invite'&&outreach.portal_link&&(
+                  <div style={{fontSize:10,color:'var(--sky)',fontFamily:'monospace',wordBreak:'break-all'}}>{outreach.portal_link.slice(0,60)}…</div>
+                )}
+              </div>
+              <div style={{background:'rgba(0,0,0,.3)',padding:'12px 14px',fontSize:11,color:'var(--tx2)',whiteSpace:'pre-wrap',lineHeight:1.7,maxHeight:300,overflow:'auto',fontFamily:'monospace'}}>
+                {outreach.content}
+              </div>
+              {outreach.type==='invite'&&(
+                <div style={{marginTop:8,fontSize:10,color:'var(--tx3)'}}>
+                  💡 Copy this message and send via WhatsApp to {outreach.partner}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── AGENT 2: PORTAL BUTLER ── */}
+      {activeAgent==='butler'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+              <span style={{fontSize:22}}>🛎</span>
+              <div>
+                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 2 — The Portal Butler</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>Authenticates partners via Secret Key · Handles bookings · Answers room questions · Checks availability</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Active partner portal keys */}
+          <div className="card mb4">
+            <div className="card-hd"><span className="card-title">Active Partner Portal Keys</span></div>
+            <table className="tbl">
+              <thead><tr><th>Agency</th><th>Status</th><th>Secret Key (Portal Auth)</th><th>Portal Link</th></tr></thead>
+              <tbody>
+                {partners.filter(p=>p.status==='active'||p.status==='vip').map(p=>(
+                  <tr key={p.id}>
+                    <td style={{fontWeight:600,fontSize:12}}>{p.agency_name}</td>
+                    <td><span style={{fontSize:9,padding:'2px 7px',background:statusBg(p.status),color:statusColor(p.status),letterSpacing:'.08em',textTransform:'uppercase'}}>{p.status}</span></td>
+                    <td><code style={{fontSize:10,color:'var(--gold)',background:'rgba(0,0,0,.3)',padding:'2px 6px'}}>{p.secret_key?.slice(0,16)}…</code></td>
+                    <td>
+                      <a href={`https://hotelfountainbd-crm.vercel.app?b2b=${p.secret_key}`} target="_blank" style={{fontSize:10,color:'var(--sky)'}}>
+                        Open Portal ↗
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+                {partners.filter(p=>p.status==='active'||p.status==='vip').length===0&&(
+                  <tr><td colSpan={4} style={{textAlign:'center',padding:'16px 0',color:'var(--tx3)',fontSize:11}}>No active partners yet — activate via joining letter in Agent 1</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* How Agent 2 works */}
+          <div className="card" style={{background:'rgba(88,166,255,.03)',border:'1px solid rgba(88,166,255,.15)'}}>
+            <div style={{fontSize:12,fontWeight:600,color:'var(--sky)',marginBottom:10}}>How Agent 2 Works Automatically</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              {[
+                ['🔐 Authentication','Partner visits portal link with secret key → Agent 2 verifies identity → grants access to wholesale rates'],
+                ['📅 Booking','Partner selects dates & room → Agent 2 confirms rate (৳2,800/night) → creates reservation → notifies front desk'],
+                ['❓ Q&A','Partner asks "Does room have balcony?" → Agent 2 answers from hotel knowledge base instantly'],
+                ['🏨 Availability','Agent 2 checks both main reservations + B2B bookings to show real-time availability grid'],
+              ].map(([title,desc],i)=>(
+                <div key={i} style={{background:'rgba(0,0,0,.2)',padding:'10px 12px'}}>
+                  <div style={{fontSize:11,fontWeight:600,color:'var(--tx)',marginBottom:4}}>{title}</div>
+                  <div style={{fontSize:10,color:'var(--tx3)',lineHeight:1.5}}>{desc}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:12,padding:'10px 12px',background:'rgba(200,169,110,.05)',border:'1px solid rgba(200,169,110,.15)'}}>
+              <div style={{fontSize:10,color:'var(--gold)',fontWeight:500}}>⚡ API Endpoint</div>
+              <code style={{fontSize:10,color:'var(--tx2)',display:'block',marginTop:4}}>
+                POST https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/b2b-agents<br/>
+                {'{ agent:"portal_butler", action:"authenticate|book|answer|availability", secret_key:"..." }'}
+              </code>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── AGENT 3: BILLING ANALYST ── */}
+      {activeAgent==='billing'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+              <span style={{fontSize:22}}>💰</span>
+              <div>
+                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 3 — The Billing Analyst</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>Runs every Sunday 10 PM · Tracks commissions · Sends statements · Re-engages inactive partners · Awards VIP status</div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn btn-gold" onClick={doBillingDashboard} disabled={busy==='dashboard'}>
+                {busy==='dashboard'?'📊 Loading…':'📊 Load B2B Dashboard'}
+              </button>
+              <button className="btn btn-gold" onClick={doWeeklyRun} disabled={busy==='weekly'}>
+                {busy==='weekly'?'⚙ Running…':'⚡ Run Weekly Cycle Now'}
+              </button>
+            </div>
+          </div>
+
+          {/* Dashboard stats */}
+          {dashboard&&(
+            <div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:12}}>
+                {[
+                  ['Total Partners', dashboard.summary?.total_partners||0, 'var(--sky)'],
+                  ['Active', dashboard.summary?.active_partners||0, 'var(--grn)'],
+                  ['⭐ VIP', dashboard.summary?.vip_partners||0, 'var(--gold)'],
+                  ['Total B2B Revenue', `৳${(dashboard.summary?.total_revenue||0).toLocaleString()}`, 'var(--gold)'],
+                ].map(([label,val,color],i)=>(
+                  <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'10px 12px',textAlign:'center'}}>
+                    <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:4}}>{label}</div>
+                    <div style={{fontSize:20,color,fontFamily:'var(--serif)',fontWeight:600}}>{val}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Recent Bookings */}
+              {dashboard.recent_bookings?.length>0&&(
+                <div className="card mb3">
+                  <div className="card-hd"><span className="card-title">Recent B2B Bookings</span></div>
+                  <table className="tbl">
+                    <thead><tr><th>Partner</th><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Revenue</th><th>Commission</th></tr></thead>
+                    <tbody>
+                      {dashboard.recent_bookings.map((b:any)=>(
+                        <tr key={b.id}>
+                          <td style={{fontSize:11,fontWeight:500}}>{b.partner_name}</td>
+                          <td style={{fontSize:11}}>{b.guest_name||'—'}</td>
+                          <td><span className="badge bb">{b.room_number||'—'}</span></td>
+                          <td className="xs muted">{b.check_in}</td>
+                          <td className="xs muted">{b.check_out}</td>
+                          <td className="xs gold">৳{Number(b.total_amount||0).toLocaleString()}</td>
+                          <td className="xs" style={{color:'var(--grn)'}}>৳{Number(b.commission_amount||0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Weekly run results */}
+          {billingResult&&(
+            <div className="card">
+              <div style={{fontSize:12,fontWeight:600,color:'var(--tx)',marginBottom:10}}>⚡ Weekly Run Results — {billingResult.partners_processed} partners processed</div>
+              {(billingResult.results||[]).map((r:any,i:number)=>(
+                <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                    <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.partner}</div>
+                    <span style={{fontSize:9,padding:'2px 8px',background:r.action==='commission_sent'?'rgba(63,185,80,.12)':r.action==='re-engagement_sent'?'rgba(224,92,122,.12)':'rgba(255,255,255,.05)',color:r.action==='commission_sent'?'var(--grn)':r.action==='re-engagement_sent'?'var(--rose)':'var(--tx3)',letterSpacing:'.08em',textTransform:'uppercase'}}>
+                      {r.action==='commission_sent'?'💰 Commission Sent':r.action==='re-engagement_sent'?'📨 Re-engaged':'✓ No Action'}
+                    </span>
+                  </div>
+                  {r.action==='commission_sent'&&<div style={{fontSize:10,color:'var(--gold)'}}>Commission: ৳{Number(r.commission||0).toLocaleString()} · {r.bookings} booking{r.bookings!==1?'s':''} this week</div>}
+                  {r.action==='re-engagement_sent'&&<div style={{fontSize:10,color:'var(--tx3)'}}>Inactive {r.days_inactive} days · Discount offer sent</div>}
+                  {(r.statement||r.message)&&(
+                    <div style={{marginTop:6,fontSize:10,color:'var(--tx2)',background:'rgba(0,0,0,.3)',padding:'8px 10px',fontFamily:'monospace',whiteSpace:'pre-wrap',maxHeight:120,overflow:'auto'}}>
+                      {r.statement||r.message}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Automation schedule */}
+          {!dashboard&&!billingResult&&(
+            <div className="card" style={{background:'rgba(200,169,110,.03)',border:'1px solid rgba(200,169,110,.15)'}}>
+              <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:10}}>⏰ Automated Schedule</div>
+              {[
+                ['Every Sunday 10 PM','Run weekly cycle — commission statements + re-engagement offers'],
+                ['Active partners (any bookings)','Commission statement emailed + VIP check (≥10 total bookings)'],
+                ['Inactive ≥14 days','Re-engagement WhatsApp: ৳200 discount code generated'],
+                ['VIP threshold','Auto-upgrade to VIP status at 10 total bookings'],
+              ].map(([trigger,action],i)=>(
+                <div key={i} style={{display:'flex',gap:10,marginBottom:8,padding:'8px 10px',background:'rgba(0,0,0,.2)'}}>
+                  <div style={{fontSize:10,color:'var(--gold)',minWidth:160,fontWeight:500}}>{trigger}</div>
+                  <div style={{fontSize:10,color:'var(--tx3)'}}>{action}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 
 function WorkflowMonitor({toast}) {
   const [runs,setRuns]=useState([])
