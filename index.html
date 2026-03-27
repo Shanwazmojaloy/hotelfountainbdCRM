@@ -1505,8 +1505,21 @@ function HousekeepingPage({tasks,rooms,toast,currentUser,reload}) {
 
   async function updateStatus(id,s) {
     try {
+      // Find the task to get its room_number
+      const task=tasks.find(t=>t.id===id)
       await dbPatch('housekeeping_tasks',id,{status:s,completed_at:s==='completed'?new Date().toISOString():null})
-      toast(`Task → ${s}`)
+      // If completed → set room to AVAILABLE (only if not currently OCCUPIED/RESERVED)
+      if(s==='completed'&&task?.room_number){
+        const room=rooms.find(r=>r.room_number===task.room_number)
+        if(room&&room.status==='DIRTY'){
+          await dbPatch('rooms',room.id,{status:'AVAILABLE'})
+          toast(`Room ${task.room_number} → AVAILABLE ✓`)
+        } else {
+          toast(`Task completed ✓`)
+        }
+      } else {
+        toast(`Task → ${s}`)
+      }
       reload()
     } catch(e){ toast(e.message,'error') }
   }
