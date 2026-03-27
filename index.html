@@ -546,7 +546,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
                     <div style={{fontSize:12,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{getGN(r.guest_ids)}</div>
                     <div className="xs muted">Rm {(r.room_ids||[]).join(',')} · Out: {fmtDate(r.check_out)}</div>
                   </div>
-                  <span className="badge bb">{BDT(r.total_amount)}</span>
+                  {(()=>{const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number));const nts=nightsCount(r.check_in,r.check_out)||1;const comp=rm?(+rm.price*nts):0;const disc=+r.discount||0;const tot=comp>0?Math.max(0,comp-disc):(Math.max(0,(+r.total_amount||0)-disc));return <span className="badge bb">{BDT(tot)}</span>})()}
                 </div>
               ))
             }
@@ -672,9 +672,11 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
 
   async function doCheckout() {
     try {
+      const prevPaid=+activeRes.paid_amount||0
+      const finalDue=Math.max(0,total-prevPaid)
       await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total,check_out_time:new Date().toISOString()})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      if(finalDue>0) await dbPost('transactions',{type:'Final Settlement',amount:finalDue,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -685,7 +687,8 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     if(!a||a<=0) return toast('Enter valid amount','error')
     setCollectSaving(true)
     try {
-      await dbPatch('reservations',activeRes.id,{paid_amount:a})
+      const newPaid=Math.min(total,(+activeRes.paid_amount||0)+a)
+      await dbPatch('reservations',activeRes.id,{paid_amount:newPaid})
       await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
@@ -1027,7 +1030,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
         }
       }
-      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes})
+      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes,discount:+editDiscount||+res.discount||0})
       toast('Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
@@ -2203,7 +2206,13 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
     const room_number = fromRow?lockedRoom:(selRes?.room_number||resSearch)
     const guest_name  = fromRow?lockedGuest:(selRes?.guest_name||resSearch)
     const resId       = fromRow?lockedResId:selRes?.id
-    const resTotal    = fromRow?(prefill._total||0):(+selRes?.total_amount||0)
+    // Use computed total (room rate × nights - discount) not stale stored total_amount
+    const _selResRoom = selRes?rooms?.find(rm=>(selRes.room_ids||[]).includes(rm.room_number)):null
+    const _selResNts  = selRes?nightsCount(selRes.check_in,selRes.check_out)||1:1
+    const _selResComp = _selResRoom?(+_selResRoom.price*_selResNts):0
+    const _selResDisc = selRes?+selRes.discount||0:0
+    const _selResCalc = _selResComp>0?Math.max(0,_selResComp-_selResDisc):(Math.max(0,(+selRes?.total_amount||0)-_selResDisc))
+    const resTotal    = fromRow?(prefill._total||0):_selResCalc
     const resPaid     = fromRow?(prefill._paid||0):(+selRes?.paid_amount||0)
     try{
       await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,tenant_id:TENANT})
@@ -3024,7 +3033,7 @@ function App() {
       console.error('Load failed',e)
       console.warn('Data refresh failed:',e.message)  // silent fail — keeps app running
     }
-  },[toast])
+  },[])
 
   useEffect(()=>{
     if(!user){ setData({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]}); return }
