@@ -2966,7 +2966,7 @@ function App() {
       const [rooms,guests,reservations,transactions,tasks]=await Promise.all([
         db('rooms','?select=*&order=room_number'),
         db('guests','?select=*&order=name'),
-        db('reservations','?select=*&order=created_at.desc&limit=500'),
+        db('reservations','?select=*&order=check_in.desc&limit=500'),
         db('transactions','?select=*&amount=gt.0&order=timestamp.desc&limit=400'),
         db('housekeeping_tasks','?select=*&order=created_at.desc&limit=100'),
       ])
@@ -2979,7 +2979,7 @@ function App() {
       })
     } catch(e){
       console.error('Load failed',e)
-      toast('Failed to refresh data — check connection','error')
+      console.warn('Data refresh failed:',e.message)  // silent fail — keeps app running
     }
   },[toast])
 
