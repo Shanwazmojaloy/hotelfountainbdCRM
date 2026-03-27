@@ -2744,7 +2744,16 @@ function AIAgentsPanel({toast}) {
     setBusy(true); setPipelineResult(null)
     try {
       const res = await callAgent('prospect')
-      if(res.error) { toast(res.error,'error'); return }
+      if(res.error) {
+        // Show helpful setup message if API key missing
+        if(res.error.includes('GEMINI_API_KEY')) {
+          toast('GEMINI_API_KEY not set — go to Supabase → Settings → Edge Functions → Secrets','error')
+        } else {
+          toast(res.error,'error')
+        }
+        setPipelineResult({error:res.error, setup_url:res.setup_url})
+        return
+      }
       setPipelineResult(res)
       toast(`✓ ${res.leads_found||res.leads?.length||0} leads found — emails drafted automatically`)
     } catch(e){ toast(e.message,'error') }
@@ -2798,7 +2807,22 @@ function AIAgentsPanel({toast}) {
           {busy?'🔄 Finding leads + drafting emails…':'🔍 Find Leads + Auto-Draft Emails'}
         </button>
 
-        {pipelineResult&&(
+        {pipelineResult?.error&&(
+          <div style={{marginTop:12,background:'rgba(224,92,122,.08)',border:'1px solid rgba(224,92,122,.25)',padding:'12px 14px'}}>
+            <div style={{fontSize:12,color:'var(--rose)',fontWeight:500,marginBottom:6}}>⚠ {pipelineResult.error}</div>
+            {pipelineResult.error?.includes('GEMINI')&&(
+              <div style={{fontSize:11,color:'var(--tx2)'}}>
+                To fix: Go to{' '}
+                <a href="https://supabase.com/dashboard/project/mynwfkgksqqwlqowlscj/settings/functions" target="_blank" style={{color:'var(--sky)'}}>
+                  Supabase → Settings → Edge Functions → Secrets
+                </a>
+                {' '}and add <strong style={{color:'var(--gold)'}}>GEMINI_API_KEY</strong> from{' '}
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" style={{color:'var(--sky)'}}>aistudio.google.com</a>
+              </div>
+            )}
+          </div>
+        )}
+        {pipelineResult&&!pipelineResult.error&&(
           <div style={{marginTop:14}}>
             <div style={{fontSize:10,color:'var(--grn)',marginBottom:10,fontWeight:500}}>
               ✓ {pipelineResult.leads?.length||pipelineResult.leads_found||0} leads found — Agent B auto-drafted emails for each
@@ -2828,6 +2852,7 @@ function AIAgentsPanel({toast}) {
               </div>
             ))}
           </div>
+        )}
         )}
       </div>
 
