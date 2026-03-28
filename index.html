@@ -51,17 +51,13 @@ function printTransactionInvoice(tx, reservations = []) {
   const esc = s => safe(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))
   const toNum = v => Number(v || 0)
   const matchRes = reservations.find(r => String(r.room_ids || '').includes(String(tx.room_number || '')))
+  const nights = nightsCount(matchRes?.check_in, matchRes?.check_out)
+  const unitRate = nights > 0 ? Math.round(toNum(matchRes?.total_amount) / nights) : 0
   const totalAmount = toNum(matchRes?.total_amount)
   const paidAmount = toNum(matchRes?.paid_amount)
   const balanceDue = Math.max(0, totalAmount - paidAmount)
+  const invoiceNo = `INV-${String(tx.id || '0000').slice(0,8).toUpperCase()}`
   const issueDate = tx.fiscal_day || todayStr()
-  const detailRows = [
-    ['Guest', tx.guest_name || 'Walk-in'],
-    ['Room', tx.room_number || '—'],
-    ['Check-In', fmtDate(matchRes?.check_in)],
-    ['Check-Out', fmtDate(matchRes?.check_out)],
-    ['Transaction Type', tx.type || 'Payment'],
-  ]
   const printWin = window.open('', '_blank', 'width=900,height=980')
   if (!printWin) {
     alert('Please allow pop-ups to print the invoice.')
@@ -69,44 +65,115 @@ function printTransactionInvoice(tx, reservations = []) {
   }
   const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Invoice - ${esc(tx.guest_name || 'Guest')}</title>
   <style>
-    @page { size: A4; margin: 12mm; }
-    body{font-family:Arial,sans-serif;background:#fff;color:#111;margin:0}
-    .inv{max-width:760px;margin:0 auto}
-    .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:16px}
-    .h1{font-size:28px;font-weight:700;margin:0}
-    .sub{font-size:12px;color:#444}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{border:1px solid #ddd;padding:8px;font-size:12px;text-align:left;vertical-align:top}
-    th{background:#f6f6f6}
-    .tot{margin-top:14px;width:320px;margin-left:auto}
-    .tot td{border:1px solid #ddd}
-    .noprint{display:none}
-    @media print {
-      body{background:#fff!important;color:#000!important}
-      .inv{box-shadow:none!important}
-    }
+    @page{size:A4;margin:10mm}
+    *{box-sizing:border-box}
+    body{margin:0;background:#fff;color:#1a1a1a;font-family:'Helvetica Neue',Arial,sans-serif}
+    .sheet{width:794px;min-height:1123px;margin:0 auto;padding:34px 34px 28px;border:1px solid #ddd}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px}
+    .brand{font-size:28px;letter-spacing:.16em;font-weight:700}
+    .tag{font-size:11px;color:#666;margin-top:4px}
+    .ver{font-size:10px;color:#777;letter-spacing:.12em;margin-top:8px}
+    .inv-title{font-size:44px;letter-spacing:.16em;font-weight:300;margin:0 0 10px;text-align:right}
+    .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-width:400px}
+    .meta .k{font-size:10px;color:#666;letter-spacing:.08em;text-transform:uppercase}
+    .meta .v{font-size:13px;font-weight:600;margin-top:3px}
+    .bill{display:flex;justify-content:space-between;gap:18px;margin-bottom:22px}
+    .bill-card{background:#222;color:#fff;padding:14px 16px;min-width:270px}
+    .bill-card .k{font-size:10px;letter-spacing:.14em;color:#bbb}
+    .bill-card .v{font-size:14px;font-weight:600;margin:5px 0 7px}
+    .bill-card .line{font-size:11px;color:#ddd;line-height:1.45}
+    table{width:100%;border-collapse:collapse}
+    .items th{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#555;text-align:left;border-bottom:1px solid #111;padding:8px 5px}
+    .items td{font-size:12px;border-bottom:1px solid #ddd;padding:10px 5px;vertical-align:top}
+    .items td:last-child,.items th:last-child{text-align:right}
+    .items td:nth-child(3),.items th:nth-child(3),.items td:nth-child(4),.items th:nth-child(4){text-align:center}
+    .desc-sub{font-size:10px;color:#666;display:block;margin-top:3px}
+    .foot{display:grid;grid-template-columns:1fr 270px;gap:16px;margin-top:20px}
+    .pay h4{margin:0 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+    .pay p{margin:3px 0;font-size:11px;color:#444}
+    .totals td{font-size:12px;padding:6px 8px;border-bottom:1px solid #ddd}
+    .totals td:last-child{text-align:right}
+    .grand td{background:#111;color:#fff;font-weight:700;border-bottom:none}
+    .due{margin-top:20px;text-align:right}
+    .due .k{font-size:23px;color:#666}
+    .due .v{font-size:34px;font-weight:300}
+    .bottom{display:flex;justify-content:space-between;margin-top:34px;border-top:1px solid #ddd;padding-top:16px}
+    .sign{font-size:12px;color:#333}
+    .sig-name{font-size:24px;font-family:cursive;color:#222}
+    .small{font-size:10px;color:#777}
+    @media print{body{background:#fff}.sheet{border:none}}
   </style></head><body>
-  <div class="inv">
-    <div class="hd">
-      <div><h1 class="h1">Hotel Fountain</h1><div class="sub">Billing Invoice / Folio</div></div>
-      <div class="sub">Invoice Date: ${esc(issueDate)}<br/>Generated: ${esc(new Date().toLocaleString())}</div>
+  <div class="sheet">
+    <div class="top">
+      <div>
+        <div class="brand">HOTEL FOUNTAIN</div>
+        <div class="tag">The Pulse of Modern Hospitality</div>
+        <div class="ver">TEMPLATE: HF-2026-A</div>
+      </div>
+      <div>
+        <h1 class="inv-title">INVOICE</h1>
+        <div class="meta">
+          <div><div class="k">Invoice No.</div><div class="v">${esc(invoiceNo)}</div></div>
+          <div><div class="k">Invoice Date</div><div class="v">${esc(issueDate)}</div></div>
+          <div><div class="k">Room No.</div><div class="v">${esc(tx.room_number || '—')}</div></div>
+        </div>
+      </div>
     </div>
-    <table><tbody>
-      ${detailRows.map(([k,v])=>`<tr><th style="width:180px">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}
-    </tbody></table>
-    <table style="margin-top:16px">
-      <thead><tr><th>Description</th><th style="width:160px">Amount (BDT)</th></tr></thead>
+    <div class="bill">
+      <div class="bill-card">
+        <div class="k">Bill To</div>
+        <div class="v">${esc(tx.guest_name || 'Walk-in Guest')}</div>
+        <div class="line">Check-In: ${esc(fmtDate(matchRes?.check_in))}</div>
+        <div class="line">Check-Out: ${esc(fmtDate(matchRes?.check_out))}</div>
+        <div class="line">Payment Type: ${esc(tx.type || 'Payment')}</div>
+      </div>
+    </div>
+    <table class="items">
+      <thead><tr><th>Item Name</th><th>Descriptions</th><th>Unit Price</th><th>Qty</th><th>Total</th></tr></thead>
       <tbody>
-        <tr><td>${esc(tx.type || 'Payment')}</td><td>${esc(BDT(tx.amount))}</td></tr>
+        <tr>
+          <td>Room Stay</td>
+          <td>${esc(tx.room_number ? `Room ${tx.room_number}` : 'Room charge')}<span class="desc-sub">${esc(fmtDate(matchRes?.check_in))} → ${esc(fmtDate(matchRes?.check_out))}</span></td>
+          <td>${esc(BDT(unitRate))}</td>
+          <td>${esc(nights || 1)}</td>
+          <td>${esc(BDT(unitRate * (nights || 1)))}</td>
+        </tr>
+        <tr>
+          <td>${esc(tx.type || 'Payment')}</td>
+          <td>Transaction posted<span class="desc-sub">Generated from Billing & Invoices</span></td>
+          <td>${esc(BDT(tx.amount))}</td>
+          <td>1</td>
+          <td>${esc(BDT(tx.amount))}</td>
+        </tr>
       </tbody>
     </table>
-    <table class="tot">
-      <tbody>
-        <tr><td>Total Folio</td><td>${esc(BDT(totalAmount))}</td></tr>
-        <tr><td>Paid</td><td>${esc(BDT(paidAmount))}</td></tr>
-        <tr><td><strong>Balance Due</strong></td><td><strong>${esc(BDT(balanceDue))}</strong></td></tr>
-      </tbody>
-    </table>
+    <div class="foot">
+      <div class="pay">
+        <h4>Payment Method</h4>
+        <p>${esc(tx.type || 'Cash')}</p>
+        <p class="small">Generated: ${esc(new Date().toLocaleString())}</p>
+      </div>
+      <table class="totals">
+        <tbody>
+          <tr><td>Sub Total</td><td>${esc(BDT(totalAmount))}</td></tr>
+          <tr><td>Tax/VAT</td><td>${esc(BDT(Math.max(0, Math.round(totalAmount * 0.07))))}</td></tr>
+          <tr><td>Discount</td><td>${esc(BDT(0))}</td></tr>
+          <tr class="grand"><td>Grand Total</td><td>${esc(BDT(totalAmount))}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="due"><div class="k">Total Due</div><div class="v">${esc(BDT(balanceDue))}</div></div>
+    <div class="bottom">
+      <div class="sign">
+        <div class="sig-name">Hotel Fountain</div>
+        <div><strong>Front Desk Manager</strong></div>
+      </div>
+      <div class="small">
+        Hotel Fountain, Dhaka, Bangladesh<br/>
+        +880 2-555-0163<br/>
+        info@hotelfountainbd.com
+      </div>
+    </div>
   </div>
   </body></html>`
   printWin.document.open()
