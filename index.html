@@ -1188,18 +1188,31 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           {(res.status==='RESERVED'||res.status==='PENDING')&&(
             <button className="btn btn-success" disabled={saving} onClick={doCheckIn}>✓ Check In Now</button>
           )}
-          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{
-            if(!window.confirm('Delete this reservation?'))return
-            try{
-              for(const rn of (res.room_ids||[])) {
-                const room=rooms.find(r=>r.room_number===rn)
-                if(room) await dbPatch('rooms',room.id,{status:'AVAILABLE'})
-              }
-              await dbDelete('reservations',res.id)
-              toast('Reservation deleted · room set to AVAILABLE')
-              reload()
-            }catch(e){toast(e.message,'error')}
-          }}>🗑 Delete</button>}
+	          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{
+	            if(!window.confirm('Delete this reservation?'))return
+	            try{
+	              const directTx=await db('transactions',`?select=id&tenant_id=eq.${TENANT}&reservation_id=eq.${res.id}`)
+	              if(Array.isArray(directTx)&&directTx.length){
+	                for(const tx of directTx){ await dbDelete('transactions',tx.id) }
+	              } else {
+	                const roomFilter=(res.room_ids||[]).map(rn=>`room_number.eq.${encodeURIComponent(rn)}`).join(',')
+	                if(roomFilter){
+	                  const fallbackTx=await db('transactions',`?select=id,guest_name&tenant_id=eq.${TENANT}&or=(${roomFilter})`)
+	                  const guestName=(guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'').toLowerCase()
+	                  for(const tx of (fallbackTx||[])){
+	                    if(!guestName || String(tx.guest_name||'').toLowerCase()===guestName){ await dbDelete('transactions',tx.id) }
+	                  }
+	                }
+	              }
+	              for(const rn of (res.room_ids||[])) {
+	                const room=rooms.find(r=>r.room_number===rn)
+	                if(room) await dbPatch('rooms',room.id,{status:'AVAILABLE'})
+	              }
+	              await dbDelete('reservations',res.id)
+	              toast('Reservation & linked transactions deleted · room set to AVAILABLE')
+	              reload()
+	            }catch(e){toast(e.message,'error')}
+	          }}>🗑 Delete</button>}
           <div style={{flex:1}}/>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
@@ -1218,19 +1231,30 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
       {res.special_requests&&<div className="info-box mb4"><div className="info-lbl">Special Requests</div><div className="info-val" style={{marginTop:4}}>{res.special_requests}</div></div>}
       <div className="fg mb4">
         <label className="flbl">Rooms (editable, multiple)</label>
-        <div className="g2">
-          {rooms.filter(r=>r.status!=='OUT_OF_ORDER'||roomIds.includes(String(r.room_number))).map(r=>{
-            const selected=roomIds.includes(String(r.room_number))
-            return (
-              <label key={r.id} className="info-box" style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',borderColor:selected?'rgba(200,169,110,.45)':'var(--br)'}}>
-                <input type="checkbox" checked={selected} onChange={()=>toggleRoom(String(r.room_number))}/>
-                <div style={{flex:1}}>
-                  <div className="info-val">{r.room_number} — {r.category}</div>
-                  <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
-                </div>
-              </label>
-            )
-          })}
+        <details className="info-box">
+          <summary style={{cursor:'pointer',listStyle:'none',outline:'none'}}>
+            <span className="info-val">{roomIds.length?roomIds.join(', '):'Select room(s)'}</span>
+            <div className="xs muted">Dropdown list · showing AVAILABLE / DIRTY / RESERVED</div>
+          </summary>
+          <div className="g2" style={{marginTop:10}}>
+            {rooms
+              .filter(r=>['AVAILABLE','DIRTY','RESERVED'].includes(r.status)||roomIds.includes(String(r.room_number)))
+              .map(r=>{
+                const selected=roomIds.includes(String(r.room_number))
+                return (
+                  <label key={r.id} className="info-box" style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',borderColor:selected?'rgba(200,169,110,.45)':'var(--br)'}}>
+                    <input type="checkbox" checked={selected} onChange={()=>toggleRoom(String(r.room_number))}/>
+                    <div style={{flex:1}}>
+                      <div className="info-val">{r.room_number} — {r.category}</div>
+                      <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
+                    </div>
+                  </label>
+                )
+              })}
+          </div>
+        </details>
+        <div className="g2 mt3">
+          {roomIds.map(rn=><span key={rn} className="badge bb">{rn}</span>)}
         </div>
       </div>
       <div className="frow">
@@ -1380,7 +1404,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
     try {
       const isCheckIn=f.stayType==='CHECK_IN'
       const totalAmt=finalInvoice
-      await dbPost('reservations',{
+      const created=await dbPost('reservations',{
         guest_ids:[f.guestId], room_ids:[f.roomNo],
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
@@ -1394,6 +1418,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
       }
       if(collectedAmt>0) {
         await dbPost('transactions',{
+          reservation_id:created?.id||null,
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
           type:`Room Payment (${f.method})`, amount:collectedAmt, fiscal_day:todayStr(), tenant_id:TENANT
         })
@@ -1736,51 +1761,127 @@ function AddTaskModal({rooms,toast,onClose,reload}) {
 
 /* ═══════════════════════ BILLING ════════════════════════════ */
 function BillingPage({transactions,reservations,toast,reload,currentUser}) {
-  const [filter,setFilter]=useState('TODAY')
-  const [search,setSearch]=useState('')
-  const [showAdd,setShowAdd]=useState(false)
+  const [selectedDate,setSelectedDate]=useState(todayStr())
+  const [tokenAmount,setTokenAmount]=useState('')
   const [collectTarget,setCollectTarget]=useState(null)
-  const today=todayStr(), month=today.slice(0,7)
-  const todayT=transactions.filter(t=>t.fiscal_day===today)
-  const monthT=transactions.filter(t=>t.fiscal_day?.startsWith(month))
+  const tokenStoreKey='hf_crm_token_amount_by_date_v1'
+  const [tokenByDate,setTokenByDate]=useState(()=>{try{return JSON.parse(localStorage.getItem(tokenStoreKey)||'{}')}catch{return{}}})
+  const today=todayStr()
+  const dayT=transactions.filter(t=>t.fiscal_day===selectedDate)
   const outstanding=reservations.filter(r=>r.status==='CHECKED_IN')
     .reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
+  const dueRows=reservations
+    .filter(r=>r.status!=='CANCELLED'&&Math.max(0,+r.total_due||((+r.total_amount||0)-(+r.paid_amount||0)))>0)
+    .map(r=>{
+      const guestName=(r.guest_name||'')||'—'
+      const paid=Math.max(0,+r.paid_amount||0)
+      const due=Math.max(0,+r.total_due||((+r.total_amount||0)-paid))
+      return {
+        id:`due_${r.id}`,
+        fiscal_day:selectedDate,
+        guest_name:guestName,
+        room_number:(r.room_ids||[]).join(','),
+        reservation_id:r.id,
+        type:'Outstanding Due',
+        amount:0,
+        _dueOnly:true,
+        _paid:paid,
+        _due:due
+      }
+    })
 
-  let list=filter==='TODAY'?todayT:filter==='MONTH'?monthT:transactions
-  if(search){ const q=search.toLowerCase(); list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q)) }
-  const findReservation=(t)=>reservations.find(r=>(r.room_ids||[]).includes(t.room_number) && r.status!=='CANCELLED')
+  const list=[...dayT,...dueRows]
+  const tokenSaved=Math.max(0,+tokenByDate[selectedDate]||0)
+  const tokenInput=tokenAmount===''?tokenSaved:Math.max(0,+tokenAmount||0)
+  const dayTotal=dayT.reduce((a,t)=>a+(+t.amount||0),0)
+  const closingBalance=Math.max(0,dayTotal-tokenInput)
+  const findReservation=(t)=>reservations.find(r=>
+    (t?.reservation_id&&String(r.id)===String(t.reservation_id)) ||
+    ((r.room_ids||[]).includes(t.room_number) && r.status!=='CANCELLED')
+  )
+  const formatDate=(d)=>new Date(d+'T00:00:00').toISOString().slice(0,10)
+  const nextDate=formatDate(new Date(new Date(selectedDate+'T00:00:00').getTime()+86400000))
+
+  function saveTokenForDate() {
+    const next={...tokenByDate,[selectedDate]:tokenInput}
+    setTokenByDate(next)
+    localStorage.setItem(tokenStoreKey,JSON.stringify(next))
+    toast(`Token amount saved for ${selectedDate}`)
+  }
+
+  function downloadReportCsv() {
+    const rows=[['Date','Guest','Room','Type','Amount','Paid','Due']]
+    for(const t of [...dayT,...dueRows]){
+      const res=findReservation(t)
+      const paid=t._dueOnly?t._paid:Math.max(0,+res?.paid_amount||0)
+      const due=t._dueOnly?t._due:Math.max(0,+res?.total_due||((+res?.total_amount||0)-paid))
+      rows.push([t.fiscal_day||selectedDate,t.guest_name||'',t.room_number||'',t.type||'',String(+t.amount||0),String(paid),String(due)])
+    }
+    rows.push([])
+    rows.push(['Daily Total','','','',''+dayTotal,'',''])
+    rows.push(['Token Amount','','','',''+tokenInput,'',''])
+    rows.push(['Closing Balance','','','',''+closingBalance,'',''])
+    const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'})
+    const url=URL.createObjectURL(blob)
+    const a=document.createElement('a')
+    a.href=url
+    a.download=`transaction-report-${selectedDate}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  function closeDayAndAdvance() {
+    saveTokenForDate()
+    downloadReportCsv()
+    setSelectedDate(nextDate)
+    setTokenAmount('')
+    toast(`Closing complete. Report downloaded, moved to ${nextDate}`)
+  }
+
+  useEffect(()=>{
+    setTokenAmount(String(Math.max(0,+tokenByDate[selectedDate]||0)))
+  },[selectedDate])
 
   return (
     <div>
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">Today</div><div className="stat-val">{BDT(todayT.reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{todayT.length} transactions</div></div>
-        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthT.reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{monthT.length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">Selected Date Total</div><div className="stat-val">{BDT(dayTotal)}</div><div className="stat-sub">{dayT.length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">🧾</div><div className="stat-lbl">Closing Balance</div><div className="stat-val">{BDT(closingBalance)}</div><div className="stat-sub">Transactions - token</div></div>
         <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
       </div>
       <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
-        <div className="tabs" style={{marginBottom:0}}>
-          {['TODAY','MONTH','ALL'].map(f=><button key={f} className={`tab${filter===f?' on':''}`} onClick={()=>setFilter(f)}>{f}</button>)}
+        <div className="card" style={{padding:'8px 10px',display:'flex',alignItems:'center',gap:8}}>
+          <span className="xs muted">📅 Transaction Date</span>
+          <input type="date" className="finput" style={{minWidth:170}} value={selectedDate} onChange={e=>setSelectedDate(e.target.value||today)}/>
         </div>
-        <div className="flex gap2">
-          <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search guest, room, type…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-          <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Record Payment</button>
+        <div className="card" style={{padding:'8px 10px',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+          <span className="xs muted">Token Amount (BDT)</span>
+          <input type="number" className="finput" style={{width:120}} min="0" value={tokenAmount} onChange={e=>setTokenAmount(e.target.value)} placeholder="0"/>
+          <button className="btn btn-ghost btn-sm" onClick={saveTokenForDate}>Save Token</button>
+          <span className="xs muted">Closing: <strong style={{color:'var(--gold)'}}>{BDT(closingBalance)}</strong></span>
+          <button className="btn btn-gold btn-sm" onClick={closeDayAndAdvance}>Closing Complete</button>
         </div>
       </div>
       <div className="card">
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th><th>Paid</th><th>Due</th><th>Actions</th></tr></thead>
             <tbody>
               {list.slice(0,80).map(t=>(
                 <tr key={t.id}>
                   <td className="xs muted">{t.fiscal_day||'—'}</td>
                   <td className="xs">{t.guest_name||'—'}</td>
                   <td><span className="badge bb">{t.room_number||'—'}</span></td>
-                  <td><span className="badge bgold">{t.type||'Payment'}</span></td>
+                  <td><span className={`badge ${t._dueOnly?'ba':'bgold'}`}>{t.type||'Payment'}</span></td>
                   <td className="xs gold" style={{fontWeight:500}}>{BDT(t.amount)}</td>
+                  <td className="xs" style={{color:'var(--grn)'}}>{BDT(t._dueOnly?t._paid:Math.max(0,+findReservation(t)?.paid_amount||0))}</td>
+                  <td className="xs" style={{color:'var(--rose)'}}>{BDT(t._dueOnly?t._due:Math.max(0,+findReservation(t)?.total_due||0))}</td>
                   <td>
                     <div className="flex gap2">
-                      <button className="btn btn-ghost btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={()=>printTransactionInvoice(t,reservations)}>🖨 Print</button>
+                      {!t._dueOnly&&<button className="btn btn-ghost btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={()=>printTransactionInvoice(t,reservations)}>🖨 Print</button>}
                       <button className="btn btn-success btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={()=>setCollectTarget({tx:t,res:findReservation(t)})}>💰 Collect</button>
                       {currentUser?.role==='owner'&&<button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button>}
                     </div>
@@ -1791,7 +1892,6 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
           </table>
         </div>
       </div>
-      {showAdd&&<RecordPayModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
       {collectTarget&&<SettlePaymentModal
         target={collectTarget}
         toast={toast}
@@ -1826,6 +1926,7 @@ function SettlePaymentModal({target,toast,onClose,reload}) {
         payment_status:nextDue<=0?'Paid':'Partial'
       })
       await dbPost('transactions',{
+        reservation_id:res?.id||null,
         room_number:tx?.room_number||'',
         guest_name:tx?.guest_name||'',
         type:'Collected Payment',
