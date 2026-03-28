@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 ═══════════════════════════════════════════════════════════════ */
 
 const TODAY = new Date("2026-03-08");
-const fmtDate = d => d.toISOString().split("T")[0];
+const fmtDate = d => d ? String(d).slice(0,10) : '—';
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const BDT = n => `৳${Number(n).toLocaleString("en-BD")}`;
 
