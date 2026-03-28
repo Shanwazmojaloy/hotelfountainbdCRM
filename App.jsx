@@ -629,26 +629,12 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
 
   async function doCheckout() {
     try {
-      let finalPaymentStatus = 'Paid';
-      if (totalDue > 0 && paid === 0) {
-        finalPaymentStatus = 'Unpaid';
-      } else if (totalDue > 0 && paid > 0) {
-        finalPaymentStatus = 'Partial';
-      }
-      // Always release room first, even if billing fields fail to update.
-      await dbPatch('rooms', room.id, { status: 'DIRTY' });
-      try {
-        await dbPatch('reservations', activeRes.id, {
-          status: 'CHECKED_OUT',
-          checkout_status: 'Departed',
-          payment_status: finalPaymentStatus
-        });
-      } catch {
-        await dbPatch('reservations', activeRes.id, { status: 'CHECKED_OUT', payment_status: finalPaymentStatus });
-      }
-      toast(`Check-out complete. ${totalDue > 0 ? 'Outstanding balance kept on record.' : 'Fully paid checkout.'}`);
-      reload();
-    } catch (e) { toast(e.message, 'error'); }
+      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
+      await dbPatch('rooms',room.id,{status:'DIRTY'})
+      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      toast(`${guest?.name||'Guest'} checked out ✓`)
+      reload()
+    } catch(e){ toast(e.message,'error') }
   }
 
   async function addFolioCharge(f) {
@@ -943,14 +929,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
         }
       }
-      // Always recalculate payment_status
-      let payment_status = 'Paid';
-      if (balance > 0 && paidNum === 0) {
-        payment_status = 'Unpaid';
-      } else if (balance > 0 && paidNum > 0) {
-        payment_status = 'Partial';
-      }
-      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes,payment_status})
+      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes})
       toast('Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
@@ -1499,7 +1478,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
       <div className="card">
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th><th>Payment</th><th>Action</th></tr></thead>
+            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th>{currentUser?.role==='owner'&&<th></th>}</tr></thead>
             <tbody>
               {list.slice(0,80).map(t=>(
                 <tr key={t.id}>
@@ -1508,20 +1487,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
                   <td><span className="badge bb">{t.room_number||'—'}</span></td>
                   <td><span className="badge bgold">{t.type||'Payment'}</span></td>
                   <td className="xs gold" style={{fontWeight:500}}>{BDT(t.amount)}</td>
-                  <td>
-                    <span className={`badge ${getPaymentStatus(t.guest_name, t.room_number, t.fiscal_day)==='Unpaid'?'br_':getPaymentStatus(t.guest_name, t.room_number, t.fiscal_day)==='Partial'?'ba':'bg'}`}>{getPaymentStatus(t.guest_name, t.room_number, t.fiscal_day)}</span>
-                  </td>
-                  <td style={{whiteSpace:'nowrap'}}>
-                    <button
-                      className="print:hidden border border-[#E5D1B0] text-[#E5D1B0] hover:bg-[#E5D1B0] hover:text-[#1C1B1F] p-2 rounded-lg transition-colors"
-                      style={{marginRight:4}}
-                      title="Print Invoice"
-                      onClick={() => window.print()}
-                    >
-                      🖨
-                    </button>
-                    {currentUser?.role==='owner'&&<button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button>}
-                  </td>
+                  {currentUser?.role==='owner'&&<td><button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button></td>}
                 </tr>
               ))}
             </tbody>
