@@ -1101,48 +1101,82 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
 
 function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
   const [status,setStatus]=useState(res.status)
+  const [roomIds,setRoomIds]=useState((res.room_ids||[]).map(String))
+  const [checkIn,setCheckIn]=useState((res.check_in||'').slice(0,10))
+  const [checkOut,setCheckOut]=useState((res.check_out||'').slice(0,10))
+  const [grossAmt,setGrossAmt]=useState(String(res.total_amount||0))
+  const [discountAmt,setDiscountAmt]=useState(String(res.discount_amount||0))
   const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
+  const [method,setMethod]=useState(res.payment_method||'Cash')
   const [notes,setNotes]=useState(res.notes||'')
   const [saving,setSaving]=useState(false)
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
-  const nights=nightsCount(res.check_in,res.check_out)
-  const totalAmt=+res.total_amount||0
-  const paidNum=+paidAmt||0
-  const balance=totalAmt-paidNum
+  const nights=nightsCount(checkIn,checkOut)
+  const grossNum=Math.max(0,+grossAmt||0)
+  const discountNum=Math.max(0,+discountAmt||0)
+  const totalAmt=Math.max(0,grossNum-discountNum)
+  const paidNum=Math.max(0,+paidAmt||0)
+  const safePaid=Math.min(totalAmt,paidNum)
+  const balance=Math.max(0,totalAmt-safePaid)
+  const paymentStatus=balance<=0?'Paid':safePaid>0?'Partial':'Unpaid'
+
+  function toggleRoom(roomNumber){
+    setRoomIds(prev=>prev.includes(roomNumber)?prev.filter(r=>r!==roomNumber):[...prev,roomNumber])
+  }
 
   async function save() {
+    if(!roomIds.length) return toast('Select at least one room','error')
+    if(!checkIn||!checkOut) return toast('Set check-in and check-out dates','error')
+    if(nights<=0) return toast('Check-out must be after check-in','error')
     setSaving(true)
     try {
-      // Changing TO checked_in → mark rooms OCCUPIED
-      if(status==='CHECKED_IN'&&res.status!=='CHECKED_IN') {
-        for(const rn of (res.room_ids||[])) {
-          const room=rooms.find(r=>r.room_number===rn)
-          if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
+      const previousRooms=(res.room_ids||[]).map(String)
+      const targetStatusForAssigned=
+        status==='CHECKED_IN'?'OCCUPIED':
+        status==='CHECKED_OUT'?'DIRTY':
+        (status==='RESERVED'||status==='PENDING')?'RESERVED':'AVAILABLE'
+
+      for(const rn of previousRooms) {
+        if(!roomIds.includes(rn)) {
+          const room=rooms.find(r=>String(r.room_number)===String(rn))
+          if(room) await dbPatch('rooms',room.id,{status:'AVAILABLE'})
         }
       }
-      // Changing TO checked_out → free rooms
-      if(status==='CHECKED_OUT'&&res.status!=='CHECKED_OUT') {
-        for(const rn of (res.room_ids||[])) {
-          const room=rooms.find(r=>r.room_number===rn)
-          if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
-        }
+
+      for(const rn of roomIds) {
+        const room=rooms.find(r=>String(r.room_number)===String(rn))
+        if(room) await dbPatch('rooms',room.id,{status:targetStatusForAssigned})
       }
-      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes})
+
+      await dbPatch('reservations',res.id,{
+        status,
+        room_ids:roomIds,
+        check_in:checkIn,
+        check_out:checkOut,
+        total_amount:totalAmt,
+        discount_amount:discountNum,
+        paid_amount:safePaid,
+        total_due:balance,
+        payment_status:paymentStatus,
+        payment_method:method,
+        notes
+      })
       toast('Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
 
-  async function checkIn() {
+  async function doCheckIn() {
+    if(!roomIds.length) return toast('Select at least one room','error')
     setSaving(true)
     try {
-      for(const rn of (res.room_ids||[])) {
-        const room=rooms.find(r=>r.room_number===rn)
+      for(const rn of roomIds) {
+        const room=rooms.find(r=>String(r.room_number)===String(rn))
         if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
       }
-      await dbPatch('reservations',res.id,{status:'CHECKED_IN',check_in:new Date().toISOString()})
-      toast(`${gn} checked in to Rm ${(res.room_ids||[]).join(',')} ✓`)
+      await dbPatch('reservations',res.id,{status:'CHECKED_IN',check_in:new Date().toISOString(),room_ids:roomIds})
+      toast(`${gn} checked in to Rm ${roomIds.join(',')} ✓`)
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
@@ -1152,7 +1186,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
       footer={
         <div className="flex gap2" style={{flexWrap:'wrap',width:'100%'}}>
           {(res.status==='RESERVED'||res.status==='PENDING')&&(
-            <button className="btn btn-success" disabled={saving} onClick={checkIn}>✓ Check In Now</button>
+            <button className="btn btn-success" disabled={saving} onClick={doCheckIn}>✓ Check In Now</button>
           )}
           {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{
             if(!window.confirm('Delete this reservation?'))return
@@ -1173,15 +1207,36 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
       }>
       <div className="g2 mb4">
         {[
-          ['Guest',gn],['Rooms',(res.room_ids||[]).join(', ')],
-          ['Check-In',fmtDate(res.check_in)],['Check-Out',fmtDate(res.check_out)],
+          ['Guest',gn],['Rooms',roomIds.join(', ')||'—'],
+          ['Check-In',fmtDate(checkIn)],['Check-Out',fmtDate(checkOut)],
           ['Nights',nights||'—'],['Total Amount',BDT(totalAmt)],
-          ['Payment Method',res.payment_method||'—'],['On-Duty Officer',res.on_duty_officer||'—'],
+          ['Payment Status',paymentStatus],['On-Duty Officer',res.on_duty_officer||'—'],
         ].map(([l,v])=>(
           <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
         ))}
       </div>
       {res.special_requests&&<div className="info-box mb4"><div className="info-lbl">Special Requests</div><div className="info-val" style={{marginTop:4}}>{res.special_requests}</div></div>}
+      <div className="fg mb4">
+        <label className="flbl">Rooms (editable, multiple)</label>
+        <div className="g2">
+          {rooms.filter(r=>r.status!=='OUT_OF_ORDER'||roomIds.includes(String(r.room_number))).map(r=>{
+            const selected=roomIds.includes(String(r.room_number))
+            return (
+              <label key={r.id} className="info-box" style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',borderColor:selected?'rgba(200,169,110,.45)':'var(--br)'}}>
+                <input type="checkbox" checked={selected} onChange={()=>toggleRoom(String(r.room_number))}/>
+                <div style={{flex:1}}>
+                  <div className="info-val">{r.room_number} — {r.category}</div>
+                  <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
+                </div>
+              </label>
+            )
+          })}
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Check-In Date</label><input type="date" className="finput" value={checkIn} onChange={e=>setCheckIn(e.target.value)}/></div>
+        <div className="fg"><label className="flbl">Check-Out Date</label><input type="date" className="finput" value={checkOut} onChange={e=>setCheckOut(e.target.value)}/></div>
+      </div>
       <div className="frow">
         <div className="fg">
           <label className="flbl">Status</label>
@@ -1190,10 +1245,28 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           </select>
         </div>
         <div className="fg">
+          <label className="flbl">Payment Method</label>
+          <select className="fselect" value={method} onChange={e=>setMethod(e.target.value)}>
+            {['Cash','Bkash','Nagad','Card','Bank Transfer','Corporate','Complimentary'].map(m=><option key={m}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg">
+          <label className="flbl">Gross Total (BDT)</label>
+          <input type="number" className="finput" value={grossAmt} onChange={e=>setGrossAmt(e.target.value)} min="0"/>
+        </div>
+        <div className="fg">
+          <label className="flbl">Discount (BDT)</label>
+          <input type="number" className="finput" value={discountAmt} onChange={e=>setDiscountAmt(e.target.value)} min="0"/>
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg">
           <label className="flbl">Amount Paid (BDT)</label>
           <input type="number" className="finput" value={paidAmt} onChange={e=>setPaidAmt(e.target.value)} min="0"/>
           <div className="xs mt3" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>
-            Balance due: {BDT(balance)}
+            Net total: {BDT(totalAmt)} · Balance due: {BDT(balance)}
           </div>
         </div>
       </div>
