@@ -1918,6 +1918,7 @@ ${dueRows}
     const paymentRowsArr = Object.entries(byType)
       .map(([tp,amt])=>`<tr><td>${escapeTpl(tp)}</td><td style="text-align:right">৳${escapeTpl(Number(amt||0).toLocaleString('en-BD'))}</td></tr>`)
     const paymentRows = paymentRowsArr.join('')
+    const paymentRowsHtml = (typeof paymentRows === 'string' && paymentRows.length > 0) ? paymentRows : safeFallback;
     const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${escapeTpl(grp.guest_name||'Guest')}</title>
   <style>
   @page{size:A4 portrait;margin:10mm}
@@ -1940,7 +1941,7 @@ ${dueRows}
   <tr><th>Paid</th><td class="r">৳${escapeTpl(Number(resPaid||0).toLocaleString('en-BD'))}</td></tr>
   <tr><th>Balance Due</th><td class="r"><strong>৳${escapeTpl(Number(resDue||0).toLocaleString('en-BD'))}</strong></td></tr>
   </table></div>
-  <div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRows && paymentRows.length > 0 ? paymentRows : safeFallback}</tbody></table></div>
+  <div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRowsHtml}</tbody></table></div>
   <div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>
   </div><script>window.onload=()=>window.print();</script></body></html>`
     printPDF(html)
