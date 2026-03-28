@@ -1628,9 +1628,33 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [savedToken,setSavedToken]=useState(0)
   const [tokenSaving,setTokenSaving]=useState(false)
   const today=todayStr(), month=today.slice(0,7)
-  const todayT=transactions.filter(t=>t.fiscal_day===today)
-  const monthT=transactions.filter(t=>t.fiscal_day?.startsWith(month))
-  const calT=calDate?transactions.filter(t=>t.fiscal_day===calDate):[]
+
+  // Merge transactions by guest_name and fiscal_day (same as Dashboard)
+  function mergeTransactions(transactions) {
+    const groupedTx = {};
+    for (const t of transactions) {
+      if (!t.guest_name || !t.fiscal_day) continue;
+      const key = `${t.guest_name}__${t.fiscal_day}`;
+      if (!groupedTx[key]) {
+        groupedTx[key] = { ...t, amount: 0, type: [], due: 0, paid: 0, id: [] };
+      }
+      groupedTx[key].amount += Number(t.amount) || 0;
+      groupedTx[key].due += Number(t.due) || 0;
+      groupedTx[key].paid += Number(t.paid) || 0;
+      if (t.type && !groupedTx[key].type.includes(t.type)) groupedTx[key].type.push(t.type);
+      if (t.id && !groupedTx[key].id.includes(t.id)) groupedTx[key].id.push(t.id);
+    }
+    return Object.values(groupedTx).map(t => ({
+      ...t,
+      type: t.type.join(', '),
+      id: t.id.join(', ')
+    }));
+  }
+
+  const mergedTransactions = mergeTransactions(transactions);
+  const todayT = mergedTransactions.filter(t=>t.fiscal_day===today);
+  const monthT = mergedTransactions.filter(t=>t.fiscal_day?.startsWith(month));
+  const calT = calDate ? mergedTransactions.filter(t=>t.fiscal_day===calDate) : [];
 
   // Load all folios once
   useEffect(()=>{
