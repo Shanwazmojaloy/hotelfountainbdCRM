@@ -1500,6 +1500,20 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
     return res?.payment_status || '—';
   }
 
+  // Find due reservations (pending bills)
+  const dueReservations = reservations.filter(r => {
+    const total = +r.total_amount || 0;
+    const paid = +r.paid_amount || 0;
+    return total > paid && total > 0 && r.guest_ids && r.guest_ids.length > 0;
+  });
+
+  // Helper to get guest name by guest_ids
+  const getGuestName = gids => {
+    const fid = String((gids||[])[0]||'');
+    const g = (window.guestsList || []).find(g=>String(g.id)===fid);
+    return g ? g.name : 'Unknown';
+  };
+
   return (
     <div>
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
@@ -1516,6 +1530,65 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
           <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Record Payment</button>
         </div>
       </div>
+
+      {/* Pending Bills — Due Reservations */}
+      {dueReservations.length > 0 && (
+        <div className="card" style={{borderColor:'var(--rose)', marginBottom: 24}}>
+          <div className="card-hd" style={{background:'rgba(224,92,122,.07)', color:'var(--rose)'}}>
+            <span className="card-title">⚠ Pending Bills — Due Reservations</span>
+            <span className="badge br_">{dueReservations.length} unpaid</span>
+          </div>
+          <div className="card-body" style={{padding:'0 0 10px 0'}}>
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead>
+                  <tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th>Balance Due</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                  {dueReservations.map(r => {
+                    const guestName = (window.guestsList || []).find(g=>String(g.id)===String((r.guest_ids||[])[0]||''))?.name || 'Unknown';
+                    const total = +r.total_amount || 0;
+                    const paid = +r.paid_amount || 0;
+                    const balance = total - paid;
+                    return (
+                      <tr key={r.id}>
+                        <td>{guestName}</td>
+                        <td><span className="badge bb">{(r.room_ids||[]).join(', ')}</span></td>
+                        <td className="xs muted">{fmtDate(r.check_in)}</td>
+                        <td className="xs muted">{fmtDate(r.check_out)}</td>
+                        <td className="xs gold">{BDT(total)}</td>
+                        <td className="xs" style={{color:paid>0?'var(--grn)':'var(--tx2)'}}>{BDT(paid)}</td>
+                        <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
+                        <td>
+                          <button className="btn btn-ghost btn-sm" onClick={() => {
+                            // Print invoice for this due reservation
+                            const byType = {};
+                            if (r.payment_method) byType[r.payment_method] = r.paid_amount || 0;
+                            window.printInvoice && window.printInvoice(
+                              {
+                                guest_name: guestName,
+                                room_number: (r.room_ids||[])[0]||'',
+                                txs: [r]
+                              },
+                              r,
+                              total,
+                              paid,
+                              balance,
+                              byType
+                            );
+                          }}>🖨 Print Invoice</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transactions Table */}
       <div className="card">
         <div className="tbl-wrap">
           <table className="tbl">
