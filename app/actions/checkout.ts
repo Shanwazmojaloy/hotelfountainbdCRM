@@ -30,13 +30,23 @@ export async function processCheckOut(roomId: string, invoiceId: string, totalDu
   if (roomError) throw new Error("Failed to update room status");
 
   // 2. Safely update the invoice based on the actual balance
-  const finalPaymentStatus = totalDue > 0 ? 'Unpaid' : 'Paid';
+  const { data: invoiceRow, error: invoiceFetchError } = await supabase
+    .from('invoices')
+    .select('amount_paid')
+    .eq('id', invoiceId)
+    .single();
+
+  if (invoiceFetchError) throw new Error("Failed to load invoice");
+
+  const paidSoFar = Number(invoiceRow?.amount_paid ?? 0);
+  const finalPaymentStatus = totalDue <= 0 ? 'Paid' : (paidSoFar > 0 ? 'Partial' : 'Unpaid');
 
   const { error: invoiceError } = await supabase
     .from('invoices')
     .update({
       checkout_status: 'Departed',
       payment_status: finalPaymentStatus,
+      total_due: totalDue,
     })
     .eq('id', invoiceId);
 

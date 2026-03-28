@@ -21,6 +21,7 @@
   <div id="root" style="height:100%"></div>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
   <script type="text/babel" data-type="module">
 const { useState, useEffect, useRef, useCallback } = React;
@@ -43,6 +44,76 @@ const AVC = ['#C8A96E','#2EC4B6','#E05C7A','#58A6FF','#3FB950','#9B72CF','#F0A50
 const avColor = n => AVC[n ? n.charCodeAt(0)%AVC.length : 0]
 const initials = n => n ? n.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '?'
 const sleep = ms => new Promise(r=>setTimeout(r,ms))
+const receivableStatus = due => due <= 0 ? 'PAID' : 'UNPAID'
+
+function printTransactionInvoice(tx, reservations = []) {
+  const safe = v => String(v ?? '')
+  const esc = s => safe(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))
+  const toNum = v => Number(v || 0)
+  const matchRes = reservations.find(r => String(r.room_ids || '').includes(String(tx.room_number || '')))
+  const totalAmount = toNum(matchRes?.total_amount)
+  const paidAmount = toNum(matchRes?.paid_amount)
+  const balanceDue = Math.max(0, totalAmount - paidAmount)
+  const issueDate = tx.fiscal_day || todayStr()
+  const detailRows = [
+    ['Guest', tx.guest_name || 'Walk-in'],
+    ['Room', tx.room_number || '—'],
+    ['Check-In', fmtDate(matchRes?.check_in)],
+    ['Check-Out', fmtDate(matchRes?.check_out)],
+    ['Transaction Type', tx.type || 'Payment'],
+  ]
+  const printWin = window.open('', '_blank', 'width=900,height=980')
+  if (!printWin) {
+    alert('Please allow pop-ups to print the invoice.')
+    return
+  }
+  const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Invoice - ${esc(tx.guest_name || 'Guest')}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    body{font-family:Arial,sans-serif;background:#fff;color:#111;margin:0}
+    .inv{max-width:760px;margin:0 auto}
+    .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:16px}
+    .h1{font-size:28px;font-weight:700;margin:0}
+    .sub{font-size:12px;color:#444}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #ddd;padding:8px;font-size:12px;text-align:left;vertical-align:top}
+    th{background:#f6f6f6}
+    .tot{margin-top:14px;width:320px;margin-left:auto}
+    .tot td{border:1px solid #ddd}
+    .noprint{display:none}
+    @media print {
+      body{background:#fff!important;color:#000!important}
+      .inv{box-shadow:none!important}
+    }
+  </style></head><body>
+  <div class="inv">
+    <div class="hd">
+      <div><h1 class="h1">Hotel Fountain</h1><div class="sub">Billing Invoice / Folio</div></div>
+      <div class="sub">Invoice Date: ${esc(issueDate)}<br/>Generated: ${esc(new Date().toLocaleString())}</div>
+    </div>
+    <table><tbody>
+      ${detailRows.map(([k,v])=>`<tr><th style="width:180px">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}
+    </tbody></table>
+    <table style="margin-top:16px">
+      <thead><tr><th>Description</th><th style="width:160px">Amount (BDT)</th></tr></thead>
+      <tbody>
+        <tr><td>${esc(tx.type || 'Payment')}</td><td>${esc(BDT(tx.amount))}</td></tr>
+      </tbody>
+    </table>
+    <table class="tot">
+      <tbody>
+        <tr><td>Total Folio</td><td>${esc(BDT(totalAmount))}</td></tr>
+        <tr><td>Paid</td><td>${esc(BDT(paidAmount))}</td></tr>
+        <tr><td><strong>Balance Due</strong></td><td><strong>${esc(BDT(balanceDue))}</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <script>window.onload=function(){setTimeout(function(){window.print();},120);};</script>
+  </body></html>`
+  printWin.document.open()
+  printWin.document.write(html)
+  printWin.document.close()
+}
 
 const H  = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' }
 const H2 = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
@@ -656,9 +727,40 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
 
   async function doCheckout() {
     try {
-      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
+      const paidSoFar=+activeRes?.paid_amount||0
+      const due=Math.max(0,total-paidSoFar)
+      const paymentStatus=due<=0?'Paid':(paidSoFar>0?'Partial':'Unpaid')
+      await dbPatch('reservations',activeRes.id,{
+        status:'CHECKED_OUT',
+        checkout_status:'DEPARTED',
+        payment_status:paymentStatus,
+        total_due:due
+      })
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      if(due>0){
+        await dbPost('folios',{
+          room_number:room.room_number,
+          reservation_id:activeRes.id,
+          description:`Checkout receivable (${paymentStatus})`,
+          category:'Receivable',
+          amount:due,
+          tenant_id:TENANT
+        })
+      }
+      await dbPost('transactions',{
+        type:'Final Settlement',
+        amount:total,
+        room_number:room.room_number,
+        guest_name:guest?.name,
+        fiscal_day:todayStr(),
+        settlement_status:receivableStatus(due),
+        payment_status:paymentStatus,
+        total_due:due,
+        tenant_id:TENANT
+      })
+      if(guest?.id){
+        await dbPatch('guests',guest.id,{outstanding_balance:due})
+      }
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -773,6 +875,11 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             <div className="divider" style={{maxWidth:220,margin:'8px auto'}}/>
             <div style={{fontWeight:700,fontSize:24,color:'var(--gold)'}}>{BDT(total)}</div>
             <div className="xs muted mt3">Room will move to Dirty / Housekeeping</div>
+            {Math.max(0,total-(+activeRes?.paid_amount||0))>0&&(
+              <div className="xs mt3" style={{color:'var(--rose)'}}>
+                Checkout allowed with due: {BDT(Math.max(0,total-(+activeRes?.paid_amount||0)))} (ledger stays unpaid/partial)
+              </div>
+            )}
           </div>
         </Modal>
       )}
@@ -1489,7 +1596,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
       <div className="card">
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th>{currentUser?.role==='owner'&&<th></th>}</tr></thead>
+            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th><th>Actions</th></tr></thead>
             <tbody>
               {list.slice(0,80).map(t=>(
                 <tr key={t.id}>
@@ -1498,7 +1605,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
                   <td><span className="badge bb">{t.room_number||'—'}</span></td>
                   <td><span className="badge bgold">{t.type||'Payment'}</span></td>
                   <td className="xs gold" style={{fontWeight:500}}>{BDT(t.amount)}</td>
-                  {currentUser?.role==='owner'&&<td><button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button></td>}
+                  <td>
+                    <div className="flex gap2">
+                      <button className="btn btn-ghost btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={()=>printTransactionInvoice(t,reservations)}>🖨 Print</button>
+                      {currentUser?.role==='owner'&&<button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button>}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1960,6 +2072,7 @@ function App() {
   const [notifOpen,setNotifOpen]=useState(false)
   // Staff list lives here so Settings can mutate it
   const [staffList,setStaffList]=useState(INIT_STAFF)
+  const realtimeRef=useRef(null)
   const toastRef=useRef()
 
   const toast=useCallback((msg,type='success')=>{
@@ -2000,6 +2113,30 @@ function App() {
     const interval=setInterval(loadAll,90000)
     return()=>clearInterval(interval)
   },[user]) // intentionally omit loadAll to avoid re-running on every render
+
+  useEffect(()=>{
+    if(!user) return
+    const sClient = window.supabase?.createClient?.(SB_URL, SB_KEY)
+    if(!sClient){
+      console.warn('Supabase realtime client not available')
+      return
+    }
+    const tables=['rooms','reservations','transactions','folios','guests','housekeeping_tasks']
+    const channel=sClient.channel(`crm-live-${TENANT}`)
+    tables.forEach(table=>{
+      channel.on('postgres_changes',{event:'*',schema:'public',table,filter:`tenant_id=eq.${TENANT}`},()=>{
+        loadAll()
+      })
+    })
+    channel.subscribe()
+    realtimeRef.current={client:sClient,channel}
+    return ()=>{
+      if(realtimeRef.current?.channel){
+        realtimeRef.current.client.removeChannel(realtimeRef.current.channel)
+      }
+      realtimeRef.current=null
+    }
+  },[user,loadAll])
 
   // BUG FIX: signOut fully resets ALL state
   function signOut() {
