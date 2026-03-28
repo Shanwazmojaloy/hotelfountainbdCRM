@@ -45,6 +45,7 @@ const avColor = n => AVC[n ? n.charCodeAt(0)%AVC.length : 0]
 const initials = n => n ? n.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '?'
 const sleep = ms => new Promise(r=>setTimeout(r,ms))
 const receivableStatus = due => due <= 0 ? 'PAID' : 'UNPAID'
+const HOTEL_SETTINGS_KEY = 'hf_crm_hotel_settings_v1'
 
 function printTransactionInvoice(tx, reservations = []) {
   const safe = v => String(v ?? '')
@@ -1153,7 +1154,18 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           {(res.status==='RESERVED'||res.status==='PENDING')&&(
             <button className="btn btn-success" disabled={saving} onClick={checkIn}>✓ Check In Now</button>
           )}
-          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
+          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{
+            if(!window.confirm('Delete this reservation?'))return
+            try{
+              for(const rn of (res.room_ids||[])) {
+                const room=rooms.find(r=>r.room_number===rn)
+                if(room) await dbPatch('rooms',room.id,{status:'AVAILABLE'})
+              }
+              await dbDelete('reservations',res.id)
+              toast('Reservation deleted · room set to AVAILABLE')
+              reload()
+            }catch(e){toast(e.message,'error')}
+          }}>🗑 Delete</button>}
           <div style={{flex:1}}/>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
@@ -1798,10 +1810,29 @@ function ReportsPage({transactions,rooms,reservations,guests}) {
 function SettingsPage({currentUser,toast,staffList,setStaffList}) {
   const isSA=currentUser?.role==='owner'
   const [tab,setTab]=useState('hotel')
-  const [hs,setHS]=useState({hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'7',svc:'5'})
+  const [hs,setHS]=useState(()=>{
+    const fallback={hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'7',svc:'5'}
+    try{
+      const raw=localStorage.getItem(HOTEL_SETTINGS_KEY)
+      if(!raw) return fallback
+      const parsed=JSON.parse(raw)
+      return {...fallback,...parsed}
+    }catch{
+      return fallback
+    }
+  })
   const HS=k=>e=>setHS(p=>({...p,[k]:e.target.value}))
   const [showAddUser,setShowAddUser]=useState(false)
   const [editUser,setEditUser]=useState(null)
+
+  function saveHotelSettings() {
+    try{
+      localStorage.setItem(HOTEL_SETTINGS_KEY, JSON.stringify(hs))
+      toast('Hotel settings saved ✓')
+    }catch{
+      toast('Failed to save settings','error')
+    }
+  }
 
   function deleteUser(id) {
     if(!window.confirm('Remove this staff account?')) return
@@ -1845,7 +1876,7 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
               <div className="fg"><label className="flbl">Service Charge (%)</label><input type="number" className="finput" value={hs.svc} onChange={HS('svc')} disabled={!isSA} min="0" max="30"/></div>
             </div>
             {isSA
-              ?<button className="btn btn-gold mt3" onClick={()=>toast('Hotel settings saved ✓')}>Save Settings</button>
+              ?<button className="btn btn-gold mt3" onClick={saveHotelSettings}>Save Settings</button>
               :<p className="xs muted mt3">Only the Owner can edit hotel settings.</p>
             }
           </div>
