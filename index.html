@@ -108,11 +108,15 @@ function printTransactionInvoice(tx, reservations = []) {
       </tbody>
     </table>
   </div>
-  <script>window.onload=function(){setTimeout(function(){window.print();},120);};</script>
   </body></html>`
   printWin.document.open()
   printWin.document.write(html)
   printWin.document.close()
+  printWin.onload = () => {
+    setTimeout(() => {
+      printWin.print()
+    }, 120)
+  }
 }
 
 const H  = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' }
