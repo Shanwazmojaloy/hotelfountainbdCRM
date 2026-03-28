@@ -881,21 +881,23 @@ function Dashboard({ rooms, guests, reservations, tasks, transactions, setPage }
   const occ = rooms.filter(r=>r.status==="occupied").length;
   const avail = rooms.filter(r=>r.status==="available").length;
   const occPct = Math.round((occ/rooms.length)*100);
-  // Group transactions by guest for today
+  // Group transactions by guest and date for today
   const rawTxns = [...transactions, ...ALL_TRANSACTIONS].filter(t => t.date === fmtDate(TODAY));
-  // Group by guest name
   const grouped = {};
   for (const t of rawTxns) {
     if (!t.guest) continue;
-    if (!grouped[t.guest]) {
-      grouped[t.guest] = { ...t, amount: 0, type: [], method: [], room: [], status: [], id: [] };
+    const key = `${t.guest}__${t.date}`;
+    if (!grouped[key]) {
+      grouped[key] = { ...t, amount: 0, type: [], method: [], room: [], status: [], id: [], paid: 0, due: 0 };
     }
-    grouped[t.guest].amount += t.amount || 0;
-    if (t.type && !grouped[t.guest].type.includes(t.type)) grouped[t.guest].type.push(t.type);
-    if (t.method && !grouped[t.guest].method.includes(t.method)) grouped[t.guest].method.push(t.method);
-    if (t.room && !grouped[t.guest].room.includes(t.room)) grouped[t.guest].room.push(t.room);
-    if (t.status && !grouped[t.guest].status.includes(t.status)) grouped[t.guest].status.push(t.status);
-    if (t.id && !grouped[t.guest].id.includes(t.id)) grouped[t.guest].id.push(t.id);
+    grouped[key].amount += t.amount || 0;
+    grouped[key].paid += t.paid || 0;
+    grouped[key].due += t.due || 0;
+    if (t.type && !grouped[key].type.includes(t.type)) grouped[key].type.push(t.type);
+    if (t.method && !grouped[key].method.includes(t.method)) grouped[key].method.push(t.method);
+    if (t.room && !grouped[key].room.includes(t.room)) grouped[key].room.push(t.room);
+    if (t.status && !grouped[key].status.includes(t.status)) grouped[key].status.push(t.status);
+    if (t.id && !grouped[key].id.includes(t.id)) grouped[key].id.push(t.id);
   }
   const todayTxns = Object.values(grouped).map(t => ({
     ...t,
@@ -904,6 +906,8 @@ function Dashboard({ rooms, guests, reservations, tasks, transactions, setPage }
     room: t.room.join(', '),
     status: t.status.join(', '),
     id: t.id.join(', '),
+    paid: t.paid,
+    due: t.due
   }));
   const todayRev = todayTxns.filter(t=>t.status==="completed").reduce((a,t)=>a+t.amount,0);
   const pendingTasks = tasks.filter(t=>t.status==="pending").length;
