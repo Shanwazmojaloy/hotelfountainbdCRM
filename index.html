@@ -1965,10 +1965,17 @@ ${dueRows}
   </table></div>
   <div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRowsHtml}</tbody></table></div>
   <div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>
-  </div><script>window.onload=()=>window.print();</script></body></html>`
-      printPDF(html)
+  </div><script>window.onload=()=>window.print();</script></body></html>`;
+      // Open a new window and write the HTML, then print
+      const printWin = window.open('', '_blank', 'width=800,height=900');
+      if (printWin) {
+        printWin.document.open();
+        printWin.document.write(html);
+        printWin.document.close();
+      } else {
+        alert('Popup blocked! Please allow popups for this site to print the invoice.');
+      }
     } catch (err) {
-      // Show a modal with the error instead of crashing
       alert('Invoice print error: '+(err?.message||err));
       if (window && window.console) window.console.error('Invoice print template error:', err, {grp, res, resTotal, resPaid, resDue, byType});
     }
