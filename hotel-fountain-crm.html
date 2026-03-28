@@ -462,14 +462,33 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
   const today=todayStr()
   const occ=rooms.filter(r=>r.status==='OCCUPIED').length
   const occPct=rooms.length?Math.round((occ/rooms.length)*100):0
-  const todayT=transactions.filter(t=>t.fiscal_day===today)
+  // Group transactions by guest_name and fiscal_day
+  const groupedTx = {};
+  for (const t of transactions) {
+    if (!t.guest_name || !t.fiscal_day) continue;
+    const key = `${t.guest_name}__${t.fiscal_day}`;
+    if (!groupedTx[key]) {
+      groupedTx[key] = { ...t, amount: 0, type: [], due: 0, paid: 0, id: [] };
+    }
+    groupedTx[key].amount += Number(t.amount) || 0;
+    groupedTx[key].due += Number(t.due) || 0;
+    groupedTx[key].paid += Number(t.paid) || 0;
+    if (t.type && !groupedTx[key].type.includes(t.type)) groupedTx[key].type.push(t.type);
+    if (t.id && !groupedTx[key].id.includes(t.id)) groupedTx[key].id.push(t.id);
+  }
+  const mergedTransactions = Object.values(groupedTx).map(t => ({
+    ...t,
+    type: t.type.join(', '),
+    id: t.id.join(', ')
+  }));
+  const todayT=mergedTransactions.filter(t=>t.fiscal_day===today)
   const todayRev=todayT.reduce((a,t)=>a+(+t.amount||0),0)
   const inHouse=reservations.filter(r=>r.status==='CHECKED_IN').length
   const pending=reservations.filter(r=>r.status==='PENDING').length
   const last14=Array.from({length:14},(_,i)=>{
     const d=new Date(todayDhaka()); d.setDate(d.getDate()-(13-i))
     const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    return {d:ds.slice(8),v:transactions.filter(t=>t.fiscal_day===ds).reduce((a,t)=>a+(+t.amount||0),0),ds}
+    return {d:ds.slice(8),v:mergedTransactions.filter(t=>t.fiscal_day===ds).reduce((a,t)=>a+(+t.amount||0),0),ds}
   })
   const checkedIn=reservations.filter(r=>r.status==='CHECKED_IN').slice(0,6)
   const getGN=gids=>{const fid=String((gids||[])[0]||'');const g=guests.find(g=>String(g.id)===fid);return g?g.name:'Unknown'}
@@ -543,7 +562,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
             <button className="btn btn-ghost btn-sm" onClick={()=>setPage('billing')}>View All →</button>
           </div>
           <div className="card-body" style={{padding:'6px 13px'}}>
-            {transactions.slice(0,8).map(t=>(
+            {mergedTransactions.slice(0,8).map(t=>(
               <div key={t.id} className="flex fac fjb" style={{padding:'6px 0',borderBottom:'1px solid var(--br2)'}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div className="xs" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.guest_name||'—'}</div>
@@ -563,7 +582,6 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
 function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
   const [filter,setFilter]=useState('ALL')
   const [selRoom,setSelRoom]=useState(null)
-  const [showAdd,setShowAdd]=useState(false)
   const canEdit=['owner','manager','receptionist'].includes(currentUser?.role)
   const canHKStatus=currentUser?.role==='housekeeping'  // HK can only change dirty→available
   const isSA=currentUser?.role==='owner'
@@ -1010,7 +1028,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           )}
           {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
           <div style={{flex:1}}/>
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
         </div>
       }>
@@ -1713,7 +1731,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
 .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}
 .hotel-name{font-size:18px;font-weight:700;color:#000}.hotel-sub{font-size:9px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
-.report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700;color:#000}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
+.report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
 table{width:100%;border-collapse:collapse;margin-top:6px}
 thead tr{background:#000;color:#fff}
 thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
@@ -1733,12 +1751,12 @@ h3{font-size:11px;font-weight:700;color:#000;margin:14px 0 6px;border-bottom:1px
 <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead><tbody>${txRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions today</td></tr>'}</tbody></table>
 ${dueRows}
 <div class="closing-box">
-  <div class="closing-row total"><span>Total Collected Today</span><span>৳${totalAmt.toLocaleString()}</span></div>
-  <div class="closing-row"><span>Token Amount</span><span>− ৳${tokenAmount.toLocaleString()}</span></div>
-  ${totalDue>0?`<div class="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDue.toLocaleString()}</span></div>`:''}
-  <div class="closing-row final"><span>CLOSING AMOUNT</span><span>৳${closingAmt.toLocaleString()}</span></div>
+  <div className="closing-row total"><span>Total Collected Today</span><span>৳${totalAmt.toLocaleString()}</span></div>
+  <div className="closing-row"><span>Token Amount</span><span>− ৳${tokenAmount.toLocaleString()}</span></div>
+  ${totalDue>0?`<div className="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDue.toLocaleString()}</span></div>`:''}
+  <div className="closing-row final"><span>CLOSING AMOUNT</span><span>৳${closingAmt.toLocaleString()}</span></div>
 </div>
-<div class="footer"><span>Hotel Fountain CRM · Lumea PMS · Confidential</span><span>${todayList.length} transaction${todayList.length!==1?'s':''} · ${duesCarried.length} pending due${duesCarried.length!==1?'s':''}</span></div>
+<div className="footer"><span>Hotel Fountain CRM · Lumea PMS · Confidential</span><span>${todayList.length} transaction${todayList.length!==1?'s':''} · ${duesCarried.length} pending due${duesCarried.length!==1?'s':''}</span></div>
 </body></html>`
 
     // Print PDF then advance fiscal day
@@ -1962,106 +1980,62 @@ ${dueRows}
       {showAdd&&<RecordPayModal toast={toast} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
-      {showBillDetail&&detailRes&&(()=>{
-        const r=detailRes
-        const gname=getGN(r)
-        const roomNo=getRoom(r)
-        const {roomCharge,sub,tax,svc,total,paid,due,folios,nights,roomRate}=computeBill(r)
-        const relTx=transactions.filter(t=>t.room_number===roomNo&&t.type!=='Final Settlement')
-        return (
-          <Modal title={`Bill — ${gname}`} onClose={()=>{setShowBillDetail(false);setDetailRes(null)}}
-            footer={
-              <div style={{width:'100%'}}>
-                {/* Collect Amount inline */}
-                <div style={{background:'rgba(200,169,110,.06)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:10,display:'flex',gap:8,alignItems:'center'}}>
-                  <span className="flbl" style={{marginBottom:0,whiteSpace:'nowrap'}}>💰 Collect Amount:</span>
-                  <input type="number" className="finput" id="bill-collect-input"
-                    placeholder={`Due: ${BDT(due)}`}
-                    style={{flex:1,padding:'6px 10px'}}/>
-                  <button className="btn btn-gold btn-sm" style={{whiteSpace:'nowrap'}} onClick={async()=>{
-                    const a=+document.getElementById('bill-collect-input').value
-                    if(!a||a<=0){toast('Enter valid amount','error');return}
-                    try{
-                      await dbPatch('reservations',r.id,{paid_amount:Math.min(total,(+r.paid_amount||0)+a)})
-                      await dbPost('transactions',{type:'Room Payment (Cash)',amount:a,room_number:roomNo,guest_name:gname,fiscal_day:todayStr(),tenant_id:TENANT})
-                      toast(`৳${a.toLocaleString()} recorded`)
-                      reload()
-                      setShowBillDetail(false);setDetailRes(null)
-                    }catch(e){toast(e.message,'error')}
-                  }}>Save</button>
-                </div>
-                <div className="flex gap2" style={{flexWrap:'wrap'}}>
-                  <button className="btn btn-ghost" onClick={()=>{setShowBillDetail(false);setDetailRes(null)}}>Close</button>
-                  <div style={{flex:1}}/>
-                  <button className="btn btn-gold" onClick={()=>{
-                    setShowBillDetail(false)
-                    setBillingRes({_fromRow:false,...r,room_number:roomNo,guest_name:gname,_resId:r.id,_total:total,_paid:paid,check_in:r.check_in,check_out:r.check_out,payment_method:r.payment_method,on_duty_officer:r.on_duty_officer,status:r.status})
-                    setShowAdd(true)
-                  }}>Record Payment →</button>
-                </div>
-              </div>
-            }>
-            {/* Guest + summary header */}
-            <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
-              <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
-                <div className="flex fac gap3">
-                  <Av name={gname} size={40}/>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:16}}>{gname}</div>
-                    <div className="xs muted">Room {roomNo} · {fmtDate(r.check_in)} → {fmtDate(r.check_out)}</div>
-                    <div className="xs" style={{color:'var(--amb)',marginTop:2}}>{nights} night{nights!==1?'s':''} · {BDT(roomRate)}/night</div>
-                  </div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                  <div className="xs muted">Total Due</div>
-                  <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(due)}</div>
-                </div>
+      {showBillDetail&&detailRes&&(
+        <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
+          <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
+            <div className="flex fac gap3">
+              <Av name={detailRes.guest_name} size={40}/>
+              <div>
+                <div style={{fontWeight:700,fontSize:16}}>{detailRes.guest_name}</div>
+                <div className="xs muted">Room {detailRes.room_number} · {fmtDate(detailRes.check_in)} → {fmtDate(detailRes.check_out)}</div>
+                <div className="xs" style={{color:'var(--amb)',marginTop:2}}>{nights} night{nights!==1?'s':''} · {BDT(roomRate)}/night</div>
               </div>
             </div>
-            {/* Info grid */}
-            <div className="g2 mb4">
-              {[['Check-In',fmtDate(r.check_in)],['Check-Out',fmtDate(r.check_out)],['Nights',nights],['Payment Method',r.payment_method||'—'],['On-Duty Officer',r.on_duty_officer||'—'],['Status',r.status||'—']].map(([l,v])=>(
-                <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
-              ))}
+            <div style={{textAlign:'right'}}>
+              <div className="xs muted">Total Due</div>
+              <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(due)}</div>
             </div>
-            {/* Folio breakdown */}
-            <div style={{background:'var(--s2)',border:'1px solid var(--br2)',overflow:'hidden',marginBottom:8}}>
-              <div style={{padding:'7px 12px',background:'rgba(200,169,110,.04)',borderBottom:'1px solid var(--br2)',fontSize:8,letterSpacing:'.1em',color:'var(--tx2)',textTransform:'uppercase'}}>Folio Charges</div>
-              <div style={{padding:'0 12px'}}>
-                {nights>0&&roomRate>0&&(
-                  <div className="folio-row">
-                    <div><span>Room charge</span><span className="badge bgold" style={{fontSize:8,marginLeft:6}}>{nights}×{BDT(roomRate)}</span></div>
-                    <span className="xs gold">{BDT(roomCharge)}</span>
-                  </div>
-                )}
-                {folios.map(f=>(
-                  <div key={f.id} className="folio-row">
-                    <div><span>{f.description}</span><span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{f.category}</span></div>
-                    <span className="xs gold">{BDT(f.amount)}</span>
-                  </div>
-                ))}
-                {relTx.map(t=>(
-                  <div key={t.id} className="folio-row" style={{opacity:.75}}>
-                    <div><span style={{color:'var(--tx2)'}}>{t.type||'Charge'}</span><span className="badge bb" style={{marginLeft:6,fontSize:8}}>{t.fiscal_day}</span></div>
-                    <span className="xs" style={{color:'var(--sky)'}}>{BDT(t.amount)}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-                {[['Subtotal',sub],['VAT 7%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
-                  <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-                ))}
-                <div className="divider" style={{margin:'6px 0'}}/>
-                <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total</span><span>{BDT(total)}</span></div>
-                <div className="flex fjb xs" style={{marginTop:4}}>
-                  <span style={{color:'var(--grn)'}}>Paid: {BDT(paid)}</span>
-                  {due>0&&<span style={{color:'var(--rose)',fontWeight:700}}>Due: {BDT(due)}</span>}
-                </div>
-              </div>
+          </div>
+          {/* Info grid */}
+          <div className="g2 mb4">
+            {[['Check-In',fmtDate(detailRes.check_in)],['Check-Out',fmtDate(detailRes.check_out)],['Nights',nights],['Payment Method',detailRes.payment_method||'—'],['On-Duty Officer',detailRes.on_duty_officer||'—'],['Status',detailRes.status||'—']].map(([l,v])=>(
+              <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
+            ))}
+          </div>
+          {/* Folio breakdown */}
+          <div style={{background:'var(--s2)',border:'1px solid var(--br2)',overflow:'hidden',marginBottom:8}}>
+            <div style={{padding:'7px 12px',background:'rgba(200,169,110,.04)',borderBottom:'1px solid var(--br2)',fontSize:8,letterSpacing:'.1em',color:'var(--tx2)',textTransform:'uppercase',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span className="flex fac gap2">
+                <span className="badge bgold" style={{fontSize:8,marginLeft:6}}>{nights}×{BDT(roomRate)}</span>
+                <span className="xs gold">{BDT(roomCharge)}</span>
+              </span>
             </div>
-          </Modal>
-        )
-      })()}
+            {folios.map(f=>(
+              <div key={f.id} className="folio-row">
+                <div><span>{f.description}</span><span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{f.category}</span></div>
+                <span className="xs gold">{BDT(f.amount)}</span>
+              </div>
+            ))}
+            {relTx.map(t=>(
+              <div key={t.id} className="folio-row" style={{opacity:.75}}>
+                <div><span style={{color:'var(--tx2)'}}>{t.type||'Charge'}</span><span className="badge bb" style={{marginLeft:6,fontSize:8}}>{t.fiscal_day}</span></div>
+                <span className="xs" style={{color:'var(--sky)'}}>{BDT(t.amount)}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
+            {[['Subtotal',sub],['VAT 7%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
+              <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
+            ))}
+            <div className="divider" style={{margin:'6px 0'}}/>
+            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total</span><span>{BDT(total)}</span></div>
+            <div className="flex fjb xs" style={{marginTop:4}}>
+              <span style={{color:'var(--grn)'}}>Paid: {BDT(paid)}</span>
+              {due>0&&<span style={{color:'var(--rose)',fontWeight:700}}>Due: {BDT(due)}</span>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -2117,7 +2091,6 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
   return (
     <Modal title="Record Payment" onClose={onClose}
       footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Record Payment'}</button></>}>
-
       {/* ── Locked guest card (from row click) ── */}
       {fromRow&&(
         <div style={{border:'1px solid var(--br)',marginBottom:14,overflow:'hidden'}}>
