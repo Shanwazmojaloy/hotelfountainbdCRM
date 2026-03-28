@@ -1909,11 +1909,17 @@ ${dueRows}
   }
 
   function printInvoice(grp, res, resTotal, resPaid, resDue, byType) {
-    const now=new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-    const checkIn=res?fmtDate(res.check_in):(grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
-    const checkOut=res?fmtDate(res.check_out):(grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
+    // Log all arguments for debugging
+    try {
+      console.log('[printInvoice] Arguments:', {grp, res, resTotal, resPaid, resDue, byType});
+    } catch (e) {}
+    // Strict defaults for all fields
+    const safe = v => (v===undefined||v===null||Number.isNaN(v)) ? '' : v
+    const now = new Date().toLocaleString('en-BD', {timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
+    const checkIn = safe(res?.check_in) ? fmtDate(res.check_in) : (safe(grp?.txs?.[0]?.check_in) ? fmtDate(grp.txs[0].check_in) : '—')
+    const checkOut = safe(res?.check_out) ? fmtDate(res.check_out) : (safe(grp?.txs?.[0]?.check_out) ? fmtDate(grp.txs[0].check_out) : '—')
     // Escape backticks and '${' in all dynamic values and fallback string
-    const escapeTpl = s => String(s).replace(/[`]/g, '\u0060').replace(/\$\{/g, '\u0024{')
+    const escapeTpl = s => String(s===undefined||s===null?'':s).replace(/[`]/g, '\u0060').replace(/\$\{/g, '\u0024{')
     // Always fallback to a literal safe row if no payments
     let paymentRowsHtml = '';
     try {
@@ -1926,7 +1932,8 @@ ${dueRows}
     } catch (e) {
       paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
     }
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${escapeTpl(grp.guest_name||'Guest')}</title>
+    try {
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${escapeTpl(safe(grp?.guest_name)||'Guest')}</title>
   <style>
   @page{size:A4 portrait;margin:10mm}
   *{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0}
@@ -1938,20 +1945,25 @@ ${dueRows}
   th{text-align:left;background:#f4f4f4} .r{text-align:right}
   .total{font-size:18px;font-weight:700}
   </style></head><body><div class="wrap">
-  <div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ${now}</div></div>
+  <div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ${escapeTpl(now)}</div></div>
   <div class="blk"><table>
-  <tr><th>Guest</th><td>${escapeTpl(grp.guest_name||'—')}</td><th>Room</th><td>${escapeTpl(grp.room_number||'—')}</td></tr>
+  <tr><th>Guest</th><td>${escapeTpl(safe(grp?.guest_name)||'—')}</td><th>Room</th><td>${escapeTpl(safe(grp?.room_number)||'—')}</td></tr>
   <tr><th>Check-In</th><td>${escapeTpl(checkIn)}</td><th>Check-Out</th><td>${escapeTpl(checkOut)}</td></tr>
   </table></div>
   <div class="blk"><table>
-  <tr><th>Bill Total</th><td class="r">৳${escapeTpl(Number(resTotal||0).toLocaleString('en-BD'))}</td></tr>
-  <tr><th>Paid</th><td class="r">৳${escapeTpl(Number(resPaid||0).toLocaleString('en-BD'))}</td></tr>
-  <tr><th>Balance Due</th><td class="r"><strong>৳${escapeTpl(Number(resDue||0).toLocaleString('en-BD'))}</strong></td></tr>
+  <tr><th>Bill Total</th><td class="r">৳${escapeTpl(Number(safe(resTotal)||0).toLocaleString('en-BD'))}</td></tr>
+  <tr><th>Paid</th><td class="r">৳${escapeTpl(Number(safe(resPaid)||0).toLocaleString('en-BD'))}</td></tr>
+  <tr><th>Balance Due</th><td class="r"><strong>৳${escapeTpl(Number(safe(resDue)||0).toLocaleString('en-BD'))}</strong></td></tr>
   </table></div>
   <div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRowsHtml}</tbody></table></div>
   <div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>
   </div><script>window.onload=()=>window.print();</script></body></html>`
-    printPDF(html)
+      printPDF(html)
+    } catch (err) {
+      // Show a modal with the error instead of crashing
+      alert('Invoice print error: '+(err?.message||err));
+      if (window && window.console) window.console.error('Invoice print template error:', err, {grp, res, resTotal, resPaid, resDue, byType});
+    }
   }
 
   return (
