@@ -1914,11 +1914,16 @@ ${dueRows}
     const checkOut=res?fmtDate(res.check_out):(grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
     // Escape backticks and '${' in all dynamic values and fallback string
     const escapeTpl = s => String(s).replace(/[`]/g, '\u0060').replace(/\$\{/g, '\u0024{')
-    const safeFallback = escapeTpl('<tr><td colspan="2">No payments recorded</td></tr>')
-    const paymentRowsArr = Object.entries(byType)
-      .map(([tp,amt])=>`<tr><td>${escapeTpl(tp)}</td><td style="text-align:right">৳${escapeTpl(Number(amt||0).toLocaleString('en-BD'))}</td></tr>`)
-    const paymentRows = paymentRowsArr.join('')
-    const paymentRowsHtml = (typeof paymentRows === 'string' && paymentRows.length > 0) ? paymentRows : safeFallback;
+    // Always fallback to a safe row if no payments
+    let paymentRowsHtml = '';
+    try {
+      const paymentRowsArr = Object.entries(byType||{})
+        .map(([tp,amt])=>`<tr><td>${escapeTpl(tp)}</td><td style="text-align:right">৳${escapeTpl(Number(amt||0).toLocaleString('en-BD'))}</td></tr>`)
+      paymentRowsHtml = paymentRowsArr.join('')
+      if (!paymentRowsHtml) paymentRowsHtml = escapeTpl('<tr><td colspan="2" class="muted">No payments recorded</td></tr>')
+    } catch (e) {
+      paymentRowsHtml = escapeTpl('<tr><td colspan="2" class="muted">No payments recorded</td></tr>')
+    }
     const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${escapeTpl(grp.guest_name||'Guest')}</title>
   <style>
   @page{size:A4 portrait;margin:10mm}
