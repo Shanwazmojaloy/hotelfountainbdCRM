@@ -226,19 +226,6 @@ async function dbPatchReservationSafe(id,payload){
     return await dbPatch('reservations',id,pickFields(payload,RESERVATION_CORE_PATCH_FIELDS))
   }
 }
-const fetchAllGuests = async () => {
-  const pageSize = 1000
-  let offset = 0
-  const all = []
-  while (true) {
-    const batch = await db('guests', `?select=*&order=name&limit=${pageSize}&offset=${offset}`)
-    if (!Array.isArray(batch) || batch.length === 0) break
-    all.push(...batch)
-    if (batch.length < pageSize) break
-    offset += pageSize
-  }
-  return all
-}
 
 const ROLES = {
   owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','settings']},
