@@ -1942,7 +1942,6 @@ function SettlePaymentModal({target,toast,onClose,reload}) {
       setSaving(false)
     }
   }
-
   return (
     <Modal title={`Settle Payment — ${tx?.guest_name||'Guest'}`} onClose={onClose}
       footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={confirmCollect}>{saving?'Saving…':'Confirm Payment'}</button></>}>
