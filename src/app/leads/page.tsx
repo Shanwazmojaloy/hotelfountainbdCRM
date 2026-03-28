@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import Link from 'next/link';
 import { supabase } from '@/services/supabase';
 
 export const revalidate = 0; // Disable static rendering to ensure fresh leads
@@ -34,9 +35,9 @@ export default async function LeadsPage() {
             </h1>
             <p className="text-neutral-400 mt-2">Displaying all organically and artificially prospected leads.</p>
           </div>
-          <a href="/" className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all">
+          <Link href="/" className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all">
             Back to Dashboard
-          </a>
+          </Link>
         </header>
 
         <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
