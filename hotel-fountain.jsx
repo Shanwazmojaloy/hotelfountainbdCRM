@@ -811,6 +811,59 @@ function BillingPage({ showNotif }) {
   const tax = Math.round(sub * 0.1);
   const total = sub + tax;
 
+<<<<<<< HEAD
+=======
+  function printInvoice() {
+    if(!selected) return;
+    const now = new Date().toLocaleString("en-BD", { timeZone: "Asia/Dhaka" });
+    const rows = charges.map(c => `
+      <tr>
+        <td>${c.desc}</td>
+        <td class="right">৳${Number(c.amount||0).toLocaleString("en-BD")}</td>
+      </tr>
+    `).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>Invoice - ${selected.name}</title>
+<style>
+@page{size:A4;margin:10mm}
+body{font-family:Segoe UI,Arial,sans-serif;color:#111;background:#fff}
+.wrap{max-width:760px;margin:0 auto}
+.head{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}
+.hotel{font-size:20px;font-weight:800}
+.muted{color:#555;font-size:12px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:6px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}
+th{background:#f4f4f4;text-align:left}
+.right{text-align:right}
+.total{font-size:16px;font-weight:800;margin-top:10px}
+</style></head><body>
+<div class="wrap">
+  <div class="head">
+    <div class="hotel">Hotel Fountain</div>
+    <div class="muted">Guest Invoice / Folio</div>
+    <div class="muted">Printed: ${now}</div>
+  </div>
+  <div class="muted" style="margin-bottom:12px"><b>${selected.name}</b> · Room ${selected.room}</div>
+  <table>
+    <thead><tr><th>Description</th><th class="right">Amount</th></tr></thead>
+    <tbody>${rows||"<tr><td colspan='2'>No charges</td></tr>"}</tbody>
+  </table>
+  <div class="total" style="text-align:right">
+    Total Due: ৳${Number(total||0).toLocaleString("en-BD")}
+  </div>
+</div>
+<script>window.onload=()=>window.print();</script>
+</body></html>`;
+
+    const w = window.open("", "_blank", "width=900,height=700");
+    if(!w) return;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+>>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   return (
     <div className="grid-2">
       <div className="card">
@@ -865,7 +918,11 @@ function BillingPage({ showNotif }) {
                 <span className="font-mono">${total.toFixed(2)}</span>
               </div>
               <div className="flex gap-2 mt-4">
+<<<<<<< HEAD
                 <button className="btn btn-ghost" style={{ flex: 1, justifyContent: "center" }}>Print Invoice</button>
+=======
+                <button className="btn btn-ghost" style={{ flex: 1, justifyContent: "center" }} onClick={printInvoice}>🖨 Print Invoice</button>
+>>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
                 <button className="btn btn-gold" style={{ flex: 1, justifyContent: "center" }} onClick={() => showNotif("✅ Payment processed successfully")}>Process Payment</button>
               </div>
             </>

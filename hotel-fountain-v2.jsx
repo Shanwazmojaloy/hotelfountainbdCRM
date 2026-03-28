@@ -1184,6 +1184,54 @@ function BillingPage({ guests, transactions, setTransactions, rooms, toast }) {
   const svc = Math.round(sub * 0.05);
   const total = sub + tax + svc;
 
+<<<<<<< HEAD
+=======
+  function printInvoice() {
+    if(!g) return;
+    const now = new Date().toLocaleString("en-BD", { timeZone: "Asia/Dhaka" });
+    const paidSoFar = (transactions||[]).filter(t => t.type === "Payment" && t.guest === g.name).reduce((a,t)=>a+(+t.amount||0),0);
+    const due = Math.max(0,total-paidSoFar);
+    const rows = charges.map(c => `<tr><td>${c.desc}</td><td class="right">$${Number(c.amt||0).toFixed(2)}</td></tr>`).join("");
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>Invoice - ${g.name}</title>
+<style>
+@page{size:A4;margin:10mm}
+body{font-family:Segoe UI,Arial,sans-serif;color:#111;background:#fff}
+.wrap{max-width:760px;margin:0 auto}
+.head{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}
+.hotel{font-size:20px;font-weight:800}
+.muted{color:#555;font-size:12px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:6px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}
+th{background:#f4f4f4;text-align:left}
+.right{text-align:right}
+.total{font-size:16px;font-weight:800;margin-top:10px;text-align:right}
+</style></head><body>
+<div class="wrap">
+  <div class="head">
+    <div class="hotel">Hotel Fountain</div>
+    <div class="muted">Guest Invoice / Folio</div>
+    <div class="muted">Printed: ${now}</div>
+  </div>
+  <div class="muted" style="margin-bottom:12px"><b>${g.name}</b> · Room ${g.room}</div>
+  <table>
+    <thead><tr><th>Description</th><th class="right">Amount</th></tr></thead>
+    <tbody>${rows||"<tr><td colspan='2'>No charges</td></tr>"}</tbody>
+  </table>
+  <div class="total">
+    Total: $${Number(total||0).toFixed(2)} · Paid: $${Number(paidSoFar||0).toFixed(2)} · Due: $${Number(due||0).toFixed(2)}
+  </div>
+</div>
+<script>window.onload=()=>window.print();</script>
+</body></html>`;
+    const w = window.open("", "_blank", "width=900,height=700");
+    if(!w) return toast("Please allow popups to print.","error");
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+>>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   function addCharge() {
     if (!chargeForm.amount || isNaN(chargeForm.amount)) return toast("Enter valid amount", "error");
     setFolioCharges(p => ({ ...p, [g.id]: [...(p[g.id]||[]), { desc:chargeForm.notes || chargeForm.type, amt:parseFloat(chargeForm.amount), cat:chargeForm.type }] }));
@@ -1287,7 +1335,11 @@ function BillingPage({ guests, transactions, setTransactions, rooms, toast }) {
 
               <div className="flex gap2 mt4" style={{ flexWrap:"wrap" }}>
                 <button className="btn btn-ghost" style={{ flex:1, justifyContent:"center" }} onClick={() => toast("Invoice sent to email", "success")}>📧 Email Invoice</button>
+<<<<<<< HEAD
                 <button className="btn btn-ghost" style={{ flex:1, justifyContent:"center" }} onClick={() => toast("Printing invoice...", "success")}>🖨 Print</button>
+=======
+                <button className="btn btn-ghost" style={{ flex:1, justifyContent:"center" }} onClick={printInvoice}>🖨 Print</button>
+>>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
                 <button className="btn btn-gold" style={{ flex:"2", justifyContent:"center" }} onClick={() => setShowPayment(true)}>Process Payment</button>
               </div>
             </>

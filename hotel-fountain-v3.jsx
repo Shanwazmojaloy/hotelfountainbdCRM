@@ -584,9 +584,20 @@ function RoomModal({ room, folios, setFolios, setRooms, setGuests, setTransactio
   }
 
   function doCheckout() {
+<<<<<<< HEAD
     // Final payment transaction
     const txn = { id:`TXN-${Date.now()}`, date:fmtDate(TODAY), time:new Date().toTimeString().slice(0,5), guest:room.guest, type:"Final Settlement", room:room.id, amount:total, method:"Credit Card", status:"completed" };
     setTransactions(p=>[txn,...p]);
+=======
+    // Ledger accuracy: only settle what is still unpaid.
+    const paidSoFar=(transactions||[]).filter(t=>t.type==="Payment"&&t.room===room.id)
+      .reduce((a,t)=>a+(+t.amount||0),0);
+    const finalDue=Math.max(0,total-paidSoFar);
+    if(finalDue>0){
+      const txn = { id:`TXN-${Date.now()}`, date:fmtDate(TODAY), time:new Date().toTimeString().slice(0,5), guest:room.guest, type:"Final Settlement", room:room.id, amount:finalDue, method:"Credit Card", status:"completed" };
+      setTransactions(p=>[txn,...p]);
+    }
+>>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
     // Update room
     setRooms(p=>p.map(r=>r.id===room.id?{...r,status:"housekeeping",guest:null,checkIn:null,checkOut:null}:r));
     // Update guest
@@ -881,6 +892,7 @@ function Dashboard({ rooms, guests, reservations, tasks, transactions, setPage }
   const occ = rooms.filter(r=>r.status==="occupied").length;
   const avail = rooms.filter(r=>r.status==="available").length;
   const occPct = Math.round((occ/rooms.length)*100);
+<<<<<<< HEAD
   // Group transactions by guest and date for today
   const rawTxns = [...transactions, ...ALL_TRANSACTIONS].filter(t => t.date === fmtDate(TODAY));
   const grouped = {};
@@ -909,6 +921,9 @@ function Dashboard({ rooms, guests, reservations, tasks, transactions, setPage }
     paid: t.paid,
     due: t.due
   }));
+=======
+  const todayTxns = [...transactions,...ALL_TRANSACTIONS].filter(t=>t.date===fmtDate(TODAY));
+>>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   const todayRev = todayTxns.filter(t=>t.status==="completed").reduce((a,t)=>a+t.amount,0);
   const pendingTasks = tasks.filter(t=>t.status==="pending").length;
   const [chartActive, setChartActive] = useState(6);
