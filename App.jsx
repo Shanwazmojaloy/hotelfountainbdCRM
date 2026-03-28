@@ -599,6 +599,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
   const [fLoad,setFLoad]=useState(true)
   const [showCharge,setShowCharge]=useState(false)
   const [showCO,setShowCO]=useState(false)
+    const [checkoutAmt, setCheckoutAmt] = useState("");
   const [saving,setSaving]=useState(false)
 
   const activeRes=reservations.find(r=>(r.room_ids||[]).includes(room.room_number)&&r.status==='CHECKED_IN')
@@ -629,12 +630,25 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
 
   async function doCheckout() {
     try {
-      // Only update status, do not overwrite paid_amount
-      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT'})
-      await dbPatch('rooms',room.id,{status:'DIRTY'})
-      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
-      toast(`${guest?.name||'Guest'} checked out ✓`)
-      reload()
+      // If payment entered, update paid_amount
+      let patch = { status: 'CHECKED_OUT' };
+      const amt = parseFloat(checkoutAmt);
+      if (!isNaN(amt) && amt > 0) {
+        patch.paid_amount = (+(activeRes.paid_amount||0)) + amt;
+      }
+      await dbPatch('reservations',activeRes.id, patch);
+      await dbPatch('rooms',room.id,{status:'DIRTY'});
+      await dbPost('transactions',{
+        type:'Final Settlement',
+        amount:total,
+        room_number:room.room_number,
+        guest_name:guest?.name,
+        fiscal_day:todayStr(),
+        tenant_id:TENANT
+      });
+      toast(`${guest?.name||'Guest'} checked out ✓`);
+      setCheckoutAmt("");
+      reload();
     } catch(e){ toast(e.message,'error') }
   }
 
@@ -674,26 +688,28 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             <div style={{textAlign:'right'}}>
               <div className="xs muted">Total Due</div>
               <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(total)}</div>
-              <button className="btn btn-ghost btn-sm mt2" onClick={()=>{
-                // Prepare payment breakdown by type
-                const byType = {};
-                if (activeRes.payment_method) byType[activeRes.payment_method] = activeRes.paid_amount || 0;
-                window.printInvoice && window.printInvoice(
-                  {
-                    guest_name: guest.name,
-                    room_number: room.room_number,
-                    txs: [activeRes]
-                  },
-                  activeRes,
-                  total,
-                  activeRes.paid_amount || 0,
-                  Math.max(0, total - (+activeRes.paid_amount || 0)),
-                  byType
-                );
-              }}>
-                🖨 Print Invoice
-              </button>
             </div>
+          </div>
+          <div style={{textAlign:'right',marginTop:8}}>
+            <button className="btn btn-ghost btn-sm mt2" onClick={() => {
+              // Prepare payment breakdown by type
+              const byType = {};
+              if (activeRes && activeRes.payment_method) byType[activeRes.payment_method] = activeRes.paid_amount || 0;
+              window.printInvoice && window.printInvoice(
+                {
+                  guest_name: guest.name,
+                  room_number: room.room_number,
+                  txs: [activeRes]
+                },
+                activeRes,
+                total,
+                activeRes ? (activeRes.paid_amount || 0) : 0,
+                Math.max(0, total - (+activeRes?.paid_amount || 0)),
+                byType
+              );
+            }}>
+              🖨 Print Invoice
+            </button>
           </div>
         </div>
       )}
@@ -767,6 +783,11 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             <div style={{fontWeight:700,fontSize:24,color:'var(--gold)'}}>{BDT(total)}</div>
             <div className="xs" style={{color:totalDue>0?'var(--rose)':'var(--grn)',marginTop:6}}>
               Outstanding Balance: {BDT(totalDue)}
+            </div>
+            <div className="fg" style={{marginTop:16}}>
+              <label className="flbl">Amount Paid Now (optional)</label>
+              <input type="number" className="finput" value={checkoutAmt} onChange={e=>setCheckoutAmt(e.target.value)} min="0" placeholder="0"/>
+              <div className="xs muted">Leave blank if no payment collected at checkout.</div>
             </div>
             <div className="xs muted mt3">Room will move to Dirty / Housekeeping</div>
           </div>
