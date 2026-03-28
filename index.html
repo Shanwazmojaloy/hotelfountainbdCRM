@@ -558,50 +558,50 @@ function LoginPage({onLogin, staffList}) {
 
         <div className="login-divider"><span>sign in</span></div>
 
-        <div className="fg">
-          <label className="flbl">Email</label>
-          <input className="finput" type="email" value={email}
-            onChange={e=>{setEmail(e.target.value);setErr('')}}
-            onKeyDown={e=>e.key==='Enter'&&doLogin()}
-            placeholder="your@email.com"
-            autoComplete="off" data-form-type="other"/>
-        </div>
-        <div className="fg">
-          <label className="flbl">Password</label>
-          <div style={{position:'relative'}}>
-            <input className="finput"
-              type={showPw?'text':'password'}
-              value={pw}
-              onChange={e=>{setPw(e.target.value);setErr('')}}
-              onKeyDown={e=>e.key==='Enter'&&doLogin()}
-              placeholder="Enter your password"
-              autoComplete="new-password"
-              data-form-type="other"
-              style={{paddingRight:38}}/>
-            <span
-              style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',cursor:'pointer',fontSize:14,color:'var(--tx3)',userSelect:'none'}}
-              onClick={()=>setShowPw(p=>!p)}>
-              {showPw?'🙈':'👁'}
-            </span>
+        <form onSubmit={e=>{e.preventDefault();doLogin()}}>
+          <div className="fg">
+            <label className="flbl">Email</label>
+            <input className="finput" type="email" value={email}
+              onChange={e=>{setEmail(e.target.value);setErr('')}}
+              placeholder="your@email.com"
+              autoComplete="off" data-form-type="other"/>
           </div>
-        </div>
-
-        {err&&(
-          <div style={{background:'rgba(224,92,122,.08)',border:'1px solid rgba(224,92,122,.2)',padding:'9px 13px',fontFamily:'var(--sans)',fontSize:11.5,fontWeight:300,color:'var(--rose)',marginBottom:14,letterSpacing:'.02em'}}>
-            {err}
+          <div className="fg">
+            <label className="flbl">Password</label>
+            <div style={{position:'relative'}}>
+              <input className="finput"
+                type={showPw?'text':'password'}
+                value={pw}
+                onChange={e=>{setPw(e.target.value);setErr('')}}
+                placeholder="Enter your password"
+                autoComplete="new-password"
+                data-form-type="other"
+                style={{paddingRight:38}}/>
+              <span
+                style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',cursor:'pointer',fontSize:14,color:'var(--tx3)',userSelect:'none'}}
+                onClick={()=>setShowPw(p=>!p)}>
+                {showPw?'🙈':'👁'}
+              </span>
+            </div>
           </div>
-        )}
 
-        <button
-          className="btn btn-gold w100"
-          style={{justifyContent:'center',padding:'13px',fontSize:10,letterSpacing:'.2em',marginTop:4}}
-          disabled={busy}
-          onClick={doLogin}>
-          {busy
-            ?<><span className="spinner" style={{width:13,height:13,border:'1.5px solid rgba(0,0,0,.2)',borderTopColor:'#07090E'}}/>{' '}Signing in…</>
-            :'Sign In →'
-          }
-        </button>
+          {err&&(
+            <div style={{background:'rgba(224,92,122,.08)',border:'1px solid rgba(224,92,122,.2)',padding:'9px 13px',fontFamily:'var(--sans)',fontSize:11.5,fontWeight:300,color:'var(--rose)',marginBottom:14,letterSpacing:'.02em'}}>
+              {err}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="btn btn-gold w100"
+            style={{justifyContent:'center',padding:'13px',fontSize:10,letterSpacing:'.2em',marginTop:4}}
+            disabled={busy}>
+            {busy
+              ?<><span className="spinner" style={{width:13,height:13,border:'1.5px solid rgba(0,0,0,.2)',borderTopColor:'#07090E'}}/>{' '}Signing in…</>
+              :'Sign In →'
+            }
+          </button>
+        </form>
 
         <div style={{textAlign:'center',marginTop:20,fontFamily:'var(--sans)',fontSize:9,color:'var(--tx3)',letterSpacing:'.1em',fontWeight:200}}>
           LUMEA · THE PULSE OF MODERN HOSPITALITY
@@ -1799,8 +1799,17 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
     (t?.reservation_id&&String(r.id)===String(t.reservation_id)) ||
     ((r.room_ids||[]).includes(t.room_number) && r.status!=='CANCELLED')
   )
-  const formatDate=(d)=>new Date(d+'T00:00:00').toISOString().slice(0,10)
-  const nextDate=formatDate(new Date(new Date(selectedDate+'T00:00:00').getTime()+86400000))
+  const toDateValue=(raw)=>{
+    if(typeof raw!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null
+    const d=new Date(raw+'T00:00:00')
+    return Number.isNaN(d.getTime())?null:d
+  }
+  const formatDate=(d)=>{
+    if(!(d instanceof Date)||Number.isNaN(d.getTime())) return today
+    return d.toISOString().slice(0,10)
+  }
+  const selectedDateObj=toDateValue(selectedDate)||toDateValue(today)||new Date()
+  const nextDate=formatDate(new Date(selectedDateObj.getTime()+86400000))
 
   function saveTokenForDate() {
     const next={...tokenByDate,[selectedDate]:tokenInput}
@@ -1843,7 +1852,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
 
   useEffect(()=>{
     setTokenAmount(String(Math.max(0,+tokenByDate[selectedDate]||0)))
-  },[selectedDate])
+  },[selectedDate,tokenByDate])
 
   return (
     <div>
@@ -1855,7 +1864,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
       <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
         <div className="card" style={{padding:'8px 10px',display:'flex',alignItems:'center',gap:8}}>
           <span className="xs muted">📅 Transaction Date</span>
-          <input type="date" className="finput" style={{minWidth:170}} value={selectedDate} onChange={e=>setSelectedDate(e.target.value||today)}/>
+          <input type="date" className="finput" style={{minWidth:170}} value={selectedDate} onChange={e=>setSelectedDate(toDateValue(e.target.value)?e.target.value:today)}/>
         </div>
         <div className="card" style={{padding:'8px 10px',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
           <span className="xs muted">Token Amount (BDT)</span>
