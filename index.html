@@ -189,9 +189,43 @@ function printTransactionInvoice(tx, reservations = []) {
 const H  = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' }
 const H2 = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
 const db = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,{headers:H}); if(!r.ok) throw new Error(await r.text()); return r.json() }
-const dbPost = async (t,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:H,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json() }
+const dbPost = async (t,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:H,body:JSON.stringify(b)}); if(!r.ok){ const txt=await r.text(); throw new Error(`POST ${t} ${r.status}: ${txt}`) } return r.json() }
 const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:H2,body:JSON.stringify(b)}); if(!r.ok){ const txt=await r.text(); throw new Error(`PATCH ${t} ${r.status}: ${txt}`) } }
 const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
+const fetchAllGuests = async () => {
+  const pageSize = 1000
+  let offset = 0
+  const all = []
+  while (true) {
+    const batch = await db('guests', `?select=*&order=name&limit=${pageSize}&offset=${offset}`)
+    if (!Array.isArray(batch) || batch.length === 0) break
+    all.push(...batch)
+    if (batch.length < pageSize) break
+    offset += pageSize
+  }
+  return all
+}
+
+const RESERVATION_CORE_CREATE_FIELDS = ['guest_ids','room_ids','check_in','check_out','status','total_amount','paid_amount','payment_method','special_requests','tenant_id']
+const RESERVATION_CORE_PATCH_FIELDS = ['status','paid_amount','notes','room_ids','check_in','check_out','total_amount','payment_method']
+const pickFields = (obj, fields) => fields.reduce((acc,key)=>{ if(obj&&Object.prototype.hasOwnProperty.call(obj,key)&&obj[key]!==undefined) acc[key]=obj[key]; return acc },{})
+const shouldRetryReservation400 = err => /\b(reservations)\b/i.test(String(err?.message||'')) && /\b400\b/.test(String(err?.message||''))
+async function dbPostReservationSafe(payload){
+  try{
+    return await dbPost('reservations',payload)
+  }catch(err){
+    if(!shouldRetryReservation400(err)) throw err
+    return await dbPost('reservations',pickFields(payload,RESERVATION_CORE_CREATE_FIELDS))
+  }
+}
+async function dbPatchReservationSafe(id,payload){
+  try{
+    return await dbPatch('reservations',id,payload)
+  }catch(err){
+    if(!shouldRetryReservation400(err)) throw err
+    return await dbPatch('reservations',id,pickFields(payload,RESERVATION_CORE_PATCH_FIELDS))
+  }
+}
 const fetchAllGuests = async () => {
   const pageSize = 1000
   let offset = 0
@@ -801,7 +835,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
       const paidSoFar=+activeRes?.paid_amount||0
       const due=Math.max(0,total-paidSoFar)
       const paymentStatus=due<=0?'Paid':(paidSoFar>0?'Partial':'Unpaid')
-      await dbPatch('reservations',activeRes.id,{
+      await dbPatchReservationSafe(activeRes.id,{
         status:'CHECKED_OUT',
         checkout_status:'DEPARTED',
         payment_status:paymentStatus,
@@ -1149,7 +1183,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         if(room) await dbPatch('rooms',room.id,{status:targetStatusForAssigned})
       }
 
-      await dbPatch('reservations',res.id,{
+      await dbPatchReservationSafe(res.id,{
         status,
         room_ids:roomIds,
         check_in:checkIn,
@@ -1175,7 +1209,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         const room=rooms.find(r=>String(r.room_number)===String(rn))
         if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
       }
-      await dbPatch('reservations',res.id,{status:'CHECKED_IN',check_in:new Date().toISOString(),room_ids:roomIds})
+      await dbPatchReservationSafe(res.id,{status:'CHECKED_IN',check_in:new Date().toISOString(),room_ids:roomIds})
       toast(`${gn} checked in to Rm ${roomIds.join(',')} ✓`)
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
@@ -1404,7 +1438,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
     try {
       const isCheckIn=f.stayType==='CHECK_IN'
       const totalAmt=finalInvoice
-      const created=await dbPost('reservations',{
+      const created=await dbPostReservationSafe({
         guest_ids:[f.guestId], room_ids:[f.roomNo],
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
@@ -1930,7 +1964,7 @@ function SettlePaymentModal({target,toast,onClose,reload}) {
     try{
       const nextPaid=Math.min((+res.total_amount||0),(+res.paid_amount||0)+collect)
       const nextDue=Math.max(0,(+res.total_amount||0)-nextPaid)
-      await dbPatch('reservations',res.id,{
+      await dbPatchReservationSafe(res.id,{
         paid_amount:nextPaid,
         total_due:nextDue,
         payment_status:nextDue<=0?'Paid':'Partial'
