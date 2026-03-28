@@ -462,7 +462,6 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
   const today=todayStr()
   const occ=rooms.filter(r=>r.status==='OCCUPIED').length
   const occPct=rooms.length?Math.round((occ/rooms.length)*100):0
-<<<<<<< HEAD
   // Group transactions by guest_name and fiscal_day
   const groupedTx = {};
   for (const t of transactions) {
@@ -483,20 +482,13 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
     id: t.id.join(', ')
   }));
   const todayT=mergedTransactions.filter(t=>t.fiscal_day===today)
-=======
-  const todayT=transactions.filter(t=>t.fiscal_day===today)
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   const todayRev=todayT.reduce((a,t)=>a+(+t.amount||0),0)
   const inHouse=reservations.filter(r=>r.status==='CHECKED_IN').length
   const pending=reservations.filter(r=>r.status==='PENDING').length
   const last14=Array.from({length:14},(_,i)=>{
     const d=new Date(todayDhaka()); d.setDate(d.getDate()-(13-i))
     const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-<<<<<<< HEAD
     return {d:ds.slice(8),v:mergedTransactions.filter(t=>t.fiscal_day===ds).reduce((a,t)=>a+(+t.amount||0),0),ds}
-=======
-    return {d:ds.slice(8),v:transactions.filter(t=>t.fiscal_day===ds).reduce((a,t)=>a+(+t.amount||0),0),ds}
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   })
   const checkedIn=reservations.filter(r=>r.status==='CHECKED_IN').slice(0,6)
   const getGN=gids=>{const fid=String((gids||[])[0]||'');const g=guests.find(g=>String(g.id)===fid);return g?g.name:'Unknown'}
@@ -570,11 +562,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
             <button className="btn btn-ghost btn-sm" onClick={()=>setPage('billing')}>View All →</button>
           </div>
           <div className="card-body" style={{padding:'6px 13px'}}>
-<<<<<<< HEAD
             {mergedTransactions.slice(0,8).map(t=>(
-=======
-            {transactions.slice(0,8).map(t=>(
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
               <div key={t.id} className="flex fac fjb" style={{padding:'6px 0',borderBottom:'1px solid var(--br2)'}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div className="xs" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.guest_name||'—'}</div>
@@ -594,10 +582,6 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
 function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
   const [filter,setFilter]=useState('ALL')
   const [selRoom,setSelRoom]=useState(null)
-<<<<<<< HEAD
-=======
-  const [showAdd,setShowAdd]=useState(false)
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   const canEdit=['owner','manager','receptionist'].includes(currentUser?.role)
   const canHKStatus=currentUser?.role==='housekeeping'  // HK can only change dirty→available
   const isSA=currentUser?.role==='owner'
@@ -680,19 +664,10 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
 
   async function doCheckout() {
     try {
-<<<<<<< HEAD
       await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
       await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
       toast(`${guest?.name||'Guest'} checked out ✓`)
-=======
-      const prevPaid=+activeRes.paid_amount||0
-      const finalDue=Math.max(0,total-prevPaid)
-      // Keep billing truthful: checkout should not force full payment.
-      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT'})
-      await dbPatch('rooms',room.id,{status:'DIRTY'})
-      toast(`Check-out complete. Room released. ${finalDue>0?`Outstanding balance: ${BDT(finalDue)}`:'No outstanding balance.'}`)
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       reload()
     } catch(e){ toast(e.message,'error') }
   }
@@ -702,11 +677,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     if(!a||a<=0) return toast('Enter valid amount','error')
     setCollectSaving(true)
     try {
-<<<<<<< HEAD
       await dbPatch('reservations',activeRes.id,{paid_amount:a})
-=======
-      await dbPatch('reservations',activeRes.id,{paid_amount:Math.min(total,(+activeRes.paid_amount||0)+a)})
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
@@ -1057,11 +1028,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           )}
           {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
           <div style={{flex:1}}/>
-<<<<<<< HEAD
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
-=======
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
         </div>
       }>
@@ -1661,7 +1628,6 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [savedToken,setSavedToken]=useState(0)
   const [tokenSaving,setTokenSaving]=useState(false)
   const today=todayStr(), month=today.slice(0,7)
-<<<<<<< HEAD
 
   // Merge transactions by guest_name and fiscal_day (same as Dashboard)
   function mergeTransactions(transactions) {
@@ -1689,11 +1655,6 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const todayT = mergedTransactions.filter(t=>t.fiscal_day===today);
   const monthT = mergedTransactions.filter(t=>t.fiscal_day?.startsWith(month));
   const calT = calDate ? mergedTransactions.filter(t=>t.fiscal_day===calDate) : [];
-=======
-  const todayT=transactions.filter(t=>t.fiscal_day===today)
-  const monthT=transactions.filter(t=>t.fiscal_day?.startsWith(month))
-  const calT=calDate?transactions.filter(t=>t.fiscal_day===calDate):[]
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
 
   // Load all folios once
   useEffect(()=>{
@@ -1794,11 +1755,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
 .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}
 .hotel-name{font-size:18px;font-weight:700;color:#000}.hotel-sub{font-size:9px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
-<<<<<<< HEAD
 .report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
-=======
-.report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700;color:#000}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
 table{width:100%;border-collapse:collapse;margin-top:6px}
 thead tr{background:#000;color:#fff}
 thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
@@ -1818,21 +1775,12 @@ h3{font-size:11px;font-weight:700;color:#000;margin:14px 0 6px;border-bottom:1px
 <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead><tbody>${txRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions today</td></tr>'}</tbody></table>
 ${dueRows}
 <div class="closing-box">
-<<<<<<< HEAD
   <div className="closing-row total"><span>Total Collected Today</span><span>৳${totalAmt.toLocaleString()}</span></div>
   <div className="closing-row"><span>Token Amount</span><span>− ৳${tokenAmount.toLocaleString()}</span></div>
   ${totalDue>0?`<div className="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDue.toLocaleString()}</span></div>`:''}
   <div className="closing-row final"><span>CLOSING AMOUNT</span><span>৳${closingAmt.toLocaleString()}</span></div>
 </div>
 <div className="footer"><span>Hotel Fountain CRM · Lumea PMS · Confidential</span><span>${todayList.length} transaction${todayList.length!==1?'s':''} · ${duesCarried.length} pending due${duesCarried.length!==1?'s':''}</span></div>
-=======
-  <div class="closing-row total"><span>Total Collected Today</span><span>৳${totalAmt.toLocaleString()}</span></div>
-  <div class="closing-row"><span>Token Amount</span><span>− ৳${tokenAmount.toLocaleString()}</span></div>
-  ${totalDue>0?`<div class="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDue.toLocaleString()}</span></div>`:''}
-  <div class="closing-row final"><span>CLOSING AMOUNT</span><span>৳${closingAmt.toLocaleString()}</span></div>
-</div>
-<div class="footer"><span>Hotel Fountain CRM · Lumea PMS · Confidential</span><span>${todayList.length} transaction${todayList.length!==1?'s':''} · ${duesCarried.length} pending due${duesCarried.length!==1?'s':''}</span></div>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
 </body></html>`
 
     // Print PDF then advance fiscal day
@@ -1863,24 +1811,6 @@ ${dueRows}
     setShowBillDetail(true)
   }
 
-<<<<<<< HEAD
-=======
-  function printInvoice(grp, res, resTotal, resPaid, resDue, byType) {
-    const now=new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-    const checkIn=res?fmtDate(res.check_in):'—'
-    const checkOut=res?fmtDate(res.check_out):'—'
-    const paymentRows=Object.entries(byType).map(([tp,amt])=>`<tr><td>${tp}</td><td style="text-align:right">৳${Number(amt||0).toLocaleString('en-BD')}</td></tr>`).join('')
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${grp.guest_name||'Guest'}</title>
-<style>@page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0}.wrap{max-width:760px;margin:0 auto}.head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}.h1{font-size:20px;font-weight:700}.muted{color:#555;font-size:12px}.blk{border:1px solid #ddd;padding:10px 12px;margin-bottom:10px}table{width:100%;border-collapse:collapse}th,td{padding:7px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}th{text-align:left;background:#f4f4f4}.r{text-align:right}</style></head><body><div class="wrap">
-<div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ${now}</div></div>
-<div class="blk"><table><tr><th>Guest</th><td>${grp.guest_name||'—'}</td><th>Room</th><td>${grp.room_number||'—'}</td></tr><tr><th>Check-In</th><td>${checkIn}</td><th>Check-Out</th><td>${checkOut}</td></tr></table></div>
-<div class="blk"><table><tr><th>Bill Total</th><td class="r">৳${Number(resTotal||0).toLocaleString('en-BD')}</td></tr><tr><th>Paid</th><td class="r">৳${Number(resPaid||0).toLocaleString('en-BD')}</td></tr><tr><th>Balance Due</th><td class="r"><strong>৳${Number(resDue||0).toLocaleString('en-BD')}</strong></td></tr></table></div>
-<div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRows||'<tr><td colspan="2">No payments recorded</td></tr>'}</tbody></table></div>
-</div><script>window.onload=()=>window.print();</script></body></html>`
-    printPDF(html)
-  }
-
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   return (
     <div>
       {/* Stats */}
@@ -1949,12 +1879,8 @@ ${dueRows}
 
       {/* Transactions table — always visible for all filter modes */}
       {(()=>{
-<<<<<<< HEAD
         // Use merged transactions by guest_name, room_number, and fiscal_day
         let list = filter==='TODAY'?todayT : filter==='DATE'?calT : filter==='MONTH'?monthT : mergedTransactions;
-=======
-        let list = filter==='TODAY'?todayT : filter==='DATE'?calT : filter==='MONTH'?monthT : transactions
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
         if(search){const q=search.toLowerCase();list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q))}
         const fmtDLabel=d=>{if(!d)return'Today';const[y,m,dy]=d.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+dy}-${mo[+m-1]}-${y}`}
         const label = filter==='TODAY'?fmtDLabel(''):filter==='DATE'?fmtDLabel(calDate):filter==='MONTH'?'This Month':'All Time'
@@ -1966,7 +1892,6 @@ ${dueRows}
             </div>
             <div className="tbl-wrap">
               <table className="tbl">
-<<<<<<< HEAD
                 <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type(s)</th><th>Amount</th><th>Paid</th><th>Due</th></tr></thead>
                 <tbody>
                   {list.length===0?(
@@ -1982,77 +1907,6 @@ ${dueRows}
                       <td className="xs" style={{color:t.due>0?'var(--rose)':'var(--grn)',fontWeight:t.due>0?600:400}}>{BDT(t.due)}</td>
                     </tr>
                   )))}
-=======
-                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments</th><th></th></tr></thead>
-                <tbody>
-                  {list.length===0?(
-                    <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No transactions for this period</td></tr>
-                  ):(()=>{
-                    // Group transactions by guest+room — same guest/room on same day = one row
-                    const groups={}
-                    list.forEach(t=>{
-                      const key=`${t.guest_name||''}|${t.room_number||''}`
-                      if(!groups[key]) groups[key]={txs:[],guest_name:t.guest_name,room_number:t.room_number}
-                      groups[key].txs.push(t)
-                    })
-                    return Object.values(groups).map(grp=>{
-                      const res=reservations?.find(r=>(r.room_ids||[r.room_number]).includes(grp.room_number))
-                      const bill=res?computeBill(res):null
-                      const resTotal=bill?bill.total:0
-                      const resPaid=bill?bill.paid:0
-                      const resDue=bill?bill.due:0
-                      // Sum all payment amounts for this guest+room
-                      const totalPaid=grp.txs.reduce((a,t)=>a+(+t.amount||0),0)
-                      // Group by payment type within this guest+room
-                      const byType={}
-                      grp.txs.forEach(t=>{
-                        const tp=t.type||'Payment'
-                        if(!byType[tp]) byType[tp]=0
-                        byType[tp]+=(+t.amount||0)
-                      })
-                      return (
-                        <tr key={grp.guest_name+'|'+grp.room_number}>
-                          <td className="xs">{grp.guest_name||'—'}</td>
-                          <td><span className="badge bb">{grp.room_number||'—'}</span></td>
-                          <td className="xs muted">{res?fmtDate(res.check_in):'—'}</td>
-                          <td className="xs muted">{res?fmtDate(res.check_out):'—'}</td>
-                          <td className="xs gold">{res?BDT(resTotal):'—'}</td>
-                          <td className="xs" style={{color:'var(--grn)'}}>{BDT(resPaid)}</td>
-                          <td className="xs" style={{color:resDue>0?'var(--rose)':'var(--grn)',fontWeight:resDue>0?600:400}}>{BDT(resDue)}</td>
-                          <td className="xs" style={{lineHeight:1.8}}>
-                            {Object.entries(byType).map(([tp,amt])=>(
-                              <div key={tp} style={{display:'flex',justifyContent:'space-between',gap:12,minWidth:180}}>
-                                <span className="badge bgold" style={{fontSize:8}}>{tp}</span>
-                                <span style={{color:'var(--gold)',fontWeight:500}}>{BDT(amt)}</span>
-                              </div>
-                            ))}
-                          </td>
-                          <td style={{whiteSpace:'nowrap'}}>
-                            {currentUser?.role!=='housekeeping'&&(
-                              <button className="btn btn-gold btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
-                                setBillingRes({_fromRow:true,...(res||{}),room_number:grp.room_number||'',guest_name:grp.guest_name||'',_resId:res?.id||null,_total:resTotal,_paid:resPaid})
-                                setShowAdd(true)
-                              }}>+ Pay</button>
-                            )}
-                            {currentUser?.role!=='housekeeping'&&(
-                              <button className="btn btn-ghost btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>printInvoice(grp,res,resTotal,resPaid,resDue,byType)}>🖨 Print</button>
-                            )}
-                            {currentUser?.role==='owner'&&(
-                              <button className="btn btn-danger btn-sm" style={{padding:'3px 7px',fontSize:9}} onClick={async()=>{
-                                if(!window.confirm(`Delete all ${grp.txs.length} transaction(s) for ${grp.guest_name} in Room ${grp.room_number}?`)) return
-                                try{
-                                  for(const t of grp.txs) await dbDelete('transactions',t.id)
-                                  toast(`${grp.txs.length} transaction(s) deleted`)
-                                  reload()
-                                }catch(e){toast(e.message,'error')}
-                              }}>✕</button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })
-                  })()}
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
                 </tbody>
               </table>
             </div>
@@ -2101,7 +1955,6 @@ ${dueRows}
       {showAdd&&<RecordPayModal toast={toast} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
-<<<<<<< HEAD
       {showBillDetail&&detailRes&&(
         <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
           <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
@@ -2158,108 +2011,6 @@ ${dueRows}
           </div>
         </div>
       )}
-=======
-      {showBillDetail&&detailRes&&(()=>{
-        const r=detailRes
-        const gname=getGN(r)
-        const roomNo=getRoom(r)
-        const {roomCharge,sub,tax,svc,total,paid,due,folios,nights,roomRate}=computeBill(r)
-        const relTx=transactions.filter(t=>t.room_number===roomNo&&t.type!=='Final Settlement')
-        return (
-          <Modal title={`Bill — ${gname}`} onClose={()=>{setShowBillDetail(false);setDetailRes(null)}}
-            footer={
-              <div style={{width:'100%'}}>
-                {/* Collect Amount inline */}
-                <div style={{background:'rgba(200,169,110,.06)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:10,display:'flex',gap:8,alignItems:'center'}}>
-                  <span className="flbl" style={{marginBottom:0,whiteSpace:'nowrap'}}>💰 Collect Amount:</span>
-                  <input type="number" className="finput" id="bill-collect-input"
-                    placeholder={`Due: ${BDT(due)}`}
-                    style={{flex:1,padding:'6px 10px'}}/>
-                  <button className="btn btn-gold btn-sm" style={{whiteSpace:'nowrap'}} onClick={async()=>{
-                    const a=+document.getElementById('bill-collect-input').value
-                    if(!a||a<=0){toast('Enter valid amount','error');return}
-                    try{
-                      await dbPatch('reservations',r.id,{paid_amount:Math.min(total,(+r.paid_amount||0)+a)})
-                      await dbPost('transactions',{type:'Room Payment (Cash)',amount:a,room_number:roomNo,guest_name:gname,fiscal_day:todayStr(),tenant_id:TENANT})
-                      toast(`৳${a.toLocaleString()} recorded`)
-                      reload()
-                      setShowBillDetail(false);setDetailRes(null)
-                    }catch(e){toast(e.message,'error')}
-                  }}>Save</button>
-                </div>
-                <div className="flex gap2" style={{flexWrap:'wrap'}}>
-                  <button className="btn btn-ghost" onClick={()=>{setShowBillDetail(false);setDetailRes(null)}}>Close</button>
-                  <div style={{flex:1}}/>
-                  <button className="btn btn-gold" onClick={()=>{
-                    setShowBillDetail(false)
-                    setBillingRes({_fromRow:false,...r,room_number:roomNo,guest_name:gname,_resId:r.id,_total:total,_paid:paid,check_in:r.check_in,check_out:r.check_out,payment_method:r.payment_method,on_duty_officer:r.on_duty_officer,status:r.status})
-                    setShowAdd(true)
-                  }}>Record Payment →</button>
-                </div>
-              </div>
-            }>
-            {/* Guest + summary header */}
-            <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
-              <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
-                <div className="flex fac gap3">
-                  <Av name={gname} size={40}/>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:16}}>{gname}</div>
-                    <div className="xs muted">Room {roomNo} · {fmtDate(r.check_in)} → {fmtDate(r.check_out)}</div>
-                    <div className="xs" style={{color:'var(--amb)',marginTop:2}}>{nights} night{nights!==1?'s':''} · {BDT(roomRate)}/night</div>
-                  </div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                  <div className="xs muted">Total Due</div>
-                  <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(due)}</div>
-                </div>
-              </div>
-            </div>
-            {/* Info grid */}
-            <div className="g2 mb4">
-              {[['Check-In',fmtDate(r.check_in)],['Check-Out',fmtDate(r.check_out)],['Nights',nights],['Payment Method',r.payment_method||'—'],['On-Duty Officer',r.on_duty_officer||'—'],['Status',r.status||'—']].map(([l,v])=>(
-                <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
-              ))}
-            </div>
-            {/* Folio breakdown */}
-            <div style={{background:'var(--s2)',border:'1px solid var(--br2)',overflow:'hidden',marginBottom:8}}>
-              <div style={{padding:'7px 12px',background:'rgba(200,169,110,.04)',borderBottom:'1px solid var(--br2)',fontSize:8,letterSpacing:'.1em',color:'var(--tx2)',textTransform:'uppercase'}}>Folio Charges</div>
-              <div style={{padding:'0 12px'}}>
-                {nights>0&&roomRate>0&&(
-                  <div className="folio-row">
-                    <div><span>Room charge</span><span className="badge bgold" style={{fontSize:8,marginLeft:6}}>{nights}×{BDT(roomRate)}</span></div>
-                    <span className="xs gold">{BDT(roomCharge)}</span>
-                  </div>
-                )}
-                {folios.map(f=>(
-                  <div key={f.id} className="folio-row">
-                    <div><span>{f.description}</span><span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{f.category}</span></div>
-                    <span className="xs gold">{BDT(f.amount)}</span>
-                  </div>
-                ))}
-                {relTx.map(t=>(
-                  <div key={t.id} className="folio-row" style={{opacity:.75}}>
-                    <div><span style={{color:'var(--tx2)'}}>{t.type||'Charge'}</span><span className="badge bb" style={{marginLeft:6,fontSize:8}}>{t.fiscal_day}</span></div>
-                    <span className="xs" style={{color:'var(--sky)'}}>{BDT(t.amount)}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-                {[['Subtotal',sub],['VAT 7%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
-                  <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-                ))}
-                <div className="divider" style={{margin:'6px 0'}}/>
-                <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total</span><span>{BDT(total)}</span></div>
-                <div className="flex fjb xs" style={{marginTop:4}}>
-                  <span style={{color:'var(--grn)'}}>Paid: {BDT(paid)}</span>
-                  {due>0&&<span style={{color:'var(--rose)',fontWeight:700}}>Due: {BDT(due)}</span>}
-                </div>
-              </div>
-            </div>
-          </Modal>
-        )
-      })()}
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
     </div>
   )
 }
@@ -2315,10 +2066,6 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
   return (
     <Modal title="Record Payment" onClose={onClose}
       footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Record Payment'}</button></>}>
-<<<<<<< HEAD
-=======
-
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       {/* ── Locked guest card (from row click) ── */}
       {fromRow&&(
         <div style={{border:'1px solid var(--br)',marginBottom:14,overflow:'hidden'}}>
@@ -2860,7 +2607,7 @@ function AIAgentsPanel({toast}) {
                 ?<div style={{color:'var(--rose)',fontSize:11}}>{prospectRes.error}</div>
                 :<div>
                   <div className="xs muted mb4">{prospectRes.leads_found} leads found and saved to database</div>
-                  {(prospectRes.raw_leads||[]).map((l:any,i:number)=>(
+                  {(prospectRes.raw_leads||[]).map((l,i)=>(
                     <div key={i} style={{background:'var(--s2)',border:'1px solid var(--br2)',padding:'8px 12px',marginBottom:6}}>
                       <div style={{fontWeight:600,fontSize:12}}>{l.name} <span className="xs muted">· {l.company}</span></div>
                       <div className="xs muted">{l.email}</div>
@@ -2911,7 +2658,7 @@ function AIAgentsPanel({toast}) {
                 :<div>
                   {/* Day breakdown */}
                   <div className="g2 mb4">
-                    {Object.entries(analystRes.day_averages||{}).sort(([,a]:any,[,b]:any)=>b-a).map(([day,avg]:any)=>(
+                    {Object.entries(analystRes.day_averages||{}).sort(([,a],[,b])=>b-a).map(([day,avg])=>(
                       <div key={day} className="info-box" style={{borderColor:day===analystRes.lowest_day?'rgba(224,92,122,.3)':day===analystRes.highest_day?'rgba(63,185,80,.3)':'var(--br2)'}}>
                         <div className="info-lbl">{day}</div>
                         <div className="info-val" style={{color:day===analystRes.lowest_day?'var(--rose)':day===analystRes.highest_day?'var(--grn)':'var(--tx)'}}>{BDT(avg)}</div>

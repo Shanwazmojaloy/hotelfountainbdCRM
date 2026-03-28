@@ -1567,7 +1567,29 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
     .reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
 
   let list=filter==='TODAY'?todayT:filter==='MONTH'?monthT:transactions
-  if(search){ const q=search.toLowerCase(); list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q)) }
+  if(search){
+    const q=search.toLowerCase();
+    list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q))
+  }
+
+  // Group transactions by date
+  const grouped = {};
+  list.forEach(t => {
+    const date = t.fiscal_day || '—';
+    if (!grouped[date]) grouped[date] = [];
+    grouped[date].push(t);
+  });
+  // Create summary per date
+  const summaryList = Object.entries(grouped).map(([date, txs]) => {
+    return {
+      date,
+      amount: txs.reduce((a, t) => a + (+t.amount || 0), 0),
+      guests: [...new Set(txs.map(t => t.guest_name || '—'))].join(', '),
+      rooms: [...new Set(txs.map(t => t.room_number || '—'))].join(', '),
+      types: [...new Set(txs.map(t => t.type || 'Payment'))].join(', '),
+      count: txs.length
+    };
+  }).sort((a, b) => b.date.localeCompare(a.date));
 
 <<<<<<< HEAD
   // Helper to get payment status for a guest/room/date
@@ -1768,25 +1790,34 @@ function ReportsPage({transactions,rooms,reservations,guests}) {
         <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-lbl">ADR</div><div className="stat-val">{BDT(avgRate)}</div><div className="stat-sub">Avg Daily Rate</div></div>
         <div className="stat" style={{'--ac':'var(--pur)'}}><div className="stat-lbl">RevPAR</div><div className="stat-val">{BDT(revPAR)}</div><div className="stat-sub">Revenue/Available Room</div></div>
       </div>
-      <div className="g2 mb4">
-        <div className="card">
-          <div className="card-hd">
-            <span className="card-title">Daily Revenue — Last 14 Days</span>
-            <span className="badge bgold">{last14[chartActive]?.ds?.slice(5)} · {BDT(last14[chartActive]?.v)}</span>
-          </div>
-          <div className="card-body">
-            <BarChart data={last14} active={chartActive} onHover={setChartActive}/>
-            <div className="divider"/>
-            <div className="flex fjb xs muted"><span>14-day total</span><span className="gold">{BDT(last14.reduce((a,d)=>a+d.v,0))}</span></div>
-          </div>
+      <div className="card">
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Guests</th>
+                <th>Rooms</th>
+                <th>Types</th>
+                <th>Amount (Total)</th>
+                <th>Transactions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summaryList.slice(0,80).map((row, idx) => (
+                <tr key={row.date}>
+                  <td className="xs muted">{row.date}</td>
+                  <td className="xs">{row.guests}</td>
+                  <td><span className="badge bb">{row.rooms}</span></td>
+                  <td><span className="badge bgold">{row.types}</span></td>
+                  <td className="xs gold" style={{fontWeight:500}}>{BDT(row.amount)}</td>
+                  <td className="xs">{row.count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div className="card">
-          <div className="card-hd"><span className="card-title">Revenue by Category</span></div>
-          <div className="card-body">
-            {topCats.map(([cat,rev])=>(
-              <div key={cat} className="flex fac fjb" style={{padding:'5px 0',borderBottom:'1px solid var(--br2)'}}>
-                <span className="xs">{cat}</span>
-                <div className="flex fac gap2">
+      </div>
                   <span className="xs gold">{BDT(rev)}</span>
                   <div style={{height:4,width:Math.round((rev/(topCats[0]?.[1]||1))*60),background:'rgba(200,169,110,.4)',borderRadius:2}}/>
                 </div>

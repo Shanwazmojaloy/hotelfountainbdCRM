@@ -1184,8 +1184,6 @@ function BillingPage({ guests, transactions, setTransactions, rooms, toast }) {
   const svc = Math.round(sub * 0.05);
   const total = sub + tax + svc;
 
-<<<<<<< HEAD
-=======
   function printInvoice() {
     if(!g) return;
     const now = new Date().toLocaleString("en-BD", { timeZone: "Asia/Dhaka" });
@@ -1230,8 +1228,6 @@ th{background:#f4f4f4;text-align:left}
     w.document.write(html);
     w.document.close();
   }
-
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   function addCharge() {
     if (!chargeForm.amount || isNaN(chargeForm.amount)) return toast("Enter valid amount", "error");
     setFolioCharges(p => ({ ...p, [g.id]: [...(p[g.id]||[]), { desc:chargeForm.notes || chargeForm.type, amt:parseFloat(chargeForm.amount), cat:chargeForm.type }] }));
@@ -1333,15 +1329,11 @@ th{background:#f4f4f4;text-align:left}
               <div className="folio-row"><span className="muted sm">Service Charge (5%)</span><span className="mono xs">${svc.toFixed(2)}</span></div>
               <div className="folio-total"><span>Total Due</span><span className="mono">${total.toFixed(2)}</span></div>
 
-              <div className="flex gap2 mt4" style={{ flexWrap:"wrap" }}>
-                <button className="btn btn-ghost" style={{ flex:1, justifyContent:"center" }} onClick={() => toast("Invoice sent to email", "success")}>📧 Email Invoice</button>
-<<<<<<< HEAD
-                <button className="btn btn-ghost" style={{ flex:1, justifyContent:"center" }} onClick={() => toast("Printing invoice...", "success")}>🖨 Print</button>
-=======
-                <button className="btn btn-ghost" style={{ flex:1, justifyContent:"center" }} onClick={printInvoice}>🖨 Print</button>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
-                <button className="btn btn-gold" style={{ flex:"2", justifyContent:"center" }} onClick={() => setShowPayment(true)}>Process Payment</button>
-              </div>
+<div className="flex gap2 mt4" style={{ flexWrap:"wrap" }}>
+  <button className="btn btn-ghost" style={{ flex:1, justifyContent:"center" }} onClick={() => toast("Invoice sent to email", "success")}>📧 Email Invoice</button>
+  <button className="btn btn-ghost" style={{ flex:1, justifyContent:"center" }} onClick={printInvoice}>🖨 Print</button>
+  <button className="btn btn-gold" style={{ flex:"2", justifyContent:"center" }} onClick={() => setShowPayment(true)}>Process Payment</button>
+</div>
             </>
           ) : (
             <div className="empty-state" style={{ minHeight:300 }}><span>💰</span><span className="sm muted">Select a guest to view folio</span></div>
