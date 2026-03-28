@@ -1918,6 +1918,7 @@ function SettlePaymentModal({target,toast,onClose,reload}) {
   const res=target?.res
   const totalAmount=Math.max(0,+res?.total_amount||0)
   const discountAmount=Math.max(0,+res?.discount_amount||0)
+  const grossAmount=Math.max(0,totalAmount+discountAmount)
   const paidAmount=Math.max(0,+res?.paid_amount||0)
   const due=Math.max(0,totalAmount-paidAmount)
 
@@ -1953,23 +1954,39 @@ function SettlePaymentModal({target,toast,onClose,reload}) {
   }
   return (
     <Modal title={`Settle Payment — ${tx?.guest_name||'Guest'}`} onClose={onClose}
-      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={confirmCollect}>{saving?'Saving…':'Confirm Payment'}</button></>}>
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving||!res} onClick={confirmCollect}>{saving?'Saving…':'Confirm Payment'}</button></>}>
+      {!res&&<div className="info-box mb4" style={{borderColor:'rgba(224,92,122,.35)'}}>
+        <div className="info-lbl" style={{color:'var(--rose)'}}>Reservation not found</div>
+        <div className="info-val">This transaction is not linked to an active reservation. Please open from a reservation-linked row.</div>
+      </div>}
       <div className="g2 mb4">
+        <div className="info-box">
+          <div className="info-lbl">Reservation ID</div>
+          <div className="info-val">{res?.id?String(res.id).slice(0,8):'—'}</div>
+        </div>
         <div className="info-box">
           <div className="info-lbl">Guest</div>
           <div className="info-val">{tx?.guest_name||'—'}</div>
         </div>
         <div className="info-box">
           <div className="info-lbl">Room</div>
-          <div className="info-val">{tx?.room_number||'—'}</div>
+          <div className="info-val">{(res?.room_ids||[]).join(', ')||tx?.room_number||'—'}</div>
         </div>
         <div className="info-box">
-          <div className="info-lbl">Total Amount</div>
-          <div className="info-val gold">{BDT(totalAmount)}</div>
+          <div className="info-lbl">Check-In / Out</div>
+          <div className="info-val">{res?`${fmtDate(res.check_in)} → ${fmtDate(res.check_out)}`:'—'}</div>
+        </div>
+        <div className="info-box">
+          <div className="info-lbl">Total Amount (Reservation)</div>
+          <div className="info-val gold">{BDT(grossAmount)}</div>
         </div>
         <div className="info-box">
           <div className="info-lbl">Discount</div>
           <div className="info-val">{BDT(discountAmount)}</div>
+        </div>
+        <div className="info-box">
+          <div className="info-lbl">Net Invoice</div>
+          <div className="info-val gold">{BDT(totalAmount)}</div>
         </div>
         <div className="info-box">
           <div className="info-lbl">Amount Paid</div>
@@ -1982,7 +1999,7 @@ function SettlePaymentModal({target,toast,onClose,reload}) {
       </div>
       <div className="fg">
         <label className="flbl">Amount to Collect (BDT)</label>
-        <input type="number" className="finput" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus/>
+        <input type="number" className="finput" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus disabled={!res}/>
       </div>
     </Modal>
   )
