@@ -6,7 +6,9 @@ dotenv.config();
 
 const webhookUrl = process.env.MAKE_WEBHOOK_URL || '';
 
-export async function sendToMakeWebhook(payload: any) {
+type MakeWebhookPayload = Record<string, unknown>;
+
+export async function sendToMakeWebhook(payload: MakeWebhookPayload) {
   if (!webhookUrl) {
     console.warn('MAKE_WEBHOOK_URL is not configured in .env');
     return null;
