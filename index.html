@@ -1947,8 +1947,10 @@ ${dueRows}
     const now = new Date().toLocaleString('en-BD', {timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
     const checkIn = safe(res?.check_in) ? fmtDate(res.check_in) : (safe(grp?.txs?.[0]?.check_in) ? fmtDate(grp.txs[0].check_in) : '—')
     const checkOut = safe(res?.check_out) ? fmtDate(res.check_out) : (safe(grp?.txs?.[0]?.check_out) ? fmtDate(grp.txs[0].check_out) : '—')
-    // Escape backticks and '${' in all dynamic values and fallback string
-    const escapeTpl = s => String(s===undefined||s===null?'':s).replace(/[`]/g, '\u0060').replace(/\$\{/g, '\u0024{')
+    // Escape backticks, '${', and HTML special chars in all dynamic values and fallback string
+    const escapeTpl = s => String(s===undefined||s===null?'':s)
+      .replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]))
+      .replace(/[`]/g, '\u0060').replace(/\$\{/g, '\u0024{');
     // Always fallback to a literal safe row if no payments
     let paymentRowsHtml = '';
     try {
@@ -1958,83 +1960,93 @@ ${dueRows}
           .map(([tp,amt])=>`<tr><td>${escapeTpl(tp)}</td><td style="text-align:right">৳${escapeTpl(Number(amt||0).toLocaleString('en-BD'))}</td></tr>`)
       }
       paymentRowsHtml = paymentRowsArr.join('');
-      // Final fallback if empty
-      if (!paymentRowsHtml) paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
-      // Log for debugging
-      try { console.log('[printInvoice] paymentRowsHtml:', paymentRowsHtml, 'byType:', byType); } catch (e) {}
-      // If paymentRowsHtml contains any unsafe content, fallback
-      if (typeof paymentRowsHtml !== 'string' || /[`]|\$\{/.test(paymentRowsHtml)) {
-        paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
-      }
+      // Final fallback if empty or not a string
+      if (typeof paymentRowsHtml !== 'string' || !paymentRowsHtml.trim()) paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
     } catch (e) {
       paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
     }
+    // Extra logging for debugging
+    try { console.log('[printInvoice] paymentRowsHtml (pre-final-check):', paymentRowsHtml, 'byType:', byType); } catch (e) {}
+    // Unconditional final fallback: if paymentRowsHtml contains any unsafe character or pattern, forcibly replace
+    if (
+      typeof paymentRowsHtml !== 'string' ||
+      /[`]|\$\{|<script|<\/script|['"\\]/i.test(paymentRowsHtml) ||
+      paymentRowsHtml.split('').some(c => c.charCodeAt(0) < 32 && c !== '\n' && c !== '\t')
+    ) {
+      paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
+      try { console.error('[printInvoice] paymentRowsHtml forcibly replaced due to unsafe content. byType:', byType); } catch (e) {}
+    }
     try {
-      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${escapeTpl(safe(grp?.guest_name)||'Guest')}</title>
-  <style>
-  @page{size:A4 portrait;margin:10mm}
-  *{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0}
-  .wrap{max-width:760px;margin:0 auto}
-  .head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}
-  .h1{font-size:20px;font-weight:700}.muted{color:#555;font-size:12px}
-  .blk{border:1px solid #ddd;padding:10px 12px;margin-bottom:10px}
-  table{width:100%;border-collapse:collapse} th,td{padding:7px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}
-  th{text-align:left;background:#f4f4f4} .r{text-align:right}
-  .total{font-size:18px;font-weight:700}
-  </style></head><body><div class="wrap">
-  <div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ${escapeTpl(now)}</div></div>
-  <div class="blk"><table>
-  <tr><th>Guest</th><td>${escapeTpl(safe(grp?.guest_name)||'—')}</td><th>Room</th><td>${escapeTpl(safe(grp?.room_number)||'—')}</td></tr>
-  <tr><th>Check-In</th><td>${escapeTpl(checkIn)}</td><th>Check-Out</th><td>${escapeTpl(checkOut)}</td></tr>
-  </table></div>
-  <div class="blk"><table>
-  <tr><th>Bill Total</th><td class="r">৳${escapeTpl(Number(safe(resTotal)||0).toLocaleString('en-BD'))}</td></tr>
-  <tr><th>Paid</th><td class="r">৳${escapeTpl(Number(safe(resPaid)||0).toLocaleString('en-BD'))}</td></tr>
-  <tr><th>Balance Due</th><td class="r"><strong>৳${escapeTpl(Number(safe(resDue)||0).toLocaleString('en-BD'))}</strong></td></tr>
-  </table></div>
-  <div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRowsHtml}</tbody></table></div>
-  <div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>
-  </div><script>window.onload=()=>window.print();</script></body></html>`;
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${escapeTpl(safe(grp?.guest_name)||'Guest')}</title>
+      <style>
+      @page{size:A4 portrait;margin:10mm}
+      *{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0}
+      .wrap{max-width:760px;margin:0 auto}
+      .head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}
+      .h1{font-size:20px;font-weight:700}.muted{color:#555;font-size:12px}
+      .blk{border:1px solid #ddd;padding:10px 12px;margin-bottom:10px}
+      table{width:100%;border-collapse:collapse} th,td{padding:7px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}
+      th{text-align:left;background:#f4f4f4} .r{text-align:right}
+      .total{font-size:18px;font-weight:700}
+      </style></head><body><div class="wrap">
+      <div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ${escapeTpl(now)}</div></div>
+      <div class="blk"><table>
+      <tr><th>Guest</th><td>${escapeTpl(safe(grp?.guest_name)||'—')}</td><th>Room</th><td>${escapeTpl(safe(grp?.room_number)||'—')}</td></tr>
+      <tr><th>Check-In</th><td>${escapeTpl(checkIn)}</td><th>Check-Out</th><td>${escapeTpl(checkOut)}</td></tr>
+      </table></div>
+      <div class="blk"><table>
+      <tr><th>Bill Total</th><td class="r">৳${escapeTpl(Number(safe(resTotal)||0).toLocaleString('en-BD'))}</td></tr>
+      <tr><th>Paid</th><td class="r">৳${escapeTpl(Number(safe(resPaid)||0).toLocaleString('en-BD'))}</td></tr>
+      <tr><th>Balance Due</th><td class="r"><strong>৳${escapeTpl(Number(safe(resDue)||0).toLocaleString('en-BD'))}</strong></td></tr>
+      </table></div>
+      <div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRowsHtml}</tbody></table></div>
+      <div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>
+      </div></body></html>`;
       // Open a new window and write the HTML, then print
       const printWin = window.open('', '_blank', 'width=800,height=900');
-      if (printWin) {
-        printWin.document.open();
-        printWin.document.write(html);
-        printWin.document.close();
-      } else {
-        alert('Popup blocked! Please allow popups for this site to print the invoice.');
+      try {
+        var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ' + escapeTpl(safe(grp?.guest_name)||'Guest') + '</title>' +
+          '<style>' +
+          '@page{size:A4 portrait;margin:10mm}' +
+          "*{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0}" +
+          '.wrap{max-width:760px;margin:0 auto}' +
+          '.head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}' +
+          '.h1{font-size:20px;font-weight:700}.muted{color:#555;font-size:12px}' +
+          '.blk{border:1px solid #ddd;padding:10px 12px;margin-bottom:10px}' +
+          'table{width:100%;border-collapse:collapse} th,td{padding:7px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}' +
+          'th{text-align:left;background:#f4f4f4} .r{text-align:right}' +
+          '.total{font-size:18px;font-weight:700}' +
+          '</style></head><body><div class="wrap">' +
+          '<div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ' + escapeTpl(now) + '</div></div>' +
+          '<div class="blk"><table>' +
+          '<tr><th>Guest</th><td>' + escapeTpl(safe(grp?.guest_name)||'—') + '</td><th>Room</th><td>' + escapeTpl(safe(grp?.room_number)||'—') + '</td></tr>' +
+          '<tr><th>Check-In</th><td>' + escapeTpl(checkIn) + '</td><th>Check-Out</th><td>' + escapeTpl(checkOut) + '</td></tr>' +
+          '</table></div>' +
+          '<div class="blk"><table>' +
+          '<tr><th>Bill Total</th><td class="r">৳' + escapeTpl(Number(safe(resTotal)||0).toLocaleString('en-BD')) + '</td></tr>' +
+          '<tr><th>Paid</th><td class="r">৳' + escapeTpl(Number(safe(resPaid)||0).toLocaleString('en-BD')) + '</td></tr>' +
+          '<tr><th>Balance Due</th><td class="r"><strong>৳' + escapeTpl(Number(safe(resDue)||0).toLocaleString('en-BD')) + '</strong></td></tr>' +
+          '</table></div>' +
+          '<div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>' + paymentRowsHtml + '</tbody></table></div>' +
+          '<div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>' +
+          '</div></body></html>';
+        // Open a new window and write the HTML, then print
+        var printWin = window.open('', '_blank', 'width=800,height=900');
+        if (printWin) {
+          printWin.document.open();
+          printWin.document.write(html);
+          printWin.document.close();
+          // Wait for the new window to finish loading, then trigger print
+          printWin.onload = function() {
+            printWin.focus();
+            printWin.print();
+          };
+        } else {
+          alert('Popup blocked! Please allow popups for this site to print the invoice.');
+        }
+      } catch (err) {
+        alert('Invoice print error: '+(err?.message||err));
       }
-    } catch (err) {
-      alert('Invoice print error: '+(err?.message||err));
-      if (window && window.console) window.console.error('Invoice print template error:', err, {grp, res, resTotal, resPaid, resDue, byType});
-    }
-  }
-
-  return (
-    <div>
-      {/* Stats */}
-      <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`}</div><div className="stat-val">{BDT(filter==='DATE'?calT.reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{(filter==='DATE'?calT:todayT).length} transactions</div></div>
-        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.length} transactions</div></div>
-        <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
-        <div style={{display:'flex',alignItems:'center',gap:0}}>
-          <div className="tabs" style={{marginBottom:0}}>
-            {[['TODAY',`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`],['MONTH','MONTH'],['ALL','ALL']].map(([f,lbl])=>(
-              <button key={f} className={`tab${filter===f?' on':''}`} onClick={()=>{setFilter(f);setCalDate('')}}>{lbl}</button>
-            ))}
-          </div>
-          {/* Date picker — specific date filter */}
-          {(()=>{
-            const fmtCalLabel=d=>{
-              if(!d) return null
-              const [y,m,day]=d.split('-')
-              const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-              return `${+day}-${months[+m-1]}-${y}`
-            }
             return (
               <div style={{position:'relative',display:'inline-flex',alignItems:'center'}}>
                 <input
