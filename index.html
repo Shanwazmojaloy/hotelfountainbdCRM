@@ -7,35 +7,6 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>"/>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet"/>
   <style>
-  html,body,#root{height:100%;background:#07090E;overflow:hidden;margin:0}
-  #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#07090E;flex-direction:column;gap:16px;z-index:9999}
-  #loading h1{font-family:'Cormorant Garamond',serif;font-size:36px;color:#C8A96E;font-weight:300}
-  #loading h1 em{font-style:italic}
-  #loading p{color:#B8A890;font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-family:'Jost',sans-serif}
-  .spin{width:20px;height:20px;border:1px solid rgba(200,169,110,.2);border-top-color:#C8A96E;border-radius:50%;animation:spin .8s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-  </style>
-  </head>
-<body>
-  <div id="loading"><h1><em>Lumea</em></h1><div class="spin"></div><p>Hotel Fountain CRM</p></div>
-  <div id="root" style="height:100%"></div>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
-  <script type="text/babel" data-type="module">
-// ...entire robust app code as provided by the user...
-  </script>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lumea — Hotel Fountain CRM</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>"/>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet"/>
-  <style>
     html,body,#root{height:100%;background:#07090E;overflow:hidden;margin:0}
     #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#07090E;flex-direction:column;gap:16px;z-index:9999}
     #loading h1{font-family:'Cormorant Garamond',serif;font-size:36px;color:#C8A96E;font-weight:300}
@@ -64,22 +35,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 
 const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
-const fmtDate = d => {
-  if(!d) return '—'
-  const s = String(d).slice(0,10)
-  const [y,m,day] = s.split('-')
-  return day && m && y ? `${day}-${m}-${y}` : s
-}
-const fmtDateTime = d => {
-  if(!d) return '—'
-  const dt = new Date(d)
-  const day = String(dt.getDate()).padStart(2,'0')
-  const mon = String(dt.getMonth()+1).padStart(2,'0')
-  const yr  = dt.getFullYear()
-  const hr  = String(dt.getHours()).padStart(2,'0')
-  const min = String(dt.getMinutes()).padStart(2,'0')
-  return `${day}-${mon}-${yr} ${hr}:${min}`
-}
+const fmtDate = d => d ? String(d).slice(0,10) : '—'
 const todayDhaka = () => new Date(new Date().toLocaleString('en',{timeZone:'Asia/Dhaka'}))
 const todayStr = () => { const d=todayDhaka(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 const nightsCount = (ci,co) => { if(!ci||!co) return 0; return Math.max(0, Math.round((new Date(co)-new Date(ci))/86400000)) }
@@ -99,7 +55,7 @@ const ROLES = {
   owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','settings']},
   manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports']},
   receptionist: {label:'Receptionist',       color:'#58A6FF', pages:['dashboard','rooms','reservations','guests','billing']},
-  housekeeping: {label:'Housekeeping Staff', color:'#F0A500', pages:['dashboard','rooms','housekeeping','billing']},
+  housekeeping: {label:'Housekeeping Staff', color:'#F0A500', pages:['dashboard','housekeeping']},
   accountant:   {label:'Accountant',         color:'#3FB950', pages:['dashboard','billing','reports']},
 }
 
@@ -121,7 +77,7 @@ const CSS = `
   --bg:#07090E;--s1:#0D1117;--s2:#0E1018;--s3:#131B26;
   --gold:#C8A96E;--gold2:#E0C585;--gdim:rgba(200,169,110,.07);
   --rose:#E05C7A;--sky:#58A6FF;--grn:#3FB950;--amb:#F0A500;--teal:#2EC4B6;--pur:#9B72CF;
-  --tx:#EEE9E2;--tx2:#D4C8B8;--tx3:#B8AD9E;
+  --tx:#EEE9E2;--tx2:#B8A890;--tx3:#9A907C;
   --br:rgba(200,169,110,.13);--br2:rgba(200,169,110,.06);--r:3px;
   --serif:'Cormorant Garamond',Georgia,serif;
   --sans:'Jost',sans-serif;
@@ -200,7 +156,7 @@ html,body,#root{height:100%;background:var(--bg);color:var(--tx);font-family:var
 
 /* ── TABLE ── */
 .tbl{width:100%;border-collapse:collapse}
-.tbl th{font-family:var(--sans);font-size:7.5px;letter-spacing:.16em;color:#C8BFB0;text-transform:uppercase;padding:8px 10px;text-align:left;border-bottom:1px solid var(--br2);white-space:nowrap;font-weight:300}
+.tbl th{font-family:var(--sans);font-size:7.5px;letter-spacing:.16em;color:var(--tx3);text-transform:uppercase;padding:8px 10px;text-align:left;border-bottom:1px solid var(--br2);white-space:nowrap;font-weight:200}
 .tbl td{padding:9px 10px;border-bottom:1px solid var(--br2);font-family:var(--sans);font-size:12px;font-weight:300;color:var(--tx);vertical-align:middle}
 .tbl tr:last-child td{border-bottom:none}
 .tbl tr:hover td{background:rgba(200,169,110,.02)}
@@ -208,7 +164,7 @@ html,body,#root{height:100%;background:var(--bg);color:var(--tx);font-family:var
 
 /* ── FORMS ── */
 .fg{margin-bottom:12px}
-.flbl{font-family:var(--sans);font-size:7.5px;letter-spacing:.18em;color:#C0B8A8;text-transform:uppercase;margin-bottom:5px;display:block;font-weight:200}
+.flbl{font-family:var(--sans);font-size:7.5px;letter-spacing:.18em;color:var(--tx3);text-transform:uppercase;margin-bottom:5px;display:block;font-weight:200}
 .finput,.fselect,.ftextarea{width:100%;background:rgba(200,169,110,.04);border:1px solid var(--br2);border-radius:0;padding:9px 11px;color:var(--tx);font-family:var(--sans);font-size:12.5px;font-weight:300;outline:none;transition:border-color .18s;appearance:none;color-scheme:dark}
 .finput::placeholder,.ftextarea::placeholder{color:var(--tx3)}
 input[type='date']{color:var(--tx);color-scheme:dark}
@@ -575,7 +531,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
                     <div style={{fontSize:12,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{getGN(r.guest_ids)}</div>
                     <div className="xs muted">Rm {(r.room_ids||[]).join(',')} · Out: {fmtDate(r.check_out)}</div>
                   </div>
-                  {(()=>{const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number));const nts=nightsCount(r.check_in,r.check_out)||1;const comp=rm?(+rm.price*nts):0;const disc=+r.discount||0;const tot=comp>0?Math.max(0,comp-disc):(Math.max(0,(+r.total_amount||0)-disc));return <span className="badge bb">{BDT(tot)}</span>})()}
+                  <span className="badge bb">{BDT(r.total_amount)}</span>
                 </div>
               ))
             }
@@ -609,7 +565,6 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
   const [selRoom,setSelRoom]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
   const canEdit=['owner','manager','receptionist'].includes(currentUser?.role)
-  const canHKStatus=currentUser?.role==='housekeeping'  // HK can only change dirty→available
   const isSA=currentUser?.role==='owner'
   const sc=rooms.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
   const filtered=filter==='ALL'?rooms:rooms.filter(r=>r.status===filter)
@@ -645,7 +600,7 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
       </div>
       {selRoom&&(
         <RoomModal room={selRoom} guests={guests} reservations={reservations}
-          canEdit={canEdit} canHKStatus={canHKStatus} isSA={isSA} toast={toast}
+          canEdit={canEdit} isSA={isSA} toast={toast}
           onClose={()=>setSelRoom(null)}
           reload={()=>{ reload(); setSelRoom(null) }}/>
       )}
@@ -654,15 +609,13 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
   )
 }
 
-function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onClose,reload}) {
+function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload}) {
   const [status,setStatus]=useState(room.status)
   const [folios,setFolios]=useState([])
   const [fLoad,setFLoad]=useState(true)
   const [showCharge,setShowCharge]=useState(false)
   const [showCO,setShowCO]=useState(false)
   const [saving,setSaving]=useState(false)
-  const [collectAmt,setCollectAmt]=useState('')
-  const [collectSaving,setCollectSaving]=useState(false)
 
   const activeRes=reservations.find(r=>(r.room_ids||[]).includes(room.room_number)&&r.status==='CHECKED_IN')
   const guest=activeRes?guests.find(g=>String(g.id)===String((activeRes.guest_ids||[])[0]||'')):null
@@ -678,20 +631,9 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
   const roomCharge=roomRate*nights
   const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
-  const [rmVat,setRmVat]=useState(0)
-  const [rmSvc,setRmSvc]=useState(0)
-  useEffect(()=>{
-    db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`).then(rows=>{
-      if(!Array.isArray(rows)) return
-      const m={};rows.forEach(r=>{m[r.key]=r.value})
-      setRmVat(+m.vat_rate||0)
-      setRmSvc(+m.service_charge||0)
-    }).catch(()=>{})
-  },[])
-  const tax=Math.round(sub*rmVat/100)
-  const svc=Math.round(sub*rmSvc/100)
-  const rmDiscount=activeRes?+activeRes.discount||0:0
-  const total=Math.max(0,sub+tax+svc-rmDiscount)
+  const tax=Math.round(sub*.07)
+  const svc=Math.round(sub*.05)
+  const total=sub+tax+svc
 
   async function saveStatus() {
     setSaving(true)
@@ -701,28 +643,12 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
 
   async function doCheckout() {
     try {
-      const prevPaid=+activeRes.paid_amount||0
-      const finalDue=Math.max(0,total-prevPaid)
-      // Preserve ledger accuracy: do not auto-set paid_amount to total on checkout.
-      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',check_out_time:new Date().toISOString()})
+      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      toast(`Check-out complete. Room released. ${finalDue>0?`Outstanding balance: ${BDT(finalDue)}`:'No outstanding balance.'}`)
+      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
-  }
-
-  async function saveCollectAmount() {
-    const a=+collectAmt
-    if(!a||a<=0) return toast('Enter valid amount','error')
-    setCollectSaving(true)
-    try {
-      const newPaid=Math.min(total,(+activeRes.paid_amount||0)+a)
-      await dbPatch('reservations',activeRes.id,{paid_amount:newPaid})
-      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT,res_id:activeRes.id,check_in:activeRes.check_in?.slice(0,10),check_out:activeRes.check_out?.slice(0,10),bill_total:total})
-      toast(`৳${a.toLocaleString()} collected`)
-      reload()
-    } catch(e){ toast(e.message,'error') }
-    finally{ setCollectSaving(false) }
   }
 
   async function addFolioCharge(f) {
@@ -742,7 +668,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
             </>
           )}
           <div style={{flex:1}}/>
-          {(canEdit||canHKStatus)&&<button className="btn btn-gold btn-sm" disabled={saving||(!canEdit&&canHKStatus&&room.status!=='DIRTY')} onClick={saveStatus}>{saving?'Saving…':'Save Status'}</button>}
+          {canEdit&&<button className="btn btn-gold btn-sm" disabled={saving} onClick={saveStatus}>{saving?'Saving…':'Save Status'}</button>}
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
         </div>
       }>
@@ -770,7 +696,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
         <div style={{background:'var(--s2)',borderRadius:8,border:'1px solid var(--br2)',overflow:'hidden',marginBottom:14}}>
           <div style={{padding:'7px 12px',background:'rgba(200,169,110,.04)',borderBottom:'1px solid var(--br2)',fontSize:8,letterSpacing:'.1em',color:'var(--tx2)',textTransform:'uppercase',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <span>Folio Charges</span>
-            {canEdit&&!canHKStatus&&<button className="btn btn-ghost btn-sm" style={{fontSize:10}} onClick={()=>setShowCharge(true)}>+ Add</button>}
+            {canEdit&&<button className="btn btn-ghost btn-sm" style={{fontSize:10}} onClick={()=>setShowCharge(true)}>+ Add</button>}
           </div>
           <div style={{padding:'0 12px'}}>
             {fLoad&&<div className="xs muted" style={{padding:'12px 0',textAlign:'center'}}>Loading folio…</div>}
@@ -793,34 +719,12 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            {[['Subtotal',sub],[`VAT ${rmVat}%`,tax],[`Service Charge ${rmSvc}%`,svc]].map(([l,v])=>(
+            {[['Subtotal',sub],['VAT 7%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
               <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
             ))}
-            {activeRes&&+activeRes.discount>0&&(
-              <div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Discount</span><span>− {BDT(+activeRes.discount)}</span></div>
-            )}
             <div className="divider" style={{margin:'6px 0'}}/>
             <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total Due</span><span>{BDT(total)}</span></div>
           </div>
-        </div>
-      )}
-
-      {/* Collect Amount box — not for HK */}
-      {activeRes&&canEdit&&(
-        <div style={{background:'rgba(200,169,110,.06)',border:'1px solid var(--br)',padding:'12px 14px',marginBottom:14}}>
-          <div className="flbl" style={{marginBottom:8}}>💰 Collect Payment</div>
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <input type="number" className="finput" value={collectAmt}
-              onChange={e=>setCollectAmt(e.target.value)}
-              placeholder={`Due: ${BDT(Math.max(0,total-(+activeRes.paid_amount||0)))}`}
-              style={{flex:1}}/>
-            <button className="btn btn-gold" disabled={collectSaving} onClick={saveCollectAmount} style={{whiteSpace:'nowrap'}}>
-              {collectSaving?'Saving…':'Save Payment'}
-            </button>
-          </div>
-          {(+activeRes.paid_amount||0)>0&&(
-            <div className="xs muted" style={{marginTop:6}}>Already paid: {BDT(activeRes.paid_amount)} · Balance: {BDT(Math.max(0,total-(+activeRes.paid_amount||0)))}</div>
-          )}
         </div>
       )}
 
@@ -830,22 +734,12 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
         ))}
       </div>
 
-      {(canEdit||canHKStatus)&&(
+      {canEdit&&(
         <div className="fg">
           <label className="flbl">Change Status</label>
-          {canHKStatus&&!canEdit?(
-            // HK: can only mark DIRTY rooms as AVAILABLE
-            room.status==='DIRTY'?(
-              <select className="fselect" value={status} onChange={e=>setStatus(e.target.value)}>
-                <option value="DIRTY">DIRTY</option>
-                <option value="AVAILABLE">AVAILABLE — Mark as Clean</option>
-              </select>
-            ):<div className="finput" style={{opacity:.5,cursor:'not-allowed'}}>{room.status} — No changes allowed</div>
-          ):(
-            <select className="fselect" value={status} onChange={e=>setStatus(e.target.value)}>
-              {['AVAILABLE','OCCUPIED','DIRTY','OUT_OF_ORDER','RESERVED'].map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}
-            </select>
-          )}
+          <select className="fselect" value={status} onChange={e=>setStatus(e.target.value)}>
+            {['AVAILABLE','OCCUPIED','DIRTY','OUT_OF_ORDER','RESERVED'].map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}
+          </select>
         </div>
       )}
 
@@ -860,7 +754,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
             <div style={{fontSize:32,marginBottom:10}}>🚪</div>
             <div style={{fontWeight:700,fontSize:17,marginBottom:4}}>{guest?.name||'Guest'}</div>
             <div className="xs muted" style={{marginBottom:12}}>Room {room.room_number} · {nights} night{nights!==1?'s':''}</div>
-            {[['Room Charge',BDT(roomCharge)],['Extra Charges',BDT(extras)],[`VAT ${rmVat}%`,BDT(tax)],[`Service ${rmSvc}%`,BDT(svc)]].map(([l,v])=>(
+            {[['Room Charge',BDT(roomCharge)],['Extra Charges',BDT(extras)],['VAT 7%',BDT(tax)],['Service 5%',BDT(svc)]].map(([l,v])=>(
               <div key={l} className="flex fjb xs muted" style={{maxWidth:220,margin:'3px auto'}}><span>{l}</span><span>{v}</span></div>
             ))}
             <div className="divider" style={{maxWidth:220,margin:'8px auto'}}/>
@@ -981,26 +875,15 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
               {res.slice(0,80).map(r=>{
                 const gn=getGN(r.guest_ids)
                 const nights=nightsCount(r.check_in,r.check_out)
-                const resRm2=rooms?.find(rm=>(r.room_ids||[]).includes(rm.room_number))
-                const resNts2=nightsCount(r.check_in,r.check_out)||1
-                const resComp2=resRm2?(+resRm2.price*resNts2):0
-                const resDisc2=+r.discount||0
-                const resTotal2=resComp2>0?Math.max(0,resComp2-resDisc2):(Math.max(0,(+r.total_amount||0)-resDisc2))
-                const balance=Math.max(0,resTotal2-(+r.paid_amount||0))
+                const balance=(+r.total_amount||0)-(+r.paid_amount||0)
                 return (
                   <tr key={r.id}>
                     <td><div className="flex fac gap2"><Av name={gn} size={24}/><span>{gn}</span></div></td>
                     <td><span className="badge bb">{(r.room_ids||[]).join(', ')}</span></td>
-                    <td className="xs muted">{fmtDateTime(r.check_in)||fmtDate(r.check_in)}</td>
-                    <td className="xs muted">{fmtDateTime(r.check_out)||fmtDate(r.check_out)}</td>
+                    <td className="xs muted">{fmtDate(r.check_in)}</td>
+                    <td className="xs muted">{fmtDate(r.check_out)}</td>
                     <td className="xs gold">{nights||'—'}</td>
-                    <td className="xs gold">{(()=>{
-                      const rm3=rooms?.find(rm=>(r.room_ids||[]).includes(rm.room_number))
-                      const nts3=nightsCount(r.check_in,r.check_out)||1
-                      const comp3=rm3?(+rm3.price*nts3):0
-                      const disc3=+r.discount||0
-                      return BDT(comp3>0?Math.max(0,comp3-disc3):(Math.max(0,(+r.total_amount||0)-disc3)))
-                    })()}</td>
+                    <td className="xs gold">{BDT(r.total_amount)}</td>
                     <td className="xs" style={{color:+r.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(r.paid_amount)}</td>
                     <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
                     <td><SBadge status={r.status}/></td>
@@ -1033,12 +916,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
   const nights=nightsCount(res.check_in,res.check_out)
-  // Use room rate × nights as source of truth; fall back to stored total_amount
-  const resRoom=rooms?.find(rm=>(res.room_ids||[]).includes(rm.room_number))
-  const resNights=nightsCount(res.check_in,res.check_out)||1
-  const resComputed=resRoom?(+resRoom.price*resNights):0
-  const resDiscount=+res.discount||0
-  const totalAmt=resComputed>0?Math.max(0,resComputed-resDiscount):(Math.max(0,(+res.total_amount||0)-resDiscount))
+  const totalAmt=+res.total_amount||0
   const paidNum=+paidAmt||0
   const balance=totalAmt-paidNum
 
@@ -1059,7 +937,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
         }
       }
-      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes,discount:+editDiscount||+res.discount||0})
+      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes})
       toast('Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
@@ -1085,34 +963,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           {(res.status==='RESERVED'||res.status==='PENDING')&&(
             <button className="btn btn-success" disabled={saving} onClick={checkIn}>✓ Check In Now</button>
           )}
-          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{(async()=>{
-              // 1. Reset room status to AVAILABLE (if OCCUPIED or RESERVED)
-              try{
-                for(const rn of (res.room_ids||[])){
-                  const rm=rooms?.find(r=>r.room_number===rn)
-                  if(rm&&(rm.status==='OCCUPIED'||rm.status==='RESERVED')){
-                    await dbPatch('rooms',rm.id,{status:'AVAILABLE'})
-                  }
-                }
-              }catch(e){}
-              // 2. Delete linked transactions
-              try{
-                await fetch(`${SB_URL}/rest/v1/transactions?res_id=eq.${res.id}`,{
-                  method:'DELETE',
-                  headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,Prefer:'return=minimal'}
-                })
-              }catch(e){}
-              // 3. Delete linked folios
-              try{
-                await fetch(`${SB_URL}/rest/v1/folios?reservation_id=eq.${res.id}`,{
-                  method:'DELETE',
-                  headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,Prefer:'return=minimal'}
-                })
-              }catch(e){}
-              // 4. Delete the reservation itself
-              await dbDelete('reservations',res.id)
-              toast('Reservation deleted — room(s) reset to Available ✓');reload()
-            })()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
+          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
           <div style={{flex:1}}/>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
@@ -1121,7 +972,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
       <div className="g2 mb4">
         {[
           ['Guest',gn],['Rooms',(res.room_ids||[]).join(', ')],
-          ['Check-In',fmtDate(res.check_in)],['Check-Out',fmtDate(res.check_out)],['Discount',BDT(+res.discount||0)],
+          ['Check-In',fmtDate(res.check_in)],['Check-Out',fmtDate(res.check_out)],
           ['Nights',nights||'—'],['Total Amount',BDT(totalAmt)],
           ['Payment Method',res.payment_method||'—'],['On-Duty Officer',res.on_duty_officer||'—'],
         ].map(([l,v])=>(
@@ -1227,7 +1078,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
   const [f,setF]=useState({
     guestId:'', roomNo:availRooms[0]?.room_number||'',
     checkIn:todayStr(), checkOut:'',
-    total:'', paid:'', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN', discount:'', guestIdFile:null
+    total:'', paid:'', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
   })
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
@@ -1248,15 +1099,12 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
     setSaving(true)
     try {
       const isCheckIn=f.stayType==='CHECK_IN'
-      const discount=+f.discount||0
-      const baseTotal=autoTotal>0?autoTotal:(+f.total||0)
-      const totalAmt=Math.max(0,baseTotal-discount)
+      const totalAmt=+f.total||autoTotal
       await dbPost('reservations',{
         guest_ids:[f.guestId], room_ids:[f.roomNo],
-        check_in_time:f.stayType==='CHECK_IN'?new Date().toISOString():null,
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
-        total_amount:totalAmt, paid_amount:+f.paid||0, discount:+f.discount||0,
+        total_amount:totalAmt, paid_amount:+f.paid||0,
         payment_method:f.method, special_requests:f.notes||null,
         on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT
       })
@@ -1267,10 +1115,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
       if((+f.paid||0)>0) {
         await dbPost('transactions',{
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT,
-              check_in:f.checkIn?f.checkIn.slice(0,10):null,
-              check_out:f.checkOut?f.checkOut.slice(0,10):null,
-              bill_total:totalAmt
+          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
@@ -1314,16 +1159,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         </div>
       )}
       <div className="frow">
-        <div className="fg">
-          <label className="flbl">Total Amount (BDT) <span style={{color:'var(--tx3)',fontSize:9}}>(auto-calculated)</span></label>
-          <input type="number" className="finput" value={autoTotal>0?autoTotal:(f.total||'')} readOnly
-            style={{background:'rgba(200,169,110,.04)',cursor:'not-allowed',color:'var(--gold)',fontWeight:500}}
-            placeholder="Select room & dates"/>
-        </div>
-        <div className="fg">
-          <label className="flbl">Discount (BDT)</label>
-          <input type="number" className="finput" value={f.discount} onChange={F('discount')} placeholder="0" min="0"/>
-        </div>
+        <div className="fg"><label className="flbl">Total Amount (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoTotal||0)}/></div>
         <div className="fg"><label className="flbl">Paid Amount (BDT)</label><input type="number" className="finput" value={f.paid} onChange={F('paid')} placeholder="0"/></div>
       </div>
       <div className="frow">
@@ -1335,42 +1171,25 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         </div>
         <div className="fg"><label className="flbl">On-Duty Officer</label><input className="finput" value={f.officer} onChange={F('officer')} placeholder="Staff name"/></div>
       </div>
-      <div className="fg">
-          <label className="flbl">Guest ID / Passport Upload <span style={{color:'var(--tx3)',fontSize:9}}>(optional)</span></label>
-          <input type="file" accept="image/*,.pdf"
-            style={{background:'var(--s2)',border:'1px solid var(--br)',color:'var(--tx2)',fontSize:12,padding:'8px 10px',width:'100%',cursor:'pointer'}}
-            onChange={e=>{const file=e.target.files?.[0];if(file)setF(p=>({...p,guestIdFile:file}))}}/>
-          {f.guestIdFile&&<div style={{fontSize:10,color:'var(--grn)',marginTop:4}}>✓ {f.guestIdFile.name}</div>}
-        </div>
-        <div className="fg"><label className="flbl">Special Requests / Notes</label><textarea className="ftextarea" value={f.notes} onChange={F('notes')} style={{minHeight:50}} placeholder="Optional"/></div>
+      <div className="fg"><label className="flbl">Special Requests / Notes</label><textarea className="ftextarea" value={f.notes} onChange={F('notes')} style={{minHeight:50}} placeholder="Optional"/></div>
     </Modal>
   )
 }
 
 /* ═══════════════════════ GUESTS ═════════════════════════════ */
 function GuestsPage({guests,reservations,toast,currentUser,reload}) {
-  const PAGE_SIZE=50
   const [search,setSearch]=useState('')
-  const [page,setPage]=useState(1)
   const [sel,setSel]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
-
-  // Filter by search
-  let filtered=guests
-  if(search){ const q=search.toLowerCase(); filtered=filtered.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.email?.toLowerCase().includes(q)) }
-
-  // Reset to page 1 when search changes
-  useEffect(()=>setPage(1),[search])
-
-  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE))
-  const pageList=filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE)
+  let list=guests
+  if(search){ const q=search.toLowerCase(); list=list.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.email?.toLowerCase().includes(q)) }
 
   return (
     <div>
       <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
         <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search name, phone, email…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-        <div className="flex gap2" style={{alignItems:'center'}}>
-          <span className="badge bgold">{filtered.length} {search?'found':('of '+guests.length+' guests')}</span>
+        <div className="flex gap2">
+          <span className="badge bgold">{guests.length} total guests</span>
           <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Add Guest</button>
         </div>
       </div>
@@ -1379,7 +1198,7 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
           <table className="tbl">
             <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>ID</th><th>City</th><th>Balance</th><th>VIP</th><th></th></tr></thead>
             <tbody>
-              {pageList.map(g=>(
+              {list.slice(0,80).map(g=>(
                 <tr key={g.id}>
                   <td><div className="flex fac gap2"><Av name={g.name} size={24}/><span>{g.name}</span></div></td>
                   <td className="xs muted">{g.phone||'—'}</td>
@@ -1395,37 +1214,6 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
           </table>
         </div>
       </div>
-
-      {/* Pagination controls */}
-      {totalPages>1&&(
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 4px',flexWrap:'wrap',gap:8}}>
-          <div className="xs muted">
-            Showing {((page-1)*PAGE_SIZE)+1}–{Math.min(page*PAGE_SIZE,filtered.length)} of {filtered.length} guests
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:4}}>
-            <button className="btn btn-ghost btn-sm" disabled={page===1} onClick={()=>setPage(1)} style={{padding:'4px 8px',opacity:page===1?.35:1}}>«</button>
-            <button className="btn btn-ghost btn-sm" disabled={page===1} onClick={()=>setPage(p=>p-1)} style={{padding:'4px 10px',opacity:page===1?.35:1}}>‹ Prev</button>
-            {/* Page number pills */}
-            {Array.from({length:totalPages},(_,i)=>i+1)
-              .filter(p=>p===1||p===totalPages||Math.abs(p-page)<=2)
-              .reduce((acc,p,i,arr)=>{
-                if(i>0&&arr[i-1]!==p-1) acc.push('...')
-                acc.push(p); return acc
-              },[])
-              .map((p,i)=>
-                p==='...'
-                  ?<span key={'e'+i} className="xs muted" style={{padding:'0 4px'}}>…</span>
-                  :<button key={p} className={`btn btn-sm${p===page?' btn-gold':' btn-ghost'}`}
-                    style={{padding:'4px 9px',minWidth:30}}
-                    onClick={()=>setPage(p)}>{p}</button>
-              )
-            }
-            <button className="btn btn-ghost btn-sm" disabled={page===totalPages} onClick={()=>setPage(p=>p+1)} style={{padding:'4px 10px',opacity:page===totalPages?.35:1}}>Next ›</button>
-            <button className="btn btn-ghost btn-sm" disabled={page===totalPages} onClick={()=>setPage(totalPages)} style={{padding:'4px 8px',opacity:page===totalPages?.35:1}}>»</button>
-          </div>
-        </div>
-      )}
-
       {sel&&<GuestModal guest={sel} reservations={reservations} toast={toast} onClose={()=>setSel(null)} reload={reload} isSA={currentUser?.role==='owner'}/>}
       {showAdd&&<AddGuestModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
     </div>
@@ -1564,21 +1352,8 @@ function HousekeepingPage({tasks,rooms,toast,currentUser,reload}) {
 
   async function updateStatus(id,s) {
     try {
-      // Find the task to get its room_number
-      const task=tasks.find(t=>t.id===id)
       await dbPatch('housekeeping_tasks',id,{status:s,completed_at:s==='completed'?new Date().toISOString():null})
-      // If completed → set room to AVAILABLE (only if not currently OCCUPIED/RESERVED)
-      if(s==='completed'&&task?.room_number){
-        const room=rooms.find(r=>r.room_number===task.room_number)
-        if(room&&room.status==='DIRTY'){
-          await dbPatch('rooms',room.id,{status:'AVAILABLE'})
-          toast(`Room ${task.room_number} → AVAILABLE ✓`)
-        } else {
-          toast(`Task completed ✓`)
-        }
-      } else {
-        toast(`Task → ${s}`)
-      }
+      toast(`Task → ${s}`)
       reload()
     } catch(e){ toast(e.message,'error') }
   }
@@ -1669,832 +1444,89 @@ function AddTaskModal({rooms,toast,onClose,reload}) {
 }
 
 /* ═══════════════════════ BILLING ════════════════════════════ */
-function printPDF(htmlContent, filename) {
-  // Use native browser print — works from file:// URLs without external libs
-  const w = window.open('', '_blank', 'width=1100,height=700')
-  if(!w){ alert('Please allow popups to print PDF'); return Promise.resolve() }
-  w.document.write(htmlContent)
-  w.document.close()
-  return new Promise(resolve=>{
-    w.onload = ()=>{
-      setTimeout(()=>{
-        w.focus()
-        w.print()
-        // Don't auto-close — let user save as PDF then close
-        resolve()
-      }, 600)
-    }
-  })
-}
-
-function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding) {
-  const filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
-  const total = list.reduce((a,t)=>a+(+t.amount||0),0)
-  const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-  const rows = list.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-  const todayTotal = todayT.reduce((a,t)=>a+(+t.amount||0),0)
-  const monthTotal = monthT.reduce((a,t)=>a+(+t.amount||0),0)
-  const allTotal   = allT.reduce((a,t)=>a+(+t.amount||0),0)
-  const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
-  <style>
-    @page{size:A4 portrait;margin:5.08mm}
-    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}
-    .hotel-name{font-size:18px;font-weight:700;color:#000}.hotel-sub{font-size:9px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
-    .report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
-    .stat-box{background:#f2f2f2;border:1px solid #ccc;padding:6px 8px}
-    .stat-box .lbl{font-size:7px;letter-spacing:.1em;color:#555;text-transform:uppercase;margin-bottom:2px}
-    .stat-box .val{font-size:13px;font-weight:700;color:#000}
-    .stat-box.hi{background:#eee;border-color:#000}.stat-box.hi .val{color:#000}
-    .stat-box.out .val{color:#000;font-style:italic}
-    table{width:100%;border-collapse:collapse}
-    thead tr{background:#000;color:#fff}
-    thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
-    thead th:last-child{text-align:right}
-    tbody tr:nth-child(even){background:#f2f2f2}
-    tbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}
-    tbody td:last-child{text-align:right;font-weight:600}
-    .footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between}
-    .total-row{font-size:12px;font-weight:700;color:#000}
-    .footer-note{font-size:8px;color:#555}
-  </style></head><body>
-  <div class="header"><div><div class="hotel-name">Hotel Fountain</div><div class="hotel-sub">Billing & Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
-  <div class="stats">
-    <div class="stat-box hi"><div class="lbl">Today</div><div class="val">৳${todayTotal.toLocaleString()}</div></div>
-    <div class="stat-box"><div class="lbl">This Month</div><div class="val">৳${monthTotal.toLocaleString()}</div></div>
-    <div class="stat-box"><div class="lbl">All Time</div><div class="val">৳${allTotal.toLocaleString()}</div></div>
-    <div class="stat-box out"><div class="lbl">Outstanding</div><div class="val">৳${Number(outstanding||0).toLocaleString()}</div></div>
-  </div>
-  <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
-  <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
-  <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${list.length} transaction${list.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
-  </body></html>`
-  printPDF(content)
-}
-
-function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests}) {
+function BillingPage({transactions,reservations,toast,reload,currentUser}) {
   const [filter,setFilter]=useState('TODAY')
-  const [calDate,setCalDate]=useState('')
-  const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
-  useEffect(()=>{
-    db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`).then(rows=>{
-      if(!Array.isArray(rows)) return
-      const m={};rows.forEach(r=>{m[r.key]=r.value})
-      setHSettings({vat:m.vat_rate||'0',svc:m.service_charge||'0'})
-    }).catch(()=>{})
-  },[])
   const [search,setSearch]=useState('')
   const [showAdd,setShowAdd]=useState(false)
-  const [billingRes,setBillingRes]=useState(null)
-  const [showBillDetail,setShowBillDetail]=useState(false)
-  const [detailRes,setDetailRes]=useState(null)
-  const [foliosMap,setFoliosMap]=useState({})
-  const [loadingFolios,setLoadingFolios]=useState(false)
-  const [tokenAmt,setTokenAmt]=useState('')
-  const [savedToken,setSavedToken]=useState(0)
-  const [tokenSaving,setTokenSaving]=useState(false)
   const today=todayStr(), month=today.slice(0,7)
   const todayT=transactions.filter(t=>t.fiscal_day===today)
   const monthT=transactions.filter(t=>t.fiscal_day?.startsWith(month))
-  const calT=calDate?transactions.filter(t=>t.fiscal_day===calDate):[]
-
-  // Load all folios once
-  useEffect(()=>{
-    setLoadingFolios(true)
-    db('folios','?select=*&order=created_at')
-      .then(d=>{
-        const map={}
-        ;(Array.isArray(d)?d:[]).forEach(f=>{
-          const key=f.reservation_id||f.room_number
-          if(!map[key])map[key]=[]
-          map[key].push(f)
-        })
-        setFoliosMap(map)
-      })
-      .catch(()=>{})
-      .finally(()=>setLoadingFolios(false))
-  },[])
-
-  const getGN=r=>{
-    if(r.guest_name) return r.guest_name
-    const gid=String((r.guest_ids||[])[0]||'')
-    const g=guests?.find(g=>String(g.id)===gid)
-    return g?g.name:'—'
-  }
-  const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
-
   const outstanding=reservations.filter(r=>r.status==='CHECKED_IN')
-    .reduce((a,r)=>{
-      const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number))
-      const nts=nightsCount(r.check_in,r.check_out)||1
-      const comp=rm?(+rm.price*nts):0
-      const disc=+r.discount||0
-      const tot=comp>0?Math.max(0,comp-disc):(Math.max(0,(+r.total_amount||0)-disc))
-      return a+Math.max(0,tot-(+r.paid_amount||0))
-    },0)
-  const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
-  const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
-  const dueRes=reservations.filter(r=>{
-    if(r.status!=='CHECKED_IN') return false
-    const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number))
-    const nts=nightsCount(r.check_in,r.check_out)||1
-    const comp=rm?(+rm.price*nts):0
-    const disc=+r.discount||0
-    const tot=comp>0?Math.max(0,comp-disc):(Math.max(0,(+r.total_amount||0)-disc))
-    return tot>(+r.paid_amount||0)
-  })
+    .reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
 
-  function computeBill(r) {
-    const room=rooms?.find(rm=>(r.room_ids||[r.room_number]).includes(rm.room_number))
-    const roomRate=+room?.price||+r.rate_per_night||0
-    const nights=nightsCount(r.check_in,r.check_out)||1
-    const roomCharge=roomRate*nights
-    const fKey=r.id||r.room_number
-    const folios=foliosMap[fKey]||foliosMap[r.room_number]||[]
-    const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
-    const sub=roomCharge+extras
-    // Use rates from hotel settings (loaded from Supabase), fallback 0
-    const vatPct=(+hSettings?.vat||0)/100
-    const svcPct=(+hSettings?.svc||0)/100
-    const tax=Math.round(sub*vatPct)
-    const svc=Math.round(sub*svcPct)
-    const discount=+r.discount||0
-    // Total: use computed value; only fall back to saved total_amount if room not found
-    const computedTotal=sub+tax+svc
-    const total=computedTotal>0?Math.max(0,computedTotal-discount):(Math.max(0,(+r.total_amount||0)-discount))
-    const paid=+r.paid_amount||0
-    const due=Math.max(0,total-paid)
-    return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
-  }
+  let list=filter==='TODAY'?todayT:filter==='MONTH'?monthT:transactions
+  if(search){ const q=search.toLowerCase(); list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q)) }
 
-  // Transactions for current filter (for PDF)
-  const filteredTx=filter==='TODAY'?todayT:filter==='MONTH'?monthT:filter==='DATE'?calT:transactions
-
-  async function saveToken() {
-    const a=+tokenAmt
-    if(!a||a<0){toast('Enter valid token amount','error');return}
-    setTokenSaving(true)
-    try{
-      await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
-        method:'POST',
-        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-        body:JSON.stringify({key:'daily_token_amount',value:String(a),tenant_id:TENANT})
-      })
-      setSavedToken(a)
-      toast(`Token amount ${BDT(a)} saved`)
-    }catch(e){toast(e.message,'error')}
-    finally{setTokenSaving(false)}
-  }
-
-  async function doClosingComplete() {
-    const todayList=transactions.filter(t=>t.fiscal_day===today)
-    const totalAmt=todayList.reduce((a,t)=>a+(+t.amount||0),0)
-    const tokenAmount=savedToken||+tokenAmt||0
-    const closingAmt=totalAmt-tokenAmount
-    const now=new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-
-    // Compute outstanding dues carried forward
-    const duesCarried=dueRes.map(r=>{
-      const room=(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
-      const gname=getGN(r)
-      const {total,paid,due}=computeBill(r)
-      return {gname,room,total,paid,due,check_in:r.check_in,check_out:r.check_out}
-    })
-    const totalDue=duesCarried.reduce((a,d)=>a+d.due,0)
-
-    const txRows=todayList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-    const dueRows=duesCarried.length>0?`
-      <h3 style="margin:20px 0 8px;font-size:13px;color:#E05C7A;border-bottom:1px solid #f0c0ca;padding-bottom:4px">⚠ Outstanding Dues — Carried to Next Day</h3>
-      <table><thead><tr style="background:#E05C7A"><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>
-        ${duesCarried.map((d,i)=>`<tr style="${i%2?'background:#fdf6f6':''}"><td>${d.gname}</td><td>${d.room}</td><td>${d.check_in?.slice(0,10)||'—'}</td><td>${d.check_out?.slice(0,10)||'—'}</td><td>৳${d.total.toLocaleString()}</td><td>৳${d.paid.toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#E05C7A">৳${d.due.toLocaleString()}</td></tr>`).join('')}
-      </tbody></table>`
-    :''
-
-    const content=`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<style>
-@page{size:A4 portrait;margin:5.08mm}
-@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
-.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}
-.hotel-name{font-size:18px;font-weight:700;color:#000}.hotel-sub{font-size:9px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
-.report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700;color:#000}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
-table{width:100%;border-collapse:collapse;margin-top:6px}
-thead tr{background:#000;color:#fff}
-thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
-thead th:last-child{text-align:right}
-tbody tr:nth-child(even){background:#f2f2f2}
-tbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}
-tbody td:last-child{text-align:right;font-weight:600}
-h3{font-size:11px;font-weight:700;color:#000;margin:14px 0 6px;border-bottom:1px solid #000;padding-bottom:3px}
-.closing-box{margin-top:16px;border:2px solid #000;padding:12px 16px;background:#f8f8f8}
-.closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#000}
-.closing-row.total{border-top:1px solid #ccc;margin-top:4px;padding-top:6px;font-weight:700}
-.closing-row.due{color:#000;font-style:italic}
-.closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}
-.footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between;font-size:8px;color:#555}
-</style></head><body>
-<div class="header"><div><div class="hotel-name">Hotel Fountain</div><div class="hotel-sub">Daily Closing Report</div></div><div class="report-title"><h2>Closing: ${today}</h2><div class="meta">Generated: ${now}</div></div></div>
-<table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead><tbody>${txRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions today</td></tr>'}</tbody></table>
-${dueRows}
-<div class="closing-box">
-  <div class="closing-row total"><span>Total Collected Today</span><span>৳${totalAmt.toLocaleString()}</span></div>
-  <div class="closing-row"><span>Token Amount</span><span>− ৳${tokenAmount.toLocaleString()}</span></div>
-  ${totalDue>0?`<div class="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDue.toLocaleString()}</span></div>`:''}
-  <div class="closing-row final"><span>CLOSING AMOUNT</span><span>৳${closingAmt.toLocaleString()}</span></div>
-</div>
-<div class="footer"><span>Hotel Fountain CRM · Lumea PMS · Confidential</span><span>${todayList.length} transaction${todayList.length!==1?'s':''} · ${duesCarried.length} pending due${duesCarried.length!==1?'s':''}</span></div>
-</body></html>`
-
-    // Print PDF then advance fiscal day
-    printPDF(content).then(async()=>{
-      // Advance fiscal day to next date
-      const d=new Date(today); d.setDate(d.getDate()+1)
-      const nextDay=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-      try{
-        await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
-          method:'POST',
-          headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-          body:JSON.stringify({key:'active_fiscal_day',value:nextDay,tenant_id:TENANT})
-        })
-        toast(`✓ Day closed · Fiscal day → ${nextDay}`,'info')
-        reload()
-      }catch(e){
-        toast('Report open — could not advance fiscal day: '+e.message,'error')
-      }
-    })
-  }
-
-  function downloadPDF() {
-    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding)
-  }
-
-  function openDetail(r) {
-    setDetailRes(r)
-    setShowBillDetail(true)
-  }
-
-  function printInvoice(grp, res, resTotal, resPaid, resDue, byType) {
-    // Log all arguments for debugging
-    try {
-      console.log('[printInvoice] Arguments:', {grp, res, resTotal, resPaid, resDue, byType});
-    } catch (e) {}
-    // Strict defaults for all fields
-    const safe = v => (v===undefined||v===null||Number.isNaN(v)) ? '' : v
-    const now = new Date().toLocaleString('en-BD', {timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-    const checkIn = safe(res?.check_in) ? fmtDate(res.check_in) : (safe(grp?.txs?.[0]?.check_in) ? fmtDate(grp.txs[0].check_in) : '—')
-    const checkOut = safe(res?.check_out) ? fmtDate(res.check_out) : (safe(grp?.txs?.[0]?.check_out) ? fmtDate(grp.txs[0].check_out) : '—')
-    // Escape backticks, '${', and HTML special chars in all dynamic values and fallback string
-    const escapeTpl = s => String(s===undefined||s===null?'':s)
-      .replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]))
-      .replace(/[`]/g, '\u0060').replace(/\$\{/g, '\u0024{');
-    // Always fallback to a literal safe row if no payments
-    let paymentRowsHtml = '';
-    try {
-      let paymentRowsArr = [];
-      if (byType && typeof byType === 'object' && Object.keys(byType).length > 0) {
-        paymentRowsArr = Object.entries(byType)
-          .map(([tp,amt])=>`<tr><td>${escapeTpl(tp)}</td><td style="text-align:right">৳${escapeTpl(Number(amt||0).toLocaleString('en-BD'))}</td></tr>`)
-      }
-      paymentRowsHtml = paymentRowsArr.join('');
-      // Final fallback if empty or not a string
-      if (typeof paymentRowsHtml !== 'string' || !paymentRowsHtml.trim()) paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
-    } catch (e) {
-      paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
-    }
-    // Extra logging for debugging
-    try { console.log('[printInvoice] paymentRowsHtml (pre-final-check):', paymentRowsHtml, 'byType:', byType); } catch (e) {}
-    // Unconditional final fallback: if paymentRowsHtml contains any unsafe character or pattern, forcibly replace
-    if (
-      typeof paymentRowsHtml !== 'string' ||
-      /[`]|\$\{|<script|<\/script|['"\\]/i.test(paymentRowsHtml) ||
-      paymentRowsHtml.split('').some(c => c.charCodeAt(0) < 32 && c !== '\n' && c !== '\t')
-    ) {
-      paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
-      try { console.error('[printInvoice] paymentRowsHtml forcibly replaced due to unsafe content. byType:', byType); } catch (e) {}
-    }
-    try {
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${escapeTpl(safe(grp?.guest_name)||'Guest')}</title>
-      <style>
-      @page{size:A4 portrait;margin:10mm}
-      *{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0}
-      .wrap{max-width:760px;margin:0 auto}
-      .head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}
-      .h1{font-size:20px;font-weight:700}.muted{color:#555;font-size:12px}
-      .blk{border:1px solid #ddd;padding:10px 12px;margin-bottom:10px}
-      table{width:100%;border-collapse:collapse} th,td{padding:7px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}
-      th{text-align:left;background:#f4f4f4} .r{text-align:right}
-      .total{font-size:18px;font-weight:700}
-      </style></head><body><div class="wrap">
-      <div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ${escapeTpl(now)}</div></div>
-      <div class="blk"><table>
-      <tr><th>Guest</th><td>${escapeTpl(safe(grp?.guest_name)||'—')}</td><th>Room</th><td>${escapeTpl(safe(grp?.room_number)||'—')}</td></tr>
-      <tr><th>Check-In</th><td>${escapeTpl(checkIn)}</td><th>Check-Out</th><td>${escapeTpl(checkOut)}</td></tr>
-      </table></div>
-      <div class="blk"><table>
-      <tr><th>Bill Total</th><td class="r">৳${escapeTpl(Number(safe(resTotal)||0).toLocaleString('en-BD'))}</td></tr>
-      <tr><th>Paid</th><td class="r">৳${escapeTpl(Number(safe(resPaid)||0).toLocaleString('en-BD'))}</td></tr>
-      <tr><th>Balance Due</th><td class="r"><strong>৳${escapeTpl(Number(safe(resDue)||0).toLocaleString('en-BD'))}</strong></td></tr>
-      </table></div>
-      <div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRowsHtml}</tbody></table></div>
-      <div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>
-      </div></body></html>`;
-      // Open a new window and write the HTML, then print
-      const printWin = window.open('', '_blank', 'width=800,height=900');
-      try {
-        var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ' + escapeTpl(safe(grp?.guest_name)||'Guest') + '</title>' +
-          '<style>' +
-          '@page{size:A4 portrait;margin:10mm}' +
-          "*{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0}" +
-          '.wrap{max-width:760px;margin:0 auto}' +
-          '.head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}' +
-          '.h1{font-size:20px;font-weight:700}.muted{color:#555;font-size:12px}' +
-          '.blk{border:1px solid #ddd;padding:10px 12px;margin-bottom:10px}' +
-          'table{width:100%;border-collapse:collapse} th,td{padding:7px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}' +
-          'th{text-align:left;background:#f4f4f4} .r{text-align:right}' +
-          '.total{font-size:18px;font-weight:700}' +
-          '</style></head><body><div class="wrap">' +
-          '<div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ' + escapeTpl(now) + '</div></div>' +
-          '<div class="blk"><table>' +
-          '<tr><th>Guest</th><td>' + escapeTpl(safe(grp?.guest_name)||'—') + '</td><th>Room</th><td>' + escapeTpl(safe(grp?.room_number)||'—') + '</td></tr>' +
-          '<tr><th>Check-In</th><td>' + escapeTpl(checkIn) + '</td><th>Check-Out</th><td>' + escapeTpl(checkOut) + '</td></tr>' +
-          '</table></div>' +
-          '<div class="blk"><table>' +
-          '<tr><th>Bill Total</th><td class="r">৳' + escapeTpl(Number(safe(resTotal)||0).toLocaleString('en-BD')) + '</td></tr>' +
-          '<tr><th>Paid</th><td class="r">৳' + escapeTpl(Number(safe(resPaid)||0).toLocaleString('en-BD')) + '</td></tr>' +
-          '<tr><th>Balance Due</th><td class="r"><strong>৳' + escapeTpl(Number(safe(resDue)||0).toLocaleString('en-BD')) + '</strong></td></tr>' +
-          '</table></div>' +
-          '<div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>' + paymentRowsHtml + '</tbody></table></div>' +
-          '<div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>' +
-          '</div></body></html>';
-        // Open a new window and write the HTML, then print
-        var printWin = window.open('', '_blank', 'width=800,height=900');
-        if (printWin) {
-          printWin.document.open();
-          printWin.document.write(html);
-          printWin.document.close();
-          // Wait for the new window to finish loading, then trigger print
-          printWin.onload = function() {
-            printWin.focus();
-            printWin.print();
-          };
-        } else {
-          alert('Popup blocked! Please allow popups for this site to print the invoice.');
-        }
-      } catch (err) {
-        alert('Invoice print error: '+(err?.message||err));
-      }
-            return (
-              <div style={{position:'relative',display:'inline-flex',alignItems:'center'}}>
-                <input
-                  type="date"
-                  value={calDate}
-                  onChange={e=>{setCalDate(e.target.value);if(e.target.value)setFilter('DATE')}}
-                  style={{opacity:0,position:'absolute',left:0,top:0,width:'100%',height:'100%',cursor:'pointer',zIndex:2}}
-                  title="Pick a specific date"
-                />
-                <button
-                  className={`tab${filter==='DATE'?' on':''}`}
-                  style={{borderLeft:'none',display:'flex',alignItems:'center',gap:5,minWidth:calDate?'auto':38}}
-                  title="Pick specific date">
-                  📅{calDate&&<span style={{fontSize:10,letterSpacing:'.04em'}}>{fmtCalLabel(calDate)}</span>}
-                </button>
-              </div>
-            )
-          })()}
+  return (
+    <div>
+      <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">Today</div><div className="stat-val">{BDT(todayT.reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{todayT.length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthT.reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{monthT.length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
+      </div>
+      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
+        <div className="tabs" style={{marginBottom:0}}>
+          {['TODAY','MONTH','ALL'].map(f=><button key={f} className={`tab${filter===f?' on':''}`} onClick={()=>setFilter(f)}>{f}</button>)}
         </div>
-        <div className="flex gap2" style={{alignItems:'center'}}>
-          {currentUser?.role!=='housekeeping'&&(
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              {/* Token Amount */}
-              <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(200,169,110,.06)',border:'1px solid var(--br)',padding:'4px 10px'}}>
-                <span style={{fontSize:9,letterSpacing:'.12em',color:'var(--tx3)',textTransform:'uppercase',whiteSpace:'nowrap'}}>Token</span>
-                <input type="number" className="finput" value={tokenAmt} onChange={e=>setTokenAmt(e.target.value)}
-                  placeholder="0" style={{width:90,padding:'4px 8px',fontSize:12}}/>
-                <button className="btn btn-ghost btn-sm" style={{padding:'4px 10px',fontSize:9}} disabled={tokenSaving} onClick={saveToken}>
-                  {tokenSaving?'…':'Save'}
-                </button>
-                {savedToken>0&&<span style={{fontSize:11,color:'var(--gold)',whiteSpace:'nowrap'}}>{BDT(savedToken)}</span>}
-              </div>
-              {/* Closing Complete */}
-              <button className="btn btn-gold btn-sm" style={{gap:5,whiteSpace:'nowrap'}} onClick={doClosingComplete}>
-                ✓ Closing Complete
-              </button>
-            </div>
-          )}
+        <div className="flex gap2">
+          <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search guest, room, type…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+          <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Record Payment</button>
         </div>
       </div>
-
-      {/* Transactions table — always visible for all filter modes */}
-      {(()=>{
-        let list = filter==='TODAY'?todayT : filter==='DATE'?calT : filter==='MONTH'?monthT : transactions
-        if(search){const q=search.toLowerCase();list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q))}
-        const fmtDLabel=d=>{if(!d)return'Today';const[y,m,dy]=d.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+dy}-${mo[+m-1]}-${y}`}
-        const label = filter==='TODAY'?fmtDLabel(''):filter==='DATE'?fmtDLabel(calDate):filter==='MONTH'?'This Month':'All Time'
-        return (
-          <div className="card" style={{marginBottom:12}}>
-            <div className="card-hd">
-              <span className="card-title" style={{fontSize:14}}>Transactions — {label}</span>
-              <span className="badge bgold">{list.length} records</span>
-            </div>
-            <div className="tbl-wrap">
-              <table className="tbl">
-                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments</th><th></th></tr></thead>
-                <tbody>
-                  {list.length===0?(
-                    <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No transactions for this period</td></tr>
-                  ):(()=>{
-                    // Group transactions by guest+room — same guest/room on same day = one row
-                    const groups={}
-                    list.forEach(t=>{
-                      const key=`${t.guest_name||''}|${t.room_number||''}`
-                      if(!groups[key]) groups[key]={txs:[],guest_name:t.guest_name,room_number:t.room_number}
-                      groups[key].txs.push(t)
-                    })
-                    return Object.values(groups).map(grp=>{
-                      const res=reservations?.find(r=>(r.room_ids||[r.room_number]).includes(grp.room_number))
-                      const resDisc=res?+res.discount||0:0
-                      const resRm=res?rooms?.find(rm=>(res.room_ids||[]).includes(rm.room_number)):null
-                      const resNts=res?nightsCount(res.check_in,res.check_out)||1:1
-                      const resComp=resRm?(+resRm.price*resNts):0
-                      const resTotal=resComp>0?Math.max(0,resComp-resDisc):(Math.max(0,(+res?.total_amount||0)-resDisc))
-                      const resPaid=res?+res.paid_amount||0:0
-                      const resDue=Math.max(0,resTotal-resPaid)
-                      // Sum all payment amounts for this guest+room
-                      const totalPaid=grp.txs.reduce((a,t)=>a+(+t.amount||0),0)
-                      // Group by payment type within this guest+room
-                      const byType={}
-                      grp.txs.forEach(t=>{
-                        const tp=t.type||'Payment'
-                        if(!byType[tp]) byType[tp]=0
-                        byType[tp]+=(+t.amount||0)
-                      })
-                      return (
-                        <tr key={grp.guest_name+'|'+grp.room_number}>
-                          <td className="xs">{grp.guest_name||'—'}</td>
-                          <td><span className="badge bb">{grp.room_number||'—'}</span></td>
-                          <td className="xs muted">{res?fmtDate(res.check_in):(grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')}</td>
-                          <td className="xs muted">{res?fmtDate(res.check_out):(grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')}</td>
-                          <td className="xs gold">{res?BDT(resTotal):(grp.txs[0]?.bill_total?BDT(+grp.txs[0].bill_total):'—')}</td>
-                          <td className="xs" style={{color:'var(--grn)'}}>{BDT(resPaid)}</td>
-                          <td className="xs" style={{color:resDue>0?'var(--rose)':'var(--grn)',fontWeight:resDue>0?600:400}}>{BDT(resDue)}</td>
-                          <td className="xs" style={{lineHeight:1.8}}>
-                            {Object.entries(byType).map(([tp,amt])=>(
-                              <div key={tp} style={{display:'flex',justifyContent:'space-between',gap:12,minWidth:180}}>
-                                <span className="badge bgold" style={{fontSize:8}}>{tp}</span>
-                                <span style={{color:'var(--gold)',fontWeight:500}}>{BDT(amt)}</span>
-                              </div>
-                            ))}
-                          </td>
-                          <td style={{whiteSpace:'nowrap'}}>
-                            {currentUser?.role!=='housekeeping'&&(
-                              <button className="btn btn-gold btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
-                                setBillingRes({_fromRow:true,...(res||{}),room_number:grp.room_number||'',guest_name:grp.guest_name||'',_resId:res?.id||null,_total:resTotal,_paid:resPaid})
-                                setShowAdd(true)
-                              }}>+ Pay</button>
-                            )}
-                            {currentUser?.role!=='housekeeping'&&(
-                              <button className="btn btn-ghost btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>printInvoice(grp,res,resTotal,resPaid,resDue,byType)}>🖨 Print</button>
-                            )}
-                            {currentUser?.role==='owner'&&(
-                              <button className="btn btn-danger btn-sm" style={{padding:'3px 7px',fontSize:9}} onClick={async()=>{
-                                if(!window.confirm(`Delete all ${grp.txs.length} transaction(s) for ${grp.guest_name} in Room ${grp.room_number}?`)) return
-                                try{
-                                  for(const t of grp.txs) await dbDelete('transactions',t.id)
-                                  toast(`${grp.txs.length} transaction(s) deleted`)
-                                  reload()
-                                }catch(e){toast(e.message,'error')}
-                              }}>✕</button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })
-                  })()}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* ⚠ Pending Bills — single block; DATE filter also scopes displayed reservations */}
-      <div className="card" style={{marginTop:8,borderColor:'rgba(224,92,122,.2)'}}>
-        <div className="card-hd" style={{background:'rgba(224,92,122,.04)'}}>
-          <span className="card-title" style={{color:'var(--rose)'}}>⚠ Pending Bills — Due Reservations</span>
-          <span className="badge br_">{dueRes.length} unpaid</span>
-        </div>
-        {dueRes.length===0
-          ?<div style={{padding:'20px 16px',textAlign:'center',color:'var(--tx3)',fontSize:12}}>No outstanding bills — all guests are settled ✓</div>
-          :<div className="tbl-wrap">
-            <table className="tbl">
-              <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th>Balance Due</th><th>Action</th></tr></thead>
-              <tbody>
-                {dueRes.map(r=>{
-                  const {total,paid,due}=computeBill(r)
-                  return (
-                    <tr key={r.id}>
-                      <td className="xs">{getGN(r)}</td>
-                      <td><span className="badge bb">{getRoom(r)}</span></td>
-                      <td className="xs muted">{fmtDate(r.check_in)}</td>
-                      <td className="xs muted">{fmtDate(r.check_out)}</td>
-                      <td className="xs gold">{BDT(total)}</td>
-                      <td className="xs" style={{color:'var(--grn)'}}>{BDT(paid)}</td>
-                      <td className="xs" style={{color:'var(--rose)',fontWeight:600}}>{BDT(due)}</td>
-                      <td>
-                        {currentUser?.role!=='housekeeping'&&(
-                          <button className="btn btn-gold btn-sm" style={{fontSize:9,padding:'4px 10px'}} onClick={()=>openDetail(r)}>+ Detail</button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        }
-      </div>
-
-      {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
-
-      {/* Full Billing Detail Modal — opens from Record Billing button */}
-      {showBillDetail&&detailRes&&(()=>{
-        const r=detailRes
-        const gname=getGN(r)
-        const roomNo=getRoom(r)
-        const {roomCharge,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}=computeBill(r)
-        const relTx=transactions.filter(t=>t.room_number===roomNo&&t.type!=='Final Settlement')
-        return (
-          <Modal title={`Bill — ${gname}`} onClose={()=>{setShowBillDetail(false);setDetailRes(null)}}
-            footer={
-              <div style={{width:'100%'}}>
-                {/* Collect Amount inline */}
-                <div style={{background:'rgba(200,169,110,.06)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:10,display:'flex',gap:8,alignItems:'center'}}>
-                  <span className="flbl" style={{marginBottom:0,whiteSpace:'nowrap'}}>💰 Collect Amount:</span>
-                  <input type="number" className="finput" id="bill-collect-input"
-                    placeholder={`Due: ${BDT(due)}`}
-                    style={{flex:1,padding:'6px 10px'}}/>
-                  <button className="btn btn-gold btn-sm" style={{whiteSpace:'nowrap'}} onClick={async()=>{
-                    const a=+document.getElementById('bill-collect-input').value
-                    if(!a||a<=0){toast('Enter valid amount','error');return}
-                    try{
-                      await dbPatch('reservations',r.id,{paid_amount:Math.min(total,(+r.paid_amount||0)+a)})
-                      await dbPost('transactions',{type:'Room Payment (Cash)',amount:a,room_number:roomNo,guest_name:gname,fiscal_day:todayStr(),tenant_id:TENANT})
-                      toast(`৳${a.toLocaleString()} recorded`)
-                      reload()
-                      setShowBillDetail(false);setDetailRes(null)
-                    }catch(e){toast(e.message,'error')}
-                  }}>Save</button>
-                </div>
-                <div className="flex gap2" style={{flexWrap:'wrap'}}>
-                  <button className="btn btn-ghost" onClick={()=>{setShowBillDetail(false);setDetailRes(null)}}>Close</button>
-                  <div style={{flex:1}}/>
-                  <button className="btn btn-gold" onClick={()=>{
-                    setShowBillDetail(false)
-                    setBillingRes({_fromRow:false,...r,room_number:roomNo,guest_name:gname,_resId:r.id,_total:total,_paid:paid,check_in:r.check_in,check_out:r.check_out,payment_method:r.payment_method,on_duty_officer:r.on_duty_officer,status:r.status})
-                    setShowAdd(true)
-                  }}>Record Payment →</button>
-                </div>
-              </div>
-            }>
-            {/* Guest + summary header */}
-            <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
-              <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
-                <div className="flex fac gap3">
-                  <Av name={gname} size={40}/>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:16}}>{gname}</div>
-                    <div className="xs muted">Room {roomNo} · {fmtDate(r.check_in)} → {fmtDate(r.check_out)}</div>
-                    <div className="xs" style={{color:'var(--amb)',marginTop:2}}>{nights} night{nights!==1?'s':''} · {BDT(roomRate)}/night</div>
-                  </div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                  <div className="xs muted">Total Due</div>
-                  <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(due)}</div>
-                </div>
-              </div>
-            </div>
-            {/* Info grid */}
-            <div className="g2 mb4">
-              {[['Check-In',fmtDate(r.check_in)],['Check-Out',fmtDate(r.check_out)],['Nights',nights],['Payment Method',r.payment_method||'—'],['On-Duty Officer',r.on_duty_officer||'—'],['Status',r.status||'—']].map(([l,v])=>(
-                <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
+      <div className="card">
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th>{currentUser?.role==='owner'&&<th></th>}</tr></thead>
+            <tbody>
+              {list.slice(0,80).map(t=>(
+                <tr key={t.id}>
+                  <td className="xs muted">{t.fiscal_day||'—'}</td>
+                  <td className="xs">{t.guest_name||'—'}</td>
+                  <td><span className="badge bb">{t.room_number||'—'}</span></td>
+                  <td><span className="badge bgold">{t.type||'Payment'}</span></td>
+                  <td className="xs gold" style={{fontWeight:500}}>{BDT(t.amount)}</td>
+                  {currentUser?.role==='owner'&&<td><button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button></td>}
+                </tr>
               ))}
-            </div>
-            {/* Folio breakdown */}
-            <div style={{background:'var(--s2)',border:'1px solid var(--br2)',overflow:'hidden',marginBottom:8}}>
-              <div style={{padding:'7px 12px',background:'rgba(200,169,110,.04)',borderBottom:'1px solid var(--br2)',fontSize:8,letterSpacing:'.1em',color:'var(--tx2)',textTransform:'uppercase'}}>Folio Charges</div>
-              <div style={{padding:'0 12px'}}>
-                {nights>0&&roomRate>0&&(
-                  <div className="folio-row">
-                    <div><span>Room charge</span><span className="badge bgold" style={{fontSize:8,marginLeft:6}}>{nights}×{BDT(roomRate)}</span></div>
-                    <span className="xs gold">{BDT(roomCharge)}</span>
-                  </div>
-                )}
-                {folios.map(f=>(
-                  <div key={f.id} className="folio-row">
-                    <div><span>{f.description}</span><span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{f.category}</span></div>
-                    <span className="xs gold">{BDT(f.amount)}</span>
-                  </div>
-                ))}
-                {relTx.map(t=>(
-                  <div key={t.id} className="folio-row" style={{opacity:.75}}>
-                    <div><span style={{color:'var(--tx2)'}}>{t.type||'Charge'}</span><span className="badge bb" style={{marginLeft:6,fontSize:8}}>{t.fiscal_day}</span></div>
-                    <span className="xs" style={{color:'var(--sky)'}}>{BDT(t.amount)}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-                {[['Subtotal',sub],[`VAT ${Math.round((vatPct||0)*100)}%`,tax],[`Service Charge ${Math.round((svcPct||0)*100)}%`,svc]].map(([l,v])=>(
-                  <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-                ))}
-                {discount>0&&<div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Discount</span><span>− {BDT(discount)}</span></div>}
-                <div className="divider" style={{margin:'6px 0'}}/>
-                <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total</span><span>{BDT(total)}</span></div>
-                <div className="flex fjb xs" style={{marginTop:4}}>
-                  <span style={{color:'var(--grn)'}}>Paid: {BDT(paid)}</span>
-                  {due>0&&<span style={{color:'var(--rose)',fontWeight:700}}>Due: {BDT(due)}</span>}
-                </div>
-              </div>
-            </div>
-          </Modal>
-        )
-      })()}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {showAdd&&<RecordPayModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
     </div>
   )
 }
 
-function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
-  const fromRow=prefill?._fromRow===true
-  const dueResList=(reservations||[]).filter(r=>r.status==='CHECKED_IN'&&(+r.total_amount||0)>(+r.paid_amount||0))
-
-  // Locked mode (opened from + Pay / row click)
-  const lockedRoom  = fromRow?(prefill.room_number||''):null
-  const lockedGuest = fromRow?(prefill.guest_name||''):null
-  const lockedResId = fromRow?prefill._resId:null
-  const lockedDue   = fromRow?Math.max(0,(prefill._total||0)-(prefill._paid||0)):0
-
-  // Search mode (opened manually)
-  const initRes=!fromRow&&prefill?.id?prefill:(!fromRow&&dueResList.length===1?dueResList[0]:null)
-  const [selRes,setSelRes]=useState(initRes)
-  const [resSearch,setResSearch]=useState(initRes?`${initRes.room_number||''} — ${initRes.guest_name||''}`:'')
-  const [showResDrop,setShowResDrop]=useState(false)
-  const dropDueAmt=selRes?Math.max(0,(+selRes.total_amount||0)-(+selRes.paid_amount||0)):0
-
-  const [amount,setAmount]=useState(fromRow&&lockedDue>0?String(lockedDue):dropDueAmt>0?String(dropDueAmt):'')
-  const [type,setType]=useState('Room Payment (Cash)')
-  const [fiscal_day,setFiscalDay]=useState(todayStr())
+function RecordPayModal({toast,onClose,reload}) {
+  const [f,setF]=useState({room_number:'',guest_name:'',type:'Room Payment (Cash)',amount:'',fiscal_day:todayStr()})
+  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
-
-  function pickRes(r){
-    setSelRes(r)
-    setResSearch(`${r.room_number||''} — ${r.guest_name||''}`)
-    const due=Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0))
-    if(due>0) setAmount(String(due))
-    setShowResDrop(false)
-  }
-  function clearRes(){ setSelRes(null); setResSearch(''); setAmount(''); setShowResDrop(true) }
-
-  async function save(){
-    const a=+amount
+  async function save() {
+    const a=+f.amount
     if(!a||a<=0) return toast('Enter valid amount','error')
-    if(!fromRow&&!selRes&&!resSearch) return toast('Select a guest / room','error')
     setSaving(true)
-    const room_number = fromRow?lockedRoom:(selRes?.room_number||resSearch)
-    const guest_name  = fromRow?lockedGuest:(selRes?.guest_name||resSearch)
-    const resId       = fromRow?lockedResId:selRes?.id
-    // Use computed total (room rate × nights - discount) not stale stored total_amount
-    const _selResRoom = selRes?rooms?.find(rm=>(selRes.room_ids||[]).includes(rm.room_number)):null
-    const _selResNts  = selRes?nightsCount(selRes.check_in,selRes.check_out)||1:1
-    const _selResComp = _selResRoom?(+_selResRoom.price*_selResNts):0
-    const _selResDisc = selRes?+selRes.discount||0:0
-    const _selResCalc = _selResComp>0?Math.max(0,_selResComp-_selResDisc):(Math.max(0,(+selRes?.total_amount||0)-_selResDisc))
-    const resTotal    = fromRow?(prefill._total||0):_selResCalc
-    const resPaid     = fromRow?(prefill._paid||0):(+selRes?.paid_amount||0)
-    try{
-      await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,tenant_id:TENANT})
-      if(resId) await dbPatch('reservations',resId,{paid_amount:Math.min(resTotal,resPaid+a)})
-      toast(`Payment ${BDT(a)} recorded`); reload(); onClose()
-    }catch(e){ toast(e.message,'error'); setSaving(false) }
+    try { await dbPost('transactions',{...f,amount:a,tenant_id:TENANT}); toast(`Payment ${BDT(a)} recorded`); reload(); onClose() }
+    catch(e){ toast(e.message,'error'); setSaving(false) }
   }
-
   return (
     <Modal title="Record Payment" onClose={onClose}
       footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Record Payment'}</button></>}>
-
-      {/* ── Locked guest card (from row click) ── */}
-      {fromRow&&(
-        <div style={{border:'1px solid var(--br)',marginBottom:14,overflow:'hidden'}}>
-          {/* Room + guest header */}
-          <div style={{background:'rgba(200,169,110,.08)',padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid var(--br)'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span className="badge bb" style={{padding:'3px 10px',fontSize:11}}>{lockedRoom||'—'}</span>
-              <span style={{fontWeight:600,fontSize:13}}>{lockedGuest||'—'}</span>
-            </div>
-            {lockedDue>0
-              ?<span style={{fontSize:12,fontWeight:700,color:'var(--rose)',background:'rgba(224,92,122,.1)',border:'1px solid rgba(224,92,122,.25)',padding:'3px 10px'}}>DUE {BDT(lockedDue)}</span>
-              :<span style={{fontSize:11,color:'var(--grn)'}}>✓ Settled</span>
-            }
-          </div>
-          {/* Details grid */}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr'}}>
-            {[
-              ['Check-In',   fmtDate(prefill.check_in)],
-              ['Check-Out',  fmtDate(prefill.check_out)],
-              ['Nights',     nightsCount(prefill.check_in,prefill.check_out)||'—'],
-              ['Method',     prefill.payment_method||'—'],
-              ['Officer',    prefill.on_duty_officer||'—'],
-              ['Status',     prefill.status||'—'],
-            ].map(([l,v])=>(
-              <div key={l} style={{padding:'6px 12px',borderBottom:'1px solid var(--br2)',borderRight:'1px solid var(--br2)'}}>
-                <div style={{fontSize:8,letterSpacing:'.1em',color:'var(--tx3)',textTransform:'uppercase',marginBottom:1}}>{l}</div>
-                <div style={{color:'var(--tx)',fontSize:12}}>{v}</div>
-              </div>
-            ))}
-          </div>
-          {/* Total / Paid / Due footer */}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',background:'rgba(200,169,110,.03)'}}>
-            {[['Total',BDT(prefill._total||0),'var(--gold)'],['Paid',BDT(prefill._paid||0),'var(--grn)'],['Balance Due',BDT(lockedDue),lockedDue>0?'var(--rose)':'var(--grn)']].map(([l,v,c])=>(
-              <div key={l} style={{padding:'8px 12px',textAlign:'center',borderRight:'1px solid var(--br2)'}}>
-                <div style={{fontSize:8,letterSpacing:'.1em',color:'var(--tx3)',textTransform:'uppercase',marginBottom:2}}>{l}</div>
-                <div style={{color:c,fontWeight:700,fontSize:13}}>{v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Searchable guest picker (manual open) ── */}
-      {!fromRow&&(
-        <div style={{marginBottom:12,position:'relative'}}>
-          <label className="flbl">Guest / Room <span style={{color:'var(--rose)'}}>*</span></label>
-          <div style={{display:'flex',gap:6,alignItems:'center'}}>
-            <input className="finput" value={resSearch}
-              placeholder={dueResList.length===0?'No unsettled reservations':'Search room or guest name…'}
-              onChange={e=>{setResSearch(e.target.value);setSelRes(null);setShowResDrop(true)}}
-              onFocus={()=>setShowResDrop(true)}
-              autoFocus style={{flex:1}}/>
-            {selRes&&<button style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:16,lineHeight:1,padding:'0 4px'}} onClick={clearRes}>✕</button>}
-          </div>
-          {/* Dropdown */}
-          {showResDrop&&dueResList.length>0&&(
-            <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:60,background:'var(--s1)',border:'1px solid var(--br)',boxShadow:'0 8px 24px rgba(0,0,0,.6)',maxHeight:180,overflowY:'auto'}}>
-              {dueResList
-                .filter(r=>{const q=resSearch.toLowerCase();return !q||(r.room_number?.toLowerCase().includes(q)||r.guest_name?.toLowerCase().includes(q))})
-                .map(r=>{
-                  const due=Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0))
-                  return(
-                    <div key={r.id} onClick={()=>pickRes(r)}
-                      style={{padding:'9px 14px',cursor:'pointer',borderBottom:'1px solid var(--br2)',display:'flex',justifyContent:'space-between',alignItems:'center'}}
-                      onMouseEnter={e=>e.currentTarget.style.background='var(--gdim)'}
-                      onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                      <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        <span className="badge bb">{r.room_number||'—'}</span>
-                        <span style={{fontSize:12}}>{r.guest_name||'—'}</span>
-                      </div>
-                      <span style={{fontSize:11,color:'var(--rose)',fontWeight:600}}>{BDT(due)} due</span>
-                    </div>
-                  )
-                })
-              }
-            </div>
-          )}
-          {/* Selected reservation summary */}
-          {selRes&&(
-            <div style={{marginTop:6,background:'rgba(200,169,110,.06)',border:'1px solid var(--br)',padding:'8px 12px',fontSize:11,display:'flex',justifyContent:'space-between'}}>
-              <span style={{color:'var(--tx2)'}}>Total: <strong style={{color:'var(--tx)'}}>{BDT(selRes.total_amount||0)}</strong> · Paid: <strong style={{color:'var(--grn)'}}>{BDT(selRes.paid_amount||0)}</strong></span>
-              <span style={{color:'var(--rose)',fontWeight:600}}>Due: {BDT(dropDueAmt)}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Amount + Date ── */}
       <div className="frow">
-        <div className="fg">
-          <label className="flbl">Amount (BDT) *</label>
-          <input type="number" className="finput" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus={fromRow}/>
-        </div>
-        <div className="fg">
-          <label className="flbl">Date</label>
-          <input type="date" className="finput" value={fiscal_day} onChange={e=>setFiscalDay(e.target.value)}/>
-        </div>
+        <div className="fg"><label className="flbl">Room Number</label><input className="finput" value={f.room_number} onChange={F('room_number')} placeholder="e.g. 305" autoFocus/></div>
+        <div className="fg"><label className="flbl">Amount (BDT) *</label><input type="number" className="finput" value={f.amount} onChange={F('amount')} placeholder="0"/></div>
       </div>
-
-      {/* ── Payment Type ── */}
-      <div className="fg">
-        <label className="flbl">Payment Type</label>
-        <select className="fselect" value={type} onChange={e=>setType(e.target.value)}>
-          {['Room Payment (Cash)','Room Payment (Bkash)','Room Payment (Nagad)','Room Payment (Card)','Room Service','Restaurant','Laundry','Misc'].map(t=><option key={t}>{t}</option>)}
-        </select>
+      <div className="fg"><label className="flbl">Guest Name</label><input className="finput" value={f.guest_name} onChange={F('guest_name')} placeholder="Guest name"/></div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Payment Type</label>
+          <select className="fselect" value={f.type} onChange={F('type')}>
+            {['Room Payment (Cash)','Room Payment (Bkash)','Room Payment (Nagad)','Room Payment (Card)','Room Service','Restaurant','Laundry','Misc'].map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="fg"><label className="flbl">Date</label><input type="date" className="finput" value={f.fiscal_day} onChange={F('fiscal_day')}/></div>
       </div>
     </Modal>
   )
 }
-
 
 /* ═══════════════════════ REPORTS ════════════════════════════ */
 function ReportsPage({transactions,rooms,reservations,guests}) {
@@ -2572,70 +1604,22 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
   const isSA=currentUser?.role==='owner'
   const [tab,setTab]=useState('hotel')
   const [hs,setHS]=useState({hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'7',svc:'5'})
-  const [hsSaving,setHsSaving]=useState(false)
   const HS=k=>e=>setHS(p=>({...p,[k]:e.target.value}))
   const [showAddUser,setShowAddUser]=useState(false)
   const [editUser,setEditUser]=useState(null)
 
-  // Load settings from Supabase on mount
-  useEffect(()=>{
-    async function loadSettings(){
-      try{
-        const rows=await db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`)
-        if(rows&&rows.length>0){
-          const map={}; rows.forEach(r=>{map[r.key]=r.value})
-          setHS(p=>({
-            hotelName:map.hotel_name||p.hotelName,
-            city:map.city||p.city,
-            currency:map.currency||p.currency,
-            checkIn:map.check_in||p.checkIn,
-            checkOut:map.check_out||p.checkOut,
-            vat:map.vat_rate||p.vat,
-            svc:map.service_charge||p.svc
-          }))
-        }
-      }catch(e){console.warn('Settings load:',e.message)}
-    }
-    loadSettings()
-  },[])
-
-  async function saveHotelSettings(){
-    setHsSaving(true)
-    try{
-      const entries=[
-        ['hotel_name',hs.hotelName],['city',hs.city],['currency',hs.currency],
-        ['check_in',hs.checkIn],['check_out',hs.checkOut],
-        ['vat_rate',hs.vat],['service_charge',hs.svc]
-      ]
-      for(const [key,value] of entries){
-        await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
-          method:'POST',
-          headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-          body:JSON.stringify({key,value:String(value),tenant_id:TENANT})
-        })
-      }
-      toast('Hotel settings saved ✓')
-    }catch(e){toast('Save failed: '+e.message,'error')}
-    finally{setHsSaving(false)}
-  }
-
-  async function deleteUser(id) {
+  function deleteUser(id) {
     if(!window.confirm('Remove this staff account?')) return
-    try{
-      await dbDelete('staff',id)
-      setStaffList(p=>p.filter(s=>s.id!==id))
-      toast('Staff account removed')
-    }catch(e){ toast('Delete failed: '+e.message,'error') }
+    setStaffList(p=>p.filter(s=>s.id!==id))
+    toast('Staff account removed')
   }
 
   return (
-    <div style={{maxWidth:'100%'}}>
-      <div style={{overflowX:'auto',marginBottom:16,paddingBottom:4}}>
-        <div className="tabs" style={{flexWrap:'nowrap',minWidth:'max-content',gap:2}}>
-          {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System'],['agents','🤖 AI Agents'],['b2b','🤝 B2B Partners'],['plang','✈ Plan G'],['swarm','🎯 Lead Gen']].map(([v,l])=>(
-            <button key={v} className={`tab${tab===v?' on':''}`} style={{whiteSpace:'nowrap',fontSize:11,padding:'6px 12px'}} onClick={()=>setTab(v)}>{l}</button>
-          ))}
-        </div>
+    <div style={{maxWidth:700}}>
+      <div className="tabs mb4">
+        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System']].map(([v,l])=>(
+          <button key={v} className={`tab${tab===v?' on':''}`} onClick={()=>setTab(v)}>{l}</button>
+        ))}
       </div>
 
       {/* HOTEL INFO */}
@@ -2666,7 +1650,7 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
               <div className="fg"><label className="flbl">Service Charge (%)</label><input type="number" className="finput" value={hs.svc} onChange={HS('svc')} disabled={!isSA} min="0" max="30"/></div>
             </div>
             {isSA
-              ?<button className="btn btn-gold mt3" disabled={hsSaving} onClick={saveHotelSettings}>{hsSaving?'Saving…':'Save Settings'}</button>
+              ?<button className="btn btn-gold mt3" onClick={()=>toast('Hotel settings saved ✓')}>Save Settings</button>
               :<p className="xs muted mt3">Only the Owner can edit hotel settings.</p>
             }
           </div>
@@ -2748,34 +1732,6 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
         </div>
       )}
 
-      {/* AI AGENTS PANEL */}
-      {tab==='agents'&&(
-        <div>
-          <AIAgentsPanel toast={toast}/>
-        </div>
-      )}
-
-      {/* B2B SWARM PANEL */}
-      {tab==='b2b'&&(
-        <div>
-          <B2BSwarmPanel toast={toast}/>
-        </div>
-      )}
-
-      {/* PLAN G UPSELL PANEL */}
-      {tab==='plang'&&(
-        <div>
-          <PlanGPanel toast={toast} reservations={reservations} rooms={rooms} guests={guests}/>
-        </div>
-      )}
-
-      {/* LEAD GEN SWARM PANEL */}
-      {tab==='swarm'&&(
-        <div>
-          <LeadGenSwarmPanel toast={toast}/>
-        </div>
-      )}
-
       {showAddUser&&isSA&&(
         <AddStaffModal toast={toast} onClose={()=>setShowAddUser(false)}
           onAdd={u=>{ setStaffList(p=>[...p,u]); toast(`${u.name} added as ${ROLES[u.role]?.label}`); setShowAddUser(false) }}
@@ -2792,17 +1748,10 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
 function AddStaffModal({toast,onClose,onAdd,existingIds}) {
   const [f,setF]=useState({name:'',email:'',pw:'',role:'receptionist',device:''})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
-  const [saving,setSaving]=useState(false)
-  async function save() {
+  function save() {
     if(!f.name||!f.email||!f.pw) return toast('Name, email and password required','error')
-    setSaving(true)
     const newId=Math.max(...existingIds,0)+1
-    const newStaff={id:newId,...f,av:f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),tenant_id:TENANT}
-    try{
-      await dbPost('staff',newStaff)
-      onAdd(newStaff)
-    }catch(e){ toast('Save failed: '+e.message,'error') }
-    finally{ setSaving(false) }
+    onAdd({...f,id:newId,av:f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()})
   }
   return (
     <Modal title="Add Staff Account" onClose={onClose}
@@ -2827,19 +1776,13 @@ function AddStaffModal({toast,onClose,onAdd,existingIds}) {
 function EditStaffModal({user,toast,onClose,onSave}) {
   const [f,setF]=useState({...user})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
-  const [saving,setSaving]=useState(false)
-  async function save() {
+  function save() {
     if(!f.name||!f.email||!f.pw) return toast('All fields required','error')
-    setSaving(true)
-    try{
-      await dbPatch('staff',user.id,{name:f.name,email:f.email,pw:f.pw,role:f.role,device:f.device})
-      onSave({...f,av:f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()})
-    }catch(e){ toast('Save failed: '+e.message,'error') }
-    finally{ setSaving(false) }
+    onSave({...f,av:f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()})
   }
   return (
     <Modal title={`Edit — ${user.name}`} onClose={onClose}
-      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button></>}>
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={save}>Save Changes</button></>}>
       <div className="frow">
         <div className="fg"><label className="flbl">Full Name</label><input className="finput" value={f.name} onChange={F('name')}/></div>
         <div className="fg"><label className="flbl">Role</label>
@@ -2857,1466 +1800,7 @@ function EditStaffModal({user,toast,onClose,onSave}) {
   )
 }
 
-/* ═══════════════════════ AI AGENTS ══════════════════════════ */
-function AIAgentsPanel({toast}) {
-  const EDGE='https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/ai-agents'
-  const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
-
-  const [query,setQuery]=useState('corporate event planners in Dhaka needing hotel rooms')
-  const [busy,setBusy]=useState(false)
-  const [pipelineResult,setPipelineResult]=useState(null)
-  const [analystBrief,setAnalystBrief]=useState(null)
-  const [analyzerBusy,setAnalyzerBusy]=useState(false)
-  const [closerLeadId,setCloserLeadId]=useState('')
-  const [closerBusy,setCloserBusy]=useState(false)
-  const [closerResult,setCloserResult]=useState(null)
-
-  async function callAgent(action, extra={}) {
-    const r = await fetch(EDGE, {
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':ANON},
-      body: JSON.stringify({action, query, ...extra})
-    })
-    return r.json()
-  }
-
-  async function runPipeline() {
-    setBusy(true); setPipelineResult(null)
-    try {
-      const res = await callAgent('prospect')
-      if(res.error) {
-        // Show helpful setup message if API key missing
-        if(res.error.includes('GEMINI_API_KEY')) {
-          toast('GEMINI_API_KEY not set — go to Supabase → Settings → Edge Functions → Secrets','error')
-        } else {
-          toast(res.error,'error')
-        }
-        setPipelineResult({error:res.error, setup_url:res.setup_url})
-        return
-      }
-      setPipelineResult(res)
-      toast(`✓ ${res.leads_found||res.leads?.length||0} leads found — emails drafted automatically`)
-    } catch(e){ toast(e.message,'error') }
-    finally{ setBusy(false) }
-  }
-
-  async function runAnalyst() {
-    setAnalyzerBusy(true); setAnalystBrief(null)
-    try {
-      const res = await callAgent('analyze')
-      if(res.error) { toast(res.error,'error'); return }
-      setAnalystBrief(res)
-      toast(`✓ Front desk brief ready — ${res.leads_briefed} leads handed off`)
-    } catch(e){ toast(e.message,'error') }
-    finally{ setAnalyzerBusy(false) }
-  }
-
-  async function runCloserForId(id: string) {
-    const lid = (id||closerLeadId||'').trim()
-    if(!lid) { toast('Enter a lead ID','error'); return }
-    setCloserLeadId(lid)
-    setCloserBusy(true); setCloserResult(null)
-    try {
-      const res = await callAgent('close', {lead_id: lid})
-      if(res.error) { toast(res.error,'error'); return }
-      setCloserResult(res)
-      // Also update the email_draft in pipelineResult leads list
-      if(pipelineResult?.leads) {
-        setPipelineResult((p:any)=>({...p,leads:p.leads.map((l:any)=>l.id===lid?{...l,email_draft:res.email_draft}:l)}))
-      }
-      toast(`✓ Email drafted for ${res.lead_name}`)
-    } catch(e){ toast(e.message,'error') }
-    finally{ setCloserBusy(false) }
-  }
-  async function runCloser() { runCloserForId(closerLeadId) }
-
-  return (
-    <div>
-      <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.06),rgba(200,169,110,.04))',border:'1px solid rgba(88,166,255,.2)',padding:'10px 14px',marginBottom:16,fontSize:11,color:'var(--sky)',display:'flex',alignItems:'center',gap:8}}>
-        <span>🤖</span>
-        <span>AI Agents powered by Gemini 2.5 Flash — Connected to your live Supabase data</span>
-      </div>
-
-      {/* AGENT A + AUTO B PIPELINE */}
-      <div className="card mb4">
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-          <span style={{fontSize:20}}>🔍</span>
-          <div>
-            <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent A — The Prospector</div>
-            <div style={{fontSize:10,color:'var(--tx3)'}}>Finds leads → Agent B auto-drafts outreach emails → saved to leads table</div>
-          </div>
-        </div>
-        <div className="fg mb3">
-          <label className="flbl">Search Query</label>
-          <input className="finput" value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. corporate event planners in Dhaka"/>
-        </div>
-        <button className="btn btn-gold" onClick={runPipeline} disabled={busy}>
-          {busy?'🔄 Finding leads + drafting emails…':'🔍 Find Leads + Auto-Draft Emails'}
-        </button>
-
-        {pipelineResult?.error&&(
-          <div style={{marginTop:12,background:'rgba(224,92,122,.08)',border:'1px solid rgba(224,92,122,.25)',padding:'12px 14px'}}>
-            <div style={{fontSize:12,color:'var(--rose)',fontWeight:500,marginBottom:6}}>⚠ {pipelineResult.error}</div>
-            {pipelineResult.error?.includes('GEMINI')&&(
-              <div style={{fontSize:11,color:'var(--tx2)'}}>
-                To fix: Go to{' '}
-                <a href="https://supabase.com/dashboard/project/mynwfkgksqqwlqowlscj/settings/functions" target="_blank" style={{color:'var(--sky)'}}>
-                  Supabase → Settings → Edge Functions → Secrets
-                </a>
-                {' '}and add <strong style={{color:'var(--gold)'}}>GEMINI_API_KEY</strong> from{' '}
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" style={{color:'var(--sky)'}}>aistudio.google.com</a>
-              </div>
-            )}
-          </div>
-        )}
-        {pipelineResult&&!pipelineResult.error&&(
-          <div style={{marginTop:14}}>
-            <div style={{fontSize:10,color:'var(--grn)',marginBottom:10,fontWeight:500}}>
-              ✓ {pipelineResult.leads?.length||pipelineResult.leads_found||0} leads found — Agent B auto-drafted emails for each
-            </div>
-            {(pipelineResult.leads||[]).map((lead:any,i:number)=>(
-              <div key={i} style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br)',padding:'12px 14px',marginBottom:8}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
-                  <div>
-                    <div style={{fontWeight:600,fontSize:13,color:'var(--tx)'}}>{lead.name}</div>
-                    <div style={{fontSize:11,color:'var(--tx3)'}}>{lead.company} · {lead.source}</div>
-                    <div style={{fontSize:10,color:'var(--sky)',marginTop:2}}>{lead.email} {lead.phone&&`· ${lead.phone}`}</div>
-                  </div>
-                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
-                    <span style={{fontSize:8,background:'rgba(63,185,80,.15)',color:'var(--grn)',padding:'2px 7px',letterSpacing:'.1em'}}>EMAIL DRAFTED ✓</span>
-                    {lead.id&&<span style={{fontSize:8,color:'var(--tx3)',fontFamily:'monospace'}}>{lead.id?.slice(0,12)}…</span>}
-                  </div>
-                </div>
-                <div style={{fontSize:10,color:'var(--tx2)',marginBottom:8,fontStyle:'italic'}}>{lead.notes}</div>
-                {(lead.email_draft||lead.email_draft)&&(
-                  <details style={{marginTop:4}}>
-                    <summary style={{fontSize:10,color:'var(--gold)',cursor:'pointer',userSelect:'none'}}>📧 View drafted email ▾</summary>
-                    <div style={{marginTop:8,background:'rgba(0,0,0,.3)',padding:'10px 12px',fontSize:11,color:'var(--tx2)',whiteSpace:'pre-wrap',lineHeight:1.6,fontFamily:'monospace',maxHeight:200,overflow:'auto'}}>
-                      {lead.email_draft}
-                    </div>
-                  </details>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* AGENT B — CLOSER (auto-runs after A, or manually re-draft) */}
-      <div className="card mb4">
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-          <span style={{fontSize:20}}>✍️</span>
-          <div>
-            <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent B — The Closer</div>
-            <div style={{fontSize:10,color:'var(--tx3)'}}>Auto-runs after Agent A · Click any lead below to re-draft its outreach email</div>
-          </div>
-        </div>
-
-        {/* Show leads from Agent A pipeline or prompt to run A first */}
-        {pipelineResult&&(pipelineResult.leads||[]).length>0?(
-          <div>
-            <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>Select a lead to re-draft or view their email:</div>
-            {(pipelineResult.leads||[]).map((lead:any,i:number)=>(
-              <div key={i} style={{background:'rgba(200,169,110,.03)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
-                <div>
-                  <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{lead.name}</div>
-                  <div style={{fontSize:10,color:'var(--tx3)'}}>{lead.company} · {lead.email||lead.phone}</div>
-                </div>
-                <button
-                  className="btn btn-gold btn-sm"
-                  style={{padding:'4px 10px',fontSize:10,whiteSpace:'nowrap'}}
-                  disabled={closerBusy&&closerLeadId===lead.id}
-                  onClick={()=>{
-                    if(!lead.id){toast('Lead ID not available — run Agent A first','error');return}
-                    setCloserLeadId(lead.id)
-                    runCloserForId(lead.id)
-                  }}>
-                  {closerBusy&&closerLeadId===lead.id?'Drafting…':'✍️ Re-draft Email'}
-                </button>
-              </div>
-            ))}
-          </div>
-        ):(
-          <div style={{padding:'12px 14px',background:'rgba(200,169,110,.03)',border:'1px dashed var(--br)',fontSize:11,color:'var(--tx3)',textAlign:'center'}}>
-            Run Agent A first → Agent B auto-drafts emails for all leads found
-          </div>
-        )}
-
-        {/* Manual override by lead ID */}
-        <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--br2)'}}>
-          <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:8}}>Or enter any lead ID manually</div>
-          <div style={{display:'flex',gap:8}}>
-            <input className="finput" style={{flex:1,fontFamily:'monospace',fontSize:11}} value={closerLeadId} onChange={e=>setCloserLeadId(e.target.value)} placeholder="Lead UUID from Supabase leads table"/>
-            <button className="btn btn-gold btn-sm" style={{whiteSpace:'nowrap',padding:'0 14px'}} disabled={closerBusy} onClick={()=>runCloserForId(closerLeadId)}>
-              {closerBusy?'Drafting…':'✍️ Draft'}
-            </button>
-          </div>
-        </div>
-
-        {closerResult&&(
-          <div style={{marginTop:12}}>
-            <div style={{fontSize:11,color:'var(--grn)',marginBottom:8}}>✓ Email re-drafted for {closerResult.lead_name}</div>
-            <div style={{background:'rgba(0,0,0,.3)',padding:'12px 14px',fontSize:11,color:'var(--tx2)',whiteSpace:'pre-wrap',lineHeight:1.7,fontFamily:'monospace',maxHeight:250,overflow:'auto'}}>
-              {closerResult.email_draft}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* AGENT C — ANALYST + FRONT DESK BRIEF */}
-      <div className="card">
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-          <span style={{fontSize:20}}>📊</span>
-          <div>
-            <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent C — The Analyst</div>
-            <div style={{fontSize:10,color:'var(--tx3)'}}>Analyzes revenue + pending leads → generates complete action brief for front desk</div>
-          </div>
-        </div>
-        <button className="btn btn-gold" onClick={runAnalyst} disabled={analyzerBusy}>
-          {analyzerBusy?'📊 Generating brief…':'📊 Generate Front Desk Brief'}
-        </button>
-        {analystBrief&&(
-          <div style={{marginTop:14}}>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:12}}>
-              <div style={{background:'rgba(88,166,255,.06)',border:'1px solid rgba(88,166,255,.15)',padding:'10px 12px',textAlign:'center'}}>
-                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase'}}>Occupancy</div>
-                <div style={{fontSize:22,color:'var(--sky)',fontFamily:'var(--serif)',marginTop:4}}>{analystBrief.occupancy_rate}%</div>
-              </div>
-              <div style={{background:'rgba(200,169,110,.06)',border:'1px solid rgba(200,169,110,.15)',padding:'10px 12px',textAlign:'center'}}>
-                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase'}}>Week Revenue</div>
-                <div style={{fontSize:18,color:'var(--gold)',fontFamily:'var(--serif)',marginTop:4}}>{BDT(analystBrief.week_revenue)}</div>
-              </div>
-              <div style={{background:'rgba(63,185,80,.06)',border:'1px solid rgba(63,185,80,.15)',padding:'10px 12px',textAlign:'center'}}>
-                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase'}}>Leads Briefed</div>
-                <div style={{fontSize:22,color:'var(--grn)',fontFamily:'var(--serif)',marginTop:4}}>{analystBrief.leads_briefed}</div>
-              </div>
-            </div>
-            <div style={{background:'rgba(200,169,110,.03)',border:'1px solid var(--br)',padding:'14px 16px'}}>
-              <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.16em',textTransform:'uppercase',marginBottom:10}}>Front Desk Action Brief</div>
-              <div style={{fontSize:12,color:'var(--tx)',whiteSpace:'pre-wrap',lineHeight:1.8}}>
-                {analystBrief.brief}
-              </div>
-            </div>
-            <div style={{marginTop:8,fontSize:10,color:'var(--grn)'}}>
-              ✓ Brief saved to CRM · {analystBrief.leads_briefed} leads marked "briefed to front desk"
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ═══════════════════════ B2B SWARM PANEL ══════════════════════════ */
-function B2BSwarmPanel({toast}) {
-  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/b2b-agents'
-  const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
-
-  const [activeAgent, setActiveAgent] = useState('recruiter')
-  const [partners, setPartners] = useState([])
-  const [loadingPartners, setLoadingPartners] = useState(true)
-  const [busy, setBusy] = useState(null) // null | 'scan'|'invite:id'|'letter:id'|'weekly'|'dashboard'
-  const [dashboard, setDashboard] = useState(null)
-  const [outreach, setOutreach] = useState(null) // invite/letter result
-  const [billingResult, setBillingResult] = useState(null)
-
-  useEffect(() => { loadPartners() }, [])
-
-  async function loadPartners() {
-    setLoadingPartners(true)
-    try {
-      const r = await fetch(`${SB_URL}/rest/v1/b2b_partners?tenant_id=eq.${TENANT}&select=*&order=created_at`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } })
-      const d = await r.json()
-      setPartners(Array.isArray(d) ? d : [])
-    } catch(e) { toast(e.message,'error') }
-    finally { setLoadingPartners(false) }
-  }
-
-  async function callB2B(body) {
-    const r = await fetch(EDGE, { method:'POST', headers:{'Content-Type':'application/json','apikey':ANON}, body: JSON.stringify(body) })
-    return r.json()
-  }
-
-  async function doScan() {
-    setBusy('scan')
-    try {
-      const res = await callB2B({ agent:'recruiter', action:'scan' })
-      if(res.error) { toast(res.error,'error'); return }
-      toast(`✓ ${res.agencies_found} new agencies found & saved`)
-      loadPartners()
-    } catch(e) { toast(e.message,'error') }
-    finally { setBusy(null) }
-  }
-
-  async function doInvite(partnerId, agencyName) {
-    setBusy(`invite:${partnerId}`)
-    setOutreach(null)
-    try {
-      const res = await callB2B({ agent:'recruiter', action:'invite', partner_id: partnerId })
-      if(res.error) { toast(res.error,'error'); return }
-      setOutreach({ type:'invite', partner: agencyName, content: res.whatsapp_message, portal_link: res.portal_link })
-      toast(`✓ WhatsApp invite generated for ${agencyName}`)
-      loadPartners()
-    } catch(e) { toast(e.message,'error') }
-    finally { setBusy(null) }
-  }
-
-  async function doJoiningLetter(partnerId, agencyName) {
-    setBusy(`letter:${partnerId}`)
-    setOutreach(null)
-    try {
-      const res = await callB2B({ agent:'recruiter', action:'joining_letter', partner_id: partnerId })
-      if(res.error) { toast(res.error,'error'); return }
-      setOutreach({ type:'letter', partner: agencyName, content: res.letter })
-      toast(`✓ Joining letter generated — ${agencyName} marked Active`)
-      loadPartners()
-    } catch(e) { toast(e.message,'error') }
-    finally { setBusy(null) }
-  }
-
-  async function doBillingDashboard() {
-    setBusy('dashboard')
-    try {
-      const res = await callB2B({ agent:'billing_analyst', action:'get_dashboard' })
-      if(res.error) { toast(res.error,'error'); return }
-      setDashboard(res)
-    } catch(e) { toast(e.message,'error') }
-    finally { setBusy(null) }
-  }
-
-  async function doWeeklyRun() {
-    setBusy('weekly')
-    setBillingResult(null)
-    try {
-      const res = await callB2B({ agent:'billing_analyst', action:'weekly_run' })
-      if(res.error) { toast(res.error,'error'); return }
-      setBillingResult(res)
-      toast(`✓ Weekly run complete — ${res.partners_processed} partners processed`)
-    } catch(e) { toast(e.message,'error') }
-    finally { setBusy(null) }
-  }
-
-  const statusColor = (s) => s==='vip'?'var(--gold)':s==='active'?'var(--grn)':s==='inactive'?'var(--rose)':'var(--tx3)'
-  const statusBg = (s) => s==='vip'?'rgba(200,169,110,.15)':s==='active'?'rgba(63,185,80,.12)':s==='inactive'?'rgba(224,92,122,.12)':'rgba(255,255,255,.05)'
-
-  return (
-    <div>
-      {/* Header */}
-      <div style={{background:'linear-gradient(135deg,rgba(63,185,80,.06),rgba(200,169,110,.04))',border:'1px solid rgba(63,185,80,.2)',padding:'10px 14px',marginBottom:16,fontSize:11,color:'var(--grn)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8}}><span>🤝</span><span>B2B Partner Swarm — 3 AI Agents · Gemini 2.5 Flash</span></div>
-        <div style={{fontSize:10,color:'var(--tx3)'}}>{partners.length} partners · {partners.filter(p=>p.status==='active'||p.status==='vip').length} active</div>
-      </div>
-
-      {/* Agent Tabs */}
-      <div className="tabs mb4">
-        {[['recruiter','🔍 Agent 1 — Recruiter'],['butler','🛎 Agent 2 — Portal Butler'],['billing','💰 Agent 3 — Billing Analyst']].map(([v,l])=>(
-          <button key={v} className={`tab${activeAgent===v?' on':''}`} onClick={()=>setActiveAgent(v)}>{l}</button>
-        ))}
-      </div>
-
-      {/* ── AGENT 1: RECRUITER ── */}
-      {activeAgent==='recruiter'&&(
-        <div>
-          <div className="card mb4">
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-              <span style={{fontSize:22}}>🔍</span>
-              <div>
-                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 1 — The Recruiter</div>
-                <div style={{fontSize:10,color:'var(--tx3)'}}>Scans for travel agencies in Dhaka, Chittagong & Sylhet · Sends WhatsApp invites · Generates joining letters</div>
-              </div>
-            </div>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-              <button className="btn btn-gold" onClick={doScan} disabled={busy==='scan'}>
-                {busy==='scan'?'🔄 Scanning…':'🌐 Scan for New Agencies'}
-              </button>
-              <button className="btn btn-ghost" onClick={loadPartners} disabled={loadingPartners}>
-                {loadingPartners?'Loading…':'↻ Refresh'}
-              </button>
-            </div>
-          </div>
-
-          {/* Partners Table */}
-          <div className="card">
-            <div className="card-hd"><span className="card-title">Partner Agencies ({partners.length})</span></div>
-            {loadingPartners?(
-              <div style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>Loading partners…</div>
-            ):(
-              <table className="tbl">
-                <thead><tr><th>Agency</th><th>City</th><th>Contact</th><th>Status</th><th>Rate/Night</th><th>Bookings</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {partners.length===0?(<tr><td colSpan={7} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)'}}>No partners yet — click Scan to find agencies</td></tr>)
-                  :partners.map(p=>(
-                    <tr key={p.id}>
-                      <td>
-                        <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{p.agency_name}</div>
-                        <div style={{fontSize:10,color:'var(--sky)'}}>{p.email}</div>
-                      </td>
-                      <td className="xs muted">{p.city}</td>
-                      <td>
-                        <div style={{fontSize:11,color:'var(--tx)'}}>{p.contact_name||'—'}</div>
-                        <div style={{fontSize:10,color:'var(--tx3)'}}>{p.phone||'—'}</div>
-                      </td>
-                      <td>
-                        <span style={{fontSize:9,padding:'2px 8px',background:statusBg(p.status),color:statusColor(p.status),letterSpacing:'.08em',textTransform:'uppercase',fontWeight:600}}>
-                          {p.status==='vip'?'⭐ VIP':p.status}
-                        </span>
-                      </td>
-                      <td className="xs gold">৳{Number(p.wholesale_rate||2800).toLocaleString()}</td>
-                      <td className="xs" style={{color:'var(--tx3)'}}>{p.total_bookings||0}</td>
-                      <td>
-                        <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
-                          <button
-                            className="btn btn-sm"
-                            style={{fontSize:9,padding:'3px 8px',background:p.whatsapp_sent?'rgba(63,185,80,.1)':'rgba(37,211,102,.15)',color:p.whatsapp_sent?'var(--grn)':'#25D366',border:'1px solid currentColor'}}
-                            disabled={busy===`invite:${p.id}`}
-                            onClick={()=>doInvite(p.id, p.agency_name)}>
-                            {busy===`invite:${p.id}`?'Sending…':p.whatsapp_sent?'✓ Resend WA':'📱 WhatsApp Invite'}
-                          </button>
-                          <button
-                            className="btn btn-sm btn-gold"
-                            style={{fontSize:9,padding:'3px 8px',opacity:p.joining_letter_sent?.9:1}}
-                            disabled={busy===`letter:${p.id}`}
-                            onClick={()=>doJoiningLetter(p.id, p.agency_name)}>
-                            {busy===`letter:${p.id}`?'Generating…':p.joining_letter_sent?'✓ Re-generate Letter':'📄 Joining Letter'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {/* Outreach Result */}
-          {outreach&&(
-            <div className="card" style={{marginTop:12}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>
-                  {outreach.type==='invite'?'📱 WhatsApp Invite':'📄 Joining Letter'} — {outreach.partner}
-                </div>
-                {outreach.type==='invite'&&outreach.portal_link&&(
-                  <div style={{fontSize:10,color:'var(--sky)',fontFamily:'monospace',wordBreak:'break-all'}}>{outreach.portal_link.slice(0,60)}…</div>
-                )}
-              </div>
-              <div style={{background:'rgba(0,0,0,.3)',padding:'12px 14px',fontSize:11,color:'var(--tx2)',whiteSpace:'pre-wrap',lineHeight:1.7,maxHeight:300,overflow:'auto',fontFamily:'monospace'}}>
-                {outreach.content}
-              </div>
-              {outreach.type==='invite'&&(
-                <div style={{marginTop:8,fontSize:10,color:'var(--tx3)'}}>
-                  💡 Copy this message and send via WhatsApp to {outreach.partner}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── AGENT 2: PORTAL BUTLER ── */}
-      {activeAgent==='butler'&&(
-        <div>
-          <div className="card mb4">
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-              <span style={{fontSize:22}}>🛎</span>
-              <div>
-                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 2 — The Portal Butler</div>
-                <div style={{fontSize:10,color:'var(--tx3)'}}>Authenticates partners via Secret Key · Handles bookings · Answers room questions · Checks availability</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Active partner portal keys */}
-          <div className="card mb4">
-            <div className="card-hd"><span className="card-title">Active Partner Portal Keys</span></div>
-            <table className="tbl">
-              <thead><tr><th>Agency</th><th>Status</th><th>Secret Key (Portal Auth)</th><th>Portal Link</th></tr></thead>
-              <tbody>
-                {partners.filter(p=>p.status==='active'||p.status==='vip').map(p=>(
-                  <tr key={p.id}>
-                    <td style={{fontWeight:600,fontSize:12}}>{p.agency_name}</td>
-                    <td><span style={{fontSize:9,padding:'2px 7px',background:statusBg(p.status),color:statusColor(p.status),letterSpacing:'.08em',textTransform:'uppercase'}}>{p.status}</span></td>
-                    <td><code style={{fontSize:10,color:'var(--gold)',background:'rgba(0,0,0,.3)',padding:'2px 6px'}}>{p.secret_key?.slice(0,16)}…</code></td>
-                    <td>
-                      <a href={`https://hotelfountainbd-crm.vercel.app?b2b=${p.secret_key}`} target="_blank" style={{fontSize:10,color:'var(--sky)'}}>
-                        Open Portal ↗
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-                {partners.filter(p=>p.status==='active'||p.status==='vip').length===0&&(
-                  <tr><td colSpan={4} style={{textAlign:'center',padding:'16px 0',color:'var(--tx3)',fontSize:11}}>No active partners yet — activate via joining letter in Agent 1</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* How Agent 2 works */}
-          <div className="card" style={{background:'rgba(88,166,255,.03)',border:'1px solid rgba(88,166,255,.15)'}}>
-            <div style={{fontSize:12,fontWeight:600,color:'var(--sky)',marginBottom:10}}>How Agent 2 Works Automatically</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-              {[
-                ['🔐 Authentication','Partner visits portal link with secret key → Agent 2 verifies identity → grants access to wholesale rates'],
-                ['📅 Booking','Partner selects dates & room → Agent 2 confirms rate (৳2,800/night) → creates reservation → notifies front desk'],
-                ['❓ Q&A','Partner asks "Does room have balcony?" → Agent 2 answers from hotel knowledge base instantly'],
-                ['🏨 Availability','Agent 2 checks both main reservations + B2B bookings to show real-time availability grid'],
-              ].map(([title,desc],i)=>(
-                <div key={i} style={{background:'rgba(0,0,0,.2)',padding:'10px 12px'}}>
-                  <div style={{fontSize:11,fontWeight:600,color:'var(--tx)',marginBottom:4}}>{title}</div>
-                  <div style={{fontSize:10,color:'var(--tx3)',lineHeight:1.5}}>{desc}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{marginTop:12,padding:'10px 12px',background:'rgba(200,169,110,.05)',border:'1px solid rgba(200,169,110,.15)'}}>
-              <div style={{fontSize:10,color:'var(--gold)',fontWeight:500}}>⚡ API Endpoint</div>
-              <code style={{fontSize:10,color:'var(--tx2)',display:'block',marginTop:4}}>
-                POST https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/b2b-agents<br/>
-                {'{ agent:"portal_butler", action:"authenticate|book|answer|availability", secret_key:"..." }'}
-              </code>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── AGENT 3: BILLING ANALYST ── */}
-      {activeAgent==='billing'&&(
-        <div>
-          <div className="card mb4">
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-              <span style={{fontSize:22}}>💰</span>
-              <div>
-                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 3 — The Billing Analyst</div>
-                <div style={{fontSize:10,color:'var(--tx3)'}}>Runs every Sunday 10 PM · Tracks commissions · Sends statements · Re-engages inactive partners · Awards VIP status</div>
-              </div>
-            </div>
-            <div style={{display:'flex',gap:8}}>
-              <button className="btn btn-gold" onClick={doBillingDashboard} disabled={busy==='dashboard'}>
-                {busy==='dashboard'?'📊 Loading…':'📊 Load B2B Dashboard'}
-              </button>
-              <button className="btn btn-gold" onClick={doWeeklyRun} disabled={busy==='weekly'}>
-                {busy==='weekly'?'⚙ Running…':'⚡ Run Weekly Cycle Now'}
-              </button>
-            </div>
-          </div>
-
-          {/* Dashboard stats */}
-          {dashboard&&(
-            <div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:12}}>
-                {[
-                  ['Total Partners', dashboard.summary?.total_partners||0, 'var(--sky)'],
-                  ['Active', dashboard.summary?.active_partners||0, 'var(--grn)'],
-                  ['⭐ VIP', dashboard.summary?.vip_partners||0, 'var(--gold)'],
-                  ['Total B2B Revenue', `৳${(dashboard.summary?.total_revenue||0).toLocaleString()}`, 'var(--gold)'],
-                ].map(([label,val,color],i)=>(
-                  <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'10px 12px',textAlign:'center'}}>
-                    <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:4}}>{label}</div>
-                    <div style={{fontSize:20,color,fontFamily:'var(--serif)',fontWeight:600}}>{val}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Recent Bookings */}
-              {dashboard.recent_bookings?.length>0&&(
-                <div className="card mb3">
-                  <div className="card-hd"><span className="card-title">Recent B2B Bookings</span></div>
-                  <table className="tbl">
-                    <thead><tr><th>Partner</th><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Revenue</th><th>Commission</th></tr></thead>
-                    <tbody>
-                      {dashboard.recent_bookings.map((b:any)=>(
-                        <tr key={b.id}>
-                          <td style={{fontSize:11,fontWeight:500}}>{b.partner_name}</td>
-                          <td style={{fontSize:11}}>{b.guest_name||'—'}</td>
-                          <td><span className="badge bb">{b.room_number||'—'}</span></td>
-                          <td className="xs muted">{b.check_in}</td>
-                          <td className="xs muted">{b.check_out}</td>
-                          <td className="xs gold">৳{Number(b.total_amount||0).toLocaleString()}</td>
-                          <td className="xs" style={{color:'var(--grn)'}}>৳{Number(b.commission_amount||0).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Weekly run results */}
-          {billingResult&&(
-            <div className="card">
-              <div style={{fontSize:12,fontWeight:600,color:'var(--tx)',marginBottom:10}}>⚡ Weekly Run Results — {billingResult.partners_processed} partners processed</div>
-              {(billingResult.results||[]).map((r:any,i:number)=>(
-                <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-                    <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.partner}</div>
-                    <span style={{fontSize:9,padding:'2px 8px',background:r.action==='commission_sent'?'rgba(63,185,80,.12)':r.action==='re-engagement_sent'?'rgba(224,92,122,.12)':'rgba(255,255,255,.05)',color:r.action==='commission_sent'?'var(--grn)':r.action==='re-engagement_sent'?'var(--rose)':'var(--tx3)',letterSpacing:'.08em',textTransform:'uppercase'}}>
-                      {r.action==='commission_sent'?'💰 Commission Sent':r.action==='re-engagement_sent'?'📨 Re-engaged':'✓ No Action'}
-                    </span>
-                  </div>
-                  {r.action==='commission_sent'&&<div style={{fontSize:10,color:'var(--gold)'}}>Commission: ৳{Number(r.commission||0).toLocaleString()} · {r.bookings} booking{r.bookings!==1?'s':''} this week</div>}
-                  {r.action==='re-engagement_sent'&&<div style={{fontSize:10,color:'var(--tx3)'}}>Inactive {r.days_inactive} days · Discount offer sent</div>}
-                  {(r.statement||r.message)&&(
-                    <div style={{marginTop:6,fontSize:10,color:'var(--tx2)',background:'rgba(0,0,0,.3)',padding:'8px 10px',fontFamily:'monospace',whiteSpace:'pre-wrap',maxHeight:120,overflow:'auto'}}>
-                      {r.statement||r.message}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Automation schedule */}
-          {!dashboard&&!billingResult&&(
-            <div className="card" style={{background:'rgba(200,169,110,.03)',border:'1px solid rgba(200,169,110,.15)'}}>
-              <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:10}}>⏰ Automated Schedule</div>
-              {[
-                ['Every Sunday 10 PM','Run weekly cycle — commission statements + re-engagement offers'],
-                ['Active partners (any bookings)','Commission statement emailed + VIP check (≥10 total bookings)'],
-                ['Inactive ≥14 days','Re-engagement WhatsApp: ৳200 discount code generated'],
-                ['VIP threshold','Auto-upgrade to VIP status at 10 total bookings'],
-              ].map(([trigger,action],i)=>(
-                <div key={i} style={{display:'flex',gap:10,marginBottom:8,padding:'8px 10px',background:'rgba(0,0,0,.2)'}}>
-                  <div style={{fontSize:10,color:'var(--gold)',minWidth:160,fontWeight:500}}>{trigger}</div>
-                  <div style={{fontSize:10,color:'var(--tx3)'}}>{action}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-
-/* ═══════════════════════ PLAN G — UPSELL PANEL ══════════════════════════ */
-function PlanGPanel({toast, reservations, rooms, guests}) {
-  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/plan-g-upsell'
-  const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
-
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [dashboard, setDashboard] = useState(null)
-  const [offers, setOffers] = useState([])
-  const [busy, setBusy] = useState(null)
-  const [agentResult, setAgentResult] = useState(null)
-  const [selectedRes, setSelectedRes] = useState('')
-  const [loadingOffers, setLoadingOffers] = useState(true)
-
-  useEffect(() => { loadOffers(); loadDashboard() }, [])
-
-  async function call(body) {
-    const r = await fetch(EDGE, { method:'POST', headers:{'Content-Type':'application/json','apikey':ANON}, body:JSON.stringify(body) })
-    return r.json()
-  }
-
-  async function loadOffers() {
-    setLoadingOffers(true)
-    try {
-      const r = await fetch(`${SB_URL}/rest/v1/upsell_offers?tenant_id=eq.${TENANT}&order=created_at.desc&limit=50`, { headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`} })
-      const d = await r.json()
-      setOffers(Array.isArray(d)?d:[])
-    } catch(e) {}
-    finally { setLoadingOffers(false) }
-  }
-
-  async function loadDashboard() {
-    try {
-      const res = await call({action:'dashboard'})
-      setDashboard(res)
-    } catch(e) {}
-  }
-
-  async function runAgent(action, resId) {
-    setBusy(action); setAgentResult(null)
-    try {
-      const body = resId ? {action, reservation_id:resId} : {action}
-      const res = await call(body)
-      if(res.error) { toast(res.error,'error'); return }
-      setAgentResult(res)
-      loadOffers(); loadDashboard()
-      const count = res.results?.length || res.processed || 0
-      toast(`✓ ${action==='pre_arrival'?'Pre-arrival':'Room customizer'} — ${count} guest${count!==1?'s':''} messaged`)
-    } catch(e){ toast(e.message,'error') }
-    finally { setBusy(null) }
-  }
-
-  async function acceptOffer(offerId, guestName) {
-    setBusy(`accept:${offerId}`)
-    try {
-      const res = await call({action:'accept_offer', offer_id:offerId, guest_reply:'yes'})
-      if(res.error) { toast(res.error,'error'); return }
-      toast(`✓ ৳${Number(res.amount).toLocaleString()} added to ${guestName}'s folio · ${res.assigned_to} alerted`)
-      loadOffers(); loadDashboard()
-    } catch(e){ toast(e.message,'error') }
-    finally { setBusy(null) }
-  }
-
-  async function declineOffer(offerId) {
-    setBusy(`decline:${offerId}`)
-    try {
-      await call({action:'accept_offer', offer_id:offerId, guest_reply:'no'})
-      toast('Offer marked as declined')
-      loadOffers()
-    } catch(e){ toast(e.message,'error') }
-    finally { setBusy(null) }
-  }
-
-  const getGN = r => {
-    const gid = String((r.guest_ids||[])[0]||'')
-    const g = guests?.find(g=>String(g.id)===gid)
-    return g?.name||'Unknown Guest'
-  }
-
-  const statusColor = s => s==='accepted'?'var(--grn)':s==='declined'?'var(--rose)':s==='sent'?'var(--sky)':'var(--tx3)'
-  const statusBg   = s => s==='accepted'?'rgba(63,185,80,.12)':s==='declined'?'rgba(224,92,122,.12)':s==='sent'?'rgba(88,166,255,.1)':'rgba(255,255,255,.05)'
-
-  const offerIcon = t => t==='airport_pickup'?'🚗':t==='early_checkin'?'🌅':t==='jet_lag_menu'?'🍽':t==='room_upgrade'?'👑':t==='sim_card'?'📱':t==='late_checkout'?'🌙':'✨'
-
-  // Upcoming reservations for manual trigger
-  const upcoming = (reservations||[]).filter(r=>r.status==='RESERVED'||r.status==='PENDING').slice(0,10)
-
-  return (
-    <div>
-      {/* Header */}
-      <div style={{background:'linear-gradient(135deg,rgba(200,169,110,.08),rgba(88,166,255,.04))',border:'1px solid rgba(200,169,110,.2)',padding:'12px 16px',marginBottom:16}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div>
-            <div style={{fontFamily:'var(--serif)',fontSize:16,color:'var(--gold)'}}>Plan G — Premium Transit Experience</div>
-            <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>3-Agent upsell engine · Turns ৳3,500 ADR → ৳5,000+ through perfectly timed offers</div>
-          </div>
-          {dashboard&&(
-            <div style={{display:'flex',gap:16,textAlign:'right'}}>
-              <div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Upsell Revenue</div><div style={{fontSize:18,color:'var(--gold)',fontFamily:'var(--serif)'}}>৳{Number(dashboard.summary?.total_upsell_revenue||0).toLocaleString()}</div></div>
-              <div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Conversion</div><div style={{fontSize:18,color:'var(--grn)',fontFamily:'var(--serif)'}}>{dashboard.summary?.conversion_rate||0}%</div></div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Sub-tabs */}
-      <div className="tabs mb4">
-        {[['dashboard','📊 Dashboard'],['agent1','✈ Agent 1 · Pre-Arrival'],['agent2','🍽 Agent 2 · Room Customizer'],['offers','📋 All Offers']].map(([v,l])=>(
-          <button key={v} className={`tab${activeTab===v?' on':''}`} onClick={()=>setActiveTab(v)}>{l}</button>
-        ))}
-      </div>
-
-      {/* ── DASHBOARD ── */}
-      {activeTab==='dashboard'&&(
-        <div>
-          {/* Stats grid */}
-          {dashboard&&(
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:16}}>
-              {[
-                ['Offers Sent',    dashboard.summary?.total_offers_sent||0,    'var(--sky)'],
-                ['Accepted',       dashboard.summary?.total_accepted||0,       'var(--grn)'],
-                ['Conversion Rate',`${dashboard.summary?.conversion_rate||0}%`,'var(--gold)'],
-                ['Upsell Revenue', `৳${Number(dashboard.summary?.total_upsell_revenue||0).toLocaleString()}`,'var(--gold)'],
-              ].map(([label,val,color],i)=>(
-                <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',textAlign:'center'}}>
-                  <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:4}}>{label}</div>
-                  <div style={{fontSize:22,color,fontFamily:'var(--serif)',fontWeight:600}}>{val}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* By offer type breakdown */}
-          {dashboard?.by_type&&Object.keys(dashboard.by_type).length>0&&(
-            <div className="card mb4">
-              <div className="card-hd"><span className="card-title">Performance by Offer Type</span></div>
-              <table className="tbl">
-                <thead><tr><th>Offer</th><th>Sent</th><th>Accepted</th><th>Conversion</th><th>Revenue</th></tr></thead>
-                <tbody>
-                  {Object.entries(dashboard.by_type).map(([type, data]:any)=>(
-                    <tr key={type}>
-                      <td><span style={{marginRight:6}}>{offerIcon(type)}</span>{type.replace(/_/g,' ').replace(/\w/g,l=>l.toUpperCase())}</td>
-                      <td className="xs muted">{data.sent}</td>
-                      <td className="xs" style={{color:'var(--grn)'}}>{data.accepted}</td>
-                      <td className="xs gold">{data.sent>0?Math.round(data.accepted/data.sent*100):0}%</td>
-                      <td className="xs gold">৳{Number(data.revenue||0).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Upsell catalog */}
-          <div className="card">
-            <div className="card-hd"><span className="card-title">Upsell Catalog — Plan G Offers</span></div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-              {[
-                ['🚗','airport_pickup',   'Airport Pickup',            '৳500',  '24h before','Private car from any Dhaka airport → hotel'],
-                ['🌅','early_checkin',   'Early Check-in (9AM-12PM)', '৳1,000','24h before','Guaranteed room from 9:00 AM for morning arrivals'],
-                ['🍽','jet_lag_menu',    "Chef Samim’s Jet Lag Menu",  '৳850',  '4h before', 'Light recovery meal ready in room on arrival'],
-                ['👑','room_upgrade',    'Royal Suite Upgrade',        '৳4,000','4h before', 'Room 303 — balcony, premium amenities'],
-                ['📱','sim_card',        'Welcome SIM Pack',           '৳800',  '4h before', 'Local SIM + 10GB data waiting in room'],
-                ['🌙','late_checkout',   'Late Check-out (till 6PM)',  '৳1,500','Day of',    'Keep room for guests with late flights'],
-              ].map(([icon,type,title,price,timing,desc])=>(
-                <div key={type} style={{background:'rgba(200,169,110,.03)',border:'1px solid var(--br)',padding:'10px 12px',display:'flex',gap:10,alignItems:'flex-start'}}>
-                  <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{title}</div>
-                    <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{desc}</div>
-                    <div style={{display:'flex',gap:12,marginTop:6}}>
-                      <span style={{fontSize:11,color:'var(--gold)',fontWeight:600}}>{price}</span>
-                      <span style={{fontSize:10,color:'var(--tx3)'}}>{timing}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── AGENT 1: PRE-ARRIVAL SPECIALIST ── */}
-      {activeTab==='agent1'&&(
-        <div>
-          <div className="card mb4">
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-              <span style={{fontSize:24}}>✈</span>
-              <div>
-                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 1 — Pre-Arrival Specialist</div>
-                <div style={{fontSize:10,color:'var(--tx3)'}}>Sends personalized WhatsApp 24h before check-in · Offers Airport Pickup (৳500) + Early Check-in (৳1,000)</div>
-              </div>
-            </div>
-
-            <div style={{background:'rgba(88,166,255,.05)',border:'1px solid rgba(88,166,255,.15)',padding:'10px 14px',marginBottom:14,fontSize:11,color:'var(--sky)'}}>
-              💡 <strong>Why it works:</strong> Pre-arrival messages have 80% higher acceptance than check-in offers — guests are still in "planning mode"
-            </div>
-
-            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
-              <button className="btn btn-gold" onClick={()=>runAgent('pre_arrival',null)} disabled={busy==='pre_arrival'}>
-                {busy==='pre_arrival'?`🔄 Running…`:`✈ Run for Tomorrow’s Arrivals`}
-              </button>
-            </div>
-
-            {/* Manual trigger for specific reservation */}
-            <div style={{paddingTop:12,borderTop:'1px solid var(--br2)'}}>
-              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:8}}>Or trigger for a specific reservation</div>
-              <div style={{display:'flex',gap:8}}>
-                <select className="finput" style={{flex:1}} value={selectedRes} onChange={e=>setSelectedRes(e.target.value)}>
-                  <option value="">— Select upcoming reservation —</option>
-                  {upcoming.map(r=>(
-                    <option key={r.id} value={r.id}>{getGN(r)} · {(r.room_ids||[]).join(',')} · {r.check_in?.slice(0,10)}</option>
-                  ))}
-                </select>
-                <button className="btn btn-gold btn-sm" style={{padding:'0 14px',whiteSpace:'nowrap'}} disabled={!selectedRes||busy==='pre_arrival'} onClick={()=>runAgent('pre_arrival',selectedRes)}>
-                  Send Offers
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Results */}
-          {agentResult?.agent==='PreArrival'&&(
-            <div className="card">
-              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>
-                ✓ Agent 1 processed {agentResult.processed} reservation{agentResult.processed!==1?'s':''}
-              </div>
-              {(agentResult.results||[]).map((r:any,i:number)=>(
-                <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-                    <div>
-                      <div style={{fontWeight:600,fontSize:13,color:'var(--tx)'}}>{r.guest}</div>
-                      <div style={{fontSize:10,color:'var(--tx3)'}}>Room {r.room} · Check-in: {r.check_in} · {r.phone}</div>
-                    </div>
-                    {r.skipped?<span style={{fontSize:10,color:'var(--tx3)'}}>⏭ {r.skipped}</span>:<span style={{fontSize:9,background:'rgba(88,166,255,.12)',color:'var(--sky)',padding:'2px 8px',letterSpacing:'.1em'}}>SENT</span>}
-                  </div>
-                  {r.whatsapp_message&&(
-                    <div style={{background:'rgba(37,211,102,.05)',border:'1px solid rgba(37,211,102,.2)',padding:'10px 12px',fontSize:11,color:'var(--tx2)',lineHeight:1.6}}>
-                      <div style={{fontSize:9,color:'#25D366',fontWeight:600,marginBottom:6,letterSpacing:'.1em'}}>📱 WHATSAPP MESSAGE</div>
-                      {r.whatsapp_message}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── AGENT 2: ROOM CUSTOMIZER ── */}
-      {activeTab==='agent2'&&(
-        <div>
-          <div className="card mb4">
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-              <span style={{fontSize:24}}>🍽</span>
-              <div>
-                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 2 — Room Customizer</div>
-                <div style={{fontSize:10,color:'var(--tx3)'}}>Sends targeted upsells 4h before arrival · Jet Lag Menu (৳850) · Room Upgrade · SIM Pack · Smart targeting for international guests</div>
-              </div>
-            </div>
-
-            <div style={{background:'rgba(200,169,110,.05)',border:'1px solid rgba(200,169,110,.15)',padding:'10px 14px',marginBottom:14,fontSize:11,color:'var(--gold)'}}>
-              🎯 <strong>Smart targeting:</strong> International guests automatically get Jet Lag Menu + SIM Pack · Local guests get Jet Lag Menu + Royal Suite Upgrade
-            </div>
-
-            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
-              <button className="btn btn-gold" onClick={()=>runAgent('room_customizer',null)} disabled={busy==='room_customizer'}>
-                {busy==='room_customizer'?`🔄 Running…`:`🍽 Run for Today’s Arrivals`}
-              </button>
-            </div>
-
-            <div style={{paddingTop:12,borderTop:'1px solid var(--br2)'}}>
-              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:8}}>Or trigger for specific reservation</div>
-              <div style={{display:'flex',gap:8}}>
-                <select className="finput" style={{flex:1}} value={selectedRes} onChange={e=>setSelectedRes(e.target.value)}>
-                  <option value="">— Select reservation —</option>
-                  {upcoming.map(r=>(
-                    <option key={r.id} value={r.id}>{getGN(r)} · {(r.room_ids||[]).join(',')} · {r.check_in?.slice(0,10)}</option>
-                  ))}
-                </select>
-                <button className="btn btn-gold btn-sm" style={{padding:'0 14px',whiteSpace:'nowrap'}} disabled={!selectedRes||busy==='room_customizer'} onClick={()=>runAgent('room_customizer',selectedRes)}>
-                  Send Offers
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {agentResult?.agent==='RoomCustomizer'&&(
-            <div className="card">
-              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ Agent 2 processed {agentResult.processed} reservation{agentResult.processed!==1?'s':''}</div>
-              {(agentResult.results||[]).map((r:any,i:number)=>(
-                <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-                    <div>
-                      <div style={{fontWeight:600,fontSize:13,color:'var(--tx)'}}>{r.guest}</div>
-                      <div style={{fontSize:10,color:'var(--tx3)'}}>Room {r.room} · Arrival: {r.arrival_time} · {r.international?'🌍 International':'🇧🇩 Local'}</div>
-                    </div>
-                    {r.skipped?<span style={{fontSize:10,color:'var(--tx3)'}}>⏭ {r.skipped}</span>:(
-                      <div style={{display:'flex',gap:4}}>{(r.offers_sent||[]).map((o:string)=>(
-                        <span key={o} style={{fontSize:9,background:'rgba(200,169,110,.15)',color:'var(--gold)',padding:'2px 8px',letterSpacing:'.08em'}}>{o.replace(/_/g,' ').toUpperCase()}</span>
-                      ))}</div>
-                    )}
-                  </div>
-                  {r.whatsapp_message&&(
-                    <div style={{background:'rgba(37,211,102,.05)',border:'1px solid rgba(37,211,102,.2)',padding:'10px 12px',fontSize:11,color:'var(--tx2)',lineHeight:1.6}}>
-                      <div style={{fontSize:9,color:'#25D366',fontWeight:600,marginBottom:6,letterSpacing:'.1em'}}>📱 WHATSAPP MESSAGE</div>
-                      {r.whatsapp_message}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── ALL OFFERS / LOGISTICS ── */}
-      {activeTab==='offers'&&(
-        <div>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-            <div style={{fontSize:12,color:'var(--tx3)'}}>All upsell offers — click Accept to bill folio + alert front desk</div>
-            <button className="btn btn-ghost btn-sm" onClick={()=>{loadOffers();loadDashboard()}}>↻ Refresh</button>
-          </div>
-
-          {loadingOffers?(
-            <div style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>Loading offers…</div>
-          ):(
-            <div>
-              {offers.length===0&&(
-                <div className="card" style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>
-                  No offers yet — run Agent 1 or Agent 2 to generate upsell messages
-                </div>
-              )}
-              {offers.map((o:any)=>(
-                <div key={o.id} style={{background:'rgba(0,0,0,.15)',border:`1px solid ${o.status==='accepted'?'rgba(63,185,80,.3)':o.status==='declined'?'rgba(224,92,122,.2)':'var(--br)'}`,padding:'12px 14px',marginBottom:6}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-                    <div style={{flex:1}}>
-                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                        <span style={{fontSize:16}}>{offerIcon(o.offer_type)}</span>
-                        <div>
-                          <span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{o.offer_title}</span>
-                          <span style={{marginLeft:8,fontSize:11,color:'var(--gold)',fontWeight:500}}>৳{Number(o.offer_price).toLocaleString()}</span>
-                        </div>
-                        <span style={{fontSize:9,padding:'2px 8px',background:statusBg(o.status),color:statusColor(o.status),letterSpacing:'.08em',textTransform:'uppercase',fontWeight:600}}>
-                          {o.status}
-                        </span>
-                      </div>
-                      <div style={{fontSize:11,color:'var(--tx2)'}}>{o.guest_name} · Room {o.room_number} · Check-in: {o.check_in}</div>
-                      {o.alert_message&&o.status==='accepted'&&(
-                        <div style={{marginTop:6,fontSize:10,color:'var(--grn)',background:'rgba(63,185,80,.06)',border:'1px solid rgba(63,185,80,.2)',padding:'6px 8px'}}>
-                          🔔 {o.alert_message} · Assigned: <strong>{o.assigned_to}</strong>
-                        </div>
-                      )}
-                    </div>
-                    {o.status==='sent'&&(
-                      <div style={{display:'flex',gap:4,flexShrink:0}}>
-                        <button
-                          className="btn btn-success btn-sm"
-                          style={{fontSize:10,padding:'4px 10px'}}
-                          disabled={busy===`accept:${o.id}`}
-                          onClick={()=>acceptOffer(o.id, o.guest_name)}>
-                          {busy===`accept:${o.id}`?'Processing…':'✓ Accept + Bill'}
-                        </button>
-                        <button
-                          className="btn btn-sm"
-                          style={{fontSize:10,padding:'4px 8px',background:'rgba(224,92,122,.1)',color:'var(--rose)',border:'1px solid rgba(224,92,122,.3)'}}
-                          disabled={busy===`decline:${o.id}`}
-                          onClick={()=>declineOffer(o.id)}>
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                    {o.status==='accepted'&&(
-                      <div style={{fontSize:10,color:'var(--grn)',textAlign:'right',flexShrink:0}}>
-                        <div>✓ Billed {o.billed?'✓':''}</div>
-                        <div style={{color:'var(--tx3)'}}>{o.assigned_to}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-
-/* ═══════════════════════ LEAD GEN SWARM ══════════════════════════ */
-function LeadGenSwarmPanel({toast}) {
-  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/lead-gen-swarm'
-  const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
-
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [leads, setLeads] = useState([])
-  const [dashboard, setDashboard] = useState(null)
-  const [busy, setBusy] = useState(null)
-  const [scoutResult, setScoutResult] = useState(null)
-  const [analystResult, setAnalystResult] = useState(null)
-  const [outreachResult, setOutreachResult] = useState(null)
-  const [replyModal, setReplyModal] = useState(null) // {leadId, name}
-  const [replyText, setReplyText] = useState('')
-  const [leadType, setLeadType] = useState('corporate')
-  const [scoreThreshold, setScoreThreshold] = useState(80)
-  const [loadingLeads, setLoadingLeads] = useState(true)
-
-  useEffect(()=>{ loadLeads(); loadDashboard() },[])
-
-  async function call(body) {
-    const r = await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json','apikey':ANON},body:JSON.stringify(body)})
-    return r.json()
-  }
-
-  async function loadLeads() {
-    setLoadingLeads(true)
-    try {
-      const r = await fetch(`${SB_URL}/rest/v1/swarm_leads?tenant_id=eq.${TENANT}&select=*&order=intent_score.desc&limit=50`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}})
-      const d = await r.json()
-      setLeads(Array.isArray(d)?d:[])
-    } catch(e){}
-    finally{setLoadingLeads(false)}
-  }
-
-  async function loadDashboard() {
-    try { const d = await call({action:'dashboard'}); setDashboard(d) } catch(e){}
-  }
-
-  async function doScout() {
-    setBusy('scout'); setScoutResult(null)
-    try {
-      const res = await call({action:'scout', lead_type:leadType})
-      if(res.error){toast(res.error,'error');return}
-      setScoutResult(res)
-      toast(`✓ ${res.leads_found} ${leadType} leads found & saved`)
-      loadLeads(); loadDashboard()
-    } catch(e){toast(e.message,'error')}
-    finally{setBusy(null)}
-  }
-
-  async function doAnalyzeAll() {
-    setBusy('analyze'); setAnalystResult(null)
-    try {
-      const res = await call({action:'analyze'})
-      if(res.error){toast(res.error,'error');return}
-      setAnalystResult(res)
-      toast(`✓ ${res.scored} leads scored · ${res.high_priority_count} high priority`)
-      loadLeads(); loadDashboard()
-    } catch(e){toast(e.message,'error')}
-    finally{setBusy(null)}
-  }
-
-  async function doAnalyzeLead(leadId) {
-    setBusy(`analyze:${leadId}`)
-    try {
-      const res = await call({action:'analyze', lead_id:leadId})
-      toast(`✓ Lead scored: ${res.results?.[0]?.score||'?'}/100`)
-      loadLeads(); loadDashboard()
-    } catch(e){toast(e.message,'error')}
-    finally{setBusy(null)}
-  }
-
-  async function doBulkOutreach() {
-    setBusy('bulk_outreach'); setOutreachResult(null)
-    try {
-      const res = await call({action:'outreach', score_threshold:scoreThreshold})
-      if(res.error){toast(res.error,'error');return}
-      setOutreachResult(res)
-      toast(`✓ ${res.sent} outreach messages generated`)
-      loadLeads(); loadDashboard()
-    } catch(e){toast(e.message,'error')}
-    finally{setBusy(null)}
-  }
-
-  async function doOutreachLead(leadId, channel) {
-    setBusy(`outreach:${leadId}`)
-    try {
-      const res = await call({action:'outreach', lead_id:leadId, channel})
-      if(res.error){toast(res.error,'error');return}
-      toast(`✓ Outreach drafted for ${res.lead_name} via ${res.channel}`)
-      loadLeads()
-    } catch(e){toast(e.message,'error')}
-    finally{setBusy(null)}
-  }
-
-  async function doSync(leadId, reply) {
-    setBusy(`sync:${leadId}`)
-    try {
-      const res = await call({action:'crm_sync', lead_id:leadId, reply_text:reply})
-      if(res.error){toast(res.error,'error');return}
-      toast(`✓ ${res.lead_name} synced to CRM · Front desk notified · Priority: ${res.urgency}`)
-      setReplyModal(null); setReplyText('')
-      loadLeads(); loadDashboard()
-    } catch(e){toast(e.message,'error')}
-    finally{setBusy(null)}
-  }
-
-  const scoreColor = s => s>=80?'var(--grn)':s>=60?'var(--gold)':s>=40?'var(--sky)':'var(--tx3)'
-  const scoreBg    = s => s>=80?'rgba(63,185,80,.12)':s>=60?'rgba(200,169,110,.12)':s>=40?'rgba(88,166,255,.08)':'rgba(255,255,255,.04)'
-  const typeIcon   = t => t==='corporate'?'🏢':t==='event_organizer'?'🎪':t==='long_stay'?'🏠':'👤'
-  const statusBadge = s => {
-    const map = {new:{color:'var(--tx3)',bg:'rgba(255,255,255,.05)',label:'New'},scored:{color:'var(--sky)',bg:'rgba(88,166,255,.1)',label:'Scored'},outreach_sent:{color:'var(--gold)',bg:'rgba(200,169,110,.12)',label:'Outreach Sent'},replied:{color:'var(--grn)',bg:'rgba(63,185,80,.12)',label:'Replied'},converted:{color:'var(--grn)',bg:'rgba(63,185,80,.2)',label:'Converted'},rejected:{color:'var(--rose)',bg:'rgba(224,92,122,.1)',label:'Rejected'}}
-    return map[s]||{color:'var(--tx3)',bg:'rgba(255,255,255,.04)',label:s}
-  }
-
-  return (
-    <div>
-      {/* Header */}
-      <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.06),rgba(200,169,110,.04))',border:'1px solid rgba(88,166,255,.2)',padding:'12px 16px',marginBottom:16}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div>
-            <div style={{fontFamily:'var(--serif)',fontSize:16,color:'var(--sky)'}}>🎯 Lead Gen Swarm — 3 AI Agents</div>
-            <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>Scout → Score → Outreach → CRM Sync · Corporate · Event Organizers · Long-Stay Expats</div>
-          </div>
-          {dashboard&&(
-            <div style={{display:'flex',gap:16,textAlign:'right'}}>
-              <div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Total Leads</div><div style={{fontSize:18,color:'var(--sky)',fontFamily:'var(--serif)'}}>{dashboard.total_leads}</div></div>
-              <div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>High Priority</div><div style={{fontSize:18,color:'var(--rose)',fontFamily:'var(--serif)'}}>{dashboard.high_priority}</div></div>
-              <div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Replied</div><div style={{fontSize:18,color:'var(--grn)',fontFamily:'var(--serif)'}}>{dashboard.replied}</div></div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="tabs mb4">
-        {[['dashboard','📊 Dashboard'],['scout','🔍 Agent 1 · Scout'],['analyst','🧠 Agent 2 · Analyst'],['outreach','📨 Agent 3 · Outreach'],['leads','📋 All Leads']].map(([v,l])=>(
-          <button key={v} className={`tab${activeTab===v?' on':''}`} onClick={()=>setActiveTab(v)}>{l}</button>
-        ))}
-      </div>
-
-      {/* Reply Modal */}
-      {replyModal&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setReplyModal(null)}>
-          <div style={{background:'var(--bg2)',border:'1px solid var(--br)',padding:24,width:480,maxWidth:'90vw'}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)',marginBottom:16}}>Log Reply — {replyModal.name}</div>
-            <div className="fg mb3">
-              <label className="flbl">Paste their reply message</label>
-              <textarea className="finput" rows={4} value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="e.g. Yes, we're interested! Can we schedule a site visit next week?" style={{resize:'vertical'}}/>
-            </div>
-            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-              <button className="btn btn-ghost" onClick={()=>setReplyModal(null)}>Cancel</button>
-              <button className="btn btn-gold" disabled={!replyText.trim()||busy===`sync:${replyModal.leadId}`} onClick={()=>doSync(replyModal.leadId,replyText)}>
-                {busy===`sync:${replyModal.leadId}`?'Syncing…':'✓ Sync to CRM + Notify Front Desk'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── DASHBOARD ── */}
-      {activeTab==='dashboard'&&(
-        <div>
-          {dashboard&&(
-            <div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:16}}>
-                {[['Total Leads',dashboard.total_leads,'var(--sky)'],['High Priority (80+)',dashboard.high_priority,'var(--rose)'],['Outreach Sent',dashboard.by_status?.outreach_sent||0,'var(--gold)'],['Replied',dashboard.replied,'var(--grn)']].map(([l,v,c],i)=>(
-                  <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',textAlign:'center'}}>
-                    <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:4}}>{l}</div>
-                    <div style={{fontSize:24,color:c,fontFamily:'var(--serif)',fontWeight:600}}>{v}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
-                <div className="card">
-                  <div className="card-hd"><span className="card-title">By Lead Type</span></div>
-                  {Object.entries(dashboard.by_type||{}).map(([type,count]:any)=>(
-                    <div key={type} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}>
-                      <span>{typeIcon(type)} {type.replace(/_/g,' ').replace(/\w/g,l=>l.toUpperCase())}</span>
-                      <span style={{color:'var(--gold)',fontWeight:600}}>{count}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="card">
-                  <div className="card-hd"><span className="card-title">By Status</span></div>
-                  {Object.entries(dashboard.by_status||{}).map(([status,count]:any)=>{
-                    const b=statusBadge(status)
-                    return (<div key={status} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}>
-                      <span style={{color:b.color}}>{b.label}</span>
-                      <span style={{color:'var(--gold)',fontWeight:600}}>{count}</span>
-                    </div>)
-                  })}
-                </div>
-              </div>
-              {/* Top leads */}
-              {dashboard.top_leads?.length>0&&(
-                <div className="card">
-                  <div className="card-hd"><span className="card-title">Top Priority Leads (Score ≥70)</span></div>
-                  {dashboard.top_leads.map((l:any)=>(
-                    <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)'}}>
-                      <div style={{width:36,height:36,background:scoreBg(l.intent_score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:13,color:scoreColor(l.intent_score),fontWeight:700,flexShrink:0}}>{l.intent_score}</div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:12,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{l.full_name} <span style={{fontSize:10,color:'var(--tx3)'}}>· {l.title}</span></div>
-                        <div style={{fontSize:10,color:'var(--tx3)'}}>{typeIcon(l.lead_type)} {l.company_name} · {l.area}</div>
-                      </div>
-                      <span style={{fontSize:9,padding:'2px 8px',background:statusBadge(l.outreach_status).bg,color:statusBadge(l.outreach_status).color,letterSpacing:'.08em',textTransform:'uppercase',flexShrink:0}}>{statusBadge(l.outreach_status).label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── AGENT 1: SCOUT ── */}
-      {activeTab==='scout'&&(
-        <div>
-          <div className="card mb4">
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-              <span style={{fontSize:24}}>🔍</span>
-              <div>
-                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 1 — The Digital Scout</div>
-                <div style={{fontSize:10,color:'var(--tx3)'}}>Discovers leads from LinkedIn, corporate directories, Facebook groups · 3 lead types: Corporate, Event Organizers, Long-Stay Expats</div>
-              </div>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:10,marginBottom:14}}>
-              <div>
-                <label className="flbl">Lead Type to Scout</label>
-                <select className="finput" value={leadType} onChange={e=>setLeadType(e.target.value)}>
-                  <option value="corporate">🏢 Corporate — HR/Travel Managers in Nikunja, Khilkhet, Uttara</option>
-                  <option value="event_organizer">🎪 Event Organizers — Training coordinators, seminar planners</option>
-                  <option value="long_stay">🏠 Long-Stay — Expats, consultants moving to Dhaka</option>
-                </select>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
-                <button className="btn btn-gold" onClick={doScout} disabled={busy==='scout'} style={{whiteSpace:'nowrap'}}>
-                  {busy==='scout'?'🔄 Scouting…':'🔍 Scout Now'}
-                </button>
-              </div>
-            </div>
-            {[
-              {type:'corporate',icon:'🏢',title:'Airport Transit Strategy',target:'HR & Travel Managers at multinationals in Nikunja/Khilkhet/Uttara',pitch:'Dedicated Corporate Wing · 24/7 check-in · High-speed WiFi · Corporate rates'},
-              {type:'event_organizer',icon:'🎪',title:'Small Gathering Strategy',target:'Event planners, training coordinators needing space for 10-30 people',pitch:`30-room boutique · Private meeting room · Chef Samim’s Day-Use lunch package`},
-              {type:'long_stay',icon:'🏠',title:'Long-Stay Strategy',target:'Expats & consultants moving to Dhaka, Facebook "Expats in Dhaka" groups',pitch:'Home-Away-From-Home · 24/7 security · Airport proximity · Weekly/monthly rates'},
-            ].map(s=>(
-              <div key={s.type} style={{background:leadType===s.type?'rgba(200,169,110,.06)':'rgba(0,0,0,.1)',border:`1px solid ${leadType===s.type?'rgba(200,169,110,.3)':'var(--br)'}`,padding:'10px 12px',marginBottom:6,cursor:'pointer'}} onClick={()=>setLeadType(s.type)}>
-                <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{s.icon} {s.title}</div>
-                <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>Target: {s.target}</div>
-                <div style={{fontSize:10,color:'var(--gold)',marginTop:2}}>Pitch: {s.pitch}</div>
-              </div>
-            ))}
-          </div>
-          {scoutResult&&(
-            <div className="card">
-              <div style={{fontSize:12,color:'var(--grn)',fontWeight:600,marginBottom:10}}>✓ {scoutResult.leads_found} leads found ({scoutResult.lead_type})</div>
-              {(scoutResult.leads||[]).map((l:any,i:number)=>(
-                <div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}>
-                  <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{l.full_name} <span style={{fontSize:10,color:'var(--tx3)',fontWeight:400}}>· {l.title}</span></div>
-                  <div style={{fontSize:11,color:'var(--sky)',marginTop:2}}>{l.company_name} · {l.area}</div>
-                  <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>{l.qualification_notes}</div>
-                  {l.email&&<div style={{fontSize:10,color:'var(--tx2)',marginTop:2}}>{l.email} {l.phone&&`· ${l.phone}`}</div>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── AGENT 2: ANALYST ── */}
-      {activeTab==='analyst'&&(
-        <div>
-          <div className="card mb4">
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-              <span style={{fontSize:24}}>🧠</span>
-              <div>
-                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 2 — The Intent Analyst</div>
-                <div style={{fontSize:10,color:'var(--tx3)'}}>Scores leads 0-100 · Analyzes transit needs, event frequency, travel policy · Score ≥80 → auto-queued for outreach</div>
-              </div>
-            </div>
-            <div style={{background:'rgba(88,166,255,.05)',border:'1px solid rgba(88,166,255,.15)',padding:'10px 14px',marginBottom:14,fontSize:11,color:'var(--sky)'}}>
-              📊 <strong>Scoring logic:</strong> Corporate in Nikunja +30 · Travel/HR role +25 · Multinational +20 · Event frequency +40 · Expat/consultant +40
-            </div>
-            <button className="btn btn-gold" onClick={doAnalyzeAll} disabled={busy==='analyze'}>
-              {busy==='analyze'?'🧠 Analyzing…':'🧠 Analyze All Unscored Leads'}
-            </button>
-          </div>
-          {analystResult&&(
-            <div className="card">
-              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>
-                ✓ {analystResult.scored} leads scored · {analystResult.high_priority_count} high priority (≥80)
-              </div>
-              {(analystResult.results||[]).map((r:any,i:number)=>(
-                <div key={i} style={{display:'flex',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)',alignItems:'flex-start'}}>
-                  <div style={{width:44,height:44,background:scoreBg(r.score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:16,color:scoreColor(r.score),fontWeight:700,flexShrink:0}}>{r.score}</div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{r.name} <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company}</span></div>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:4}}>
-                      {(r.signals||[]).map((s:string,j:number)=>(
-                        <span key={j} style={{fontSize:9,padding:'2px 6px',background:'rgba(88,166,255,.08)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.2)'}}>{s}</span>
-                      ))}
-                    </div>
-                    {r.high_priority&&<span style={{display:'inline-block',marginTop:4,fontSize:9,padding:'2px 8px',background:'rgba(224,92,122,.12)',color:'var(--rose)',letterSpacing:'.08em'}}>🔴 HIGH PRIORITY</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── AGENT 3: OUTREACH ── */}
-      {activeTab==='outreach'&&(
-        <div>
-          <div className="card mb4">
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-              <span style={{fontSize:24}}>📨</span>
-              <div>
-                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 3 — The Outreach Specialist</div>
-                <div style={{fontSize:10,color:'var(--tx3)'}}>Sends personalized LinkedIn/email/WhatsApp · Auto-outreach for score ≥80 · Post-reply: syncs to CRM + alerts front desk</div>
-              </div>
-            </div>
-            <div style={{display:'flex',gap:8,alignItems:'flex-end',marginBottom:14}}>
-              <div style={{flex:1}}>
-                <label className="flbl">Auto-outreach score threshold</label>
-                <input type="range" min={50} max={95} step={5} value={scoreThreshold} onChange={e=>setScoreThreshold(+e.target.value)} style={{width:'100%',marginTop:6}}/>
-                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)',marginTop:2}}>
-                  <span>50 (broad)</span><span style={{color:'var(--gold)',fontWeight:600}}>Current: {scoreThreshold}+</span><span>95 (strict)</span>
-                </div>
-              </div>
-              <button className="btn btn-gold" onClick={doBulkOutreach} disabled={busy==='bulk_outreach'} style={{whiteSpace:'nowrap',marginBottom:0}}>
-                {busy==='bulk_outreach'?'📨 Sending…':`📨 Send to All ≥${scoreThreshold}`}
-              </button>
-            </div>
-            <div style={{background:'rgba(63,185,80,.05)',border:'1px solid rgba(63,185,80,.15)',padding:'10px 14px',fontSize:11,color:'var(--grn)'}}>
-              🔄 <strong>CRM Sync flow:</strong> Guest replies → log reply below → Agent 3 analyzes intent → creates guest profile in CRM → notifies front desk with priority level
-            </div>
-          </div>
-          {outreachResult&&(
-            <div className="card mb4">
-              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ {outreachResult.sent} messages sent (threshold: {outreachResult.threshold})</div>
-              {(outreachResult.results||[]).map((r:any,i:number)=>(
-                <div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-                    <div><span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.lead_name}</span> <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company} · Score: {r.score}</span></div>
-                    <span style={{fontSize:9,padding:'2px 8px',background:'rgba(200,169,110,.12)',color:'var(--gold)',letterSpacing:'.08em',textTransform:'uppercase'}}>{r.channel}</span>
-                  </div>
-                  {r.message&&<div style={{fontSize:11,color:'var(--tx2)',background:'rgba(0,0,0,.3)',padding:'8px 10px',fontFamily:'monospace',lineHeight:1.6}}>{r.message}</div>}
-                  <div style={{fontSize:10,color:'var(--tx3)',marginTop:6}}>Contact: {r.contact||'—'}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── ALL LEADS ── */}
-      {activeTab==='leads'&&(
-        <div>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-            <div style={{fontSize:12,color:'var(--tx3)'}}>{leads.length} leads total — sorted by score</div>
-            <button className="btn btn-ghost btn-sm" onClick={()=>{loadLeads();loadDashboard()}}>↻ Refresh</button>
-          </div>
-          {loadingLeads?(<div style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>Loading…</div>):(
-            leads.length===0?(<div className="card" style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>No leads yet — run Agent 1 to scout</div>):
-            leads.map((l:any)=>{
-              const sb = statusBadge(l.outreach_status)
-              const signals = typeof l.intent_signals === 'string' ? JSON.parse(l.intent_signals||'[]') : (l.intent_signals||[])
-              return (
-                <div key={l.id} style={{background:'rgba(0,0,0,.12)',border:'1px solid var(--br)',padding:'12px 14px',marginBottom:6}}>
-                  <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
-                    {/* Score badge */}
-                    {l.intent_score>0&&(
-                      <div style={{width:40,height:40,background:scoreBg(l.intent_score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:14,color:scoreColor(l.intent_score),fontWeight:700,flexShrink:0}}>{l.intent_score}</div>
-                    )}
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
-                        <div>
-                          <span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{l.full_name}</span>
-                          <span style={{fontSize:10,color:'var(--tx3)',marginLeft:6}}>{l.title}</span>
-                          <span style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.08)',color:'var(--sky)',marginLeft:6,letterSpacing:'.06em'}}>{typeIcon(l.lead_type)} {l.lead_type.replace(/_/g,' ')}</span>
-                        </div>
-                        <span style={{fontSize:9,padding:'2px 8px',background:sb.bg,color:sb.color,letterSpacing:'.08em',textTransform:'uppercase',flexShrink:0,fontWeight:600}}>{sb.label}</span>
-                      </div>
-                      <div style={{fontSize:11,color:'var(--sky)'}}>{l.company_name} · {l.area}</div>
-                      <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{l.email} {l.phone&&`· ${l.phone}`}</div>
-                      {signals.length>0&&(
-                        <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>
-                          {signals.map((s:string,i:number)=><span key={i} style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.06)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.15)'}}>{s}</span>)}
-                        </div>
-                      )}
-                      {l.outreach_message&&(
-                        <details style={{marginTop:6}}>
-                          <summary style={{fontSize:10,color:'var(--gold)',cursor:'pointer'}}>📨 View outreach message ▾</summary>
-                          <div style={{marginTop:4,fontSize:10,color:'var(--tx2)',background:'rgba(0,0,0,.3)',padding:'8px 10px',fontFamily:'monospace',lineHeight:1.6,maxHeight:150,overflow:'auto'}}>{l.outreach_message}</div>
-                        </details>
-                      )}
-                    </div>
-                    {/* Action buttons */}
-                    <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
-                      {l.outreach_status==='new'&&(
-                        <button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:'rgba(88,166,255,.1)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.3)'}} disabled={busy===`analyze:${l.id}`} onClick={()=>doAnalyzeLead(l.id)}>
-                          {busy===`analyze:${l.id}`?'Scoring…':'🧠 Score'}
-                        </button>
-                      )}
-                      {(l.outreach_status==='scored'||l.intent_score>0)&&l.outreach_status!=='outreach_sent'&&l.outreach_status!=='replied'&&(
-                        <>
-                          <button className="btn btn-sm btn-gold" style={{fontSize:9,padding:'3px 8px'}} disabled={!!busy} onClick={()=>doOutreachLead(l.id,'linkedin')}>
-                            💼 LinkedIn
-                          </button>
-                          <button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:'rgba(37,211,102,.1)',color:'#25D366',border:'1px solid rgba(37,211,102,.3)'}} disabled={!!busy} onClick={()=>doOutreachLead(l.id,'whatsapp')}>
-                            📱 WhatsApp
-                          </button>
-                        </>
-                      )}
-                      {l.outreach_status==='outreach_sent'&&(
-                        <button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:'rgba(63,185,80,.1)',color:'var(--grn)',border:'1px solid rgba(63,185,80,.3)'}} onClick={()=>{setReplyModal({leadId:l.id,name:l.full_name});setReplyText('')}}>
-                          ✉ Log Reply
-                        </button>
-                      )}
-                      {l.outreach_status==='replied'&&!l.crm_synced&&(
-                        <button className="btn btn-sm btn-gold" style={{fontSize:9,padding:'3px 8px'}} disabled={!!busy} onClick={()=>doSync(l.id,'interested')}>
-                          🔄 Sync CRM
-                        </button>
-                      )}
-                      {l.crm_synced&&<span style={{fontSize:9,color:'var(--grn)'}}>✓ CRM</span>}
-                    </div>
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-
+/* ═══════════════════════ WORKFLOW MONITOR ══════════════════ */
 function WorkflowMonitor({toast}) {
   const [runs,setRuns]=useState([])
   const [loading,setLoading]=useState(true)
@@ -4459,18 +1943,10 @@ function App() {
   const [data,setData]=useState({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]})
   const [loading,setLoading]=useState(false)
   const [toastMsg,setToastMsg]=useState(null)
-  // Hide the HTML loading screen on first React render
-  useEffect(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; },[])
   const [clock,setClock]=useState(new Date())
   const [notifOpen,setNotifOpen]=useState(false)
   // Staff list lives here so Settings can mutate it
   const [staffList,setStaffList]=useState(INIT_STAFF)
-  // Load staff from Supabase on mount (overrides INIT_STAFF)
-  useEffect(()=>{
-    db('staff',`?tenant_id=eq.${TENANT}&select=*&order=id`)
-      .then(d=>{ if(Array.isArray(d)&&d.length>0) setStaffList(d) })
-      .catch(()=>{}) // silently fall back to INIT_STAFF
-  },[])
   const toastRef=useRef()
 
   const toast=useCallback((msg,type='success')=>{
@@ -4486,7 +1962,7 @@ function App() {
     try {
       const [rooms,guests,reservations,transactions,tasks]=await Promise.all([
         db('rooms','?select=*&order=room_number'),
-        db('guests','?select=*&order=name'),
+        db('guests','?select=*&order=name&limit=300'),
         db('reservations','?select=*&order=check_in.desc&limit=500'),
         db('transactions','?select=*&amount=gt.0&order=timestamp.desc&limit=400'),
         db('housekeeping_tasks','?select=*&order=created_at.desc&limit=100'),
@@ -4500,15 +1976,14 @@ function App() {
       })
     } catch(e){
       console.error('Load failed',e)
-      console.warn('Data refresh failed:',e.message)  // silent fail — keeps app running
+      toast('Failed to refresh data — check connection','error')
     }
-  },[])
+  },[toast])
 
   useEffect(()=>{
     if(!user){ setData({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]}); return }
     setLoading(true)
-    const loadTimeout=setTimeout(()=>setLoading(false),10000) // force clear after 10s
-    loadAll().finally(()=>{ clearTimeout(loadTimeout); setLoading(false) })
+    loadAll().finally(()=>setLoading(false))
     const interval=setInterval(loadAll,90000)
     return()=>clearInterval(interval)
   },[user]) // intentionally omit loadAll to avoid re-running on every render
@@ -4532,7 +2007,7 @@ function App() {
   )
 
   // ── LOADING
-  if(loading&&user) return (
+  if(loading) return (
     <>
       <style>{CSS}</style>
       <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16,background:'var(--bg)'}}>
@@ -4668,7 +2143,7 @@ function App() {
             {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user}/>}
+            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} toast={toast} reload={loadAll} currentUser={user}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
           </div>
@@ -4682,8 +2157,7 @@ function App() {
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
-// Fallback: hide loading screen after 8s in case React fails to mount
-setTimeout(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; }, 8000);
+document.getElementById('loading').style.display='none';
 
   </script>
 </body>
