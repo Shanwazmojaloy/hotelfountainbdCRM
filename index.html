@@ -192,6 +192,19 @@ const db = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,
 const dbPost = async (t,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:H,body:JSON.stringify(b)}); if(!r.ok){ const txt=await r.text(); throw new Error(`POST ${t} ${r.status}: ${txt}`) } return r.json() }
 const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:H2,body:JSON.stringify(b)}); if(!r.ok){ const txt=await r.text(); throw new Error(`PATCH ${t} ${r.status}: ${txt}`) } }
 const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
+const fetchAllGuests = async () => {
+  const pageSize = 1000
+  let offset = 0
+  const all = []
+  while (true) {
+    const batch = await db('guests', `?select=*&order=name&limit=${pageSize}&offset=${offset}`)
+    if (!Array.isArray(batch) || batch.length === 0) break
+    all.push(...batch)
+    if (batch.length < pageSize) break
+    offset += pageSize
+  }
+  return all
+}
 
 const RESERVATION_CORE_CREATE_FIELDS = ['guest_ids','room_ids','check_in','check_out','status','total_amount','paid_amount','payment_method','special_requests','tenant_id']
 const RESERVATION_CORE_PATCH_FIELDS = ['status','paid_amount','notes','room_ids','check_in','check_out','total_amount','payment_method']
@@ -1973,7 +1986,6 @@ function SettlePaymentModal({target,toast,onClose,reload}) {
       setSaving(false)
     }
   }
-
   return (
     <Modal title={`Settle Payment — ${tx?.guest_name||'Guest'}`} onClose={onClose}
       footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving||!res} onClick={confirmCollect}>{saving?'Saving…':'Confirm Payment'}</button></>}>
