@@ -12,6 +12,21 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Archived prototype artifacts at repo root.
+    "App.jsx",
+    "hotel-fountain-app.jsx",
+    "hotel-fountain-v2.jsx",
+    "hotel-fountain-v3.jsx",
+    "hotel-fountain-v4.jsx",
+    "hotel-fountain.jsx",
+    "hotelos-platform.jsx",
+    "lumea-platform.jsx",
+    "index.html",
+    "hotel-fountain-crm.html",
+    "hotel-fountain-crm-fixed.html",
+    "hotel-fountain-landing.html",
+    "hotel-fountain-techstack.html",
+    "*.zip",
   ]),
 ]);
 
