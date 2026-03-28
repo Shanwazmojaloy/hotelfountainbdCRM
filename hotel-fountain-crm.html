@@ -1879,7 +1879,8 @@ ${dueRows}
 
       {/* Transactions table — always visible for all filter modes */}
       {(()=>{
-        let list = filter==='TODAY'?todayT : filter==='DATE'?calT : filter==='MONTH'?monthT : transactions
+        // Use merged transactions by guest_name, room_number, and fiscal_day
+        let list = filter==='TODAY'?todayT : filter==='DATE'?calT : filter==='MONTH'?monthT : mergedTransactions;
         if(search){const q=search.toLowerCase();list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q))}
         const fmtDLabel=d=>{if(!d)return'Today';const[y,m,dy]=d.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+dy}-${mo[+m-1]}-${y}`}
         const label = filter==='TODAY'?fmtDLabel(''):filter==='DATE'?fmtDLabel(calDate):filter==='MONTH'?'This Month':'All Time'
@@ -1891,71 +1892,21 @@ ${dueRows}
             </div>
             <div className="tbl-wrap">
               <table className="tbl">
-                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments</th><th></th></tr></thead>
+                <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type(s)</th><th>Amount</th><th>Paid</th><th>Due</th></tr></thead>
                 <tbody>
                   {list.length===0?(
-                    <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No transactions for this period</td></tr>
-                  ):(()=>{
-                    // Group transactions by guest+room — same guest/room on same day = one row
-                    const groups={}
-                    list.forEach(t=>{
-                      const key=`${t.guest_name||''}|${t.room_number||''}`
-                      if(!groups[key]) groups[key]={txs:[],guest_name:t.guest_name,room_number:t.room_number}
-                      groups[key].txs.push(t)
-                    })
-                    return Object.values(groups).map(grp=>{
-                      const res=reservations?.find(r=>(r.room_ids||[r.room_number]).includes(grp.room_number))
-                      const resTotal=res?+res.total_amount||0:0
-                      const resPaid=res?+res.paid_amount||0:0
-                      const resDue=Math.max(0,resTotal-resPaid)
-                      // Sum all payment amounts for this guest+room
-                      const totalPaid=grp.txs.reduce((a,t)=>a+(+t.amount||0),0)
-                      // Group by payment type within this guest+room
-                      const byType={}
-                      grp.txs.forEach(t=>{
-                        const tp=t.type||'Payment'
-                        if(!byType[tp]) byType[tp]=0
-                        byType[tp]+=(+t.amount||0)
-                      })
-                      return (
-                        <tr key={grp.guest_name+'|'+grp.room_number}>
-                          <td className="xs">{grp.guest_name||'—'}</td>
-                          <td><span className="badge bb">{grp.room_number||'—'}</span></td>
-                          <td className="xs muted">{res?fmtDate(res.check_in):'—'}</td>
-                          <td className="xs muted">{res?fmtDate(res.check_out):'—'}</td>
-                          <td className="xs gold">{res?BDT(resTotal):'—'}</td>
-                          <td className="xs" style={{color:'var(--grn)'}}>{BDT(resPaid)}</td>
-                          <td className="xs" style={{color:resDue>0?'var(--rose)':'var(--grn)',fontWeight:resDue>0?600:400}}>{BDT(resDue)}</td>
-                          <td className="xs" style={{lineHeight:1.8}}>
-                            {Object.entries(byType).map(([tp,amt])=>(
-                              <div key={tp} style={{display:'flex',justifyContent:'space-between',gap:12,minWidth:180}}>
-                                <span className="badge bgold" style={{fontSize:8}}>{tp}</span>
-                                <span style={{color:'var(--gold)',fontWeight:500}}>{BDT(amt)}</span>
-                              </div>
-                            ))}
-                          </td>
-                          <td style={{whiteSpace:'nowrap'}}>
-                            {currentUser?.role!=='housekeeping'&&(
-                              <button className="btn btn-gold btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
-                                setBillingRes({_fromRow:true,...(res||{}),room_number:grp.room_number||'',guest_name:grp.guest_name||'',_resId:res?.id||null,_total:resTotal,_paid:resPaid})
-                                setShowAdd(true)
-                              }}>+ Pay</button>
-                            )}
-                            {currentUser?.role==='owner'&&(
-                              <button className="btn btn-danger btn-sm" style={{padding:'3px 7px',fontSize:9}} onClick={async()=>{
-                                if(!window.confirm(`Delete all ${grp.txs.length} transaction(s) for ${grp.guest_name} in Room ${grp.room_number}?`)) return
-                                try{
-                                  for(const t of grp.txs) await dbDelete('transactions',t.id)
-                                  toast(`${grp.txs.length} transaction(s) deleted`)
-                                  reload()
-                                }catch(e){toast(e.message,'error')}
-                              }}>✕</button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })
-                  })()}
+                    <tr><td colSpan={7} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No transactions for this period</td></tr>
+                  ):(list.map(t=>(
+                    <tr key={t.id}>
+                      <td className="xs">{t.fiscal_day||'—'}</td>
+                      <td className="xs">{t.guest_name||'—'}</td>
+                      <td><span className="badge bb">{t.room_number||'—'}</span></td>
+                      <td className="xs">{t.type||'—'}</td>
+                      <td className="xs gold">{BDT(t.amount)}</td>
+                      <td className="xs" style={{color:'var(--grn)'}}>{BDT(t.paid)}</td>
+                      <td className="xs" style={{color:t.due>0?'var(--rose)':'var(--grn)',fontWeight:t.due>0?600:400}}>{BDT(t.due)}</td>
+                    </tr>
+                  )))}
                 </tbody>
               </table>
             </div>
