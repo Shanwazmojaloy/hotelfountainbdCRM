@@ -629,21 +629,26 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
 
   async function doCheckout() {
     try {
-      const finalPaymentStatus=totalDue>0?'Unpaid':'Paid'
-      // Always release room first, even if billing fields fail to update.
-      await dbPatch('rooms',room.id,{status:'DIRTY'})
-      try{
-        await dbPatch('reservations',activeRes.id,{
-          status:'CHECKED_OUT',
-          checkout_status:'Departed',
-          payment_status:finalPaymentStatus
-        })
-      }catch{
-        await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT'})
+      let finalPaymentStatus = 'Paid';
+      if (totalDue > 0 && paid === 0) {
+        finalPaymentStatus = 'Unpaid';
+      } else if (totalDue > 0 && paid > 0) {
+        finalPaymentStatus = 'Partial';
       }
-      toast(`Check-out complete. ${totalDue>0?'Outstanding balance kept on record.':'Fully paid checkout.'}`)
-      reload()
-    } catch(e){ toast(e.message,'error') }
+      // Always release room first, even if billing fields fail to update.
+      await dbPatch('rooms', room.id, { status: 'DIRTY' });
+      try {
+        await dbPatch('reservations', activeRes.id, {
+          status: 'CHECKED_OUT',
+          checkout_status: 'Departed',
+          payment_status: finalPaymentStatus
+        });
+      } catch {
+        await dbPatch('reservations', activeRes.id, { status: 'CHECKED_OUT', payment_status: finalPaymentStatus });
+      }
+      toast(`Check-out complete. ${totalDue > 0 ? 'Outstanding balance kept on record.' : 'Fully paid checkout.'}`);
+      reload();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function addFolioCharge(f) {
@@ -699,7 +704,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             {/* Room charge line */}
             {!fLoad&&nights>0&&(
               <div className="folio-row">
-                <div><span>Room charge</span> <span className="badge bgold" style={{fontSize:8,marginLeft:6}}>{nights}×{BDT(roomRate)}</span></div>
+                <div><span>Room charge</span> <span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{nights}×{BDT(roomRate)}</span></div>
                 <span className="xs gold">{BDT(roomCharge)}</span>
               </div>
             )}
@@ -867,7 +872,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
-              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
+              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Payment</th><th></th></tr>
             </thead>
             <tbody>
               {res.slice(0,80).map(r=>{
@@ -885,6 +890,9 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
                     <td className="xs" style={{color:+r.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(r.paid_amount)}</td>
                     <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
                     <td><SBadge status={r.status}/></td>
+                    <td>
+                      <span className={`badge ${r.payment_status==='Unpaid'?'br_':r.payment_status==='Partial'?'ba':'bg'}`}>{r.payment_status||'—'}</span>
+                    </td>
                     <td><button className="btn btn-ghost btn-sm" onClick={()=>setSelRes(r)}>View</button></td>
                   </tr>
                 )
@@ -935,38 +943,14 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
         }
       }
-      // Updated Check-Out Function in your React file
-const handleCheckOut = async (roomId, invoiceId, totalDue) => {
-  // 1. Check if there is a balance and trigger the warning modal
-  if (totalDue > 0) {
-    const userConfirmed = window.confirm(
-      `Warning: This guest still has an outstanding balance of ${totalDue} BDT.\n\nDo you want to check them out anyway and leave the invoice Unpaid?`
-    );
-    
-    // If the staff clicks "Cancel" on the popup, stop the checkout process
-    if (!userConfirmed) return; 
-  }
-
-  // 2. If balance is 0, or if staff clicked "OK" to the warning, proceed:
-  try {
-    // Release the room (using your existing dbPatch function)
-    await dbPatch('rooms', `id=eq.${roomId}`, { status: 'Dirty' });
-
-    // Update the invoice
-    const finalPaymentStatus = totalDue > 0 ? 'Unpaid' : 'Paid';
-    await dbPatch('invoices', `id=eq.${invoiceId}`, { 
-      checkout_status: 'Departed',
-      payment_status: finalPaymentStatus 
-    });
-
-    alert("Check-out complete!");
-    // Call your function to refresh the table data here, e.g., fetchTransactions()
-  } catch (error) {
-    console.error("Checkout error:", error);
-    alert("Checkout failed.");
-  }
-};
-      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes})
+      // Always recalculate payment_status
+      let payment_status = 'Paid';
+      if (balance > 0 && paidNum === 0) {
+        payment_status = 'Unpaid';
+      } else if (balance > 0 && paidNum > 0) {
+        payment_status = 'Partial';
+      }
+      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes,payment_status})
       toast('Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
@@ -994,7 +978,7 @@ const handleCheckOut = async (roomId, invoiceId, totalDue) => {
           )}
           {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
           <div style={{flex:1}}/>
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
         </div>
       }>
@@ -1360,7 +1344,7 @@ function AddGuestModal({toast,onClose,reload}) {
         <div className="fg"><label className="flbl">Nationality</label><input className="finput" value={f.nationality} onChange={F('nationality')} placeholder="e.g. Bangladeshi"/></div>
         <div className="fg"><label className="flbl">City</label><input className="finput" value={f.city} onChange={F('city')} placeholder="Dhaka"/></div>
       </div>
-      <div className="fg"><label className="flbl">Address</label><textarea className="ftextarea" value={f.address} onChange={F('address')} placeholder="Full address" style={{minHeight:44}}/></div>
+      <div className="fg"><label className="flbl">Address</label><textarea className="ftextarea" value={f.address} onChange={F('address')} style={{minHeight:44}}/></div>
     </Modal>
   )
 }
@@ -1486,6 +1470,16 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
   let list=filter==='TODAY'?todayT:filter==='MONTH'?monthT:transactions
   if(search){ const q=search.toLowerCase(); list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q)) }
 
+  // Helper to get payment status for a guest/room/date
+  function getPaymentStatus(guestName, roomNumber, date) {
+    // Find the reservation for this guest/room/date
+    const res = reservations.find(r => {
+      const gn = guests.find(g=>String(g.id)===String((r.guest_ids||[])[0]||''))?.name||'';
+      return gn === guestName && (r.room_ids||[]).includes(roomNumber) && fmtDate(r.check_in) === date;
+    });
+    return res?.payment_status || '—';
+  }
+
   return (
     <div>
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
@@ -1505,7 +1499,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
       <div className="card">
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th><th>Action</th></tr></thead>
+            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th><th>Payment</th><th>Action</th></tr></thead>
             <tbody>
               {list.slice(0,80).map(t=>(
                 <tr key={t.id}>
@@ -1514,8 +1508,18 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
                   <td><span className="badge bb">{t.room_number||'—'}</span></td>
                   <td><span className="badge bgold">{t.type||'Payment'}</span></td>
                   <td className="xs gold" style={{fontWeight:500}}>{BDT(t.amount)}</td>
+                  <td>
+                    <span className={`badge ${getPaymentStatus(t.guest_name, t.room_number, t.fiscal_day)==='Unpaid'?'br_':getPaymentStatus(t.guest_name, t.room_number, t.fiscal_day)==='Partial'?'ba':'bg'}`}>{getPaymentStatus(t.guest_name, t.room_number, t.fiscal_day)}</span>
+                  </td>
                   <td style={{whiteSpace:'nowrap'}}>
-                    <button className="btn btn-ghost btn-sm print-hide" style={{padding:'2px 8px',fontSize:9,marginRight:4}} title="Print Folio" onClick={()=>window.print()}>🖨 Print</button>
+                    <button
+                      className="print:hidden border border-[#E5D1B0] text-[#E5D1B0] hover:bg-[#E5D1B0] hover:text-[#1C1B1F] p-2 rounded-lg transition-colors"
+                      style={{marginRight:4}}
+                      title="Print Invoice"
+                      onClick={() => window.print()}
+                    >
+                      🖨
+                    </button>
                     {currentUser?.role==='owner'&&<button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button>}
                   </td>
                 </tr>
@@ -1524,7 +1528,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
           </table>
         </div>
       </div>
-      {showAdd&&<RecordPayModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
+      {showAdd&&<RecordPayModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>} 
     </div>
   )
 }
@@ -1989,6 +1993,49 @@ export default function App() {
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),1000); return()=>clearInterval(t) },[])
 
+  // ════════════════════════════════════════════════════════════
+  // GLOBAL CRM SYNC — Supabase Realtime for rooms & invoices
+  useEffect(() => {
+    // Dynamically import supabase client to avoid SSR issues
+    let roomsChannel, invoicesChannel;
+    let supabaseClient;
+    let unsubscribed = false;
+    (async () => {
+      const mod = await import('./src/services/supabase');
+      supabaseClient = mod.supabase;
+      // Subscribe to rooms UPDATE
+      roomsChannel = supabaseClient
+        .channel('rooms-updates')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'rooms' },
+          (payload) => {
+            if (!unsubscribed) loadAll();
+          }
+        )
+        .subscribe();
+      // Subscribe to invoices UPDATE
+      invoicesChannel = supabaseClient
+        .channel('invoices-updates')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'invoices' },
+          (payload) => {
+            if (!unsubscribed) loadAll();
+          }
+        )
+        .subscribe();
+    })();
+    // Cleanup on unmount
+    return () => {
+      unsubscribed = true;
+      if (supabaseClient) {
+        if (roomsChannel) supabaseClient.removeChannel(roomsChannel);
+        if (invoicesChannel) supabaseClient.removeChannel(invoicesChannel);
+      }
+    };
+  }, [user]);
+
   // loadAll returns a promise so callers can await it
   const loadAll=useCallback(async()=>{
     try {
@@ -2078,7 +2125,7 @@ export default function App() {
       <div className="app">
 
         {/* ── SIDEBAR ── */}
-        <aside className="sidebar">
+        <aside className="sidebar print:hidden">
           <div className="s-head">
             <div className="s-brand">Hotel <em>Fountain</em></div>
             <div className="s-tag">The Pulse of Modern Hospitality</div>
@@ -2117,7 +2164,7 @@ export default function App() {
         </aside>
 
         {/* ── MAIN ── */}
-        <main className="main">
+        <main className="main print:bg-white print:text-black">
           <div className="topbar">
             <div className="tb-title">{PAGE_TITLES[cur]}</div>
             <div className="flex fac gap2"><div className="sync-dot"/><span className="xs muted">Live</span></div>
