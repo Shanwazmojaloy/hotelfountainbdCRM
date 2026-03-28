@@ -156,7 +156,6 @@ function printTransactionInvoice(tx, reservations = []) {
       <table class="totals">
         <tbody>
           <tr><td>Sub Total</td><td>${esc(BDT(totalAmount))}</td></tr>
-          <tr><td>Tax/VAT</td><td>${esc(BDT(Math.max(0, Math.round(totalAmount * 0.07))))}</td></tr>
           <tr><td>Discount</td><td>${esc(BDT(0))}</td></tr>
           <tr class="grand"><td>Grand Total</td><td>${esc(BDT(totalAmount))}</td></tr>
         </tbody>
@@ -169,9 +168,9 @@ function printTransactionInvoice(tx, reservations = []) {
         <div><strong>Front Desk Manager</strong></div>
       </div>
       <div class="small">
-        Hotel Fountain, Dhaka, Bangladesh<br/>
-        +880 2-555-0163<br/>
-        info@hotelfountainbd.com
+        House #05, Road #02, Nikunja 2, Dhaka 1229<br/>
+        +8801322840799<br/>
+        hotellfountainbd@gmail.com
       </div>
     </div>
   </div>
