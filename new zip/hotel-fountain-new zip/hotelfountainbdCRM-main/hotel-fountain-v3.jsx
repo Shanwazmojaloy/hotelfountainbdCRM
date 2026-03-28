@@ -1081,8 +1081,8 @@ function ReservationsPage({ reservations, setReservations, rooms, guests, toast,
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:15}}>
-        {[{l:"Total",v:filtered.length,c:"#58A6FF"},{l:"Revenue",v:BDT(filtered.reduce((a,r)=>a+r.amount,0)),c:"#C8A96E"},{l:"Avg Value",v:filtered.length?BDT(Math.round(filtered.reduce((a,r)=>a+r.amount,0)/filtered.length)):"৳0",c:"#2EC4B6"}].map(s=>(
-          <div key={s.l} className="stat" style={{"--ac":s.ac}}>
+        {[{lbl:"Total",v:filtered.length,c:"#58A6FF"},{lbl:"Revenue",v:BDT(filtered.reduce((a,r)=>a+r.amount,0)),c:"#C8A96E"},{lbl:"Avg Value",v:filtered.length?BDT(Math.round(filtered.reduce((a,r)=>a+r.amount,0)/filtered.length)):"৳0",c:"#2EC4B6"}].map(s=>(
+          <div key={s.lbl} className="stat" style={{"--ac":s.ac}}>
             <div className="stat-ico">{s.ico}</div>
             <div className="stat-lbl">{s.lbl}</div>
             <div className="stat-val">{s.val}</div>
@@ -1360,7 +1360,7 @@ function BillingPage({ guests, transactions, setTransactions, rooms, folios, set
   function addCharge(){
     if(!cf.amount||isNaN(cf.amount))return toast("Valid amount required","error");
     setFolios(p=>({...p,[sg.room]:[...(p[sg.room]||[]),{id:Date.now(),desc:cf.desc||cf.type,amt:parseFloat(cf.amount),cat:cf.type}]}));
-    setTransactions(p=>[{id:`TXN-${Date.now()}`,date:fmtDate(TODAY),time:new Date().toTimeString().slice(0,5),guest:sg.name,type:cf.type,room:sg.room,amount:parseFloat(cf.amount),method:"Room Charge",status:"completed"},...p]);
+    setTransactions(p=>[{id:`TXN-${Date.now()}`,date:fmtDate(TODAY),time:new Date().toTimeString().slice(0,5),guest:sg.name,type:cf.type,room:sg.room,amount:parseFloat(cf.amount),method:"Room Charge",status:"completed" },...p]);
     toast(`Charge added: ${BDT(cf.amount)}`,"success");
     setShowCharge(false);
     setCf({type:"Room Service",amount:"",desc:""});
@@ -1369,7 +1369,7 @@ function BillingPage({ guests, transactions, setTransactions, rooms, folios, set
   function pay(){
     const amt=parseFloat(payAmt);
     if(!amt||amt<=0)return toast("Valid amount required","error");
-    setTransactions(p=>[{id:`TXN-${Date.now()}`,date:fmtDate(TODAY),time:new Date().toTimeString().slice(0,5),guest:sg.name,type:"Payment",room:sg.room,amount:amt,method:payM,status:"completed"},...p]);
+    setTransactions(p=>[{id:`TXN-${Date.now()}`,date:fmtDate(TODAY),time:new Date().toTimeString().slice(0,5),guest:sg.name,type:"Payment",room:sg.room,amount:amt,method:payM,status:"completed" },...p]);
     toast(`Payment ${BDT(amt)} via ${payM}`,"success");
     setShowPay(false);setPayAmt("");
   }
@@ -1501,8 +1501,8 @@ function ReportsPage({ transactions, rooms, reservations, guests }) {
           </div>
 
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:15}}>
-            {[{l:"Transactions",v:daily.length,c:"#58A6FF"},{l:"Revenue",v:BDT(rev),c:"#C8A96E"},{l:"Avg",v:daily.filter(t=>t.status==="completed").length?BDT(Math.round(rev/Math.max(1,daily.filter(t=>t.status==="completed").length))):"৳0",c:"#2EC4B6"},{l:"Pending",v:BDT(daily.filter(t=>t.status==="pending").reduce((a,t)=>a+t.amount,0)),c:"#E05C7A"}].map(s=>(
-              <div key={s.l} className="stat" style={{"--ac":s.c}}><div className="stat-lbl">{s.l}</div><div className="stat-val" style={{color:s.c,fontSize:24}}>{s.v}</div></div>
+            {[{lbl:"Transactions",v:daily.length,c:"#58A6FF"},{lbl:"Revenue",v:BDT(rev),c:"#C8A96E"},{lbl:"Avg",v:daily.filter(t=>t.status==="completed").length?BDT(Math.round(rev/Math.max(1,daily.filter(t=>t.status==="completed").length))):"৳0",c:"#2EC4B6"},{lbl:"Pending",v:BDT(daily.filter(t=>t.status==="pending").reduce((a,t)=>a+t.amount,0)),c:"#E05C7A"}].map(s=>(
+              <div key={s.lbl} className="stat" style={{"--ac":s.c}}><div className="stat-lbl">{s.lbl}</div><div className="stat-val" style={{color:s.c,fontSize:24}}>{s.v}</div></div>
             ))}
           </div>
 
@@ -1570,12 +1570,12 @@ function ReportsPage({ transactions, rooms, reservations, guests }) {
       {tab==="monthly"&&(
         <div>
           <div className="stats-row">
-            {[{l:"This Month",v:BDT(mData[6].v),ac:"#C8A96E"},{l:"Avg Occupancy",v:`${Math.round(mData.reduce((a,d)=>a+d.occ,0)/7)}%`,ac:"#2EC4B6"},{l:"RevPAR",v:BDT(7440),ac:"#58A6FF"},{l:"ADR",v:BDT(12480),ac:"#3FB950"}].map(s=>(
-              <div key={s.l} className="stat" style={{"--ac":s.ac}}><div className="stat-lbl">{s.l}</div><div className="stat-val" style={{color:s.ac,fontSize:22}}>{s.v}</div></div>
+            {[{lbl:"This Month",v:BDT(mData[6].v),ac:"#C8A96E"},{lbl:"Avg Occupancy",v:`${Math.round(mData.reduce((a,d)=>a+d.occ,0)/7)}%`,ac:"#2EC4B6"},{lbl:"RevPAR",v:BDT(7440),ac:"#58A6FF"},{lbl:"ADR",v:BDT(12480),ac:"#3FB950"}].map(s=>(
+              <div key={s.lbl} className="stat" style={{"--ac":s.ac}}><div className="stat-lbl">{s.lbl}</div><div className="stat-val" style={{color:s.ac,fontSize:22}}>{s.v}</div></div>
             ))}
           </div>
           <div className="g2 mt4">
-            <div className="card"><div className="card-hd"><span className="card-title">Monthly Revenue (BDT)</span></div><div className="card-body"><BarChart data={mData} vk="v" lk="m" active={chartActive} onHover={setChartActive}/><div className="flex fjb sm mt3"><span className="muted">{mData[chartActive].m}</span><span className="mono gold">{BDT(mData[chartActive].v)}</span></div></div></div>
+            <div className="card"><div className="card-hd"><span className="card-title">Monthly Revenue (BDT)</span></div><div className="card-body"><BarChart data={mData} vk="v" lk="m" active={chartActive} onHover={setChartActive}/><div className="flex fjb sm mt3"><span className="muted">{mData[chartActive].m} 2026</span><span className="mono gold">{BDT(mData[chartActive].v)}</span></div></div></div>
             <div className="card"><div className="card-hd"><span className="card-title">Occupancy Trend</span></div><div className="card-body">{mData.map((d,i)=>(
               <div key={i} style={{marginBottom:11}}><div className="flex fjb sm mb1"><span className="muted">{d.m}</span><span className="mono xs" style={{color:"#2EC4B6"}}>{d.occ}%</span></div><div className="progress-bar"><div className="progress-fill" style={{width:`${d.occ}%`,background:"linear-gradient(90deg,#2EC4B6,#58A6FF)"}}/></div></div>
             ))}</div></div>
@@ -1606,7 +1606,7 @@ function ReportsPage({ transactions, rooms, reservations, guests }) {
       {tab==="overview"&&(
         <div>
           <div className="g4 mb4">
-            {[{l:"Total Guests",v:guests.length,c:"#2EC4B6"},{l:"Total Rooms",v:rooms.length,c:"#58A6FF"},{l:"Reservations",v:reservations.length,c:"#C8A96E"},{l:"Lifetime Revenue",v:BDT(all.filter(t=>t.status==="completed").reduce((a,t)=>a+t.amount,0)),c:"#3FB950"}].map(s=>(
+            {[{lbl:"Total Guests",v:guests.length,c:"#2EC4B6"},{lbl:"Total Rooms",v:rooms.length,c:"#58A6FF"},{lbl:"Reservations",v:reservations.length,c:"#C8A96E"},{lbl:"Lifetime Revenue",v:BDT(all.filter(t=>t.status==="completed").reduce((a,t)=>a+t.amount,0)),c:"#3FB950"}].map(s=>(
               <div key={s.l} className="stat" style={{"--ac":s.c}}><div className="stat-lbl">{s.l}</div><div className="stat-val" style={{color:s.c,fontSize:20}}>{s.v}</div></div>
             ))}
           </div>
