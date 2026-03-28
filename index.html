@@ -1923,12 +1923,20 @@ ${dueRows}
     // Always fallback to a literal safe row if no payments
     let paymentRowsHtml = '';
     try {
+      let paymentRowsArr = [];
       if (byType && typeof byType === 'object' && Object.keys(byType).length > 0) {
-        const paymentRowsArr = Object.entries(byType)
+        paymentRowsArr = Object.entries(byType)
           .map(([tp,amt])=>`<tr><td>${escapeTpl(tp)}</td><td style="text-align:right">৳${escapeTpl(Number(amt||0).toLocaleString('en-BD'))}</td></tr>`)
-        paymentRowsHtml = paymentRowsArr.join('')
       }
+      paymentRowsHtml = paymentRowsArr.join('');
+      // Final fallback if empty
       if (!paymentRowsHtml) paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
+      // Log for debugging
+      try { console.log('[printInvoice] paymentRowsHtml:', paymentRowsHtml, 'byType:', byType); } catch (e) {}
+      // If paymentRowsHtml contains any unsafe content, fallback
+      if (typeof paymentRowsHtml !== 'string' || /[`]|\$\{/.test(paymentRowsHtml)) {
+        paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
+      }
     } catch (e) {
       paymentRowsHtml = '<tr><td colspan="2" class="muted">No payments recorded</td></tr>';
     }
