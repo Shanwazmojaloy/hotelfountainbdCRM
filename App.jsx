@@ -629,7 +629,8 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
 
   async function doCheckout() {
     try {
-      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
+      // Only update status, do not overwrite paid_amount
+      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT'})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
       await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
       toast(`${guest?.name||'Guest'} checked out ✓`)
@@ -673,6 +674,25 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             <div style={{textAlign:'right'}}>
               <div className="xs muted">Total Due</div>
               <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(total)}</div>
+              <button className="btn btn-ghost btn-sm mt2" onClick={()=>{
+                // Prepare payment breakdown by type
+                const byType = {};
+                if (activeRes.payment_method) byType[activeRes.payment_method] = activeRes.paid_amount || 0;
+                window.printInvoice && window.printInvoice(
+                  {
+                    guest_name: guest.name,
+                    room_number: room.room_number,
+                    txs: [activeRes]
+                  },
+                  activeRes,
+                  total,
+                  activeRes.paid_amount || 0,
+                  Math.max(0, total - (+activeRes.paid_amount || 0)),
+                  byType
+                );
+              }}>
+                🖨 Print Invoice
+              </button>
             </div>
           </div>
         </div>
