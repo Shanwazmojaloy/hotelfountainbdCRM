@@ -73,6 +73,7 @@ function printTransactionInvoice(tx, reservations = []) {
     .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px}
     .brand{font-size:28px;letter-spacing:.16em;font-weight:700}
     .tag{font-size:11px;color:#666;margin-top:4px}
+    .ver{font-size:10px;color:#777;letter-spacing:.12em;margin-top:8px}
     .inv-title{font-size:44px;letter-spacing:.16em;font-weight:300;margin:0 0 10px;text-align:right}
     .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-width:400px}
     .meta .k{font-size:10px;color:#666;letter-spacing:.08em;text-transform:uppercase}
@@ -108,6 +109,7 @@ function printTransactionInvoice(tx, reservations = []) {
       <div>
         <div class="brand">HOTEL FOUNTAIN</div>
         <div class="tag">The Pulse of Modern Hospitality</div>
+        <div class="ver">TEMPLATE: HF-2026-A</div>
       </div>
       <div>
         <h1 class="inv-title">INVOICE</h1>
@@ -155,7 +157,6 @@ function printTransactionInvoice(tx, reservations = []) {
       <table class="totals">
         <tbody>
           <tr><td>Sub Total</td><td>${esc(BDT(totalAmount))}</td></tr>
-          <tr><td>Tax/VAT</td><td>${esc(BDT(Math.max(0, Math.round(totalAmount * 0.07))))}</td></tr>
           <tr><td>Discount</td><td>${esc(BDT(0))}</td></tr>
           <tr class="grand"><td>Grand Total</td><td>${esc(BDT(totalAmount))}</td></tr>
         </tbody>
@@ -168,9 +169,9 @@ function printTransactionInvoice(tx, reservations = []) {
         <div><strong>Front Desk Manager</strong></div>
       </div>
       <div class="small">
-        Hotel Fountain, Dhaka, Bangladesh<br/>
-        +880 2-555-0163<br/>
-        info@hotelfountainbd.com
+        House #05, Road #02, Nikunja 2, Dhaka 1229<br/>
+        +8801322840799<br/>
+        hotellfountainbd@gmail.com
       </div>
     </div>
   </div>
@@ -1279,7 +1280,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
   const [f,setF]=useState({
     guestId:'', roomNo:availRooms[0]?.room_number||'',
     checkIn:todayStr(), checkOut:'',
-    total:'', paid:'', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
+    total:'', discount:'0', collectAmount:'0', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
   })
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
@@ -1287,6 +1288,11 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
   const selectedRoom=rooms.find(r=>r.room_number===f.roomNo)
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
   const autoTotal=selectedRoom&&autoNights?(+selectedRoom.price*autoNights):0
+  const grossTotal=Math.max(0,+f.total||autoTotal)
+  const discountAmt=Math.max(0,+f.discount||0)
+  const finalInvoice=Math.max(0,grossTotal-discountAmt)
+  const collectedAmt=Math.min(finalInvoice,Math.max(0,+f.collectAmount||0))
+  const dueAmt=Math.max(0,finalInvoice-collectedAmt)
 
   useEffect(()=>{
     if(autoTotal>0) setF(p=>({...p,total:String(autoTotal)}))
@@ -1300,12 +1306,12 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
     setSaving(true)
     try {
       const isCheckIn=f.stayType==='CHECK_IN'
-      const totalAmt=+f.total||autoTotal
+      const totalAmt=finalInvoice
       await dbPost('reservations',{
         guest_ids:[f.guestId], room_ids:[f.roomNo],
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
-        total_amount:totalAmt, paid_amount:+f.paid||0,
+        total_amount:totalAmt, paid_amount:collectedAmt, total_due:dueAmt, discount_amount:discountAmt,
         payment_method:f.method, special_requests:f.notes||null,
         on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT
       })
@@ -1313,10 +1319,10 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         const room=rooms.find(r=>r.room_number===f.roomNo)
         if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
       }
-      if((+f.paid||0)>0) {
+      if(collectedAmt>0) {
         await dbPost('transactions',{
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT
+          type:`Room Payment (${f.method})`, amount:collectedAmt, fiscal_day:todayStr(), tenant_id:TENANT
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
@@ -1360,8 +1366,19 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         </div>
       )}
       <div className="frow">
-        <div className="fg"><label className="flbl">Total Amount (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoTotal||0)}/></div>
-        <div className="fg"><label className="flbl">Paid Amount (BDT)</label><input type="number" className="finput" value={f.paid} onChange={F('paid')} placeholder="0"/></div>
+        <div className="fg"><label className="flbl">Gross Total (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoTotal||0)}/></div>
+        <div className="fg"><label className="flbl">Discount (BDT)</label><input type="number" className="finput" value={f.discount} onChange={F('discount')} placeholder="0"/></div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="flbl">Collect Amount / Deposit (BDT)</label><input type="number" className="finput" value={f.collectAmount} onChange={F('collectAmount')} placeholder="0"/></div>
+        <div className="fg">
+          <label className="flbl">Invoice Preview</label>
+          <div className="info-box">
+            <div className="xs muted">Final Invoice: <span className="gold">{BDT(finalInvoice)}</span></div>
+            <div className="xs muted">Collected: <span style={{color:'var(--grn)'}}>{BDT(collectedAmt)}</span></div>
+            <div className="xs muted">Total Due: <span style={{color:dueAmt>0?'var(--rose)':'var(--grn)'}}>{BDT(dueAmt)}</span></div>
+          </div>
+        </div>
       </div>
       <div className="frow">
         <div className="fg">
@@ -1649,6 +1666,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
   const [filter,setFilter]=useState('TODAY')
   const [search,setSearch]=useState('')
   const [showAdd,setShowAdd]=useState(false)
+  const [collectTarget,setCollectTarget]=useState(null)
   const today=todayStr(), month=today.slice(0,7)
   const todayT=transactions.filter(t=>t.fiscal_day===today)
   const monthT=transactions.filter(t=>t.fiscal_day?.startsWith(month))
@@ -1657,6 +1675,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
 
   let list=filter==='TODAY'?todayT:filter==='MONTH'?monthT:transactions
   if(search){ const q=search.toLowerCase(); list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q)) }
+  const findReservation=(t)=>reservations.find(r=>(r.room_ids||[]).includes(t.room_number) && r.status!=='CANCELLED')
 
   return (
     <div>
@@ -1689,6 +1708,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
                   <td>
                     <div className="flex gap2">
                       <button className="btn btn-ghost btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={()=>printTransactionInvoice(t,reservations)}>🖨 Print</button>
+                      <button className="btn btn-success btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={()=>setCollectTarget({tx:t,res:findReservation(t)})}>💰 Collect</button>
                       {currentUser?.role==='owner'&&<button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button>}
                     </div>
                   </td>
@@ -1699,7 +1719,65 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
         </div>
       </div>
       {showAdd&&<RecordPayModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
+      {collectTarget&&<SettlePaymentModal
+        target={collectTarget}
+        toast={toast}
+        onClose={()=>setCollectTarget(null)}
+        reload={reload}
+      />}
     </div>
+  )
+}
+
+function SettlePaymentModal({target,toast,onClose,reload}) {
+  const [amount,setAmount]=useState('')
+  const [saving,setSaving]=useState(false)
+  const tx=target?.tx
+  const res=target?.res
+  const due=Math.max(0,(+res?.total_amount||0)-(+res?.paid_amount||0))
+
+  async function confirmCollect(){
+    const collect=Math.max(0,+amount||0)
+    if(!res) return toast('No linked reservation found for this row','error')
+    if(!collect) return toast('Enter a valid amount','error')
+    setSaving(true)
+    try{
+      const nextPaid=Math.min((+res.total_amount||0),(+res.paid_amount||0)+collect)
+      const nextDue=Math.max(0,(+res.total_amount||0)-nextPaid)
+      await dbPatch('reservations',res.id,{
+        paid_amount:nextPaid,
+        total_due:nextDue,
+        payment_status:nextDue<=0?'Paid':'Partial'
+      })
+      await dbPost('transactions',{
+        room_number:tx?.room_number||'',
+        guest_name:tx?.guest_name||'',
+        type:'Collected Payment',
+        amount:collect,
+        fiscal_day:todayStr(),
+        tenant_id:TENANT
+      })
+      toast('Payment collected ✓')
+      await reload()
+      onClose()
+    }catch(e){
+      toast(e.message,'error')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal title={`Settle Payment — ${tx?.guest_name||'Guest'}`} onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={confirmCollect}>{saving?'Saving…':'Confirm Payment'}</button></>}>
+      <div className="info-box mb4">
+        <div className="xs muted">Room: {tx?.room_number||'—'}</div>
+        <div className="xs muted">Current Due: <span style={{color:due>0?'var(--rose)':'var(--grn)'}}>{BDT(due)}</span></div>
+      </div>
+      <div className="fg">
+        <label className="flbl">Amount to Collect (BDT)</label>
+        <input type="number" className="finput" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus/>
+      </div>
+    </Modal>
   )
 }
 
