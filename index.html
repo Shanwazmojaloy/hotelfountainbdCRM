@@ -792,6 +792,9 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
   const [showCharge,setShowCharge]=useState(false)
   const [showCO,setShowCO]=useState(false)
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   const activeRes=reservations.find(r=>(r.room_ids||[]).includes(room.room_number)&&r.status==='CHECKED_IN')
   const guest=activeRes?guests.find(g=>String(g.id)===String((activeRes.guest_ids||[])[0]||'')):null
@@ -856,6 +859,20 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
+  }
+
+  async function recordPayment() {
+    const a = parseFloat(payAmt)
+    if(!a || a <= 0) return toast('Enter a valid amount', 'error')
+    setPaySaving(true)
+    try {
+      await dbPost('transactions',{room_number:room.room_number,guest_name:guest?.name||'Guest',type:payType,amount:a,fiscal_day:todayStr(),tenant_id:TENANT})
+      const curPaid = +(activeRes.paid_amount || 0)
+      await dbPatchReservationSafe(activeRes.id, {paid_amount: curPaid + a})
+      await dbPost('folios',{room_number:room.room_number,reservation_id:activeRes.id,description:`Payment (${payType})`,category:'Payment',amount:-a,tenant_id:TENANT})
+      toast(`Payment ${BDT(a)} collected ✓`); setPayAmt(''); reload()
+    } catch(e) { toast(e.message,'error') }
+    finally{ setPaySaving(false) }
   }
 
   async function addFolioCharge(f) {
@@ -935,6 +952,33 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
         </div>
       )}
 
+      {/* ── BDT COLLECT BLOCK ── */}
+      {activeRes && (
+        <div style={{background:'linear-gradient(135deg,rgba(200,169,110,.05),rgba(0,0,0,.1))',borderRadius:8,border:'1px solid var(--br)',padding:'14px',marginBottom:14}}>
+          <div className="flex fjb fac mb3">
+            <span style={{fontSize:10,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--gold)'}}>Record Payment / Collect Due</span>
+            <div className="flex fac gap4">
+              <span className="xs muted">Total: <span style={{color:'var(--gold)'}}>{BDT(total)}</span></span>
+              <span className="xs muted">Paid: <span style={{color:'var(--grn)'}}>{BDT(+activeRes.paid_amount||0)}</span></span>
+              <span className="xs muted">Due: <span style={{color:'var(--rose)',fontWeight:700}}>{BDT(total - (+activeRes.paid_amount||0))}</span></span>
+            </div>
+          </div>
+          <div className="flex gap2">
+            <div className="fg" style={{flex:1}}>
+              <input className="finput" style={{fontFamily:'monospace',fontSize:16,fontWeight:700}} type="number" placeholder="Amount (BDT)..." value={payAmt} onChange={e=>setPayAmt(e.target.value)}/>
+            </div>
+            <div className="fg">
+              <select className="fselect" style={{minWidth:100}} value={payType} onChange={e=>setPayType(e.target.value)}>
+                {['Cash','Bkash','Nagad','Card','Bank','Complementary'].map(t=><option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <button className="btn btn-gold" style={{padding:'0 24px',height:38}} disabled={paySaving || !payAmt} onClick={recordPayment}>
+              {paySaving?'🔄':'Collect Payment'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="g2 mb4">
         {[['Category',room.category||'Standard'],['Rate/Night',BDT(room.price)],['Floor',room.floor||room.room_number.slice(0,-2)||'—'],['Beds',room.beds||'Double']].map(([l,v])=>(
           <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
@@ -984,6 +1028,9 @@ function AddChargeModal({roomNo,resId,toast,onClose,onDone}) {
   const [amt,setAmt]=useState('')
   const [desc,setDesc]=useState('')
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   async function save() {
     const a=parseFloat(amt)
@@ -1014,6 +1061,9 @@ function AddChargeModal({roomNo,resId,toast,onClose,onDone}) {
 function AddRoomModal({toast,onClose,reload,rooms}) {
   const [f,setF]=useState({room_number:'',category:'Fountain Deluxe',price:4000,status:'AVAILABLE'})
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   async function save() {
     if(!f.room_number) return toast('Room number required','error')
@@ -1131,6 +1181,9 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
   const [method,setMethod]=useState(res.payment_method||'Cash')
   const [notes,setNotes]=useState(res.notes||'')
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
   const nights=nightsCount(checkIn,checkOut)
@@ -1402,6 +1455,9 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
   })
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   const selectedRoom=rooms.find(r=>r.room_number===f.roomNo)
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
@@ -1636,6 +1692,9 @@ function EditGuestModal({guest,toast,onClose,reload}) {
   const [f,setF]=useState({name:guest.name||'',phone:guest.phone||'',email:guest.email||'',id_type:guest.id_type||'NID',id_number:guest.id_number||guest.id_card||'',nationality:guest.nationality||'',city:guest.city||'',address:guest.address||''})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.name.trim()) return toast('Name required','error')
     setSaving(true)
@@ -1671,6 +1730,9 @@ function AddGuestModal({toast,onClose,reload}) {
   const [f,setF]=useState({name:'',phone:'',email:'',id_type:'NID',id_number:'',nationality:'',city:'',address:''})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.name.trim()) return toast('Name required','error')
     setSaving(true)
@@ -1787,6 +1849,9 @@ function AddTaskModal({rooms,toast,onClose,reload}) {
   const [f,setF]=useState({room_number:rooms[0]?.room_number||'',task_type:'Standard Clean',priority:'medium',assignee:'',scheduled_time:'',notes:''})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.room_number) return toast('Room required','error')
     setSaving(true)
@@ -2092,35 +2157,128 @@ ${dueRows}
   }
 
   function printInvoice(grp, res, resTotal, resPaid, resDue, byType) {
-    const now=new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-    const checkIn=res?fmtDate(res.check_in):(grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
-    const checkOut=res?fmtDate(res.check_out):(grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
-    const paymentRows=Object.entries(byType).map(([tp,amt])=>`<tr><td>${tp}</td><td style="text-align:right">৳${Number(amt||0).toLocaleString('en-BD')}</td></tr>`).join('')
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${grp.guest_name||'Guest'}</title>
-<style>
-@page{size:A4 portrait;margin:10mm}
-*{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0}
-.wrap{max-width:760px;margin:0 auto}
-.head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}
-.h1{font-size:20px;font-weight:700}.muted{color:#555;font-size:12px}
-.blk{border:1px solid #ddd;padding:10px 12px;margin-bottom:10px}
-table{width:100%;border-collapse:collapse} th,td{padding:7px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}
-th{text-align:left;background:#f4f4f4} .r{text-align:right}
-.total{font-size:18px;font-weight:700}
-</style></head><body><div class="wrap">
-<div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ${now}</div></div>
-<div class="blk"><table>
-<tr><th>Guest</th><td>${grp.guest_name||'—'}</td><th>Room</th><td>${grp.room_number||'—'}</td></tr>
-<tr><th>Check-In</th><td>${checkIn}</td><th>Check-Out</th><td>${checkOut}</td></tr>
-</table></div>
-<div class="blk"><table>
-<tr><th>Bill Total</th><td class="r">৳${Number(resTotal||0).toLocaleString('en-BD')}</td></tr>
-<tr><th>Paid</th><td class="r">৳${Number(resPaid||0).toLocaleString('en-BD')}</td></tr>
-<tr><th>Balance Due</th><td class="r"><strong>৳${Number(resDue||0).toLocaleString('en-BD')}</strong></td></tr>
-</table></div>
-<div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRows||'<tr><td colspan="2">No payments recorded</td></tr>'}</tbody></table></div>
-<div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>
-</div><script>window.onload=()=>window.print();<\/script></body></html>`
+    const now = new Date().toLocaleString('en-BD', { timeZone: 'Asia/Dhaka', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const checkIn = res ? fmtDate(res.check_in) : (grp.txs[0]?.check_in ? fmtDate(grp.txs[0].check_in) : '—')
+    const checkOut = res ? fmtDate(res.check_out) : (grp.txs[0]?.check_out ? fmtDate(grp.txs[0].check_out) : '—')
+    const paymentRows = Object.entries(byType).map(([tp, amt]) => `<tr><td>${tp}</td><td style="text-align:right;font-weight:600">৳${Number(amt || 0).toLocaleString('en-BD')}</td></tr>`).join('')
+    
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Invoice - ${grp.guest_name || 'Guest'}</title>
+  <style>
+    @page { size: A4 portrait; margin: 15mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
+    body { font-family: 'Inter', -apple-system, sans-serif; color: #1a1a1a; margin: 0; line-height: 1.4; }
+    .wrap { max-width: 800px; margin: 0 auto; }
+    
+    /* Header Section */
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1a1a1a; padding-bottom: 20px; margin-bottom: 25px; }
+    .brand { flex: 1; }
+    .brand h1 { margin: 0; font-size: 28px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; color: #000; }
+    .brand-details { font-size: 11px; color: #444; margin-top: 6px; }
+    .brand-details div { margin-bottom: 2px; }
+    
+    .invoice-meta { text-align: right; }
+    .invoice-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #777; margin-bottom: 4px; }
+    .invoice-val { font-size: 13px; font-weight: 600; }
+
+    /* Summary Grid */
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+    .blk { border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; background: #fff; }
+    .blk-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #888; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 0; font-size: 12px; border-bottom: 1px solid #f0f0f0; }
+    th { text-align: left; color: #666; font-weight: 500; width: 35%; }
+    td { font-weight: 600; text-align: left; }
+    .r { text-align: right !important; }
+
+    /* Financials */
+    .fin-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .fin-lbl { font-size: 12px; color: #444; }
+    .fin-val { font-size: 13px; font-weight: 600; }
+    .fin-total { border-top: 2px solid #1a1a1a; margin-top: 8px; padding-top: 10px; }
+    .fin-total .fin-lbl { font-weight: 800; font-size: 14px; color: #000; }
+    .fin-total .fin-val { font-weight: 800; font-size: 18px; color: #000; }
+
+    /* Payments Table */
+    .p-table th { background: #f8f8f8; padding: 8px 10px; border-bottom: 2px solid #ddd; color: #333; font-weight: 700; }
+    .p-table td { padding: 8px 10px; }
+
+    /* Footer */
+    .footer { margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }
+    .thanks { font-weight: 700; font-size: 14px; margin-bottom: 5px; }
+    .social { font-size: 11px; color: #666; }
+    .crm-tag { font-size: 9px; color: #ccc; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <div class="brand">
+        <h1>Hotel Fountain</h1>
+        <div class="brand-details">
+          <div>House 05, Road 02, Nikunja 02, Kobi Faruk Sarani, Dhaka 1229.</div>
+          <div>Contact: <strong>+880 1322-840799</strong> | Email: <strong>hotellfountainbd@gmail.com</strong></div>
+          <div>Instagram: <strong>@hotel_fountainbd</strong></div>
+        </div>
+      </div>
+      <div class="invoice-meta">
+        <div class="invoice-label">Guest Invoice / Billing</div>
+        <div class="invoice-val">Date: ${now}</div>
+      </div>
+    </header>
+
+    <div class="summary-grid">
+      <div class="blk">
+        <div class="blk-title">Guest Information</div>
+        <table>
+          <tr><th>Guest Name</th><td>${grp.guest_name || '—'}</td></tr>
+          <tr><th>Room No</th><td>${grp.room_number || '—'}</td></tr>
+          <tr><th>Check-In</th><td>${checkIn}</td></tr>
+          <tr><th>Check-Out</th><td>${checkOut}</td></tr>
+        </table>
+      </div>
+      <div class="blk">
+        <div class="blk-title">Billing Summary</div>
+        <div class="fin-row">
+          <span class="fin-lbl">Total Billable</span>
+          <span class="fin-val">৳${Number(resTotal || 0).toLocaleString('en-BD')}</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-lbl">Amount Paid</span>
+          <span class="fin-val" style="color:#2e7d32">৳${Number(resPaid || 0).toLocaleString('en-BD')}</span>
+        </div>
+        <div class="fin-row fin-total">
+          <span class="fin-lbl">Balance Due</span>
+          <span class="fin-val">৳${Number(resDue || 0).toLocaleString('en-BD')}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="blk" style="padding:0">
+      <div class="blk-title" style="padding: 12px 12px 6px">Payment Breakdown</div>
+      <table class="p-table">
+        <thead>
+          <tr><th>Payment Mode</th><th class="r">Amount</th></tr>
+        </thead>
+        <tbody>
+          ${paymentRows || '<tr><td colspan="2" style="text-align:center;color:#999">No payments recorded</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="footer">
+      <div class="thanks">Thank you for staying at Hotel Fountain!</div>
+      <div class="social">Follow us on Instagram: @hotel_fountainbd</div>
+      <div class="crm-tag">Digital concierge powered by Hotel Fountain CRM</div>
+    </footer>
+  </div>
+  <script>window.onload=()=>window.print();<\/script>
+</body>
+</html>`
     printPDF(html)
   }
 
@@ -2450,6 +2608,9 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
   const [type,setType]=useState('Room Payment (Cash)')
   const [fiscal_day,setFiscalDay]=useState(todayStr())
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   function pickRes(r){
     setSelRes(r)
@@ -2894,6 +3055,9 @@ function AddStaffModal({toast,onClose,onAdd,existingIds}) {
   const [f,setF]=useState({name:'',email:'',pw:'',role:'receptionist',device:''})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
 const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.name||!f.email||!f.pw) return toast('Name, email and password required','error')
     setSaving(true)
@@ -2929,6 +3093,9 @@ function EditStaffModal({user,toast,onClose,onSave}) {
   const [f,setF]=useState({...user})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
 const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.name||!f.email||!f.pw) return toast('All fields required','error')
     setSaving(true)
@@ -4810,5 +4977,6 @@ document.getElementById('loading').style.display='none';
   </script>
 </body>
 </html>
+
 
 
