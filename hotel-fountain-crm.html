@@ -1659,7 +1659,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   // Load all folios once
   useEffect(()=>{
     setLoadingFolios(true)
-    db('folios','?select=*&order=created_at')
+    db('folios',`?tenant_id=eq.${TENANT}&select=*&order=created_at`)
       .then(d=>{
         const map={}
         ;(Array.isArray(d)?d:[]).forEach(f=>{
@@ -1675,9 +1675,9 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 
   const getGN=r=>{
     if(r.guest_name) return r.guest_name
-    const gid=String((r.guest_ids||[])[0]||'')
+    const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||'')
     const g=guests?.find(g=>String(g.id)===gid)
-    return g?g.name:'—'
+    return g?g.name:(gid?`ID:${gid}`:'—')
   }
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
@@ -2857,11 +2857,11 @@ function App() {
   const loadAll=useCallback(async()=>{
     try {
       const [rooms,guests,reservations,transactions,tasks]=await Promise.all([
-        db('rooms','?select=*&order=room_number'),
-        db('guests','?select=*&order=name'),
-        db('reservations','?select=*&order=check_in.desc&limit=500'),
-        db('transactions','?select=*&amount=gt.0&order=timestamp.desc&limit=400'),
-        db('housekeeping_tasks','?select=*&order=created_at.desc&limit=100'),
+        db('rooms',`?tenant_id=eq.${TENANT}&select=*&order=room_number`),
+        db('guests',`?tenant_id=eq.${TENANT}&select=*&order=name`),
+        db('reservations',`?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=500`),
+        db('transactions',`?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=400`),
+        db('housekeeping_tasks',`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),
       ])
       setData({
         rooms:Array.isArray(rooms)?rooms:[],
