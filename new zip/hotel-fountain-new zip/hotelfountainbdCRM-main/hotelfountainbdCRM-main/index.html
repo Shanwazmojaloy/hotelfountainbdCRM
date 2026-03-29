@@ -2088,9 +2088,9 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 
   const getGN=r=>{
     if(r.guest_name) return r.guest_name
-    let gids=r.guest_ids
-    if(typeof gids==='string') try{gids=JSON.parse(gids)}catch(e){}
-    const gid=String((gids||[r.guest_id]||[]).filter(Boolean)[0]||'').toLowerCase().trim()
+    let ids=r.guest_ids||[r.guest_id]
+    if(typeof ids==='string' && ids.startsWith('[')) try{ids=JSON.parse(ids)}catch(e){}
+    const gid=String((Array.isArray(ids)?ids:[ids]).filter(Boolean)[0]||'').toLowerCase().trim()
     if(!gid) return '—'
     const g=guests?.find(g=>String(g.id||'').toLowerCase().trim()===gid)
     return g?g.name:`ID:${gid.slice(0,8)}`
