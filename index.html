@@ -24,7 +24,7 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
   <script type="text/babel" data-type="module">
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 /* ═══════════════════════════════════════════════════════════
    LUMEA — HOTEL FOUNTAIN CRM  v3.0
@@ -792,6 +792,9 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
   const [showCharge,setShowCharge]=useState(false)
   const [showCO,setShowCO]=useState(false)
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   const activeRes=reservations.find(r=>(r.room_ids||[]).includes(room.room_number)&&r.status==='CHECKED_IN')
   const guest=activeRes?guests.find(g=>String(g.id)===String((activeRes.guest_ids||[])[0]||'')):null
@@ -846,16 +849,37 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
         guest_name:guest?.name,
         fiscal_day:todayStr(),
         settlement_status:receivableStatus(due),
-        payment_status:paymentStatus,
         total_due:due,
         tenant_id:TENANT
       })
       if(guest?.id){
-        await dbPatch('guests',guest.id,{outstanding_balance:due})
+        const curBal = +(guest.outstanding_balance || 0)
+        await dbPatch('guests',guest.id,{outstanding_balance:curBal + due})
       }
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
+  }
+
+  async function recordPayment() {
+    const a = parseFloat(payAmt)
+    if(!a || a <= 0) return toast('Enter a valid amount', 'error')
+    setPaySaving(true)
+    try {
+      await dbPost('transactions',{room_number:room.room_number,guest_name:guest?.name||'Guest',type:payType,amount:a,fiscal_day:todayStr(),tenant_id:TENANT})
+      const curPaid = +(activeRes.paid_amount || 0)
+      await dbPatchReservationSafe(activeRes.id, {paid_amount: curPaid + a})
+      await dbPost('folios',{room_number:room.room_number,reservation_id:activeRes.id,description:`Payment (${payType})`,category:'Payment',amount:-a,tenant_id:TENANT})
+      
+      // Also deduct from guest permanent balance
+      if(guest?.id) {
+        const curBal = +(guest.outstanding_balance || 0)
+        await dbPatch('guests',guest.id,{outstanding_balance:curBal - a})
+      }
+      
+      toast(`Payment ${BDT(a)} collected ✓`); setPayAmt(''); reload()
+    } catch(e) { toast(e.message,'error') }
+    finally{ setPaySaving(false) }
   }
 
   async function addFolioCharge(f) {
@@ -935,6 +959,33 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
         </div>
       )}
 
+      {/* ── BDT COLLECT BLOCK ── */}
+      {activeRes && (
+        <div style={{background:'linear-gradient(135deg,rgba(200,169,110,.05),rgba(0,0,0,.1))',borderRadius:8,border:'1px solid var(--br)',padding:'14px',marginBottom:14}}>
+          <div className="flex fjb fac mb3">
+            <span style={{fontSize:10,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--gold)'}}>Record Payment / Collect Due</span>
+            <div className="flex fac gap4">
+              <span className="xs muted">Total: <span style={{color:'var(--gold)'}}>{BDT(total)}</span></span>
+              <span className="xs muted">Paid: <span style={{color:'var(--grn)'}}>{BDT(+activeRes.paid_amount||0)}</span></span>
+              <span className="xs muted">Due: <span style={{color:'var(--rose)',fontWeight:700}}>{BDT(total - (+activeRes.paid_amount||0))}</span></span>
+            </div>
+          </div>
+          <div className="flex gap2">
+            <div className="fg" style={{flex:1}}>
+              <input className="finput" style={{fontFamily:'monospace',fontSize:16,fontWeight:700}} type="number" placeholder="Amount (BDT)..." value={payAmt} onChange={e=>setPayAmt(e.target.value)}/>
+            </div>
+            <div className="fg">
+              <select className="fselect" style={{minWidth:100}} value={payType} onChange={e=>setPayType(e.target.value)}>
+                {['Cash','Bkash','Nagad','Card','Bank','Complementary'].map(t=><option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <button className="btn btn-gold" style={{padding:'0 24px',height:38}} disabled={paySaving || !payAmt} onClick={recordPayment}>
+              {paySaving?'🔄':'Collect Payment'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="g2 mb4">
         {[['Category',room.category||'Standard'],['Rate/Night',BDT(room.price)],['Floor',room.floor||room.room_number.slice(0,-2)||'—'],['Beds',room.beds||'Double']].map(([l,v])=>(
           <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
@@ -984,6 +1035,9 @@ function AddChargeModal({roomNo,resId,toast,onClose,onDone}) {
   const [amt,setAmt]=useState('')
   const [desc,setDesc]=useState('')
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   async function save() {
     const a=parseFloat(amt)
@@ -1014,6 +1068,9 @@ function AddChargeModal({roomNo,resId,toast,onClose,onDone}) {
 function AddRoomModal({toast,onClose,reload,rooms}) {
   const [f,setF]=useState({room_number:'',category:'Fountain Deluxe',price:4000,status:'AVAILABLE'})
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   async function save() {
     if(!f.room_number) return toast('Room number required','error')
@@ -1131,6 +1188,9 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
   const [method,setMethod]=useState(res.payment_method||'Cash')
   const [notes,setNotes]=useState(res.notes||'')
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
   const nights=nightsCount(checkIn,checkOut)
@@ -1402,6 +1462,9 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
   })
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   const selectedRoom=rooms.find(r=>r.room_number===f.roomNo)
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
@@ -1516,22 +1579,89 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
 /* ═══════════════════════ GUESTS ═════════════════════════════ */
 function GuestsPage({guests,reservations,toast,currentUser,reload}) {
   const [search,setSearch]=useState('')
+  const [filter,setFilter]=useState('ALL')
   const [sel,setSel]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
-  let list=guests
-  if(search){ const q=search.toLowerCase(); list=list.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.email?.toLowerCase().includes(q)) }
+  const [page,setPage]=useState(1)
+  const PAGE_SIZE = 15
+
+  // Memoize status counts and guest-status mapping
+  const {counts, statusMap} = useMemo(() => {
+    const counts = { ALL: guests.length, DUE: 0, CHECKED_IN: 0, CHECKED_OUT: 0, RESERVED: 0 };
+    const statusMap = {};
+    
+    guests.forEach(g => {
+      if (+g.outstanding_balance > 0) counts.DUE++;
+    });
+
+    (reservations || []).forEach(r => {
+      (r.guest_ids || []).forEach(gid => {
+        const id = String(gid);
+        if (!statusMap[id]) statusMap[id] = new Set();
+        statusMap[id].add(r.status);
+      });
+    });
+
+    // Count guests per unique category
+    Object.keys(statusMap).forEach(gid => {
+      const statuses = statusMap[gid];
+      if (statuses.has('CHECKED_IN')) counts.CHECKED_IN++;
+      if (statuses.has('CHECKED_OUT')) counts.CHECKED_OUT++;
+      if (statuses.has('PENDING') || statuses.has('CONFIRMED')) counts.RESERVED++;
+    });
+
+    return {counts, statusMap};
+  }, [guests, reservations]);
+
+  const filtered = useMemo(() => {
+    let list = guests;
+    
+    // Status Filter
+    if (filter !== 'ALL') {
+      if (filter === 'DUE') {
+        list = list.filter(g => +g.outstanding_balance > 0);
+      } else if (filter === 'RESERVED') {
+        list = list.filter(g => {
+          const s = statusMap[String(g.id)];
+          return s && (s.has('PENDING') || s.has('CONFIRMED'));
+        });
+      } else {
+        list = list.filter(g => statusMap[String(g.id)]?.has(filter));
+      }
+    }
+
+    // Search Filter
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(g => g.name?.toLowerCase().includes(q) || g.phone?.includes(q) || g.email?.toLowerCase().includes(q));
+    }
+    
+    return list;
+  }, [guests, search, filter, statusMap]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const pageList = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE)
+
+  // Reset page on search or filter change
+  useEffect(() => { setPage(1) }, [search, filter])
 
   return (
     <div>
-      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
-        <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search name, phone, email…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-<<<<<<< HEAD
-        <div className="flex gap2">
-          <span className="badge bgold">{guests.length} total guests</span>
-=======
+      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8,alignItems:'flex-end'}}>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <div className="tabs" style={{marginBottom:0}}>
+            {['ALL','CHECKED_IN','CHECKED_OUT','RESERVED','DUE'].map(s=>(
+              <button key={s} className={`tab${filter===s?' on':''}`} onClick={()=>setFilter(s)}>
+                {s==='ALL'?`All (${guests.length})`:
+                 s==='DUE'?`Due (${counts.DUE})`:
+                 `${s.replace('_',' ')} (${counts[s]||0})`}
+              </button>
+            ))}
+          </div>
+          <div className="srch" style={{width:320}}><span className="xs muted">⌕</span><input placeholder="Search name, phone, email…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+        </div>
         <div className="flex gap2" style={{alignItems:'center'}}>
-          <span className="badge bgold">{filtered.length} {search?'found':('of '+guests.length+' guests')}</span>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
+          <span className="badge bgold">{filtered.length} {search||filter!=='ALL'?'found':('of '+guests.length+' guests')}</span>
           <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Add Guest</button>
         </div>
       </div>
@@ -1540,11 +1670,7 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
           <table className="tbl">
             <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>ID</th><th>City</th><th>Balance</th><th>VIP</th><th></th></tr></thead>
             <tbody>
-<<<<<<< HEAD
-              {list.slice(0,80).map(g=>(
-=======
               {pageList.map(g=>(
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
                 <tr key={g.id}>
                   <td><div className="flex fac gap2"><Av name={g.name} size={24}/><span>{g.name}</span></div></td>
                   <td className="xs muted">{g.phone||'—'}</td>
@@ -1560,10 +1686,7 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
           </table>
         </div>
       </div>
-<<<<<<< HEAD
-=======
-
-      {/* Pagination controls */}
+{/* Pagination controls */}
       {totalPages>1&&(
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 4px',flexWrap:'wrap',gap:8}}>
           <div className="xs muted">
@@ -1592,8 +1715,6 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
           </div>
         </div>
       )}
-
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       {sel&&<GuestModal guest={sel} reservations={reservations} toast={toast} onClose={()=>setSel(null)} reload={reload} isSA={currentUser?.role==='owner'}/>}
       {showAdd&&<AddGuestModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
     </div>
@@ -1650,6 +1771,9 @@ function EditGuestModal({guest,toast,onClose,reload}) {
   const [f,setF]=useState({name:guest.name||'',phone:guest.phone||'',email:guest.email||'',id_type:guest.id_type||'NID',id_number:guest.id_number||guest.id_card||'',nationality:guest.nationality||'',city:guest.city||'',address:guest.address||''})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.name.trim()) return toast('Name required','error')
     setSaving(true)
@@ -1685,6 +1809,9 @@ function AddGuestModal({toast,onClose,reload}) {
   const [f,setF]=useState({name:'',phone:'',email:'',id_type:'NID',id_number:'',nationality:'',city:'',address:''})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.name.trim()) return toast('Name required','error')
     setSaving(true)
@@ -1732,11 +1859,7 @@ function HousekeepingPage({tasks,rooms,toast,currentUser,reload}) {
 
   async function updateStatus(id,s) {
     try {
-<<<<<<< HEAD
-      await dbPatch('housekeeping_tasks',id,{status:s,completed_at:s==='completed'?new Date().toISOString():null})
-      toast(`Task → ${s}`)
-=======
-      // Find the task to get its room_number
+// Find the task to get its room_number
       const task=tasks.find(t=>t.id===id)
       await dbPatch('housekeeping_tasks',id,{status:s,completed_at:s==='completed'?new Date().toISOString():null})
       // If completed → set room to AVAILABLE (only if not currently OCCUPIED/RESERVED)
@@ -1751,7 +1874,6 @@ function HousekeepingPage({tasks,rooms,toast,currentUser,reload}) {
       } else {
         toast(`Task → ${s}`)
       }
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       reload()
     } catch(e){ toast(e.message,'error') }
   }
@@ -1806,6 +1928,9 @@ function AddTaskModal({rooms,toast,onClose,reload}) {
   const [f,setF]=useState({room_number:rooms[0]?.room_number||'',task_type:'Standard Clean',priority:'medium',assignee:'',scheduled_time:'',notes:''})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.room_number) return toast('Room required','error')
     setSaving(true)
@@ -1842,155 +1967,6 @@ function AddTaskModal({rooms,toast,onClose,reload}) {
 }
 
 /* ═══════════════════════ BILLING ════════════════════════════ */
-<<<<<<< HEAD
-function BillingPage({transactions,reservations,toast,reload,currentUser}) {
-  const [selectedDate,setSelectedDate]=useState(todayStr())
-  const [tokenAmount,setTokenAmount]=useState('')
-  const [collectTarget,setCollectTarget]=useState(null)
-  const tokenStoreKey='hf_crm_token_amount_by_date_v1'
-  const [tokenByDate,setTokenByDate]=useState(()=>{try{return JSON.parse(localStorage.getItem(tokenStoreKey)||'{}')}catch{return{}}})
-  const today=todayStr()
-  const dayT=transactions.filter(t=>t.fiscal_day===selectedDate)
-  const outstanding=reservations.filter(r=>r.status==='CHECKED_IN')
-    .reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
-  const dueRows=reservations
-    .filter(r=>r.status!=='CANCELLED'&&Math.max(0,+r.total_due||((+r.total_amount||0)-(+r.paid_amount||0)))>0)
-    .map(r=>{
-      const guestName=(r.guest_name||'')||'—'
-      const paid=Math.max(0,+r.paid_amount||0)
-      const due=Math.max(0,+r.total_due||((+r.total_amount||0)-paid))
-      return {
-        id:`due_${r.id}`,
-        fiscal_day:selectedDate,
-        guest_name:guestName,
-        room_number:(r.room_ids||[]).join(','),
-        reservation_id:r.id,
-        type:'Outstanding Due',
-        amount:0,
-        _dueOnly:true,
-        _paid:paid,
-        _due:due
-      }
-    })
-
-  const list=[...dayT,...dueRows]
-  const tokenSaved=Math.max(0,+tokenByDate[selectedDate]||0)
-  const tokenInput=tokenAmount===''?tokenSaved:Math.max(0,+tokenAmount||0)
-  const dayTotal=dayT.reduce((a,t)=>a+(+t.amount||0),0)
-  const closingBalance=Math.max(0,dayTotal-tokenInput)
-  const findReservation=(t)=>reservations.find(r=>
-    (t?.reservation_id&&String(r.id)===String(t.reservation_id)) ||
-    ((r.room_ids||[]).includes(t.room_number) && r.status!=='CANCELLED')
-  )
-  const toDateValue=(raw)=>{
-    if(typeof raw!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null
-    const d=new Date(raw+'T00:00:00')
-    return Number.isNaN(d.getTime())?null:d
-  }
-  const formatDate=(d)=>{
-    if(!(d instanceof Date)||Number.isNaN(d.getTime())) return today
-    return d.toISOString().slice(0,10)
-  }
-  const selectedDateObj=toDateValue(selectedDate)||toDateValue(today)||new Date()
-  const nextDate=formatDate(new Date(selectedDateObj.getTime()+86400000))
-
-  function saveTokenForDate() {
-    const next={...tokenByDate,[selectedDate]:tokenInput}
-    setTokenByDate(next)
-    localStorage.setItem(tokenStoreKey,JSON.stringify(next))
-    toast(`Token amount saved for ${selectedDate}`)
-  }
-
-  function downloadReportCsv() {
-    const rows=[['Date','Guest','Room','Type','Amount','Paid','Due']]
-    for(const t of [...dayT,...dueRows]){
-      const res=findReservation(t)
-      const paid=t._dueOnly?t._paid:Math.max(0,+res?.paid_amount||0)
-      const due=t._dueOnly?t._due:Math.max(0,+res?.total_due||((+res?.total_amount||0)-paid))
-      rows.push([t.fiscal_day||selectedDate,t.guest_name||'',t.room_number||'',t.type||'',String(+t.amount||0),String(paid),String(due)])
-    }
-    rows.push([])
-    rows.push(['Daily Total','','','',''+dayTotal,'',''])
-    rows.push(['Token Amount','','','',''+tokenInput,'',''])
-    rows.push(['Closing Balance','','','',''+closingBalance,'',''])
-    const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
-    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'})
-    const url=URL.createObjectURL(blob)
-    const a=document.createElement('a')
-    a.href=url
-    a.download=`transaction-report-${selectedDate}.csv`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-  }
-
-  function closeDayAndAdvance() {
-    saveTokenForDate()
-    downloadReportCsv()
-    setSelectedDate(nextDate)
-    setTokenAmount('')
-    toast(`Closing complete. Report downloaded, moved to ${nextDate}`)
-  }
-
-  useEffect(()=>{
-    setTokenAmount(String(Math.max(0,+tokenByDate[selectedDate]||0)))
-  },[selectedDate,tokenByDate])
-
-  return (
-    <div>
-      <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">Selected Date Total</div><div className="stat-val">{BDT(dayTotal)}</div><div className="stat-sub">{dayT.length} transactions</div></div>
-        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">🧾</div><div className="stat-lbl">Closing Balance</div><div className="stat-val">{BDT(closingBalance)}</div><div className="stat-sub">Transactions - token</div></div>
-        <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
-      </div>
-      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
-        <div className="card" style={{padding:'8px 10px',display:'flex',alignItems:'center',gap:8}}>
-          <span className="xs muted">📅 Transaction Date</span>
-          <input type="date" className="finput" style={{minWidth:170}} value={selectedDate} onChange={e=>setSelectedDate(toDateValue(e.target.value)?e.target.value:today)}/>
-        </div>
-        <div className="card" style={{padding:'8px 10px',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-          <span className="xs muted">Token Amount (BDT)</span>
-          <input type="number" className="finput" style={{width:120}} min="0" value={tokenAmount} onChange={e=>setTokenAmount(e.target.value)} placeholder="0"/>
-          <button className="btn btn-ghost btn-sm" onClick={saveTokenForDate}>Save Token</button>
-          <span className="xs muted">Closing: <strong style={{color:'var(--gold)'}}>{BDT(closingBalance)}</strong></span>
-          <button className="btn btn-gold btn-sm" onClick={closeDayAndAdvance}>Closing Complete</button>
-        </div>
-      </div>
-      <div className="card">
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th><th>Paid</th><th>Due</th><th>Actions</th></tr></thead>
-            <tbody>
-              {list.slice(0,80).map(t=>(
-                <tr key={t.id}>
-                  <td className="xs muted">{t.fiscal_day||'—'}</td>
-                  <td className="xs">{t.guest_name||'—'}</td>
-                  <td><span className="badge bb">{t.room_number||'—'}</span></td>
-                  <td><span className={`badge ${t._dueOnly?'ba':'bgold'}`}>{t.type||'Payment'}</span></td>
-                  <td className="xs gold" style={{fontWeight:500}}>{BDT(t.amount)}</td>
-                  <td className="xs" style={{color:'var(--grn)'}}>{BDT(t._dueOnly?t._paid:Math.max(0,+findReservation(t)?.paid_amount||0))}</td>
-                  <td className="xs" style={{color:'var(--rose)'}}>{BDT(t._dueOnly?t._due:Math.max(0,+findReservation(t)?.total_due||0))}</td>
-                  <td>
-                    <div className="flex gap2">
-                      {!t._dueOnly&&<button className="btn btn-ghost btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={()=>printTransactionInvoice(t,reservations)}>🖨 Print</button>}
-                      <button className="btn btn-success btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={()=>setCollectTarget({tx:t,res:findReservation(t)})}>💰 Collect</button>
-                      {currentUser?.role==='owner'&&<button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {collectTarget&&<SettlePaymentModal
-        target={collectTarget}
-        toast={toast}
-        onClose={()=>setCollectTarget(null)}
-        reload={reload}
-      />}
-=======
 function printPDF(htmlContent, filename) {
   // Use native browser print — works from file:// URLs without external libs
   const w = window.open('', '_blank', 'width=1100,height=700')
@@ -2260,35 +2236,133 @@ ${dueRows}
   }
 
   function printInvoice(grp, res, resTotal, resPaid, resDue, byType) {
-    const now=new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-    const checkIn=res?fmtDate(res.check_in):(grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
-    const checkOut=res?fmtDate(res.check_out):(grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
-    const paymentRows=Object.entries(byType).map(([tp,amt])=>`<tr><td>${tp}</td><td style="text-align:right">৳${Number(amt||0).toLocaleString('en-BD')}</td></tr>`).join('')
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice - ${grp.guest_name||'Guest'}</title>
-<style>
-@page{size:A4 portrait;margin:10mm}
-*{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0}
-.wrap{max-width:760px;margin:0 auto}
-.head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}
-.h1{font-size:20px;font-weight:700}.muted{color:#555;font-size:12px}
-.blk{border:1px solid #ddd;padding:10px 12px;margin-bottom:10px}
-table{width:100%;border-collapse:collapse} th,td{padding:7px 8px;border-bottom:1px solid #e5e5e5;font-size:12px}
-th{text-align:left;background:#f4f4f4} .r{text-align:right}
-.total{font-size:18px;font-weight:700}
-</style></head><body><div class="wrap">
-<div class="head"><div><div class="h1">Hotel Fountain</div><div class="muted">Guest Invoice / Folio</div></div><div class="muted">Printed: ${now}</div></div>
-<div class="blk"><table>
-<tr><th>Guest</th><td>${grp.guest_name||'—'}</td><th>Room</th><td>${grp.room_number||'—'}</td></tr>
-<tr><th>Check-In</th><td>${checkIn}</td><th>Check-Out</th><td>${checkOut}</td></tr>
-</table></div>
-<div class="blk"><table>
-<tr><th>Bill Total</th><td class="r">৳${Number(resTotal||0).toLocaleString('en-BD')}</td></tr>
-<tr><th>Paid</th><td class="r">৳${Number(resPaid||0).toLocaleString('en-BD')}</td></tr>
-<tr><th>Balance Due</th><td class="r"><strong>৳${Number(resDue||0).toLocaleString('en-BD')}</strong></td></tr>
-</table></div>
-<div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRows||'<tr><td colspan="2">No payments recorded</td></tr>'}</tbody></table></div>
-<div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>
-</div><script>window.onload=()=>window.print();</script></body></html>`
+    const now = new Date().toLocaleString('en-BD', { timeZone: 'Asia/Dhaka', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const checkIn = res ? fmtDate(res.check_in) : (grp.txs[0]?.check_in ? fmtDate(grp.txs[0].check_in) : '—')
+    const checkOut = res ? fmtDate(res.check_out) : (grp.txs[0]?.check_out ? fmtDate(grp.txs[0].check_out) : '—')
+    const paymentRows = Object.entries(byType).map(([tp, amt]) => `<tr><td>${tp}</td><td style="text-align:right;font-weight:600">৳${Number(amt || 0).toLocaleString('en-BD')}</td></tr>`).join('')
+    
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Invoice - ${grp.guest_name || 'Guest'}</title>
+  <style>
+    @page { size: A4 portrait; margin: 15mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
+    body { font-family: 'Inter', -apple-system, sans-serif; color: #1a1a1a; margin: 0; line-height: 1.4; }
+    .wrap { max-width: 800px; margin: 0 auto; }
+    
+    /* Header Section */
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1a1a1a; padding-bottom: 20px; margin-bottom: 25px; }
+    .brand { flex: 1; }
+    .brand h1 { margin: 0; font-size: 28px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; color: #000; }
+    .brand-details { font-size: 11px; color: #444; margin-top: 6px; }
+    .brand-details div { margin-bottom: 2px; }
+    
+    .invoice-meta { text-align: right; }
+    .invoice-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #777; margin-bottom: 4px; }
+    .invoice-val { font-size: 13px; font-weight: 600; }
+
+    /* Summary Grid */
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+    .blk { border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; background: #fff; }
+    .blk-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #888; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 0; font-size: 12px; border-bottom: 1px solid #f0f0f0; }
+    th { text-align: left; color: #666; font-weight: 500; width: 35%; }
+    td { font-weight: 600; text-align: left; }
+    .r { text-align: right !important; }
+
+    /* Financials */
+    .fin-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .fin-lbl { font-size: 12px; color: #444; }
+    .fin-val { font-size: 13px; font-weight: 600; }
+    .fin-total { border-top: 2px solid #1a1a1a; margin-top: 8px; padding-top: 10px; }
+    .fin-total .fin-lbl { font-weight: 800; font-size: 14px; color: #000; }
+    .fin-total .fin-val { font-weight: 800; font-size: 18px; color: #000; }
+
+    /* Payments Table */
+    .p-table th { background: #f8f8f8; padding: 8px 10px; border-bottom: 2px solid #ddd; color: #333; font-weight: 700; }
+    .p-table td { padding: 8px 10px; }
+
+    /* Footer */
+    .footer { margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }
+    .thanks { font-weight: 700; font-size: 14px; margin-bottom: 5px; }
+    .social { font-size: 11px; color: #666; }
+    .crm-tag { font-size: 9px; color: #ccc; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <div class="brand">
+        <h1>Hotel Fountain</h1>
+        <div class="brand-details">
+          <div>House 05, Road 02, Nikunja 02, Kobi Faruk Sarani, Dhaka 1229.</div>
+          <div>Contact: <strong>+880 1322-840799</strong> | Email: <strong>hotellfountainbd@gmail.com</strong></div>
+          <div>Instagram: <strong>@hotel_fountainbd</strong></div>
+        </div>
+      </div>
+      <div class="invoice-meta">
+        <div class="invoice-label">Guest Invoice / Billing</div>
+        <div class="invoice-val">Date: ${now}</div>
+      </div>
+    </header>
+
+    <div class="summary-grid">
+      <div class="blk">
+        <div class="blk-title">Guest Information</div>
+        <table>
+          <tr><th>Guest ID</th><td>#${grp.guest_id || '—'}</td></tr>
+          <tr><th>Guest Name</th><td>${grp.guest_name || '—'}</td></tr>
+          <tr><th>Room No</th><td>${grp.room_number || '—'}</td></tr>
+          <tr><th>Check-In</th><td>${checkIn}</td></tr>
+          <tr><th>Check-Out</th><td>${checkOut}</td></tr>
+        </table>
+      </div>
+      <div class="blk">
+        <div class="blk-title">Billing Summary</div>
+        <div class="fin-row">
+          <span class="fin-lbl">Total Billable</span>
+          <span class="fin-val">৳${Number(resTotal || 0).toLocaleString('en-BD')}</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-lbl">Amount Paid</span>
+          <span class="fin-val" style="color:#2e7d32">৳${Number(resPaid || 0).toLocaleString('en-BD')}</span>
+        </div>
+        <div class="fin-row fin-total">
+          <span class="fin-lbl">Balance Due (This Stay)</span>
+          <span class="fin-val">৳${Number(resDue || 0).toLocaleString('en-BD')}</span>
+        </div>
+        <div class="fin-row" style="margin-top:10px;border-top:1px dashed #eee;padding-top:10px">
+          <span class="fin-lbl">Total Account Balance</span>
+          <span class="fin-val" style="color:${grp.guest_balance > 0 ? '#d32f2f' : '#2e7d32'};font-weight:700">৳${Number(grp.guest_balance || 0).toLocaleString('en-BD')}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="blk" style="padding:0">
+      <div class="blk-title" style="padding: 12px 12px 6px">Payment Breakdown</div>
+      <table class="p-table">
+        <thead>
+          <tr><th>Payment Mode</th><th class="r">Amount</th></tr>
+        </thead>
+        <tbody>
+          ${paymentRows || '<tr><td colspan="2" style="text-align:center;color:#999">No payments recorded</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="footer">
+      <div class="thanks">Thank you for staying at Hotel Fountain!</div>
+      <div class="social">Follow us on Instagram: @hotel_fountainbd</div>
+      <div class="crm-tag">Digital concierge powered by Hotel Fountain CRM</div>
+    </footer>
+  </div>
+  <script>window.onload=()=>window.print();<\/script>
+</body>
+</html>`
     printPDF(html)
   }
 
@@ -2386,6 +2460,12 @@ th{text-align:left;background:#f4f4f4} .r{text-align:right}
                     })
                     return Object.values(groups).map(grp=>{
                       const res=reservations?.find(r=>(r.room_ids||[r.room_number]).includes(grp.room_number))
+                      // Find guest to get permanent ID and outstanding balance
+                      const gId = res?.guest_ids?.[0]
+                      const guestHead = gId ? guests?.find(g=>String(g.id)===String(gId)) : guests?.find(g=>g.name===grp.guest_name)
+                      grp.guest_id = guestHead?.id || '—'
+                      grp.guest_balance = +(guestHead?.outstanding_balance || 0)
+
                       const resDisc=res?+res.discount||0:0
                       const resRm=res?rooms?.find(rm=>(res.room_ids||[]).includes(rm.room_number)):null
                       const resNts=res?nightsCount(res.check_in,res.check_out)||1:1
@@ -2489,7 +2569,7 @@ th{text-align:left;background:#f4f4f4} .r{text-align:right}
       </div>
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
+      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
@@ -2593,134 +2673,11 @@ th{text-align:left;background:#f4f4f4} .r{text-align:right}
           </Modal>
         )
       })()}
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
     </div>
   )
 }
 
-<<<<<<< HEAD
-function SettlePaymentModal({target,toast,onClose,reload}) {
-  const [amount,setAmount]=useState('')
-  const [saving,setSaving]=useState(false)
-  const tx=target?.tx
-  const res=target?.res
-  const totalAmount=Math.max(0,+res?.total_amount||0)
-  const discountAmount=Math.max(0,+res?.discount_amount||0)
-  const grossAmount=Math.max(0,totalAmount+discountAmount)
-  const paidAmount=Math.max(0,+res?.paid_amount||0)
-  const due=Math.max(0,totalAmount-paidAmount)
-
-  async function confirmCollect(){
-    const collect=Math.max(0,+amount||0)
-    if(!res) return toast('No linked reservation found for this row','error')
-    if(!collect) return toast('Enter a valid amount','error')
-    setSaving(true)
-    try{
-      const nextPaid=Math.min((+res.total_amount||0),(+res.paid_amount||0)+collect)
-      const nextDue=Math.max(0,(+res.total_amount||0)-nextPaid)
-      await dbPatchReservationSafe(res.id,{
-        paid_amount:nextPaid,
-        total_due:nextDue,
-        payment_status:nextDue<=0?'Paid':'Partial'
-      })
-      await dbPost('transactions',{
-        reservation_id:res?.id||null,
-        room_number:tx?.room_number||'',
-        guest_name:tx?.guest_name||'',
-        type:'Collected Payment',
-        amount:collect,
-        fiscal_day:todayStr(),
-        tenant_id:TENANT
-      })
-      toast('Payment collected ✓')
-      await reload()
-      onClose()
-    }catch(e){
-      toast(e.message,'error')
-      setSaving(false)
-    }
-  }
-  return (
-    <Modal title={`Settle Payment — ${tx?.guest_name||'Guest'}`} onClose={onClose}
-      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving||!res} onClick={confirmCollect}>{saving?'Saving…':'Confirm Payment'}</button></>}>
-      {!res&&<div className="info-box mb4" style={{borderColor:'rgba(224,92,122,.35)'}}>
-        <div className="info-lbl" style={{color:'var(--rose)'}}>Reservation not found</div>
-        <div className="info-val">This transaction is not linked to an active reservation. Please open from a reservation-linked row.</div>
-      </div>}
-      <div className="g2 mb4">
-        <div className="info-box">
-          <div className="info-lbl">Reservation ID</div>
-          <div className="info-val">{res?.id?String(res.id).slice(0,8):'—'}</div>
-        </div>
-        <div className="info-box">
-          <div className="info-lbl">Guest</div>
-          <div className="info-val">{tx?.guest_name||'—'}</div>
-        </div>
-        <div className="info-box">
-          <div className="info-lbl">Room</div>
-          <div className="info-val">{(res?.room_ids||[]).join(', ')||tx?.room_number||'—'}</div>
-        </div>
-        <div className="info-box">
-          <div className="info-lbl">Check-In / Out</div>
-          <div className="info-val">{res?`${fmtDate(res.check_in)} → ${fmtDate(res.check_out)}`:'—'}</div>
-        </div>
-        <div className="info-box">
-          <div className="info-lbl">Total Amount (Reservation)</div>
-          <div className="info-val gold">{BDT(grossAmount)}</div>
-        </div>
-        <div className="info-box">
-          <div className="info-lbl">Discount</div>
-          <div className="info-val">{BDT(discountAmount)}</div>
-        </div>
-        <div className="info-box">
-          <div className="info-lbl">Net Invoice</div>
-          <div className="info-val gold">{BDT(totalAmount)}</div>
-        </div>
-        <div className="info-box">
-          <div className="info-lbl">Amount Paid</div>
-          <div className="info-val" style={{color:'var(--grn)'}}>{BDT(paidAmount)}</div>
-        </div>
-        <div className="info-box">
-          <div className="info-lbl">Amount Due</div>
-          <div className="info-val" style={{color:due>0?'var(--rose)':'var(--grn)'}}>{BDT(due)}</div>
-        </div>
-      </div>
-      <div className="fg">
-        <label className="flbl">Amount to Collect (BDT)</label>
-        <input type="number" className="finput" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" autoFocus disabled={!res}/>
-      </div>
-    </Modal>
-  )
-}
-
-function RecordPayModal({toast,onClose,reload}) {
-  const [f,setF]=useState({room_number:'',guest_name:'',type:'Room Payment (Cash)',amount:'',fiscal_day:todayStr()})
-  const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
-  const [saving,setSaving]=useState(false)
-  async function save() {
-    const a=+f.amount
-    if(!a||a<=0) return toast('Enter valid amount','error')
-    setSaving(true)
-    try { await dbPost('transactions',{...f,amount:a,tenant_id:TENANT}); toast(`Payment ${BDT(a)} recorded`); reload(); onClose() }
-    catch(e){ toast(e.message,'error'); setSaving(false) }
-  }
-  return (
-    <Modal title="Record Payment" onClose={onClose}
-      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Record Payment'}</button></>}>
-      <div className="frow">
-        <div className="fg"><label className="flbl">Room Number</label><input className="finput" value={f.room_number} onChange={F('room_number')} placeholder="e.g. 305" autoFocus/></div>
-        <div className="fg"><label className="flbl">Amount (BDT) *</label><input type="number" className="finput" value={f.amount} onChange={F('amount')} placeholder="0"/></div>
-      </div>
-      <div className="fg"><label className="flbl">Guest Name</label><input className="finput" value={f.guest_name} onChange={F('guest_name')} placeholder="Guest name"/></div>
-      <div className="frow">
-        <div className="fg"><label className="flbl">Payment Type</label>
-          <select className="fselect" value={f.type} onChange={F('type')}>
-            {['Room Payment (Cash)','Room Payment (Bkash)','Room Payment (Nagad)','Room Payment (Card)','Room Service','Restaurant','Laundry','Misc'].map(t=><option key={t}>{t}</option>)}
-          </select>
-        </div>
-        <div className="fg"><label className="flbl">Date</label><input type="date" className="finput" value={f.fiscal_day} onChange={F('fiscal_day')}/></div>
-=======
-function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
+function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
   const fromRow=prefill?._fromRow===true
   const dueResList=(reservations||[]).filter(r=>r.status==='CHECKED_IN'&&(+r.total_amount||0)>(+r.paid_amount||0))
 
@@ -2741,6 +2698,9 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
   const [type,setType]=useState('Room Payment (Cash)')
   const [fiscal_day,setFiscalDay]=useState(todayStr())
   const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
 
   function pickRes(r){
     setSelRes(r)
@@ -2770,6 +2730,14 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
     try{
       await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,tenant_id:TENANT})
       if(resId) await dbPatch('reservations',resId,{paid_amount:Math.min(resTotal,resPaid+a)})
+      // Also deduct from guest permanent balance if linked
+      const resObj = reservations?.find(r=>r.id===resId)
+      const gId = resObj?.guest_ids?.[0]
+      const gObj = gId ? guests?.find(g=>String(g.id)===String(gId)) : (guests?.find(g=>g.name===guest_name))
+      if(gObj?.id) {
+        const curBal = +(gObj.outstanding_balance || 0)
+        await dbPatch('guests',gObj.id,{outstanding_balance:curBal - a})
+      }
       toast(`Payment ${BDT(a)} recorded`); reload(); onClose()
     }catch(e){ toast(e.message,'error'); setSaving(false) }
   }
@@ -2883,16 +2851,12 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
         <select className="fselect" value={type} onChange={e=>setType(e.target.value)}>
           {['Room Payment (Cash)','Room Payment (Bkash)','Room Payment (Nagad)','Room Payment (Card)','Room Service','Restaurant','Laundry','Misc'].map(t=><option key={t}>{t}</option>)}
         </select>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       </div>
     </Modal>
   )
 }
 
-<<<<<<< HEAD
-=======
 
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
 /* ═══════════════════════ REPORTS ════════════════════════════ */
 function ReportsPage({transactions,rooms,reservations,guests}) {
   const [chartActive,setChartActive]=useState(13)
@@ -2968,50 +2932,13 @@ function ReportsPage({transactions,rooms,reservations,guests}) {
 function SettingsPage({currentUser,toast,staffList,setStaffList}) {
   const isSA=currentUser?.role==='owner'
   const [tab,setTab]=useState('hotel')
-<<<<<<< HEAD
-  const [hs,setHS]=useState(()=>{
-    const fallback={hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'7',svc:'5'}
-    try{
-      const raw=localStorage.getItem(HOTEL_SETTINGS_KEY)
-      if(!raw) return fallback
-      const parsed=JSON.parse(raw)
-      return {...fallback,...parsed}
-    }catch{
-      return fallback
-    }
-  })
-=======
-  const [hs,setHS]=useState({hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'7',svc:'5'})
+const [hs,setHS]=useState({hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'7',svc:'5'})
   const [hsSaving,setHsSaving]=useState(false)
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   const HS=k=>e=>setHS(p=>({...p,[k]:e.target.value}))
   const [showAddUser,setShowAddUser]=useState(false)
   const [editUser,setEditUser]=useState(null)
 
-<<<<<<< HEAD
-  function saveHotelSettings() {
-    try{
-      localStorage.setItem(HOTEL_SETTINGS_KEY, JSON.stringify(hs))
-      toast('Hotel settings saved ✓')
-    }catch{
-      toast('Failed to save settings','error')
-    }
-  }
-
-  function deleteUser(id) {
-    if(!window.confirm('Remove this staff account?')) return
-    setStaffList(p=>p.filter(s=>s.id!==id))
-    toast('Staff account removed')
-  }
-
-  return (
-    <div style={{maxWidth:700}}>
-      <div className="tabs mb4">
-        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System']].map(([v,l])=>(
-          <button key={v} className={`tab${tab===v?' on':''}`} onClick={()=>setTab(v)}>{l}</button>
-        ))}
-=======
-  // Load settings from Supabase on mount
+// Load settings from Supabase on mount
   useEffect(()=>{
     async function loadSettings(){
       try{
@@ -3070,7 +2997,6 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
             <button key={v} className={`tab${tab===v?' on':''}`} style={{whiteSpace:'nowrap',fontSize:11,padding:'6px 12px'}} onClick={()=>setTab(v)}>{l}</button>
           ))}
         </div>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       </div>
 
       {/* HOTEL INFO */}
@@ -3101,11 +3027,7 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
               <div className="fg"><label className="flbl">Service Charge (%)</label><input type="number" className="finput" value={hs.svc} onChange={HS('svc')} disabled={!isSA} min="0" max="30"/></div>
             </div>
             {isSA
-<<<<<<< HEAD
-              ?<button className="btn btn-gold mt3" onClick={saveHotelSettings}>Save Settings</button>
-=======
-              ?<button className="btn btn-gold mt3" disabled={hsSaving} onClick={saveHotelSettings}>{hsSaving?'Saving…':'Save Settings'}</button>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
+?<button className="btn btn-gold mt3" disabled={hsSaving} onClick={saveHotelSettings}>{hsSaving?'Saving…':'Save Settings'}</button>
               :<p className="xs muted mt3">Only the Owner can edit hotel settings.</p>
             }
           </div>
@@ -3187,9 +3109,7 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
         </div>
       )}
 
-<<<<<<< HEAD
-=======
-      {/* AI AGENTS PANEL */}
+{/* AI AGENTS PANEL */}
       {tab==='agents'&&(
         <div>
           <AIAgentsPanel toast={toast}/>
@@ -3216,8 +3136,6 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
           <LeadGenSwarmPanel toast={toast}/>
         </div>
       )}
-
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       {showAddUser&&isSA&&(
         <AddStaffModal toast={toast} onClose={()=>setShowAddUser(false)}
           onAdd={u=>{ setStaffList(p=>[...p,u]); toast(`${u.name} added as ${ROLES[u.role]?.label}`); setShowAddUser(false) }}
@@ -3234,13 +3152,10 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
 function AddStaffModal({toast,onClose,onAdd,existingIds}) {
   const [f,setF]=useState({name:'',email:'',pw:'',role:'receptionist',device:''})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
-<<<<<<< HEAD
-  function save() {
-    if(!f.name||!f.email||!f.pw) return toast('Name, email and password required','error')
-    const newId=Math.max(...existingIds,0)+1
-    onAdd({...f,id:newId,av:f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()})
-=======
-  const [saving,setSaving]=useState(false)
+const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.name||!f.email||!f.pw) return toast('Name, email and password required','error')
     setSaving(true)
@@ -3251,7 +3166,6 @@ function AddStaffModal({toast,onClose,onAdd,existingIds}) {
       onAdd(newStaff)
     }catch(e){ toast('Save failed: '+e.message,'error') }
     finally{ setSaving(false) }
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   }
   return (
     <Modal title="Add Staff Account" onClose={onClose}
@@ -3276,16 +3190,10 @@ function AddStaffModal({toast,onClose,onAdd,existingIds}) {
 function EditStaffModal({user,toast,onClose,onSave}) {
   const [f,setF]=useState({...user})
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
-<<<<<<< HEAD
-  function save() {
-    if(!f.name||!f.email||!f.pw) return toast('All fields required','error')
-    onSave({...f,av:f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()})
-  }
-  return (
-    <Modal title={`Edit — ${user.name}`} onClose={onClose}
-      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={save}>Save Changes</button></>}>
-=======
-  const [saving,setSaving]=useState(false)
+const [saving,setSaving]=useState(false)
+  const [payAmt,setPayAmt]=useState('')
+  const [payType,setPayType]=useState('Cash')
+  const [paySaving,setPaySaving]=useState(false)
   async function save() {
     if(!f.name||!f.email||!f.pw) return toast('All fields required','error')
     setSaving(true)
@@ -3298,7 +3206,6 @@ function EditStaffModal({user,toast,onClose,onSave}) {
   return (
     <Modal title={`Edit — ${user.name}`} onClose={onClose}
       footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button></>}>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       <div className="frow">
         <div className="fg"><label className="flbl">Full Name</label><input className="finput" value={f.name} onChange={F('name')}/></div>
         <div className="fg"><label className="flbl">Role</label>
@@ -3316,9 +3223,6 @@ function EditStaffModal({user,toast,onClose,onSave}) {
   )
 }
 
-<<<<<<< HEAD
-/* ═══════════════════════ WORKFLOW MONITOR ══════════════════ */
-=======
 /* ═══════════════════════ AI AGENTS ══════════════════════════ */
 function AIAgentsPanel({toast}) {
   const EDGE='https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/ai-agents'
@@ -3373,7 +3277,7 @@ function AIAgentsPanel({toast}) {
     finally{ setAnalyzerBusy(false) }
   }
 
-  async function runCloserForId(id: string) {
+  async function runCloserForId(id) {
     const lid = (id||closerLeadId||'').trim()
     if(!lid) { toast('Enter a lead ID','error'); return }
     setCloserLeadId(lid)
@@ -3384,7 +3288,7 @@ function AIAgentsPanel({toast}) {
       setCloserResult(res)
       // Also update the email_draft in pipelineResult leads list
       if(pipelineResult?.leads) {
-        setPipelineResult((p:any)=>({...p,leads:p.leads.map((l:any)=>l.id===lid?{...l,email_draft:res.email_draft}:l)}))
+        setPipelineResult((p) =>({...p,leads:p.leads.map((l) =>l.id===lid?{...l,email_draft:res.email_draft}:l)}))
       }
       toast(`✓ Email drafted for ${res.lead_name}`)
     } catch(e){ toast(e.message,'error') }
@@ -3436,7 +3340,7 @@ function AIAgentsPanel({toast}) {
             <div style={{fontSize:10,color:'var(--grn)',marginBottom:10,fontWeight:500}}>
               ✓ {pipelineResult.leads?.length||pipelineResult.leads_found||0} leads found — Agent B auto-drafted emails for each
             </div>
-            {(pipelineResult.leads||[]).map((lead:any,i:number)=>(
+            {(pipelineResult.leads||[]).map((lead,i) =>(
               <div key={i} style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br)',padding:'12px 14px',marginBottom:8}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
                   <div>
@@ -3478,7 +3382,7 @@ function AIAgentsPanel({toast}) {
         {pipelineResult&&(pipelineResult.leads||[]).length>0?(
           <div>
             <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>Select a lead to re-draft or view their email:</div>
-            {(pipelineResult.leads||[]).map((lead:any,i:number)=>(
+            {(pipelineResult.leads||[]).map((lead,i) =>(
               <div key={i} style={{background:'rgba(200,169,110,.03)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{lead.name}</div>
@@ -3884,7 +3788,7 @@ function B2BSwarmPanel({toast}) {
                   <table className="tbl">
                     <thead><tr><th>Partner</th><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Revenue</th><th>Commission</th></tr></thead>
                     <tbody>
-                      {dashboard.recent_bookings.map((b:any)=>(
+                      {dashboard.recent_bookings.map((b)=>(
                         <tr key={b.id}>
                           <td style={{fontSize:11,fontWeight:500}}>{b.partner_name}</td>
                           <td style={{fontSize:11}}>{b.guest_name||'—'}</td>
@@ -3906,7 +3810,7 @@ function B2BSwarmPanel({toast}) {
           {billingResult&&(
             <div className="card">
               <div style={{fontSize:12,fontWeight:600,color:'var(--tx)',marginBottom:10}}>⚡ Weekly Run Results — {billingResult.partners_processed} partners processed</div>
-              {(billingResult.results||[]).map((r:any,i:number)=>(
+              {(billingResult.results||[]).map((r,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
                     <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.partner}</div>
@@ -4088,7 +3992,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
               <table className="tbl">
                 <thead><tr><th>Offer</th><th>Sent</th><th>Accepted</th><th>Conversion</th><th>Revenue</th></tr></thead>
                 <tbody>
-                  {Object.entries(dashboard.by_type).map(([type, data]:any)=>(
+                  {Object.entries(dashboard.by_type).map(([type, data])=>(
                     <tr key={type}>
                       <td><span style={{marginRight:6}}>{offerIcon(type)}</span>{type.replace(/_/g,' ').replace(/\w/g,l=>l.toUpperCase())}</td>
                       <td className="xs muted">{data.sent}</td>
@@ -4176,7 +4080,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
               <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>
                 ✓ Agent 1 processed {agentResult.processed} reservation{agentResult.processed!==1?'s':''}
               </div>
-              {(agentResult.results||[]).map((r:any,i:number)=>(
+              {(agentResult.results||[]).map((r,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
                     <div>
@@ -4239,7 +4143,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
           {agentResult?.agent==='RoomCustomizer'&&(
             <div className="card">
               <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ Agent 2 processed {agentResult.processed} reservation{agentResult.processed!==1?'s':''}</div>
-              {(agentResult.results||[]).map((r:any,i:number)=>(
+              {(agentResult.results||[]).map((r,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
                     <div>
@@ -4247,7 +4151,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
                       <div style={{fontSize:10,color:'var(--tx3)'}}>Room {r.room} · Arrival: {r.arrival_time} · {r.international?'🌍 International':'🇧🇩 Local'}</div>
                     </div>
                     {r.skipped?<span style={{fontSize:10,color:'var(--tx3)'}}>⏭ {r.skipped}</span>:(
-                      <div style={{display:'flex',gap:4}}>{(r.offers_sent||[]).map((o:string)=>(
+                      <div style={{display:'flex',gap:4}}>{(r.offers_sent||[]).map((o)=>(
                         <span key={o} style={{fontSize:9,background:'rgba(200,169,110,.15)',color:'var(--gold)',padding:'2px 8px',letterSpacing:'.08em'}}>{o.replace(/_/g,' ').toUpperCase()}</span>
                       ))}</div>
                     )}
@@ -4282,7 +4186,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
                   No offers yet — run Agent 1 or Agent 2 to generate upsell messages
                 </div>
               )}
-              {offers.map((o:any)=>(
+              {offers.map((o)=>(
                 <div key={o.id} style={{background:'rgba(0,0,0,.15)',border:`1px solid ${o.status==='accepted'?'rgba(63,185,80,.3)':o.status==='declined'?'rgba(224,92,122,.2)':'var(--br)'}`,padding:'12px 14px',marginBottom:6}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
                     <div style={{flex:1}}>
@@ -4516,7 +4420,7 @@ function LeadGenSwarmPanel({toast}) {
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
                 <div className="card">
                   <div className="card-hd"><span className="card-title">By Lead Type</span></div>
-                  {Object.entries(dashboard.by_type||{}).map(([type,count]:any)=>(
+                  {Object.entries(dashboard.by_type||{}).map(([type,count])=>(
                     <div key={type} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}>
                       <span>{typeIcon(type)} {type.replace(/_/g,' ').replace(/\w/g,l=>l.toUpperCase())}</span>
                       <span style={{color:'var(--gold)',fontWeight:600}}>{count}</span>
@@ -4525,7 +4429,7 @@ function LeadGenSwarmPanel({toast}) {
                 </div>
                 <div className="card">
                   <div className="card-hd"><span className="card-title">By Status</span></div>
-                  {Object.entries(dashboard.by_status||{}).map(([status,count]:any)=>{
+                  {Object.entries(dashboard.by_status||{}).map(([status,count])=>{
                     const b=statusBadge(status)
                     return (<div key={status} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}>
                       <span style={{color:b.color}}>{b.label}</span>
@@ -4538,7 +4442,7 @@ function LeadGenSwarmPanel({toast}) {
               {dashboard.top_leads?.length>0&&(
                 <div className="card">
                   <div className="card-hd"><span className="card-title">Top Priority Leads (Score ≥70)</span></div>
-                  {dashboard.top_leads.map((l:any)=>(
+                  {dashboard.top_leads.map((l) =>(
                     <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)'}}>
                       <div style={{width:36,height:36,background:scoreBg(l.intent_score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:13,color:scoreColor(l.intent_score),fontWeight:700,flexShrink:0}}>{l.intent_score}</div>
                       <div style={{flex:1,minWidth:0}}>
@@ -4596,7 +4500,7 @@ function LeadGenSwarmPanel({toast}) {
           {scoutResult&&(
             <div className="card">
               <div style={{fontSize:12,color:'var(--grn)',fontWeight:600,marginBottom:10}}>✓ {scoutResult.leads_found} leads found ({scoutResult.lead_type})</div>
-              {(scoutResult.leads||[]).map((l:any,i:number)=>(
+              {(scoutResult.leads||[]).map((l,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}>
                   <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{l.full_name} <span style={{fontSize:10,color:'var(--tx3)',fontWeight:400}}>· {l.title}</span></div>
                   <div style={{fontSize:11,color:'var(--sky)',marginTop:2}}>{l.company_name} · {l.area}</div>
@@ -4632,13 +4536,13 @@ function LeadGenSwarmPanel({toast}) {
               <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>
                 ✓ {analystResult.scored} leads scored · {analystResult.high_priority_count} high priority (≥80)
               </div>
-              {(analystResult.results||[]).map((r:any,i:number)=>(
+              {(analystResult.results||[]).map((r,i)=>(
                 <div key={i} style={{display:'flex',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)',alignItems:'flex-start'}}>
                   <div style={{width:44,height:44,background:scoreBg(r.score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:16,color:scoreColor(r.score),fontWeight:700,flexShrink:0}}>{r.score}</div>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{r.name} <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company}</span></div>
                     <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:4}}>
-                      {(r.signals||[]).map((s:string,j:number)=>(
+                      {(r.signals||[]).map((s,j)=>(
                         <span key={j} style={{fontSize:9,padding:'2px 6px',background:'rgba(88,166,255,.08)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.2)'}}>{s}</span>
                       ))}
                     </div>
@@ -4681,7 +4585,7 @@ function LeadGenSwarmPanel({toast}) {
           {outreachResult&&(
             <div className="card mb4">
               <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ {outreachResult.sent} messages sent (threshold: {outreachResult.threshold})</div>
-              {(outreachResult.results||[]).map((r:any,i:number)=>(
+              {(outreachResult.results||[]).map((r,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
                     <div><span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.lead_name}</span> <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company} · Score: {r.score}</span></div>
@@ -4705,7 +4609,7 @@ function LeadGenSwarmPanel({toast}) {
           </div>
           {loadingLeads?(<div style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>Loading…</div>):(
             leads.length===0?(<div className="card" style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>No leads yet — run Agent 1 to scout</div>):
-            leads.map((l:any)=>{
+            leads.map((l) =>{
               const sb = statusBadge(l.outreach_status)
               const signals = typeof l.intent_signals === 'string' ? JSON.parse(l.intent_signals||'[]') : (l.intent_signals||[])
               return (
@@ -4728,7 +4632,7 @@ function LeadGenSwarmPanel({toast}) {
                       <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{l.email} {l.phone&&`· ${l.phone}`}</div>
                       {signals.length>0&&(
                         <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>
-                          {signals.map((s:string,i:number)=><span key={i} style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.06)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.15)'}}>{s}</span>)}
+                          {signals.map((s,i)=><span key={i} style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.06)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.15)'}}>{s}</span>)}
                         </div>
                       )}
                       {l.outreach_message&&(
@@ -4777,9 +4681,6 @@ function LeadGenSwarmPanel({toast}) {
     </div>
   )
 }
-
-
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
 function WorkflowMonitor({toast}) {
   const [runs,setRuns]=useState([])
   const [loading,setLoading]=useState(true)
@@ -4922,26 +4823,20 @@ function App() {
   const [data,setData]=useState({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]})
   const [loading,setLoading]=useState(false)
   const [toastMsg,setToastMsg]=useState(null)
-<<<<<<< HEAD
-=======
-  // Hide the HTML loading screen on first React render
+// Hide the HTML loading screen on first React render
   useEffect(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; },[])
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   const [clock,setClock]=useState(new Date())
   const [notifOpen,setNotifOpen]=useState(false)
   // Staff list lives here so Settings can mutate it
   const [staffList,setStaffList]=useState(INIT_STAFF)
-<<<<<<< HEAD
-  const realtimeRef=useRef(null)
-=======
-  // Load staff from Supabase on mount (overrides INIT_STAFF)
+// Load staff from Supabase on mount (overrides INIT_STAFF)
   useEffect(()=>{
     db('staff',`?tenant_id=eq.${TENANT}&select=*&order=id`)
       .then(d=>{ if(Array.isArray(d)&&d.length>0) setStaffList(d) })
       .catch(()=>{}) // silently fall back to INIT_STAFF
   },[])
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   const toastRef=useRef()
+  const realtimeRef=useRef(null)
 
   const toast=useCallback((msg,type='success')=>{
     setToastMsg({msg,type})
@@ -5180,3 +5075,6 @@ document.getElementById('loading').style.display='none';
   </script>
 </body>
 </html>
+
+
+

@@ -1341,11 +1341,7 @@ function RoomModal({room,folios,setFolios,setRooms,setGuests,setTransactions,toa
     setShowPayModal(false);setPayAmount("");
   }
   function doCheckout() {
-<<<<<<< HEAD
-    const txn={id:`TXN-${Date.now()}`,date:fmtDate(TODAY),time:nowTime(),guest:room.guest,type:"Final Settlement",room:room.id,amount:total,method:"Credit Card",status:"completed"};
-    setTransactions(p=>[txn,...p]);
-=======
-    // Ledger accuracy: only settle what is still unpaid.
+// Ledger accuracy: only settle what is still unpaid.
     const paidSoFar=(transactions||[]).filter(t=>t.type==="Payment"&&t.room===room.id)
       .reduce((a,t)=>a+(+t.amount||0),0);
     const finalDue=Math.max(0,total-paidSoFar);
@@ -1353,7 +1349,6 @@ function RoomModal({room,folios,setFolios,setRooms,setGuests,setTransactions,toa
       const txn={id:`TXN-${Date.now()}`,date:fmtDate(TODAY),time:nowTime(),guest:room.guest,type:"Final Settlement",room:room.id,amount:finalDue,method:"Credit Card",status:"completed"};
       setTransactions(p=>[txn,...p]);
     }
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
     setRooms(p=>p.map(r=>r.id===room.id?{...r,status:"housekeeping",guest:null,checkIn:null,checkOut:null}:r));
     setGuests(p=>p.map(g=>g.name===room.guest?{...g,status:"checked-out",room:null,stays:g.stays+1,spent:g.spent+total}:g));
     setFolios(p=>({...p,[room.id]:[]}));
