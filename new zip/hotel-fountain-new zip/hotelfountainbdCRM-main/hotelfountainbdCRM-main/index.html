@@ -2097,7 +2097,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   }
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
-  const outstanding=reservations.filter(r=>r.status==='CHECKED_IN')
+  const outstanding=reservations.filter(r=>['CHECKED_IN','CHECKED_OUT'].includes(r.status))
     .reduce((a,r)=>{
       const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number))
       const nts=nightsCount(r.check_in,r.check_out)||1
@@ -2109,7 +2109,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
   const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
   const dueRes=reservations.filter(r=>{
-    if(r.status!=='CHECKED_IN') return false
+    if(!['CHECKED_IN','CHECKED_OUT'].includes(r.status)) return false
     const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number))
     const nts=nightsCount(r.check_in,r.check_out)||1
     const comp=rm?(+rm.price*nts):0
