@@ -649,9 +649,10 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
   })
   const checkedIn=reservations.filter(r=>r.status==='CHECKED_IN').slice(0,6)
   const getGN=gids=>{
-    const gid=String((gids||[]).filter(Boolean)[0]||'')
-    const g=guests.find(g=>String(g.id)===gid)
-    return g?g.name:(gid?`ID:${gid}`:'Unknown')
+    const gid=String((gids||[]).filter(Boolean)[0]||'').toLowerCase().trim()
+    if(!gid) return 'Unknown'
+    const g=guests.find(g=>String(g.id||'').toLowerCase().trim()===gid)
+    return g?g.name:`ID:${gid.slice(0,8)}`
   }
 
   return (
@@ -1115,9 +1116,10 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
 
   const sc=reservations.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
   const getGN=gids=>{
-    const gid=String((gids||[]).filter(Boolean)[0]||'')
-    const g=guests.find(g=>String(g.id)===gid)
-    return g?g.name:(gid?`ID:${gid}`:'Unknown')
+    const gid=String((gids||[]).filter(Boolean)[0]||'').toLowerCase().trim()
+    if(!gid) return 'Unknown'
+    const g=guests.find(g=>String(g.id||'').toLowerCase().trim()===gid)
+    return g?g.name:`ID:${gid.slice(0,8)}`
   }
 
   let res=filter==='ALL'?reservations:reservations.filter(r=>r.status===filter)
@@ -2086,9 +2088,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 
   const getGN=r=>{
     if(r.guest_name) return r.guest_name
-    const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||'')
-    const g=guests?.find(g=>String(g.id)===gid)
-    return g?g.name:(gid?`ID:${gid}`:'—')
+    let gids=r.guest_ids
+    if(typeof gids==='string') try{gids=JSON.parse(gids)}catch(e){}
+    const gid=String((gids||[r.guest_id]||[]).filter(Boolean)[0]||'').toLowerCase().trim()
+    if(!gid) return '—'
+    const g=guests?.find(g=>String(g.id||'').toLowerCase().trim()===gid)
+    return g?g.name:`ID:${gid.slice(0,8)}`
   }
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
@@ -2469,8 +2474,8 @@ ${dueRows}
                     return Object.values(groups).map(grp=>{
                       const res=reservations?.find(r=>(r.room_ids||[r.room_number]).includes(grp.room_number))
                       // Find guest to get permanent ID and outstanding balance
-                      const gId = res?.guest_ids?.[0]
-                      const guestHead = gId ? guests?.find(g=>String(g.id)===String(gId)) : guests?.find(g=>g.name===grp.guest_name)
+                      const gId = String((res?.guest_ids||[])[0]||'').toLowerCase().trim()
+                      const guestHead = gId ? guests?.find(g=>String(g.id||'').toLowerCase().trim()===gId) : guests?.find(g=>String(g.name||'').toLowerCase()===String(grp.guest_name||'').toLowerCase())
                       grp.guest_id = guestHead?.id || '—'
                       grp.guest_balance = +(guestHead?.outstanding_balance || 0)
 
