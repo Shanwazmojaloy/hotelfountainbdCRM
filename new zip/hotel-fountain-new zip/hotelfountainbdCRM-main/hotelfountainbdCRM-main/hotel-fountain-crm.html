@@ -2097,17 +2097,9 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   }
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
-  const outstanding=reservations.filter(r=>['CHECKED_IN','CHECKED_OUT'].includes(r.status))
-    .reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
-  const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
-  const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
-  const dueRes=reservations.filter(r=>{
-    if(!['CHECKED_IN','CHECKED_OUT'].includes(r.status)) return false
-    return (+r.total_amount||0)>(+r.paid_amount||0)
-  })
-
   function computeBill(r) {
-    const room=rooms?.find(rm=>(r.room_ids||[r.room_number]).includes(rm.room_number))
+    const rids=r.room_ids||[r.room_number]
+    const room=rooms?.find(rm=>rids.some(rid=>String(rid)===String(rm.room_number)))
     const roomRate=+room?.price||+r.rate_per_night||0
     const nights=nightsCount(r.check_in,r.check_out)||1
     const roomCharge=roomRate*nights
@@ -2125,6 +2117,15 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const due=Math.max(0,total-paid)
     return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
   }
+
+  const outstanding=reservations.filter(r=>['CHECKED_IN','CHECKED_OUT'].includes(r.status))
+    .reduce((a,r)=>a+computeBill(r).due,0)
+  const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
+  const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
+  const dueRes=reservations.filter(r=>{
+    if(!['CHECKED_IN','CHECKED_OUT'].includes(r.status)) return false
+    return computeBill(r).due > 0
+  })
 
   // Transactions for current filter (for PDF)
   const filteredTx=filter==='TODAY'?todayT:filter==='MONTH'?monthT:filter==='DATE'?calT:transactions
