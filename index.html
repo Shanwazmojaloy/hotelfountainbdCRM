@@ -1485,7 +1485,6 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         </div>
       )}
       <div className="frow">
-<<<<<<< HEAD
         <div className="fg"><label className="flbl">Gross Total (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoTotal||0)}/></div>
         <div className="fg"><label className="flbl">Discount (BDT)</label><input type="number" className="finput" value={f.discount} onChange={F('discount')} placeholder="0"/></div>
       </div>
@@ -1499,19 +1498,6 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
             <div className="xs muted">Total Due: <span style={{color:dueAmt>0?'var(--rose)':'var(--grn)'}}>{BDT(dueAmt)}</span></div>
           </div>
         </div>
-=======
-        <div className="fg">
-          <label className="flbl">Total Amount (BDT) <span style={{color:'var(--tx3)',fontSize:9}}>(auto-calculated)</span></label>
-          <input type="number" className="finput" value={autoTotal>0?autoTotal:(f.total||'')} readOnly
-            style={{background:'rgba(200,169,110,.04)',cursor:'not-allowed',color:'var(--gold)',fontWeight:500}}
-            placeholder="Select room & dates"/>
-        </div>
-        <div className="fg">
-          <label className="flbl">Discount (BDT)</label>
-          <input type="number" className="finput" value={f.discount} onChange={F('discount')} placeholder="0" min="0"/>
-        </div>
-        <div className="fg"><label className="flbl">Paid Amount (BDT)</label><input type="number" className="finput" value={f.paid} onChange={F('paid')} placeholder="0"/></div>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       </div>
       <div className="frow">
         <div className="fg">
@@ -1522,47 +1508,18 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         </div>
         <div className="fg"><label className="flbl">On-Duty Officer</label><input className="finput" value={f.officer} onChange={F('officer')} placeholder="Staff name"/></div>
       </div>
-<<<<<<< HEAD
       <div className="fg"><label className="flbl">Special Requests / Notes</label><textarea className="ftextarea" value={f.notes} onChange={F('notes')} style={{minHeight:50}} placeholder="Optional"/></div>
-=======
-      <div className="fg">
-          <label className="flbl">Guest ID / Passport Upload <span style={{color:'var(--tx3)',fontSize:9}}>(optional)</span></label>
-          <input type="file" accept="image/*,.pdf"
-            style={{background:'var(--s2)',border:'1px solid var(--br)',color:'var(--tx2)',fontSize:12,padding:'8px 10px',width:'100%',cursor:'pointer'}}
-            onChange={e=>{const file=e.target.files?.[0];if(file)setF(p=>({...p,guestIdFile:file}))}}/>
-          {f.guestIdFile&&<div style={{fontSize:10,color:'var(--grn)',marginTop:4}}>✓ {f.guestIdFile.name}</div>}
-        </div>
-        <div className="fg"><label className="flbl">Special Requests / Notes</label><textarea className="ftextarea" value={f.notes} onChange={F('notes')} style={{minHeight:50}} placeholder="Optional"/></div>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
     </Modal>
   )
 }
 
 /* ═══════════════════════ GUESTS ═════════════════════════════ */
 function GuestsPage({guests,reservations,toast,currentUser,reload}) {
-<<<<<<< HEAD
   const [search,setSearch]=useState('')
   const [sel,setSel]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
   let list=guests
   if(search){ const q=search.toLowerCase(); list=list.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.email?.toLowerCase().includes(q)) }
-=======
-  const PAGE_SIZE=50
-  const [search,setSearch]=useState('')
-  const [page,setPage]=useState(1)
-  const [sel,setSel]=useState(null)
-  const [showAdd,setShowAdd]=useState(false)
-
-  // Filter by search
-  let filtered=guests
-  if(search){ const q=search.toLowerCase(); filtered=filtered.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.email?.toLowerCase().includes(q)) }
-
-  // Reset to page 1 when search changes
-  useEffect(()=>setPage(1),[search])
-
-  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE))
-  const pageList=filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE)
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
 
   return (
     <div>

@@ -1675,7 +1675,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 
   const getGN=r=>{
     if(r.guest_name) return r.guest_name
-    const gid=String((r.guest_ids||[])[0]||'')
+    const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||'')
     const g=guests?.find(g=>String(g.id)===gid)
     return g?g.name:'—'
   }
@@ -1952,16 +1952,16 @@ ${dueRows}
       </div>
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
+      {showAdd&&<RecordPayModal toast={toast} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations} guests={guests}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(
         <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
           <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
             <div className="flex fac gap3">
-              <Av name={detailRes.guest_name} size={40}/>
+              <Av name={getGN(detailRes)} size={40}/>
               <div>
-                <div style={{fontWeight:700,fontSize:16}}>{detailRes.guest_name}</div>
+                <div style={{fontWeight:700,fontSize:16}}>{getGN(detailRes)}</div>
                 <div className="xs muted">Room {detailRes.room_number} · {fmtDate(detailRes.check_in)} → {fmtDate(detailRes.check_out)}</div>
                 <div className="xs" style={{color:'var(--amb)',marginTop:2}}>{nights} night{nights!==1?'s':''} · {BDT(roomRate)}/night</div>
               </div>
@@ -2015,20 +2015,22 @@ ${dueRows}
   )
 }
 
-function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
+function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
   const fromRow=prefill?._fromRow===true
   const dueResList=(reservations||[]).filter(r=>r.status==='CHECKED_IN'&&(+r.total_amount||0)>(+r.paid_amount||0))
 
+  const getGN = r => r?.guest_name || (guests?.find(g=>String(g.id)===String((r?.guest_ids||[r?.guest_id]||[]).filter(Boolean)[0]||''))?.name) || '—'
+
   // Locked mode (opened from + Pay / row click)
   const lockedRoom  = fromRow?(prefill.room_number||''):null
-  const lockedGuest = fromRow?(prefill.guest_name||''):null
+  const lockedGuest = fromRow?getGN(prefill):null
   const lockedResId = fromRow?prefill._resId:null
   const lockedDue   = fromRow?Math.max(0,(prefill._total||0)-(prefill._paid||0)):0
 
   // Search mode (opened manually)
   const initRes=!fromRow&&prefill?.id?prefill:(!fromRow&&dueResList.length===1?dueResList[0]:null)
   const [selRes,setSelRes]=useState(initRes)
-  const [resSearch,setResSearch]=useState(initRes?`${initRes.room_number||''} — ${initRes.guest_name||''}`:'')
+  const [resSearch,setResSearch]=useState(initRes?`${initRes.room_number||''} — ${getGN(initRes)}`:'')
   const [showResDrop,setShowResDrop]=useState(false)
   const dropDueAmt=selRes?Math.max(0,(+selRes.total_amount||0)-(+selRes.paid_amount||0)):0
 
@@ -2039,7 +2041,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
 
   function pickRes(r){
     setSelRes(r)
-    setResSearch(`${r.room_number||''} — ${r.guest_name||''}`)
+    setResSearch(`${r.room_number||''} — ${getGN(r)}`)
     const due=Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0))
     if(due>0) setAmount(String(due))
     setShowResDrop(false)
@@ -2124,7 +2126,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
           {showResDrop&&dueResList.length>0&&(
             <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:60,background:'var(--s1)',border:'1px solid var(--br)',boxShadow:'0 8px 24px rgba(0,0,0,.6)',maxHeight:180,overflowY:'auto'}}>
               {dueResList
-                .filter(r=>{const q=resSearch.toLowerCase();return !q||(r.room_number?.toLowerCase().includes(q)||r.guest_name?.toLowerCase().includes(q))})
+                .filter(r=>{const q=resSearch.toLowerCase();return !q||(r.room_number?.toLowerCase().includes(q)||getGN(r).toLowerCase().includes(q))})
                 .map(r=>{
                   const due=Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0))
                   return(
@@ -2134,7 +2136,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
                         <span className="badge bb">{r.room_number||'—'}</span>
-                        <span style={{fontSize:12}}>{r.guest_name||'—'}</span>
+                        <span style={{fontSize:12}}>{getGN(r)}</span>
                       </div>
                       <span style={{fontSize:11,color:'var(--rose)',fontWeight:600}}>{BDT(due)} due</span>
                     </div>
