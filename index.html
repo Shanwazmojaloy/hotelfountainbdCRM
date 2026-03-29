@@ -2120,7 +2120,7 @@ th{text-align:left;background:#f4f4f4} .r{text-align:right}
 </table></div>
 <div class="blk"><div style="margin-bottom:8px;font-weight:700">Payments</div><table><thead><tr><th>Type</th><th class="r">Amount</th></tr></thead><tbody>${paymentRows||'<tr><td colspan="2">No payments recorded</td></tr>'}</tbody></table></div>
 <div class="muted" style="text-align:center;margin-top:16px">Hotel Fountain CRM</div>
-</div><script>window.onload=()=>window.print();</script></body></html>`
+</div><script>window.onload=()=>window.print();<\/script></body></html>`
     printPDF(html)
   }
 
@@ -3012,7 +3012,7 @@ function AIAgentsPanel({toast}) {
     finally{ setAnalyzerBusy(false) }
   }
 
-  async function runCloserForId(id: string) {
+  async function runCloserForId(id) {
     const lid = (id||closerLeadId||'').trim()
     if(!lid) { toast('Enter a lead ID','error'); return }
     setCloserLeadId(lid)
@@ -3023,7 +3023,7 @@ function AIAgentsPanel({toast}) {
       setCloserResult(res)
       // Also update the email_draft in pipelineResult leads list
       if(pipelineResult?.leads) {
-        setPipelineResult((p:any)=>({...p,leads:p.leads.map((l:any)=>l.id===lid?{...l,email_draft:res.email_draft}:l)}))
+        setPipelineResult((p) =>({...p,leads:p.leads.map((l) =>l.id===lid?{...l,email_draft:res.email_draft}:l)}))
       }
       toast(`✓ Email drafted for ${res.lead_name}`)
     } catch(e){ toast(e.message,'error') }
@@ -3075,7 +3075,7 @@ function AIAgentsPanel({toast}) {
             <div style={{fontSize:10,color:'var(--grn)',marginBottom:10,fontWeight:500}}>
               ✓ {pipelineResult.leads?.length||pipelineResult.leads_found||0} leads found — Agent B auto-drafted emails for each
             </div>
-            {(pipelineResult.leads||[]).map((lead:any,i:number)=>(
+            {(pipelineResult.leads||[]).map((lead,i) =>(
               <div key={i} style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br)',padding:'12px 14px',marginBottom:8}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
                   <div>
@@ -3117,7 +3117,7 @@ function AIAgentsPanel({toast}) {
         {pipelineResult&&(pipelineResult.leads||[]).length>0?(
           <div>
             <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>Select a lead to re-draft or view their email:</div>
-            {(pipelineResult.leads||[]).map((lead:any,i:number)=>(
+            {(pipelineResult.leads||[]).map((lead,i) =>(
               <div key={i} style={{background:'rgba(200,169,110,.03)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{lead.name}</div>
@@ -3523,7 +3523,7 @@ function B2BSwarmPanel({toast}) {
                   <table className="tbl">
                     <thead><tr><th>Partner</th><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Revenue</th><th>Commission</th></tr></thead>
                     <tbody>
-                      {dashboard.recent_bookings.map((b:any)=>(
+                      {dashboard.recent_bookings.map((b)=>(
                         <tr key={b.id}>
                           <td style={{fontSize:11,fontWeight:500}}>{b.partner_name}</td>
                           <td style={{fontSize:11}}>{b.guest_name||'—'}</td>
@@ -3545,7 +3545,7 @@ function B2BSwarmPanel({toast}) {
           {billingResult&&(
             <div className="card">
               <div style={{fontSize:12,fontWeight:600,color:'var(--tx)',marginBottom:10}}>⚡ Weekly Run Results — {billingResult.partners_processed} partners processed</div>
-              {(billingResult.results||[]).map((r:any,i:number)=>(
+              {(billingResult.results||[]).map((r,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
                     <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.partner}</div>
@@ -3727,7 +3727,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
               <table className="tbl">
                 <thead><tr><th>Offer</th><th>Sent</th><th>Accepted</th><th>Conversion</th><th>Revenue</th></tr></thead>
                 <tbody>
-                  {Object.entries(dashboard.by_type).map(([type, data]:any)=>(
+                  {Object.entries(dashboard.by_type).map(([type, data])=>(
                     <tr key={type}>
                       <td><span style={{marginRight:6}}>{offerIcon(type)}</span>{type.replace(/_/g,' ').replace(/\w/g,l=>l.toUpperCase())}</td>
                       <td className="xs muted">{data.sent}</td>
@@ -3815,7 +3815,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
               <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>
                 ✓ Agent 1 processed {agentResult.processed} reservation{agentResult.processed!==1?'s':''}
               </div>
-              {(agentResult.results||[]).map((r:any,i:number)=>(
+              {(agentResult.results||[]).map((r,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
                     <div>
@@ -3878,7 +3878,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
           {agentResult?.agent==='RoomCustomizer'&&(
             <div className="card">
               <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ Agent 2 processed {agentResult.processed} reservation{agentResult.processed!==1?'s':''}</div>
-              {(agentResult.results||[]).map((r:any,i:number)=>(
+              {(agentResult.results||[]).map((r,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
                     <div>
@@ -3886,7 +3886,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
                       <div style={{fontSize:10,color:'var(--tx3)'}}>Room {r.room} · Arrival: {r.arrival_time} · {r.international?'🌍 International':'🇧🇩 Local'}</div>
                     </div>
                     {r.skipped?<span style={{fontSize:10,color:'var(--tx3)'}}>⏭ {r.skipped}</span>:(
-                      <div style={{display:'flex',gap:4}}>{(r.offers_sent||[]).map((o:string)=>(
+                      <div style={{display:'flex',gap:4}}>{(r.offers_sent||[]).map((o)=>(
                         <span key={o} style={{fontSize:9,background:'rgba(200,169,110,.15)',color:'var(--gold)',padding:'2px 8px',letterSpacing:'.08em'}}>{o.replace(/_/g,' ').toUpperCase()}</span>
                       ))}</div>
                     )}
@@ -3921,7 +3921,7 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
                   No offers yet — run Agent 1 or Agent 2 to generate upsell messages
                 </div>
               )}
-              {offers.map((o:any)=>(
+              {offers.map((o)=>(
                 <div key={o.id} style={{background:'rgba(0,0,0,.15)',border:`1px solid ${o.status==='accepted'?'rgba(63,185,80,.3)':o.status==='declined'?'rgba(224,92,122,.2)':'var(--br)'}`,padding:'12px 14px',marginBottom:6}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
                     <div style={{flex:1}}>
@@ -4155,7 +4155,7 @@ function LeadGenSwarmPanel({toast}) {
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
                 <div className="card">
                   <div className="card-hd"><span className="card-title">By Lead Type</span></div>
-                  {Object.entries(dashboard.by_type||{}).map(([type,count]:any)=>(
+                  {Object.entries(dashboard.by_type||{}).map(([type,count])=>(
                     <div key={type} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}>
                       <span>{typeIcon(type)} {type.replace(/_/g,' ').replace(/\w/g,l=>l.toUpperCase())}</span>
                       <span style={{color:'var(--gold)',fontWeight:600}}>{count}</span>
@@ -4164,7 +4164,7 @@ function LeadGenSwarmPanel({toast}) {
                 </div>
                 <div className="card">
                   <div className="card-hd"><span className="card-title">By Status</span></div>
-                  {Object.entries(dashboard.by_status||{}).map(([status,count]:any)=>{
+                  {Object.entries(dashboard.by_status||{}).map(([status,count])=>{
                     const b=statusBadge(status)
                     return (<div key={status} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}>
                       <span style={{color:b.color}}>{b.label}</span>
@@ -4177,7 +4177,7 @@ function LeadGenSwarmPanel({toast}) {
               {dashboard.top_leads?.length>0&&(
                 <div className="card">
                   <div className="card-hd"><span className="card-title">Top Priority Leads (Score ≥70)</span></div>
-                  {dashboard.top_leads.map((l:any)=>(
+                  {dashboard.top_leads.map((l) =>(
                     <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)'}}>
                       <div style={{width:36,height:36,background:scoreBg(l.intent_score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:13,color:scoreColor(l.intent_score),fontWeight:700,flexShrink:0}}>{l.intent_score}</div>
                       <div style={{flex:1,minWidth:0}}>
@@ -4235,7 +4235,7 @@ function LeadGenSwarmPanel({toast}) {
           {scoutResult&&(
             <div className="card">
               <div style={{fontSize:12,color:'var(--grn)',fontWeight:600,marginBottom:10}}>✓ {scoutResult.leads_found} leads found ({scoutResult.lead_type})</div>
-              {(scoutResult.leads||[]).map((l:any,i:number)=>(
+              {(scoutResult.leads||[]).map((l,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}>
                   <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{l.full_name} <span style={{fontSize:10,color:'var(--tx3)',fontWeight:400}}>· {l.title}</span></div>
                   <div style={{fontSize:11,color:'var(--sky)',marginTop:2}}>{l.company_name} · {l.area}</div>
@@ -4271,13 +4271,13 @@ function LeadGenSwarmPanel({toast}) {
               <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>
                 ✓ {analystResult.scored} leads scored · {analystResult.high_priority_count} high priority (≥80)
               </div>
-              {(analystResult.results||[]).map((r:any,i:number)=>(
+              {(analystResult.results||[]).map((r,i)=>(
                 <div key={i} style={{display:'flex',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)',alignItems:'flex-start'}}>
                   <div style={{width:44,height:44,background:scoreBg(r.score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:16,color:scoreColor(r.score),fontWeight:700,flexShrink:0}}>{r.score}</div>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{r.name} <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company}</span></div>
                     <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:4}}>
-                      {(r.signals||[]).map((s:string,j:number)=>(
+                      {(r.signals||[]).map((s,j)=>(
                         <span key={j} style={{fontSize:9,padding:'2px 6px',background:'rgba(88,166,255,.08)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.2)'}}>{s}</span>
                       ))}
                     </div>
@@ -4320,7 +4320,7 @@ function LeadGenSwarmPanel({toast}) {
           {outreachResult&&(
             <div className="card mb4">
               <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ {outreachResult.sent} messages sent (threshold: {outreachResult.threshold})</div>
-              {(outreachResult.results||[]).map((r:any,i:number)=>(
+              {(outreachResult.results||[]).map((r,i)=>(
                 <div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
                     <div><span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.lead_name}</span> <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company} · Score: {r.score}</span></div>
@@ -4344,7 +4344,7 @@ function LeadGenSwarmPanel({toast}) {
           </div>
           {loadingLeads?(<div style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>Loading…</div>):(
             leads.length===0?(<div className="card" style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>No leads yet — run Agent 1 to scout</div>):
-            leads.map((l:any)=>{
+            leads.map((l) =>{
               const sb = statusBadge(l.outreach_status)
               const signals = typeof l.intent_signals === 'string' ? JSON.parse(l.intent_signals||'[]') : (l.intent_signals||[])
               return (
@@ -4367,7 +4367,7 @@ function LeadGenSwarmPanel({toast}) {
                       <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{l.email} {l.phone&&`· ${l.phone}`}</div>
                       {signals.length>0&&(
                         <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>
-                          {signals.map((s:string,i:number)=><span key={i} style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.06)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.15)'}}>{s}</span>)}
+                          {signals.map((s,i)=><span key={i} style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.06)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.15)'}}>{s}</span>)}
                         </div>
                       )}
                       {l.outreach_message&&(
@@ -4809,3 +4809,4 @@ document.getElementById('loading').style.display='none';
   </script>
 </body>
 </html>
+
