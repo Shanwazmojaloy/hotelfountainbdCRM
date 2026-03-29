@@ -1675,17 +1675,20 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 
   const getGN=r=>{
     if(r.guest_name) return r.guest_name
-    const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||'')
-    const g=guests?.find(g=>String(g.id)===gid)
-    return g?g.name:(gid?`ID:${gid}`:'—')
+    let ids=r.guest_ids||[r.guest_id]
+    if(typeof ids==='string' && ids.startsWith('[')) try{ids=JSON.parse(ids)}catch(e){}
+    const gid=String((Array.isArray(ids)?ids:[ids]).filter(Boolean)[0]||'').toLowerCase().trim()
+    if(!gid) return '—'
+    const g=guests?.find(g=>String(g.id||'').toLowerCase().trim()===gid)
+    return g?g.name:`ID:${gid.slice(0,8)}`
   }
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
-  const outstanding=reservations.filter(r=>r.status==='CHECKED_IN')
+  const outstanding=reservations.filter(r=>['CHECKED_IN','CHECKED_OUT'].includes(r.status))
     .reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
   const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
   const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
-  const dueRes=reservations.filter(r=>r.status==='CHECKED_IN'&&(+r.total_amount||0)>(+r.paid_amount||0))
+  const dueRes=reservations.filter(r=>['CHECKED_IN','CHECKED_OUT'].includes(r.status)&&(+r.total_amount||0)>(+r.paid_amount||0))
 
   function computeBill(r) {
     const room=rooms?.find(rm=>(r.room_ids||[r.room_number]).includes(rm.room_number))
@@ -1698,7 +1701,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const sub=roomCharge+extras
     const tax=Math.round(sub*.07)
     const svc=Math.round(sub*.05)
-    const total=sub+tax+svc||+r.total_amount||0
+    const total=+r.total_amount||0
     const paid=+r.paid_amount||0
     const due=Math.max(0,total-paid)
     return {roomCharge,extras,sub,tax,svc,total,paid,due,folios,nights,roomRate}
@@ -2017,9 +2020,17 @@ ${dueRows}
 
 function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
   const fromRow=prefill?._fromRow===true
-  const dueResList=(reservations||[]).filter(r=>r.status==='CHECKED_IN'&&(+r.total_amount||0)>(+r.paid_amount||0))
+  const dueResList=(reservations||[]).filter(r=>['CHECKED_IN','CHECKED_OUT'].includes(r.status)&&(+r.total_amount||0)>(+r.paid_amount||0))
 
-  const getGN = r => r?.guest_name || (guests?.find(g=>String(g.id)===String((r?.guest_ids||[r?.guest_id]||[]).filter(Boolean)[0]||''))?.name) || '—'
+  const getGN = r => {
+    if(!r) return '—'
+    if(r.guest_name) return r.guest_name
+    let ids=r.guest_ids||[r.guest_id]
+    if(typeof ids==='string' && ids.startsWith('[')) try{ids=JSON.parse(ids)}catch(e){}
+    const gid=String((Array.isArray(ids)?ids:[ids]).filter(Boolean)[0]||'').toLowerCase().trim()
+    const g=guests?.find(g=>String(g.id||'').toLowerCase().trim()===gid)
+    return g?g.name:(gid?`ID:${gid.slice(0,8)}`:'—')
+  }
 
   // Locked mode (opened from + Pay / row click)
   const lockedRoom  = fromRow?(prefill.room_number||''):null
