@@ -1,5 +1,5 @@
+<!DOCTYPE html>
 <html lang="en">
-<!-- V_UL_FIX_DYNAMIC_VERIFY_4_0 -->
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -35,11 +35,30 @@ const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co'
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
 const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 
-const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
-const fmtDate = d => d ? String(d).slice(0,10) : '—'
-const todayDhaka = () => new Date(new Date().toLocaleString('en',{timeZone:'Asia/Dhaka'}))
-const todayStr = () => { const d=todayDhaka(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 const nightsCount = (ci,co) => { if(!ci||!co) return 0; return Math.max(0, Math.round((new Date(co)-new Date(ci))/86400000)) }
+
+function computeBill(r, rooms, foliosMap, settings) {
+  const rids=r.room_ids||[r.room_number]
+  const room=rooms?.find(rm=>rids.some(rid=>String(rid)===String(rm.room_number)))
+  const roomRate=+room?.price||+r.rate_per_night||0
+  const nights=nightsCount(r.check_in,r.check_out)||1
+  const roomCharge=roomRate*nights
+  const fKey=r.id||r.room_number
+  const folios=foliosMap[fKey]||foliosMap[r.room_number]||[]
+  const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
+  const sub=roomCharge+extras
+  // Use rates from hotel settings (loaded from Supabase), fallback 0
+  const vatPct=(+settings?.vat_rate||0)/100
+  const svcPct=(+settings?.service_charge||0)/100
+  const tax=Math.round(sub*vatPct)
+  const svc=Math.round(sub*svcPct)
+  const discount=+r.discount||+r.discount_amount||0
+  const total=sub+tax+svc
+  const netTotal=Math.max(0,total-discount)
+  const paid=+r.paid_amount||0
+  const due=Math.max(0,netTotal-paid)
+  return {roomCharge,extras,sub,tax,svc,discount,total:netTotal,paid,due,folios,nights,roomRate,vatPct,svcPct}
+}
 const AVC = ['#C8A96E','#2EC4B6','#E05C7A','#58A6FF','#3FB950','#9B72CF','#F0A500']
 const avColor = n => AVC[n ? n.charCodeAt(0)%AVC.length : 0]
 const initials = n => n ? n.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '?'
@@ -649,10 +668,9 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
   })
   const checkedIn=reservations.filter(r=>r.status==='CHECKED_IN').slice(0,6)
   const getGN=gids=>{
-    const gid=String((gids||[]).filter(Boolean)[0]||'').toLowerCase().trim()
-    if(!gid) return 'Unknown'
-    const g=guests.find(g=>String(g.id||'').toLowerCase().trim()===gid)
-    return g?g.name:`ID:${gid.slice(0,8)}`
+    const gid=String((gids||[]).filter(Boolean)[0]||'')
+    const g=guests.find(g=>String(g.id)===gid)
+    return g?g.name:(gid?`ID:${gid}`:'Unknown')
   }
 
   return (
@@ -1116,10 +1134,9 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
 
   const sc=reservations.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
   const getGN=gids=>{
-    const gid=String((gids||[]).filter(Boolean)[0]||'').toLowerCase().trim()
-    if(!gid) return 'Unknown'
-    const g=guests.find(g=>String(g.id||'').toLowerCase().trim()===gid)
-    return g?g.name:`ID:${gid.slice(0,8)}`
+    const gid=String((gids||[]).filter(Boolean)[0]||'')
+    const g=guests.find(g=>String(g.id)===gid)
+    return g?g.name:(gid?`ID:${gid}`:'Unknown')
   }
 
   let res=filter==='ALL'?reservations:reservations.filter(r=>r.status===filter)
@@ -1587,7 +1604,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
 }
 
 /* ═══════════════════════ GUESTS ═════════════════════════════ */
-function GuestsPage({guests,reservations,toast,currentUser,reload}) {
+function GuestsPage({guests,reservations,rooms,toast,currentUser,reload,hSettings,foliosMap}) {
   const [search,setSearch]=useState('')
   const [filter,setFilter]=useState('ALL')
   const [sel,setSel]=useState(null)
@@ -1725,14 +1742,19 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
           </div>
         </div>
       )}
-      {sel&&<GuestModal guest={sel} reservations={reservations} toast={toast} onClose={()=>setSel(null)} reload={reload} isSA={currentUser?.role==='owner'}/>}
-      {showAdd&&<AddGuestModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
+      {sel && <GuestModal guest={sel} reservations={reservations} rooms={rooms} hSettings={hSettings} foliosMap={foliosMap} toast={toast} onClose={()=>setSel(null)} reload={reload} isSA={currentUser?.role==='owner'}/>}
+      {showAdd && <AddGuestModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
     </div>
   )
 }
 
-function GuestModal({guest,reservations,toast,onClose,reload,isSA}) {
-  const gRes=reservations.filter(r=>(r.guest_ids||[]).map(String).includes(String(guest.id))).slice(0,5)
+function GuestModal({guest,reservations,rooms,hSettings,foliosMap,toast,onClose,reload,isSA}) {
+  const gRes=reservations.filter(r=>{
+    let ids=r.guest_ids||[r.guest_id]
+    if(typeof ids==='string' && ids.startsWith('[')) try{ids=JSON.parse(ids)}catch(e){}
+    return (Array.isArray(ids)?ids:[ids]).map(String).includes(String(guest.id))
+  })
+  const ledgerBalance = gRes.reduce((acc, r) => acc + computeBill(r, rooms, foliosMap, hSettings).due, 0)
   const [showEdit,setShowEdit]=useState(false)
   async function toggleVIP() {
     try { await dbPatch('guests',guest.id,{vip:!guest.vip}); toast(guest.vip?'VIP status removed':'Marked as VIP ★'); reload(); onClose() }
@@ -1755,8 +1777,8 @@ function GuestModal({guest,reservations,toast,onClose,reload,isSA}) {
         </div>
       </div>
       <div className="g2 mb4">
-        {[['Phone',guest.phone||'—'],['Email',guest.email||'—'],['ID Type',guest.id_type||'—'],['ID Number',guest.id_number||guest.id_card||'—'],['Balance',BDT(guest.outstanding_balance||0)],['Address',guest.address||'—']].map(([l,v])=>(
-          <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
+        {[['Phone',guest.phone||'—'],['Email',guest.email||'—'],['ID Type',guest.id_type||'—'],['ID Number',guest.id_number||guest.id_card||'—'],['Ledger Balance',BDT(ledgerBalance)],['Address',guest.address||'—']].map(([l,v])=>(
+          <div key={l} className="info-box"><div className="info-lbl" style={{color:l==='Ledger Balance'&&ledgerBalance>0?'var(--rose)':'inherit'}}>{l}</div><div className="info-val" style={{color:l==='Ledger Balance'&&ledgerBalance>0?'var(--rose)':'inherit',fontWeight:l==='Ledger Balance'?700:300}}>{v}</div></div>
         ))}
       </div>
       {gRes.length>0&&(
@@ -2088,18 +2110,35 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 
   const getGN=r=>{
     if(r.guest_name) return r.guest_name
-    let ids=r.guest_ids||[r.guest_id]
-    if(typeof ids==='string' && ids.startsWith('[')) try{ids=JSON.parse(ids)}catch(e){}
-    const gid=String((Array.isArray(ids)?ids:[ids]).filter(Boolean)[0]||'').toLowerCase().trim()
-    if(!gid) return '—'
-    const g=guests?.find(g=>String(g.id||'').toLowerCase().trim()===gid)
-    return g?g.name:`ID:${gid.slice(0,8)}`
+    const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||'')
+    const g=guests?.find(g=>String(g.id)===gid)
+    return g?g.name:(gid?`ID:${gid}`:'—')
   }
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
+  const outstanding=reservations.filter(r=>r.status==='CHECKED_IN')
+    .reduce((a,r)=>{
+      const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number))
+      const nts=nightsCount(r.check_in,r.check_out)||1
+      const comp=rm?(+rm.price*nts):0
+      const disc=+r.discount||0
+      const tot=comp>0?Math.max(0,comp-disc):(Math.max(0,(+r.total_amount||0)-disc))
+      return a+Math.max(0,tot-(+r.paid_amount||0))
+    },0)
+  const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
+  const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
+  const dueRes=reservations.filter(r=>{
+    if(r.status!=='CHECKED_IN') return false
+    const rm=rooms?.find(rm2=>(r.room_ids||[]).includes(rm2.room_number))
+    const nts=nightsCount(r.check_in,r.check_out)||1
+    const comp=rm?(+rm.price*nts):0
+    const disc=+r.discount||0
+    const tot=comp>0?Math.max(0,comp-disc):(Math.max(0,(+r.total_amount||0)-disc))
+    return tot>(+r.paid_amount||0)
+  })
+
   function computeBill(r) {
-    const rids=r.room_ids||[r.room_number]
-    const room=rooms?.find(rm=>rids.some(rid=>String(rid)===String(rm.room_number)))
+    const room=rooms?.find(rm=>(r.room_ids||[r.room_number]).includes(rm.room_number))
     const roomRate=+room?.price||+r.rate_per_night||0
     const nights=nightsCount(r.check_in,r.check_out)||1
     const roomCharge=roomRate*nights
@@ -2107,25 +2146,19 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const folios=foliosMap[fKey]||foliosMap[r.room_number]||[]
     const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
     const sub=roomCharge+extras
+    // Use rates from hotel settings (loaded from Supabase), fallback 0
     const vatPct=(+hSettings?.vat||0)/100
     const svcPct=(+hSettings?.svc||0)/100
     const tax=Math.round(sub*vatPct)
     const svc=Math.round(sub*svcPct)
-    const discount=+r.discount||+r.discount_amount||0
-    const total=+r.total_amount||0
+    const discount=+r.discount||0
+    // Total: use computed value; only fall back to saved total_amount if room not found
+    const computedTotal=sub+tax+svc
+    const total=computedTotal>0?Math.max(0,computedTotal-discount):(Math.max(0,(+r.total_amount||0)-discount))
     const paid=+r.paid_amount||0
     const due=Math.max(0,total-paid)
     return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
   }
-
-  const outstanding=reservations.filter(r=>['CHECKED_IN','CHECKED_OUT'].includes(r.status))
-    .reduce((a,r)=>a+computeBill(r).due,0)
-  const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
-  const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
-  const dueRes=reservations.filter(r=>{
-    if(!['CHECKED_IN','CHECKED_OUT'].includes(r.status)) return false
-    return computeBill(r).due > 0
-  })
 
   // Transactions for current filter (for PDF)
   const filteredTx=filter==='TODAY'?todayT:filter==='MONTH'?monthT:filter==='DATE'?calT:transactions
@@ -2460,8 +2493,8 @@ ${dueRows}
                     return Object.values(groups).map(grp=>{
                       const res=reservations?.find(r=>(r.room_ids||[r.room_number]).includes(grp.room_number))
                       // Find guest to get permanent ID and outstanding balance
-                      const gId = String((res?.guest_ids||[])[0]||'').toLowerCase().trim()
-                      const guestHead = gId ? guests?.find(g=>String(g.id||'').toLowerCase().trim()===gId) : guests?.find(g=>String(g.name||'').toLowerCase()===String(grp.guest_name||'').toLowerCase())
+                      const gId = res?.guest_ids?.[0]
+                      const guestHead = gId ? guests?.find(g=>String(g.id)===String(gId)) : guests?.find(g=>g.name===grp.guest_name)
                       grp.guest_id = guestHead?.id || '—'
                       grp.guest_balance = +(guestHead?.outstanding_balance || 0)
 
@@ -2533,7 +2566,7 @@ ${dueRows}
       {/* ⚠ Pending Bills — single block; DATE filter also scopes displayed reservations */}
       <div className="card" style={{marginTop:8,borderColor:'rgba(224,92,122,.2)'}}>
         <div className="card-hd" style={{background:'rgba(224,92,122,.04)'}}>
-          <span className="card-title" style={{color:'var(--rose)'}}>⚠ Pending Bills — Due Reservations (Dynamic Fix v4.0)</span>
+          <span className="card-title" style={{color:'var(--rose)'}}>⚠ Pending Bills — Due Reservations</span>
           <span className="badge br_">{dueRes.length} unpaid</span>
         </div>
         {dueRes.length===0
@@ -4820,6 +4853,8 @@ function App() {
   const [user,setUser]=useState(null)
   const [page,setPage]=useState('dashboard')
   const [data,setData]=useState({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]})
+  const [hSettings,setHSettings]=useState({vat_rate:'0',service_charge:'0'})
+  const [foliosMap,setFoliosMap]=useState({})
   const [loading,setLoading]=useState(false)
   const [toastMsg,setToastMsg]=useState(null)
 // Hide the HTML loading screen on first React render
@@ -4848,12 +4883,14 @@ function App() {
   // loadAll returns a promise so callers can await it
   const loadAll=useCallback(async()=>{
     try {
-      const [rooms,guests,reservations,transactions,tasks]=await Promise.all([
+      const [rooms,guests,reservations,transactions,tasks,settingsRows,folios]=await Promise.all([
         db('rooms',`?tenant_id=eq.${TENANT}&select=*&order=room_number`),
         fetchAllGuests(),
         db('reservations',`?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=500`),
         db('transactions',`?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=400`),
         db('housekeeping_tasks',`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),
+        db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`),
+        db('folios',`?tenant_id=eq.${TENANT}&select=*&order=created_at`)
       ])
       setData({
         rooms:Array.isArray(rooms)?rooms:[],
@@ -4862,6 +4899,16 @@ function App() {
         transactions:Array.isArray(transactions)?transactions:[],
         tasks:Array.isArray(tasks)?tasks:[],
       })
+      const sM={}
+      if(Array.isArray(settingsRows)) settingsRows.forEach(r=>{sM[r.key]=r.value})
+      setHSettings(sM)
+      const fM={}
+      if(Array.isArray(folios)) folios.forEach(f=>{
+        const k=f.reservation_id||f.room_number
+        if(!fM[k])fM[k]=[]
+        fM[k].push(f)
+      })
+      setFoliosMap(fM)
     } catch(e){
       console.error('Load failed',e)
       toast('Failed to refresh data — check connection','error')
@@ -5051,9 +5098,9 @@ function App() {
           {/* Close notif by clicking content area */}
           <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
             {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage}/>}
-            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap}/>}
+            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap}/>}
+            {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap}/>}
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} hSettings={hSettings} foliosMap={foliosMap}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
