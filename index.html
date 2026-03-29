@@ -849,12 +849,12 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
         guest_name:guest?.name,
         fiscal_day:todayStr(),
         settlement_status:receivableStatus(due),
-        payment_status:paymentStatus,
         total_due:due,
         tenant_id:TENANT
       })
       if(guest?.id){
-        await dbPatch('guests',guest.id,{outstanding_balance:due})
+        const curBal = +(guest.outstanding_balance || 0)
+        await dbPatch('guests',guest.id,{outstanding_balance:curBal + due})
       }
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
@@ -870,6 +870,13 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
       const curPaid = +(activeRes.paid_amount || 0)
       await dbPatchReservationSafe(activeRes.id, {paid_amount: curPaid + a})
       await dbPost('folios',{room_number:room.room_number,reservation_id:activeRes.id,description:`Payment (${payType})`,category:'Payment',amount:-a,tenant_id:TENANT})
+      
+      // Also deduct from guest permanent balance
+      if(guest?.id) {
+        const curBal = +(guest.outstanding_balance || 0)
+        await dbPatch('guests',guest.id,{outstanding_balance:curBal - a})
+      }
+      
       toast(`Payment ${BDT(a)} collected ✓`); setPayAmt(''); reload()
     } catch(e) { toast(e.message,'error') }
     finally{ setPaySaving(false) }
@@ -1574,14 +1581,24 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
   const [search,setSearch]=useState('')
   const [sel,setSel]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
-  let list=guests
-  if(search){ const q=search.toLowerCase(); list=list.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.email?.toLowerCase().includes(q)) }
+  const [page,setPage]=useState(1)
+  const PAGE_SIZE = 15
+
+  const filtered = search 
+    ? guests.filter(g=>g.name?.toLowerCase().includes(search.toLowerCase())||g.phone?.includes(search)||g.email?.toLowerCase().includes(search.toLowerCase()))
+    : guests
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const pageList = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE)
+
+  // Reset page on search
+  useEffect(() => { setPage(1) }, [search])
 
   return (
     <div>
       <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
         <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search name, phone, email…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-<div className="flex gap2" style={{alignItems:'center'}}>
+        <div className="flex gap2" style={{alignItems:'center'}}>
           <span className="badge bgold">{filtered.length} {search?'found':('of '+guests.length+' guests')}</span>
           <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Add Guest</button>
         </div>
@@ -1591,7 +1608,7 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
           <table className="tbl">
             <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>ID</th><th>City</th><th>Balance</th><th>VIP</th><th></th></tr></thead>
             <tbody>
-{pageList.map(g=>(
+              {pageList.map(g=>(
                 <tr key={g.id}>
                   <td><div className="flex fac gap2"><Av name={g.name} size={24}/><span>{g.name}</span></div></td>
                   <td className="xs muted">{g.phone||'—'}</td>
@@ -2235,6 +2252,7 @@ ${dueRows}
       <div class="blk">
         <div class="blk-title">Guest Information</div>
         <table>
+          <tr><th>Guest ID</th><td>#${grp.guest_id || '—'}</td></tr>
           <tr><th>Guest Name</th><td>${grp.guest_name || '—'}</td></tr>
           <tr><th>Room No</th><td>${grp.room_number || '—'}</td></tr>
           <tr><th>Check-In</th><td>${checkIn}</td></tr>
@@ -2252,8 +2270,12 @@ ${dueRows}
           <span class="fin-val" style="color:#2e7d32">৳${Number(resPaid || 0).toLocaleString('en-BD')}</span>
         </div>
         <div class="fin-row fin-total">
-          <span class="fin-lbl">Balance Due</span>
+          <span class="fin-lbl">Balance Due (This Stay)</span>
           <span class="fin-val">৳${Number(resDue || 0).toLocaleString('en-BD')}</span>
+        </div>
+        <div class="fin-row" style="margin-top:10px;border-top:1px dashed #eee;padding-top:10px">
+          <span class="fin-lbl">Total Account Balance</span>
+          <span class="fin-val" style="color:${grp.guest_balance > 0 ? '#d32f2f' : '#2e7d32'};font-weight:700">৳${Number(grp.guest_balance || 0).toLocaleString('en-BD')}</span>
         </div>
       </div>
     </div>
@@ -2376,6 +2398,12 @@ ${dueRows}
                     })
                     return Object.values(groups).map(grp=>{
                       const res=reservations?.find(r=>(r.room_ids||[r.room_number]).includes(grp.room_number))
+                      // Find guest to get permanent ID and outstanding balance
+                      const gId = res?.guest_ids?.[0]
+                      const guestHead = gId ? guests?.find(g=>String(g.id)===String(gId)) : guests?.find(g=>g.name===grp.guest_name)
+                      grp.guest_id = guestHead?.id || '—'
+                      grp.guest_balance = +(guestHead?.outstanding_balance || 0)
+
                       const resDisc=res?+res.discount||0:0
                       const resRm=res?rooms?.find(rm=>(res.room_ids||[]).includes(rm.room_number)):null
                       const resNts=res?nightsCount(res.check_in,res.check_out)||1:1
@@ -2479,7 +2507,7 @@ ${dueRows}
       </div>
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
+      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
@@ -2587,7 +2615,7 @@ ${dueRows}
   )
 }
 
-function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
+function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
   const fromRow=prefill?._fromRow===true
   const dueResList=(reservations||[]).filter(r=>r.status==='CHECKED_IN'&&(+r.total_amount||0)>(+r.paid_amount||0))
 
@@ -2640,6 +2668,14 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations}) {
     try{
       await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,tenant_id:TENANT})
       if(resId) await dbPatch('reservations',resId,{paid_amount:Math.min(resTotal,resPaid+a)})
+      // Also deduct from guest permanent balance if linked
+      const resObj = reservations?.find(r=>r.id===resId)
+      const gId = resObj?.guest_ids?.[0]
+      const gObj = gId ? guests?.find(g=>String(g.id)===String(gId)) : (guests?.find(g=>g.name===guest_name))
+      if(gObj?.id) {
+        const curBal = +(gObj.outstanding_balance || 0)
+        await dbPatch('guests',gObj.id,{outstanding_balance:curBal - a})
+      }
       toast(`Payment ${BDT(a)} recorded`); reload(); onClose()
     }catch(e){ toast(e.message,'error'); setSaving(false) }
   }
