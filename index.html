@@ -1579,27 +1579,89 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
 /* ═══════════════════════ GUESTS ═════════════════════════════ */
 function GuestsPage({guests,reservations,toast,currentUser,reload}) {
   const [search,setSearch]=useState('')
+  const [filter,setFilter]=useState('ALL')
   const [sel,setSel]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
   const [page,setPage]=useState(1)
   const PAGE_SIZE = 15
 
-  const filtered = search 
-    ? guests.filter(g=>g.name?.toLowerCase().includes(search.toLowerCase())||g.phone?.includes(search)||g.email?.toLowerCase().includes(search.toLowerCase()))
-    : guests
+  // Memoize status counts and guest-status mapping
+  const {counts, statusMap} = useMemo(() => {
+    const counts = { ALL: guests.length, DUE: 0, CHECKED_IN: 0, CHECKED_OUT: 0, RESERVED: 0 };
+    const statusMap = {};
+    
+    guests.forEach(g => {
+      if (+g.outstanding_balance > 0) counts.DUE++;
+    });
+
+    (reservations || []).forEach(r => {
+      (r.guest_ids || []).forEach(gid => {
+        const id = String(gid);
+        if (!statusMap[id]) statusMap[id] = new Set();
+        statusMap[id].add(r.status);
+      });
+    });
+
+    // Count guests per unique category
+    Object.keys(statusMap).forEach(gid => {
+      const statuses = statusMap[gid];
+      if (statuses.has('CHECKED_IN')) counts.CHECKED_IN++;
+      if (statuses.has('CHECKED_OUT')) counts.CHECKED_OUT++;
+      if (statuses.has('PENDING') || statuses.has('CONFIRMED')) counts.RESERVED++;
+    });
+
+    return {counts, statusMap};
+  }, [guests, reservations]);
+
+  const filtered = useMemo(() => {
+    let list = guests;
+    
+    // Status Filter
+    if (filter !== 'ALL') {
+      if (filter === 'DUE') {
+        list = list.filter(g => +g.outstanding_balance > 0);
+      } else if (filter === 'RESERVED') {
+        list = list.filter(g => {
+          const s = statusMap[String(g.id)];
+          return s && (s.has('PENDING') || s.has('CONFIRMED'));
+        });
+      } else {
+        list = list.filter(g => statusMap[String(g.id)]?.has(filter));
+      }
+    }
+
+    // Search Filter
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(g => g.name?.toLowerCase().includes(q) || g.phone?.includes(q) || g.email?.toLowerCase().includes(q));
+    }
+    
+    return list;
+  }, [guests, search, filter, statusMap]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageList = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE)
 
-  // Reset page on search
-  useEffect(() => { setPage(1) }, [search])
+  // Reset page on search or filter change
+  useEffect(() => { setPage(1) }, [search, filter])
 
   return (
     <div>
-      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
-        <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search name, phone, email…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+      <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8,alignItems:'flex-end'}}>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <div className="tabs" style={{marginBottom:0}}>
+            {['ALL','CHECKED_IN','CHECKED_OUT','RESERVED','DUE'].map(s=>(
+              <button key={s} className={`tab${filter===s?' on':''}`} onClick={()=>setFilter(s)}>
+                {s==='ALL'?`All (${guests.length})`:
+                 s==='DUE'?`Due (${counts.DUE})`:
+                 `${s.replace('_',' ')} (${counts[s]||0})`}
+              </button>
+            ))}
+          </div>
+          <div className="srch" style={{width:320}}><span className="xs muted">⌕</span><input placeholder="Search name, phone, email…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+        </div>
         <div className="flex gap2" style={{alignItems:'center'}}>
-          <span className="badge bgold">{filtered.length} {search?'found':('of '+guests.length+' guests')}</span>
+          <span className="badge bgold">{filtered.length} {search||filter!=='ALL'?'found':('of '+guests.length+' guests')}</span>
           <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Add Guest</button>
         </div>
       </div>
