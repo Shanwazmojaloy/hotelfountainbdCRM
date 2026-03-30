@@ -2145,12 +2145,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 
   const outstanding = reservations
     .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
-    .reduce((a, r) => a + computeBill(r).due, 0)
+    .reduce((a, r) => a + Math.max(0, (+r.total_amount||0) - (+r.paid_amount||0)), 0)
   const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
   const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
   const dueRes = reservations.filter(r => {
     if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false
-    return computeBill(r).due > 0
+    return (+r.total_amount||0) > (+r.paid_amount||0)
   })
 
   // Transactions for current filter (for PDF)
@@ -2563,7 +2563,9 @@ ${dueRows}
               <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th>Balance Due</th><th>Action</th></tr></thead>
               <tbody>
                 {dueRes.map(r=>{
-                  const {total,paid,due}=computeBill(r)
+                  const total=+r.total_amount||0
+                  const paid=+r.paid_amount||0
+                  const due=Math.max(0,total-paid)
                   return (
                     <tr key={r.id}>
                       <td className="xs">{getGN(r)}</td>
