@@ -2575,7 +2575,22 @@ ${dueRows}
                       <td className="xs gold">{BDT(total)}</td>
                       <td className="xs" style={{color:'var(--grn)'}}>{BDT(paid)}</td>
                       <td className="xs" style={{color:'var(--rose)',fontWeight:600}}>{BDT(due)}</td>
-                      <td>
+                      <td style={{whiteSpace:'nowrap'}}>
+                        {currentUser?.role!=='housekeeping'&&(
+                          <button className="btn btn-ghost btn-sm" style={{fontSize:9,padding:'4px 10px',marginRight:4}} onClick={()=>{
+                            const gname=getGN(r)
+                            const roomNo=getRoom(r)
+                            const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||'')
+                            const gObj=guests?.find(g=>String(g.id)===gid)
+                            const byType={}
+                            if(r.payment_method) byType[r.payment_method]=paid
+                            else if(paid>0) byType['Cash']=paid
+                            printInvoice(
+                              {guest_name:gname,room_number:roomNo,guest_id:gObj?.id||'—',guest_balance:+(gObj?.outstanding_balance||0),txs:[]},
+                              r, total, paid, due, byType
+                            )
+                          }}>🖨 Print</button>
+                        )}
                         {currentUser?.role!=='housekeeping'&&(
                           <button className="btn btn-gold btn-sm" style={{fontSize:9,padding:'4px 10px'}} onClick={()=>openDetail(r)}>+ Detail</button>
                         )}
