@@ -1439,11 +1439,7 @@ function AddGuestModal({toast,onClose,reload}) {
         <div className="fg"><label className="flbl">Nationality</label><input className="finput" value={f.nationality} onChange={F('nationality')} placeholder="e.g. Bangladeshi"/></div>
         <div className="fg"><label className="flbl">City</label><input className="finput" value={f.city} onChange={F('city')} placeholder="Dhaka"/></div>
       </div>
-<<<<<<< HEAD
-      <div className="fg"><label className="flbl">Address</label><textarea className="ftextarea" value={f.address} onChange={F('address')} style={{minHeight:44}}/></div>
-=======
       <div className="fg"><label className="flbl">Address</label><textarea className="ftextarea" value={f.address} onChange={F('address')} placeholder="Full address" style={{minHeight:44}}/></div>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
     </Modal>
   )
 }
@@ -1591,22 +1587,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
     };
   }).sort((a, b) => b.date.localeCompare(a.date));
 
-<<<<<<< HEAD
-  // Helper to get payment status for a guest/room/date
-  function getPaymentStatus(guestName, roomNumber, date) {
-    // Find the reservation for this guest/room/date
-    const res = reservations.find(r => {
-      const gn = guests.find(g=>String(g.id)===String((r.guest_ids||[])[0]||''))?.name||'';
-      return gn === guestName && (r.room_ids||[]).includes(roomNumber) && fmtDate(r.check_in) === date;
-    });
-    return res?.payment_status || '—';
-  }
 
   // Find due reservations (pending bills)
   const dueReservations = reservations.filter(r => {
     const total = +r.total_amount || 0;
     const paid = +r.paid_amount || 0;
-    return total > paid && total > 0 && r.guest_ids && r.guest_ids.length > 0;
+    return (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT') && total > paid && total > 0;
   });
 
   // Helper to get guest name by guest_ids
@@ -1616,8 +1602,6 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
     return g ? g.name : 'Unknown';
   };
 
-=======
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   return (
     <div>
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
@@ -1634,7 +1618,6 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
           <button className="btn btn-gold" onClick={()=>setShowAdd(true)}>+ Record Payment</button>
         </div>
       </div>
-<<<<<<< HEAD
 
       {/* Pending Bills — Due Reservations */}
       {dueReservations.length > 0 && (
@@ -1666,7 +1649,6 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
                         <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
                         <td>
                           <button className="btn btn-ghost btn-sm" onClick={() => {
-                            // Print invoice for this due reservation
                             const byType = {};
                             if (r.payment_method) byType[r.payment_method] = r.paid_amount || 0;
                             window.printInvoice && window.printInvoice(
@@ -1697,13 +1679,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
       <div className="card">
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th>{currentUser?.role==='owner'&&<th></th>}</tr></thead>
-=======
-      <div className="card">
-        <div className="tbl-wrap">
-          <table className="tbl">
             <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th><th>Action</th></tr></thead>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
             <tbody>
               {list.slice(0,80).map(t=>(
                 <tr key={t.id}>
@@ -1712,25 +1688,17 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
                   <td><span className="badge bb">{t.room_number||'—'}</span></td>
                   <td><span className="badge bgold">{t.type||'Payment'}</span></td>
                   <td className="xs gold" style={{fontWeight:500}}>{BDT(t.amount)}</td>
-<<<<<<< HEAD
-                  {currentUser?.role==='owner'&&<td><button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button></td>}
-=======
                   <td style={{whiteSpace:'nowrap'}}>
                     <button className="btn btn-ghost btn-sm print-hide" style={{padding:'2px 8px',fontSize:9,marginRight:4}} title="Print Folio" onClick={()=>window.print()}>🖨 Print</button>
                     {currentUser?.role==='owner'&&<button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button>}
                   </td>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-<<<<<<< HEAD
-      {showAdd&&<RecordPayModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>} 
-=======
       {showAdd&&<RecordPayModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
     </div>
   )
 }
