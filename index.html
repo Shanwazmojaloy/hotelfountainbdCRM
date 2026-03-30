@@ -35,6 +35,10 @@ const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co'
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
 const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 
+const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
+const fmtDate = d => d ? String(d).slice(0,10) : '—'
+const todayDhaka = () => new Date(new Date().toLocaleString('en',{timeZone:'Asia/Dhaka'}))
+const todayStr = () => { const d=todayDhaka(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 const nightsCount = (ci,co) => { if(!ci||!co) return 0; return Math.max(0, Math.round((new Date(co)-new Date(ci))/86400000)) }
 
 function computeBill(r, rooms, foliosMap, settings) {
