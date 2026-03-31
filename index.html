@@ -838,8 +838,8 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
   const roomCharge=roomRate*nights
   const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
-  const tax=Math.round(sub*.07)
-  const svc=Math.round(sub*.05)
+  const tax=0
+  const svc=0
   const total=sub+tax+svc
 
   async function saveStatus() {
