@@ -57,10 +57,11 @@ function computeBill(r, rooms, foliosMap, settings) {
   const tax=Math.round(sub*vatPct)
   const svc=Math.round(sub*svcPct)
   const discount=+r.discount||+r.discount_amount||0
-  const computedTotal=sub+tax+svc
-  const total=computedTotal>0?Math.max(0,computedTotal-discount):(Math.max(0,(+r.total_amount||0)-discount))
-  const paid=+r.paid_amount||0
-  const due=Math.max(0,total-paid)
+  // Single Source of Truth: ensure both UI pages map exactly to db columns
+  const invoice = r;
+  const total = +(invoice.total_amount || 0);
+  const paid = +(invoice.paid_amount || 0);
+  const due = typeof invoice.total_due !== 'undefined' ? +invoice.total_due : Math.max(0, total - paid);
   return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
 }
 const AVC = ['#C8A96E','#2EC4B6','#E05C7A','#58A6FF','#3FB950','#9B72CF','#F0A500']
@@ -1171,22 +1172,22 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
               <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
-              {res.slice(0,80).map(r=>{
-                const gn=getGN(r.guest_ids)
-                const nights=nightsCount(r.check_in,r.check_out)
-                const balance=(+r.total_amount||0)-(+r.paid_amount||0)
+              {res.slice(0,80).map(invoice=>{
+                const gn=getGN(invoice.guest_ids)
+                const nights=nightsCount(invoice.check_in,invoice.check_out)
+                const balance=(+invoice.total_amount||0)-(+invoice.paid_amount||0)
                 return (
-                  <tr key={r.id}>
+                  <tr key={invoice.id}>
                     <td><div className="flex fac gap2"><Av name={gn} size={24}/><span>{gn}</span></div></td>
-                    <td><span className="badge bb">{(r.room_ids||[]).join(', ')}</span></td>
-                    <td className="xs muted">{fmtDate(r.check_in)}</td>
-                    <td className="xs muted">{fmtDate(r.check_out)}</td>
+                    <td><span className="badge bb">{(invoice.room_ids||[]).join(', ')}</span></td>
+                    <td className="xs muted">{fmtDate(invoice.check_in)}</td>
+                    <td className="xs muted">{fmtDate(invoice.check_out)}</td>
                     <td className="xs gold">{nights||'—'}</td>
-                    <td className="xs gold">{BDT(r.total_amount)}</td>
-                    <td className="xs" style={{color:+r.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(r.paid_amount)}</td>
+                    <td className="xs gold">{BDT(invoice.total_amount)}</td>
+                    <td className="xs" style={{color:+invoice.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(invoice.paid_amount)}</td>
                     <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
-                    <td><SBadge status={r.status}/></td>
-                    <td><button className="btn btn-ghost btn-sm" onClick={()=>setSelRes(r)}>View</button></td>
+                    <td><SBadge status={invoice.status}/></td>
+                    <td><button className="btn btn-ghost btn-sm" onClick={()=>setSelRes(invoice)}>View</button></td>
                   </tr>
                 )
               })}
@@ -2134,11 +2135,11 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const tax=0
     const svc=0
     const discount=+r.discount||0
-    // Total: use computed value; only fall back to saved total_amount if room not found
-    const computedTotal=sub+tax+svc
-    const total=computedTotal>0?Math.max(0,computedTotal-discount):(Math.max(0,(+r.total_amount||0)-discount))
-    const paid=+r.paid_amount||0
-    const due=Math.max(0,total-paid)
+    // Single Source of Truth: ensure both UI pages map exactly to db columns
+    const invoice = r;
+    const total = +(invoice.total_amount || 0);
+    const paid = +(invoice.paid_amount || 0);
+    const due = typeof invoice.total_due !== 'undefined' ? +invoice.total_due : Math.max(0, total - paid);
     return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
   }
 
@@ -2535,9 +2536,9 @@ ${dueRows}
                   {displayList.length===0?(
                     <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
                   ):displayList.map(grp=>{
-                    const r = grp.res
+                    const invoice = grp.res
                     
-                    const { total:resTotal, paid:resPaid, due:resDue } = r ? computeBill(r) : { total:0, paid:0, due:0 }
+                    const { total:resTotal, paid:resPaid, due:resDue } = invoice ? computeBill(invoice) : { total:0, paid:0, due:0 }
                     
                     const byType={}
                     grp.txs.forEach(t=>{
@@ -2546,16 +2547,16 @@ ${dueRows}
                       byType[tp]+=(+t.amount||0)
                     })
 
-                    const gname = r ? getGN(r) : (grp.guest_name||'—')
-                    const rno = r ? getRoom(r) : (grp.room_number||'—')
-                    const chkIn = r ? fmtDate(r.check_in) : (grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
-                    const chkOut = r ? fmtDate(r.check_out) : (grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
-                    const tTotal = r ? resTotal : (grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
-                    const tPaid = r ? resPaid : 0
-                    const tDue = r ? resDue : 0
+                    const gname = invoice ? getGN(invoice) : (grp.guest_name||'—')
+                    const rno = invoice ? getRoom(invoice) : (grp.room_number||'—')
+                    const chkIn = invoice ? fmtDate(invoice.check_in) : (grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
+                    const chkOut = invoice ? fmtDate(invoice.check_out) : (grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
+                    const tTotal = invoice ? resTotal : (grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
+                    const tPaid = invoice ? resPaid : 0
+                    const tDue = invoice ? resDue : 0
 
                     return (
-                      <tr key={r?r.id:(grp.guest_name+'|'+grp.room_number)}>
+                      <tr key={invoice?invoice.id:(grp.guest_name+'|'+grp.room_number)}>
                         <td className="xs">{gname}</td>
                         <td><span className="badge bb">{rno}</span></td>
                         <td className="xs muted">{chkIn}</td>
@@ -2575,22 +2576,22 @@ ${dueRows}
                         <td style={{whiteSpace:'nowrap'}}>
                           {currentUser?.role!=='housekeeping'&&(
                             <button className="btn btn-gold btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
-                              setBillingRes({_fromRow:true,...(r||{}),room_number:rno,guest_name:gname,_resId:r?.id||null,_total:tTotal,_paid:tPaid})
+                              setBillingRes({_fromRow:true,...(invoice||{}),room_number:rno,guest_name:gname,_resId:invoice?.id||null,_total:tTotal,_paid:tPaid})
                               setShowAdd(true)
                             }}>+ Pay</button>
                           )}
                           {currentUser?.role!=='housekeeping'&&(
                             <button className="btn btn-ghost btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
                               const pInvoiceByType = {...byType};
-                              if(r && Object.keys(pInvoiceByType).length===0 && tPaid>0) pInvoiceByType[r.payment_method||'Cash'] = tPaid;
+                              if(invoice && Object.keys(pInvoiceByType).length===0 && tPaid>0) pInvoiceByType[invoice.payment_method||'Cash'] = tPaid;
                               printInvoice(
                                 {guest_name:gname,room_number:rno,txs:grp.txs},
-                                r,tTotal,tPaid,tDue,pInvoiceByType
+                                invoice,tTotal,tPaid,tDue,pInvoiceByType
                               )
                             }}>🖨 Print</button>
                           )}
-                          {currentUser?.role!=='housekeeping'&&r&&(
-                              <button className="btn btn-ghost btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>openDetail(r)}>Detail</button>
+                          {currentUser?.role!=='housekeeping'&&invoice&&(
+                              <button className="btn btn-ghost btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>openDetail(invoice)}>Detail</button>
                           )}
                           {currentUser?.role==='owner'&&grp.txs.length>0&&(
                             <button className="btn btn-danger btn-sm" style={{padding:'3px 7px',fontSize:9}} onClick={async()=>{
@@ -2616,7 +2617,7 @@ ${dueRows}
 
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
+      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={async ()=>{await reload();await db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
@@ -2642,7 +2643,7 @@ ${dueRows}
                       await dbPatch('reservations',r.id,{paid_amount:Math.min(total,(+r.paid_amount||0)+a)})
                       await dbPost('transactions',{type:'Room Payment (Cash)',amount:a,room_number:roomNo,guest_name:gname,fiscal_day:todayStr(),tenant_id:TENANT})
                       toast(`৳${a.toLocaleString()} recorded`)
-                      reload()
+                      await reload()
                       setShowBillDetail(false);setDetailRes(null)
                     }catch(e){toast(e.message,'error')}
                   }}>Save</button>
@@ -2785,7 +2786,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
         const curBal = +(gObj.outstanding_balance || 0)
         await dbPatch('guests',gObj.id,{outstanding_balance:curBal - a})
       }
-      toast(`Payment ${BDT(a)} recorded`); reload(); onClose()
+      toast(`Payment ${BDT(a)} recorded`); await reload(); onClose()
     }catch(e){ toast(e.message,'error'); setSaving(false) }
   }
 

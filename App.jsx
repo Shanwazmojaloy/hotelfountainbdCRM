@@ -599,10 +599,6 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
   const [fLoad,setFLoad]=useState(true)
   const [showCharge,setShowCharge]=useState(false)
   const [showCO,setShowCO]=useState(false)
-<<<<<<< HEAD
-    const [checkoutAmt, setCheckoutAmt] = useState("");
-=======
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
   const [saving,setSaving]=useState(false)
 
   const activeRes=reservations.find(r=>(r.room_ids||[]).includes(room.room_number)&&r.status==='CHECKED_IN')
@@ -633,27 +629,6 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
 
   async function doCheckout() {
     try {
-<<<<<<< HEAD
-      // If payment entered, update paid_amount
-      let patch = { status: 'CHECKED_OUT' };
-      const amt = parseFloat(checkoutAmt);
-      if (!isNaN(amt) && amt > 0) {
-        patch.paid_amount = (+(activeRes.paid_amount||0)) + amt;
-      }
-      await dbPatch('reservations',activeRes.id, patch);
-      await dbPatch('rooms',room.id,{status:'DIRTY'});
-      await dbPost('transactions',{
-        type:'Final Settlement',
-        amount:total,
-        room_number:room.room_number,
-        guest_name:guest?.name,
-        fiscal_day:todayStr(),
-        tenant_id:TENANT
-      });
-      toast(`${guest?.name||'Guest'} checked out ✓`);
-      setCheckoutAmt("");
-      reload();
-=======
       const finalPaymentStatus=totalDue>0?'Unpaid':'Paid'
       // Always release room first, even if billing fields fail to update.
       await dbPatch('rooms',room.id,{status:'DIRTY'})
@@ -668,7 +643,6 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
       }
       toast(`Check-out complete. ${totalDue>0?'Outstanding balance kept on record.':'Fully paid checkout.'}`)
       reload()
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
     } catch(e){ toast(e.message,'error') }
   }
 
@@ -710,30 +684,6 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
               <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(total)}</div>
             </div>
           </div>
-<<<<<<< HEAD
-          <div style={{textAlign:'right',marginTop:8}}>
-            <button className="btn btn-ghost btn-sm mt2" onClick={() => {
-              // Prepare payment breakdown by type
-              const byType = {};
-              if (activeRes && activeRes.payment_method) byType[activeRes.payment_method] = activeRes.paid_amount || 0;
-              window.printInvoice && window.printInvoice(
-                {
-                  guest_name: guest.name,
-                  room_number: room.room_number,
-                  txs: [activeRes]
-                },
-                activeRes,
-                total,
-                activeRes ? (activeRes.paid_amount || 0) : 0,
-                Math.max(0, total - (+activeRes?.paid_amount || 0)),
-                byType
-              );
-            }}>
-              🖨 Print Invoice
-            </button>
-          </div>
-=======
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
         </div>
       )}
 
@@ -749,11 +699,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             {/* Room charge line */}
             {!fLoad&&nights>0&&(
               <div className="folio-row">
-<<<<<<< HEAD
-                <div><span>Room charge</span> <span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{nights}×{BDT(roomRate)}</span></div>
-=======
                 <div><span>Room charge</span> <span className="badge bgold" style={{fontSize:8,marginLeft:6}}>{nights}×{BDT(roomRate)}</span></div>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
                 <span className="xs gold">{BDT(roomCharge)}</span>
               </div>
             )}
@@ -811,14 +757,6 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             <div className="xs" style={{color:totalDue>0?'var(--rose)':'var(--grn)',marginTop:6}}>
               Outstanding Balance: {BDT(totalDue)}
             </div>
-<<<<<<< HEAD
-            <div className="fg" style={{marginTop:16}}>
-              <label className="flbl">Amount Paid Now (optional)</label>
-              <input type="number" className="finput" value={checkoutAmt} onChange={e=>setCheckoutAmt(e.target.value)} min="0" placeholder="0"/>
-              <div className="xs muted">Leave blank if no payment collected at checkout.</div>
-            </div>
-=======
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
             <div className="xs muted mt3">Room will move to Dirty / Housekeeping</div>
           </div>
         </Modal>
@@ -928,11 +866,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
-<<<<<<< HEAD
-              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Payment</th><th></th></tr>
-=======
               <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
             </thead>
             <tbody>
               {res.slice(0,80).map(r=>{
@@ -950,12 +884,6 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
                     <td className="xs" style={{color:+r.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(r.paid_amount)}</td>
                     <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
                     <td><SBadge status={r.status}/></td>
-<<<<<<< HEAD
-                    <td>
-                      <span className={`badge ${r.payment_status==='Unpaid'?'br_':r.payment_status==='Partial'?'ba':'bg'}`}>{r.payment_status||'—'}</span>
-                    </td>
-=======
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
                     <td><button className="btn btn-ghost btn-sm" onClick={()=>setSelRes(r)}>View</button></td>
                   </tr>
                 )
@@ -1006,40 +934,6 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
         }
       }
-<<<<<<< HEAD
-=======
-      // Updated Check-Out Function in your React file
-const handleCheckOut = async (roomId, invoiceId, totalDue) => {
-  // 1. Check if there is a balance and trigger the warning modal
-  if (totalDue > 0) {
-    const userConfirmed = window.confirm(
-      `Warning: This guest still has an outstanding balance of ${totalDue} BDT.\n\nDo you want to check them out anyway and leave the invoice Unpaid?`
-    );
-    
-    // If the staff clicks "Cancel" on the popup, stop the checkout process
-    if (!userConfirmed) return; 
-  }
-
-  // 2. If balance is 0, or if staff clicked "OK" to the warning, proceed:
-  try {
-    // Release the room (using your existing dbPatch function)
-    await dbPatch('rooms', `id=eq.${roomId}`, { status: 'Dirty' });
-
-    // Update the invoice
-    const finalPaymentStatus = totalDue > 0 ? 'Unpaid' : 'Paid';
-    await dbPatch('invoices', `id=eq.${invoiceId}`, { 
-      checkout_status: 'Departed',
-      payment_status: finalPaymentStatus 
-    });
-
-    alert("Check-out complete!");
-    // Call your function to refresh the table data here, e.g., fetchTransactions()
-  } catch (error) {
-    console.error("Checkout error:", error);
-    alert("Checkout failed.");
-  }
-};
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
       await dbPatch('reservations',res.id,{status,paid_amount:paidNum,notes})
       toast('Reservation updated ✓')
       reload()
@@ -1068,11 +962,7 @@ const handleCheckOut = async (roomId, invoiceId, totalDue) => {
           )}
           {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
           <div style={{flex:1}}/>
-<<<<<<< HEAD
-          <button className="btn btn-ghost" onClick={onClose}>Close</button>
-=======
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
->>>>>>> f4de41a (Fix: Merge/sum transactions by guest, room, and date)
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
         </div>
       }>
