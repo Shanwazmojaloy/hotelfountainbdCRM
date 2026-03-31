@@ -1618,85 +1618,122 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
         </div>
       </div>
 
-      {/* Pending Bills — Due Reservations */}
-      {dueReservations.length > 0 && (
-        <div className="card" style={{borderColor:'var(--rose)', marginBottom: 24}}>
-          <div className="card-hd" style={{background:'rgba(224,92,122,.07)', color:'var(--rose)'}}>
-            <span className="card-title">⚠ Pending Bills — Due Reservations</span>
-            <span className="badge br_">{dueReservations.length} unpaid</span>
-          </div>
-          <div className="card-body" style={{padding:'0 0 10px 0'}}>
+      {/* Unified Active Ledger Table */}
+      {(()=>{
+        let list=filter==='TODAY'?todayT:filter==='MONTH'?monthT:transactions
+        if(search){
+          const q=search.toLowerCase();
+          list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q))
+        }
+        const label = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
+        
+        // Build Unified Ledger Groups
+        const unifiedGroups = {}
+        const guestsList = window.guestsList || []
+
+        // 1. Process filtered transactions
+        list.forEach(t=>{
+          const res = reservations.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guestsList.find(g=>g.name===t.guest_name)?.id)) || reservations.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
+          const key = res ? res.id : `tx|${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
+          if(!unifiedGroups[key]) unifiedGroups[key] = { txs:[], res, guest_name:t.guest_name, room_number:t.room_number, isDue: false }
+          unifiedGroups[key].txs.push(t)
+        })
+
+        // 2. Process dueRes (reservations with pending balances)
+        if (!search) {
+          dueReservations.forEach(r=>{
+            const key = r.id;
+            const fid = String((r.guest_ids||[])[0]||'');
+            const g = guestsList.find(g=>String(g.id)===fid);
+            if(!unifiedGroups[key]) {
+              unifiedGroups[key] = { txs:[], res: r, guest_name: g?g.name:'Unknown', room_number: (r.room_ids||[]).join(', '), isDue: true }
+            } else {
+              unifiedGroups[key].isDue = true;
+              unifiedGroups[key].res = r;
+            }
+          })
+        }
+
+        const displayList = Object.values(unifiedGroups)
+
+        return (
+          <div className="card" style={{marginBottom:12}}>
+            <div className="card-hd">
+              <span className="card-title" style={{fontSize:14}}>Active Billing Ledger — {label}</span>
+              <span className="badge bgold">{displayList.length} records</span>
+            </div>
             <div className="tbl-wrap">
               <table className="tbl">
-                <thead>
-                  <tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th>Balance Due</th><th>Action</th></tr>
-                </thead>
+                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
                 <tbody>
-                  {dueReservations.map(r => {
-                    const guestName = (window.guestsList || []).find(g=>String(g.id)===String((r.guest_ids||[])[0]||''))?.name || 'Unknown';
-                    const total = +r.total_amount || 0;
-                    const paid = +r.paid_amount || 0;
-                    const balance = total - paid;
+                  {displayList.length===0?(
+                    <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
+                  ):displayList.map(grp=>{
+                    const r = grp.res
+                    
+                    const tTotal = r ? (+r.total_amount||0) : (grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
+                    const tPaid = r ? (+r.paid_amount||0) : 0
+                    const tDue = r ? Math.max(0, tTotal-tPaid) : 0
+                    
+                    const byType={}
+                    grp.txs.forEach(t=>{
+                      const tp=t.type||'Payment'
+                      if(!byType[tp]) byType[tp]=0
+                      byType[tp]+=(+t.amount||0)
+                    })
+
+                    const gname = r ? (guestsList.find(g=>String(g.id)===String((r.guest_ids||[])[0]||''))?.name || 'Unknown') : (grp.guest_name||'—')
+                    const rno = r ? (r.room_ids||[]).join(', ') : (grp.room_number||'—')
+                    const chkIn = r ? fmtDate(r.check_in) : (grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
+                    const chkOut = r ? fmtDate(r.check_out) : (grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
+
                     return (
-                      <tr key={r.id}>
-                        <td>{guestName}</td>
-                        <td><span className="badge bb">{(r.room_ids||[]).join(', ')}</span></td>
-                        <td className="xs muted">{fmtDate(r.check_in)}</td>
-                        <td className="xs muted">{fmtDate(r.check_out)}</td>
-                        <td className="xs gold">{BDT(total)}</td>
-                        <td className="xs" style={{color:paid>0?'var(--grn)':'var(--tx2)'}}>{BDT(paid)}</td>
-                        <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
-                        <td>
-                          <button className="btn btn-ghost btn-sm" onClick={() => {
-                            const byType = {};
-                            if (r.payment_method) byType[r.payment_method] = r.paid_amount || 0;
+                      <tr key={r?r.id:(grp.guest_name+'|'+grp.room_number)}>
+                        <td className="xs">{gname}</td>
+                        <td><span className="badge bb">{rno}</span></td>
+                        <td className="xs muted">{chkIn}</td>
+                        <td className="xs muted">{chkOut}</td>
+                        <td className="xs gold">{BDT(tTotal)}</td>
+                        <td className="xs" style={{color:'var(--grn)'}}>{BDT(tPaid)}</td>
+                        <td className="xs" style={{color:tDue>0?'var(--rose)':'var(--grn)',fontWeight:tDue>0?600:400}}>{BDT(tDue)}</td>
+                        <td className="xs" style={{lineHeight:1.8}}>
+                          {Object.keys(byType).length === 0 ? <span className="muted xs" style={{fontSize:10}}>— No Pymt in Period —</span> : 
+                            Object.entries(byType).map(([tp,amt])=>(
+                            <div key={tp} style={{display:'flex',justifyContent:'space-between',gap:12,minWidth:140}}>
+                              <span className="badge bgold" style={{fontSize:8}}>{tp}</span>
+                              <span style={{color:'var(--gold)',fontWeight:500}}>{BDT(amt)}</span>
+                            </div>
+                          ))}
+                        </td>
+                        <td style={{whiteSpace:'nowrap'}}>
+                          <button className="btn btn-ghost btn-sm print-hide" style={{padding:'2px 8px',fontSize:9,marginRight:4}} title="Print Folio" onClick={()=>{
+                            const pInvoiceByType = {...byType};
+                            if(r && Object.keys(pInvoiceByType).length===0 && tPaid>0) pInvoiceByType[r.payment_method||'Cash'] = tPaid;
                             window.printInvoice && window.printInvoice(
-                              {
-                                guest_name: guestName,
-                                room_number: (r.room_ids||[])[0]||'',
-                                txs: [r]
-                              },
-                              r,
-                              total,
-                              paid,
-                              balance,
-                              byType
-                            );
-                          }}>🖨 Print Invoice</button>
+                              {guest_name:gname,room_number:rno,txs:grp.txs},
+                              r,tTotal,tPaid,tDue,pInvoiceByType
+                            )
+                          }}>🖨 Print</button>
+                          {currentUser?.role==='owner'&&grp.txs.length>0&&(
+                            <button className="btn btn-danger btn-sm print-hide" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{
+                                if(!window.confirm(`Delete all ${grp.txs.length} filtered transaction(s) for ${gname}?`)) return
+                                try{
+                                  for(const t of grp.txs) await dbDelete('transactions',t.id)
+                                  toast(`${grp.txs.length} transaction(s) deleted`)
+                                  reload()
+                                }catch(e){toast(e.message,'error')}
+                            }}>✕</button>
+                          )}
                         </td>
                       </tr>
-                    );
+                    )
                   })}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Transactions Table */}
-      <div className="card">
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Type</th><th>Amount</th><th>Action</th></tr></thead>
-            <tbody>
-              {list.slice(0,80).map(t=>(
-                <tr key={t.id}>
-                  <td className="xs muted">{t.fiscal_day||'—'}</td>
-                  <td className="xs">{t.guest_name||'—'}</td>
-                  <td><span className="badge bb">{t.room_number||'—'}</span></td>
-                  <td><span className="badge bgold">{t.type||'Payment'}</span></td>
-                  <td className="xs gold" style={{fontWeight:500}}>{BDT(t.amount)}</td>
-                  <td style={{whiteSpace:'nowrap'}}>
-                    <button className="btn btn-ghost btn-sm print-hide" style={{padding:'2px 8px',fontSize:9,marginRight:4}} title="Print Folio" onClick={()=>window.print()}>🖨 Print</button>
-                    {currentUser?.role==='owner'&&<button className="btn btn-danger btn-sm" style={{padding:'2px 7px',fontSize:9}} onClick={async()=>{if(!window.confirm('Delete this transaction?'))return;try{await dbDelete('transactions',t.id);toast('Transaction deleted');reload()}catch(e){toast(e.message,'error')}}}>✕</button>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        )
+      })()}
       {showAdd&&<RecordPayModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload}/>}
     </div>
   )

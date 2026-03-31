@@ -2469,92 +2469,123 @@ ${dueRows}
         </div>
       </div>
 
-      {/* Transactions table — always visible for all filter modes */}
+      {/* Unified Active Ledger Table */}
       {(()=>{
         let list = filter==='TODAY'?todayT : filter==='DATE'?calT : filter==='MONTH'?monthT : transactions
         if(search){const q=search.toLowerCase();list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q))}
         const fmtDLabel=d=>{if(!d)return'Today';const[y,m,dy]=d.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+dy}-${mo[+m-1]}-${y}`}
         const label = filter==='TODAY'?fmtDLabel(''):filter==='DATE'?fmtDLabel(calDate):filter==='MONTH'?'This Month':'All Time'
+        
+        // Build Unified Ledger Groups
+        const unifiedGroups = {}
+
+        // 1. Process filtered transactions
+        list.forEach(t=>{
+          const res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guests?.find(g=>g.name===t.guest_name)?.id)) || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
+          const key = res ? res.id : `tx|${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
+          if(!unifiedGroups[key]) unifiedGroups[key] = { txs:[], res, guest_name:t.guest_name, room_number:t.room_number, isDue: false }
+          unifiedGroups[key].txs.push(t)
+        })
+
+        // 2. Process dueRes (reservations with pending balances)
+        if (!search) {
+          dueRes.forEach(r=>{
+            const key = r.id;
+            if(!unifiedGroups[key]) {
+              unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: true }
+            } else {
+              unifiedGroups[key].isDue = true;
+              unifiedGroups[key].res = r;
+            }
+          })
+        }
+
+        const displayList = Object.values(unifiedGroups)
+
         return (
           <div className="card" style={{marginBottom:12}}>
             <div className="card-hd">
-              <span className="card-title" style={{fontSize:14}}>Transactions — {label}</span>
-              <span className="badge bgold">{list.length} records</span>
+              <span className="card-title" style={{fontSize:14}}>Active Billing Ledger — {label}</span>
+              <span className="badge bgold">{displayList.length} records</span>
             </div>
             <div className="tbl-wrap">
               <table className="tbl">
-                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments</th><th></th></tr></thead>
+                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
                 <tbody>
-                  {list.length===0?(
-                    <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No transactions for this period</td></tr>
-                  ):(()=>{
-                    // Group transactions by guest+room+date — same guest/room/date = one row
-                    const groups={}
-                    list.forEach(t=>{
-                      const key=`${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
-                      if(!groups[key]) groups[key]={txs:[],guest_name:t.guest_name,room_number:t.room_number, fiscal_day:t.fiscal_day}
-                      groups[key].txs.push(t)
+                  {displayList.length===0?(
+                    <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
+                  ):displayList.map(grp=>{
+                    const r = grp.res
+                    
+                    const { total:resTotal, paid:resPaid, due:resDue } = r ? computeBill(r) : { total:0, paid:0, due:0 }
+                    
+                    const byType={}
+                    grp.txs.forEach(t=>{
+                      const tp=t.type||'Payment'
+                      if(!byType[tp]) byType[tp]=0
+                      byType[tp]+=(+t.amount||0)
                     })
-                    return Object.values(groups).map(grp=>{
-                      const res=reservations?.find(r=>(r.room_ids||[r.room_number]).includes(grp.room_number))
-                      // Find guest to get permanent ID and outstanding balance
-                      const gId = res?.guest_ids?.[0]
-                      const guestHead = gId ? guests?.find(g=>String(g.id)===String(gId)) : guests?.find(g=>g.name===grp.guest_name)
-                      grp.guest_id = guestHead?.id || '—'
-                      grp.guest_balance = +(guestHead?.outstanding_balance || 0)
 
-                      const { total:resTotal, paid:resPaid, due:resDue } = res ? computeBill(res) : { total:0, paid:0, due:0 }
-                      // Sum all payment amounts for this guest+room+date
-                      const totalPaid=grp.txs.reduce((a,t)=>a+(+t.amount||0),0)
-                      // Group by payment type within this guest+room+date
-                      const byType={}
-                      grp.txs.forEach(t=>{
-                        const tp=t.type||'Payment'
-                        if(!byType[tp]) byType[tp]=0
-                        byType[tp]+=(+t.amount||0)
-                      })
-                      return (
-                        <tr key={grp.guest_name+'|'+grp.room_number+'|'+grp.fiscal_day}>
-                          <td className="xs">{grp.guest_name||'—'}</td>
-                          <td><span className="badge bb">{grp.room_number||'—'}</span></td>
-                          <td className="xs muted">{res?fmtDate(res.check_in):(grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')}</td>
-                          <td className="xs muted">{res?fmtDate(res.check_out):(grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')}</td>
-                          <td className="xs gold">{res?BDT(resTotal):(grp.txs[0]?.bill_total?BDT(+grp.txs[0].bill_total):'—')}</td>
-                          <td className="xs" style={{color:'var(--grn)'}}>{BDT(resPaid)}</td>
-                          <td className="xs" style={{color:resDue>0?'var(--rose)':'var(--grn)',fontWeight:resDue>0?600:400}}>{BDT(resDue)}</td>
-                          <td className="xs" style={{lineHeight:1.8}}>
-                            {Object.entries(byType).map(([tp,amt])=>(
-                              <div key={tp} style={{display:'flex',justifyContent:'space-between',gap:12,minWidth:180}}>
-                                <span className="badge bgold" style={{fontSize:8}}>{tp}</span>
-                                <span style={{color:'var(--gold)',fontWeight:500}}>{BDT(amt)}</span>
-                              </div>
-                            ))}
-                          </td>
-                          <td style={{whiteSpace:'nowrap'}}>
-                            {currentUser?.role!=='housekeeping'&&(
-                              <button className="btn btn-gold btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
-                                setBillingRes({_fromRow:true,...(res||{}),room_number:grp.room_number||'',guest_name:grp.guest_name||'',_resId:res?.id||null,_total:resTotal,_paid:resPaid})
-                                setShowAdd(true)
-                              }}>+ Pay</button>
-                            )}
-                            {currentUser?.role!=='housekeeping'&&(
-                              <button className="btn btn-ghost btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>printInvoice(grp,res,resTotal,resPaid,resDue,byType)}>🖨 Print</button>
-                            )}
-                            {currentUser?.role==='owner'&&(
-                              <button className="btn btn-danger btn-sm" style={{padding:'3px 7px',fontSize:9}} onClick={async()=>{
-                                if(!window.confirm(`Delete all ${grp.txs.length} transaction(s) for ${grp.guest_name} in Room ${grp.room_number} on ${grp.fiscal_day}?`)) return
+                    const gname = r ? getGN(r) : (grp.guest_name||'—')
+                    const rno = r ? getRoom(r) : (grp.room_number||'—')
+                    const chkIn = r ? fmtDate(r.check_in) : (grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
+                    const chkOut = r ? fmtDate(r.check_out) : (grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
+                    const tTotal = r ? resTotal : (grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
+                    const tPaid = r ? resPaid : 0
+                    const tDue = r ? resDue : 0
+
+                    return (
+                      <tr key={r?r.id:(grp.guest_name+'|'+grp.room_number)}>
+                        <td className="xs">{gname}</td>
+                        <td><span className="badge bb">{rno}</span></td>
+                        <td className="xs muted">{chkIn}</td>
+                        <td className="xs muted">{chkOut}</td>
+                        <td className="xs gold">{BDT(tTotal)}</td>
+                        <td className="xs" style={{color:'var(--grn)'}}>{BDT(tPaid)}</td>
+                        <td className="xs" style={{color:tDue>0?'var(--rose)':'var(--grn)',fontWeight:tDue>0?600:400}}>{BDT(tDue)}</td>
+                        <td className="xs" style={{lineHeight:1.8}}>
+                          {Object.keys(byType).length === 0 ? <span className="muted xs" style={{fontSize:10}}>— No Pymt in Period —</span> : 
+                            Object.entries(byType).map(([tp,amt])=>(
+                            <div key={tp} style={{display:'flex',justifyContent:'space-between',gap:12,minWidth:140}}>
+                              <span className="badge bgold" style={{fontSize:8}}>{tp}</span>
+                              <span style={{color:'var(--gold)',fontWeight:500}}>{BDT(amt)}</span>
+                            </div>
+                          ))}
+                        </td>
+                        <td style={{whiteSpace:'nowrap'}}>
+                          {currentUser?.role!=='housekeeping'&&(
+                            <button className="btn btn-gold btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
+                              setBillingRes({_fromRow:true,...(r||{}),room_number:rno,guest_name:gname,_resId:r?.id||null,_total:tTotal,_paid:tPaid})
+                              setShowAdd(true)
+                            }}>+ Pay</button>
+                          )}
+                          {currentUser?.role!=='housekeeping'&&(
+                            <button className="btn btn-ghost btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
+                              const pInvoiceByType = {...byType};
+                              if(r && Object.keys(pInvoiceByType).length===0 && tPaid>0) pInvoiceByType[r.payment_method||'Cash'] = tPaid;
+                              printInvoice(
+                                {guest_name:gname,room_number:rno,txs:grp.txs},
+                                r,tTotal,tPaid,tDue,pInvoiceByType
+                              )
+                            }}>🖨 Print</button>
+                          )}
+                          {currentUser?.role!=='housekeeping'&&r&&(
+                              <button className="btn btn-ghost btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>openDetail(r)}>Detail</button>
+                          )}
+                          {currentUser?.role==='owner'&&grp.txs.length>0&&(
+                            <button className="btn btn-danger btn-sm" style={{padding:'3px 7px',fontSize:9}} onClick={async()=>{
+                                if(!window.confirm(`Delete all ${grp.txs.length} filtered transaction(s) for ${gname}?`)) return
                                 try{
                                   for(const t of grp.txs) await dbDelete('transactions',t.id)
                                   toast(`${grp.txs.length} transaction(s) deleted`)
                                   reload()
                                 }catch(e){toast(e.message,'error')}
-                              }}>✕</button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })
-                  })()}
+                            }}>✕</button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -2562,59 +2593,7 @@ ${dueRows}
         )
       })()}
 
-      {/* ⚠ Pending Bills — single block; DATE filter also scopes displayed reservations */}
-      <div className="card" style={{marginTop:8,borderColor:'rgba(224,92,122,.2)'}}>
-        <div className="card-hd" style={{background:'rgba(224,92,122,.04)'}}>
-          <span className="card-title" style={{color:'var(--rose)'}}>⚠ Pending Bills — Due Reservations</span>
-          <span className="badge br_">{dueRes.length} unpaid</span>
-        </div>
-        {dueRes.length===0
-          ?<div style={{padding:'20px 16px',textAlign:'center',color:'var(--tx3)',fontSize:12}}>No outstanding bills — all guests are settled ✓</div>
-          :<div className="tbl-wrap">
-            <table className="tbl">
-              <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th>Balance Due</th><th>Action</th></tr></thead>
-              <tbody>
-                {dueRes.map(r=>{
-                  const total=+r.total_amount||0
-                  const paid=+r.paid_amount||0
-                  const due=Math.max(0,total-paid)
-                  return (
-                    <tr key={r.id}>
-                      <td className="xs">{getGN(r)}</td>
-                      <td><span className="badge bb">{getRoom(r)}</span></td>
-                      <td className="xs muted">{fmtDate(r.check_in)}</td>
-                      <td className="xs muted">{fmtDate(r.check_out)}</td>
-                      <td className="xs gold">{BDT(total)}</td>
-                      <td className="xs" style={{color:'var(--grn)'}}>{BDT(paid)}</td>
-                      <td className="xs" style={{color:'var(--rose)',fontWeight:600}}>{BDT(due)}</td>
-                      <td style={{whiteSpace:'nowrap'}}>
-                        {currentUser?.role!=='housekeeping'&&(
-                          <button className="btn btn-ghost btn-sm" style={{fontSize:9,padding:'4px 10px',marginRight:4}} onClick={()=>{
-                            const gname=getGN(r)
-                            const roomNo=getRoom(r)
-                            const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||'')
-                            const gObj=guests?.find(g=>String(g.id)===gid)
-                            const byType={}
-                            if(r.payment_method) byType[r.payment_method]=paid
-                            else if(paid>0) byType['Cash']=paid
-                            printInvoice(
-                              {guest_name:gname,room_number:roomNo,guest_id:gObj?.id||'—',guest_balance:+(gObj?.outstanding_balance||0),txs:[]},
-                              r, total, paid, due, byType
-                            )
-                          }}>🖨 Print</button>
-                        )}
-                        {currentUser?.role!=='housekeeping'&&(
-                          <button className="btn btn-gold btn-sm" style={{fontSize:9,padding:'4px 10px'}} onClick={()=>openDetail(r)}>+ Detail</button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        }
-      </div>
+
 
       {/* Record Payment modal */}
       {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
