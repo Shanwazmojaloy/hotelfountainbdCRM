@@ -1136,14 +1136,22 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
   const [selRes,setSelRes]=useState(null)
   const [showNew,setShowNew]=useState(false)
 
-  const sc=reservations.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
+  const sc=reservations.reduce((a,r)=>{
+    a[r.status]=(a[r.status]||0)+1;
+    if ((r.status==='CHECKED_IN'||r.status==='CHECKED_OUT') && (+r.total_amount||0) > (+r.paid_amount||0)) {
+      a['DUE'] = (a['DUE']||0)+1;
+    }
+    return a;
+  },{DUE:0})
   const getGN=gids=>{
     const gid=String((gids||[]).filter(Boolean)[0]||'')
     const g=guests.find(g=>String(g.id)===gid)
     return g?g.name:(gid?`ID:${gid}`:'Unknown')
   }
 
-  let res=filter==='ALL'?reservations:reservations.filter(r=>r.status===filter)
+  let res=filter==='ALL'?reservations:
+          filter==='DUE'?reservations.filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0)):
+          reservations.filter(r=>r.status===filter)
   if(search){
     const q=search.toLowerCase()
     res=res.filter(r=>getGN(r.guest_ids).toLowerCase().includes(q)||(r.room_ids||[]).join('').includes(q)||r.on_duty_officer?.toLowerCase().includes(q))
@@ -1153,7 +1161,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
     <div>
       <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
         <div className="tabs" style={{marginBottom:0}}>
-          {['ALL','CHECKED_IN','RESERVED','PENDING','CHECKED_OUT','CANCELLED'].map(s=>(
+          {['ALL','DUE','CHECKED_IN','RESERVED','PENDING','CHECKED_OUT','CANCELLED'].map(s=>(
             <button key={s} className={`tab${filter===s?' on':''}`} onClick={()=>setFilter(s)}>
               {s==='ALL'?`All (${reservations.length})`:`${s.replace('_',' ')} (${sc[s]||0})`}
             </button>
@@ -2291,130 +2299,175 @@ ${dueRows}
     setShowBillDetail(true)
   }
 
-  function printInvoice(grp, res, resTotal, resPaid, resDue, byType) {
-    const now = new Date().toLocaleString('en-BD', { timeZone: 'Asia/Dhaka', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  function printInvoice(grp, res, resTotal, resPaid, resDue, byType, comp) {
+    const dObj = new Date();
+    const dateStr = String(dObj.getDate()).padStart(2, '0') + '/' + String(dObj.getMonth() + 1).padStart(2, '0') + '/' + dObj.getFullYear();
+    
     const checkIn = res ? fmtDate(res.check_in) : (grp.txs[0]?.check_in ? fmtDate(grp.txs[0].check_in) : '—')
     const checkOut = res ? fmtDate(res.check_out) : (grp.txs[0]?.check_out ? fmtDate(grp.txs[0].check_out) : '—')
-    const paymentRows = Object.entries(byType).map(([tp, amt]) => `<tr><td>${tp}</td><td style="text-align:right;font-weight:600">৳${Number(amt || 0).toLocaleString('en-BD')}</td></tr>`).join('')
+    const guestName = grp.guest_name || 'Guest';
     
+    let tableRows = '';
+    let sub = 0; let tax = 0; let svc = 0; let discount = 0; let roomCharge = 0; let extras = 0;
+    if (comp) {
+      sub = comp.sub; tax = comp.tax; svc = comp.svc; discount = comp.discount; roomCharge=comp.roomCharge; extras=comp.extras;
+      let counter = 1;
+      if (roomCharge > 0) {
+        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room Charge (${comp.nights} Nights)</td><td>৳${Number(comp.roomRate||0).toLocaleString('en-BD')}</td><td>${comp.nights||1}</td><td>৳${Number(roomCharge).toLocaleString('en-BD')}</td></tr>`;
+      }
+      if (extras > 0) {
+        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Extra Services / Folios</td><td>—</td><td>—</td><td>৳${Number(extras).toLocaleString('en-BD')}</td></tr>`;
+      }
+      if (discount > 0) {
+        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Discount Applied</td><td>—</td><td>—</td><td style="color:#e74c3c">-৳${Number(discount).toLocaleString('en-BD')}</td></tr>`;
+      }
+    } else {
+       tableRows += `<tr class="item-row"><td class="sl">1</td><td>General Billing</td><td>—</td><td>—</td><td>৳${Number(resTotal).toLocaleString('en-BD')}</td></tr>`;
+    }
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8"/>
-  <title>Invoice - ${grp.guest_name || 'Guest'}</title>
+  <title>Invoice - ${guestName}</title>
   <style>
-    @page { size: A4 portrait; margin: 15mm; }
-    * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
-    body { font-family: 'Inter', -apple-system, sans-serif; color: #1a1a1a; margin: 0; line-height: 1.4; }
-    .wrap { max-width: 800px; margin: 0 auto; }
+    @page { size: A4 portrait; margin: 0; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+    body { font-family: 'Inter', Arial, sans-serif; margin: 0; color: #333; }
+    .invoice-wrapper { width: 100%; max-width: 800px; margin: 0 auto; background: #fff; min-height: 100vh; position: relative; }
     
-    /* Header Section */
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1a1a1a; padding-bottom: 20px; margin-bottom: 25px; }
-    .brand { flex: 1; }
-    .brand h1 { margin: 0; font-size: 28px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; color: #000; }
-    .brand-details { font-size: 11px; color: #444; margin-top: 6px; }
-    .brand-details div { margin-bottom: 2px; }
+    /* Header */
+    .hdr { background-color: #1a2233; color: #fff; padding: 40px 50px; display: flex; justify-content: space-between; align-items: center; }
+    .brand-left { display: flex; align-items: center; gap: 15px; }
+    .brand-left h1 { margin: 0; font-size: 26px; font-weight: 700; color: #ced4db; display: flex; align-items: center; gap: 8px;}
+    .brand-left h1 span { color:#f39c12; }
+    .tagline { font-size: 11px; color: #8f9ea8; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+    .hdr-right h2 { margin: 0; color: #f39c12; font-size: 34px; letter-spacing: 2px; text-transform: uppercase; }
+
+    /* Meta Strip */
+    .meta-strip { display: flex; width: 100%; font-size: 13px; font-weight: 600; margin-bottom: 30px; }
+    .meta-inv { background-color: #f39c12; color: #000; padding: 12px 50px; width: 50%; display: flex; align-items: center; }
+    .meta-date { background-color: #e2e8ec; color: #333; padding: 12px 50px; width: 50%; display: flex; align-items: center; justify-content: flex-end; }
     
-    .invoice-meta { text-align: right; }
-    .invoice-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #777; margin-bottom: 4px; }
-    .invoice-val { font-size: 13px; font-weight: 600; }
+    /* Bill To */
+    .bill-to { padding: 0 50px; margin-bottom: 30px; }
+    .bill-to h3 { margin: 0 0 5px 0; font-size: 15px; color: #1a2233; font-weight: 700; }
+    .bill-to p { margin: 0; font-size: 13px; color: #555; line-height: 1.5; }
 
-    /* Summary Grid */
-    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
-    .blk { border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; background: #fff; }
-    .blk-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #888; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    /* Table */
+    .table-container { padding: 0 50px; margin-bottom: 40px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { padding: 12px; font-size: 13px; font-weight: 700; color: #fff; text-transform: uppercase; border: none; }
+    th.sl { width: 5%; background-color: #f39c12; }
+    th.desc { width: 45%; background-color: #f39c12; }
+    th.bg-gray { background-color: #95a5a6; }
     
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 6px 0; font-size: 12px; border-bottom: 1px solid #f0f0f0; }
-    th { text-align: left; color: #666; font-weight: 500; width: 35%; }
-    td { font-weight: 600; text-align: left; }
-    .r { text-align: right !important; }
+    td { padding: 15px 12px; font-size: 13px; border-bottom: 1px solid #eaeaea; color: #333; font-weight: 500;}
+    td.sl { text-align: center; }
+    .item-row:nth-child(even) { background-color: #fcfcfc; }
 
-    /* Financials */
-    .fin-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
-    .fin-lbl { font-size: 12px; color: #444; }
-    .fin-val { font-size: 13px; font-weight: 600; }
-    .fin-total { border-top: 2px solid #1a1a1a; margin-top: 8px; padding-top: 10px; }
-    .fin-total .fin-lbl { font-weight: 800; font-size: 14px; color: #000; }
-    .fin-total .fin-val { font-weight: 800; font-size: 18px; color: #000; }
-
-    /* Payments Table */
-    .p-table th { background: #f8f8f8; padding: 8px 10px; border-bottom: 2px solid #ddd; color: #333; font-weight: 700; }
-    .p-table td { padding: 8px 10px; }
-
+    /* Bottom Section */
+    .bottom-section { padding: 0 50px; display: flex; justify-content: space-between; margin-bottom: 40px;}
+    .left-col { width: 50%; }
+    .ty-msg { font-weight: 600; font-size: 14px; margin-bottom: 25px; color: #1a2233; }
+    .pay-info { margin-bottom: 25px; }
+    .pay-info h4 { margin: 0 0 8px 0; font-size: 14px; color: #1a2233; }
+    .pay-row { display: flex; font-size: 12px; color: #555; margin-bottom: 4px; }
+    .pay-lbl { width: 110px; font-weight: 600;}
+    
+    .right-col { width: 40%; display: flex; flex-direction: column; }
+    .sum-row { display: flex; justify-content: space-between; padding: 6px 15px; font-size: 13px; color: #555; font-weight: 600; }
+    .total-box { background-color: #1a2233; color: #fff; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 700; margin-top: 10px; }
+    
     /* Footer */
-    .footer { margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }
-    .thanks { font-weight: 700; font-size: 14px; margin-bottom: 5px; }
-    .social { font-size: 11px; color: #666; }
-    .crm-tag { font-size: 9px; color: #ccc; margin-top: 20px; }
+    .footer-strip { padding: 0 50px; justify-content: space-between; display: flex; align-items: flex-end; margin-top: 50px;}
+    .terms { font-size: 10px; color: #777; width: 50%; line-height: 1.4; }
+    .terms h4 { margin: 0 0 4px 0; font-size: 12px; color: #333; }
+    .sign { width: 30%; text-align: center; border-top: 2px solid #ccc; font-size: 12px; font-weight: 600; padding-top: 8px; color: #333; margin-bottom: 20px;}
+    
+    /* Orange thick bottom border */
+    .bottom-bar { position: relative; bottom: 0; width: 100%; height: 25px; background: #1a2233; display: flex; }
+    .bottom-bar .orange { width: 30%; background: #f39c12; height: 100%;}
+    .bottom-bar .gray { width: 70%; background: #95a5a6; height: 100%;}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header class="header">
-      <div class="brand">
-        <h1>Hotel Fountain</h1>
-        <div class="brand-details">
-          <div>House 05, Road 02, Nikunja 02, Kobi Faruk Sarani, Dhaka 1229.</div>
-          <div>Contact: <strong>+880 1322-840799</strong> | Email: <strong>hotellfountainbd@gmail.com</strong></div>
-          <div>Instagram: <strong>@hotel_fountainbd</strong></div>
+  <div class="invoice-wrapper">
+    <div class="hdr">
+      <div class="brand-left">
+        <div>
+          <h1>HOTEL <span>FOUNTAIN</span></h1>
+          <div class="tagline">The Pulse Of Modern Hospitality</div>
         </div>
       </div>
-      <div class="invoice-meta">
-        <div class="invoice-label">Guest Invoice / Billing</div>
-        <div class="invoice-val">Date: ${now}</div>
-      </div>
-    </header>
-
-    <div class="summary-grid">
-      <div class="blk">
-        <div class="blk-title">Guest Information</div>
-        <table>
-          <tr><th>Guest ID</th><td>#${grp.guest_id || '—'}</td></tr>
-          <tr><th>Guest Name</th><td>${grp.guest_name || '—'}</td></tr>
-          <tr><th>Room No</th><td>${grp.room_number || '—'}</td></tr>
-          <tr><th>Check-In</th><td>${checkIn}</td></tr>
-          <tr><th>Check-Out</th><td>${checkOut}</td></tr>
-        </table>
-      </div>
-      <div class="blk">
-        <div class="blk-title">Billing Summary</div>
-        <div class="fin-row">
-          <span class="fin-lbl">Total Billable</span>
-          <span class="fin-val">৳${Number(resTotal || 0).toLocaleString('en-BD')}</span>
-        </div>
-        <div class="fin-row">
-          <span class="fin-lbl">Amount Paid</span>
-          <span class="fin-val" style="color:#2e7d32">৳${Number(resPaid || 0).toLocaleString('en-BD')}</span>
-        </div>
-        <div class="fin-row fin-total">
-          <span class="fin-lbl">Balance Due (This Stay)</span>
-          <span class="fin-val">৳${Number(resDue || 0).toLocaleString('en-BD')}</span>
-        </div>
-        <div class="fin-row" style="margin-top:10px;border-top:1px dashed #eee;padding-top:10px">
-          <span class="fin-lbl">Total Account Balance</span>
-          <span class="fin-val" style="color:${grp.guest_balance > 0 ? '#d32f2f' : '#2e7d32'};font-weight:700">৳${Number(grp.guest_balance || 0).toLocaleString('en-BD')}</span>
-        </div>
+      <div class="hdr-right">
+        <h2>INVOICE</h2>
       </div>
     </div>
-
-    <div class="blk" style="padding:0">
-      <div class="blk-title" style="padding: 12px 12px 6px">Payment Breakdown</div>
-      <table class="p-table">
+    
+    <div class="meta-strip">
+      <div class="meta-inv">Invoice# ${res ? res.id : 'N/A'}</div>
+      <div class="meta-date">Date &nbsp;&nbsp; ${dateStr}</div>
+    </div>
+    
+    <div class="bill-to">
+      <h3>Invoice to: ${guestName}</h3>
+      <p>Room: ${grp.room_number || '—'}<br/>
+      Check-In: ${checkIn}<br/>
+      Check-Out: ${checkOut}</p>
+    </div>
+    
+    <div class="table-container">
+      <table>
         <thead>
-          <tr><th>Payment Mode</th><th class="r">Amount</th></tr>
+          <tr>
+            <th class="sl">SL.</th>
+            <th class="desc">Item Description</th>
+            <th class="bg-gray">Price</th>
+            <th class="bg-gray">Qty.</th>
+            <th class="bg-gray">Total</th>
+          </tr>
         </thead>
         <tbody>
-          ${paymentRows || '<tr><td colspan="2" style="text-align:center;color:#999">No payments recorded</td></tr>'}
+          ${tableRows}
         </tbody>
       </table>
     </div>
-
-    <footer class="footer">
-      <div class="thanks">Thank you for staying at Hotel Fountain!</div>
-      <div class="social">Follow us on Instagram: @hotel_fountainbd</div>
-      <div class="crm-tag">Digital concierge powered by Hotel Fountain CRM</div>
-    </footer>
+    
+    <div class="bottom-section">
+      <div class="left-col">
+        <div class="ty-msg">Thank you for your business</div>
+        <div class="pay-info">
+          <h4>Payment Info:</h4>
+          ${Object.entries(byType).map(([tp, amt]) => `<div class="pay-row"><div class="pay-lbl">${tp}:</div><div>৳${Number(amt||0).toLocaleString('en-BD')}</div></div>`).join('')}
+          ${Object.keys(byType).length===0 ? '<div class="pay-row"><div class="pay-lbl">Status:</div><div style="color:#e74c3c;font-weight:700">None Collected</div></div>' : ''}
+          <div class="pay-row" style="margin-top:4px"><div class="pay-lbl">Balance Due:</div><div style="color:${resDue>0?'#e74c3c':'#27ae60'};font-weight:700">৳${Number(resDue||0).toLocaleString('en-BD')}</div></div>
+        </div>
+      </div>
+      <div class="right-col">
+        <div class="sum-row"><span>Sub Total:</span> <span>৳${Number(sub || resTotal).toLocaleString('en-BD')}</span></div>
+        <div class="sum-row"><span>VAT (${comp ? (comp.vatPct*100) : 0}%):</span> <span>${comp ? '৳'+Number(comp.tax).toLocaleString('en-BD') : 'Included'}</span></div>
+        <div class="sum-row"><span>Service Charge (${comp ? (comp.svcPct*100) : 0}%):</span> <span>${comp ? '৳'+Number(comp.svc).toLocaleString('en-BD') : 'Included'}</span></div>
+        <div class="total-box">
+          <span>Total:</span>
+          <span>৳${Number(resTotal).toLocaleString('en-BD')}</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer-strip">
+      <div class="terms">
+        <h4>Terms & Conditions</h4>
+        All dues must be cleared upon checkout. Late checkouts may incur additional charges. Subject to Dhaka jurisdiction.
+      </div>
+      <div class="sign">Authorised Sign</div>
+    </div>
+    
+    <div style="height:40px;"></div>
+    <div class="bottom-bar">
+      <div class="orange"></div>
+      <div class="gray"></div>
+    </div>
   </div>
   <script>window.onload=()=>window.print();<\/script>
 </body>
@@ -2538,7 +2591,8 @@ ${dueRows}
                   ):displayList.map(grp=>{
                     const invoice = grp.res
                     
-                    const { total:resTotal, paid:resPaid, due:resDue } = invoice ? computeBill(invoice) : { total:0, paid:0, due:0 }
+                    const comp = invoice ? computeBill(invoice) : null;
+                    const { total:resTotal, paid:resPaid, due:resDue } = comp || { total:0, paid:0, due:0 }
                     
                     const byType={}
                     grp.txs.forEach(t=>{

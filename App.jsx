@@ -9,6 +9,182 @@ const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co'
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
 const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 
+function printInvoice(grp, res, resTotal, resPaid, resDue, byType, comp) {
+    const dObj = new Date();
+    const dateStr = String(dObj.getDate()).padStart(2, '0') + '/' + String(dObj.getMonth() + 1).padStart(2, '0') + '/' + dObj.getFullYear();
+    
+    const checkIn = res ? fmtDate(res.check_in) : (grp.txs[0]?.check_in ? fmtDate(grp.txs[0].check_in) : '—')
+    const checkOut = res ? fmtDate(res.check_out) : (grp.txs[0]?.check_out ? fmtDate(grp.txs[0].check_out) : '—')
+    const guestName = grp.guest_name || 'Guest';
+    
+    let tableRows = '';
+    let sub = 0; let tax = 0; let svc = 0; let discount = 0; let roomCharge = 0; let extras = 0;
+    if (comp) {
+      sub = comp.sub; tax = comp.tax; svc = comp.svc; discount = comp.discount; roomCharge=comp.roomCharge; extras=comp.extras;
+      let counter = 1;
+      if (roomCharge > 0) {
+        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room Charge (${comp.nights} Nights)</td><td>৳${Number(comp.roomRate||0).toLocaleString('en-BD')}</td><td>${comp.nights||1}</td><td>৳${Number(roomCharge).toLocaleString('en-BD')}</td></tr>`;
+      }
+      if (extras > 0) {
+        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Extra Services / Folios</td><td>—</td><td>—</td><td>৳${Number(extras).toLocaleString('en-BD')}</td></tr>`;
+      }
+      if (discount > 0) {
+        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Discount Applied</td><td>—</td><td>—</td><td style="color:#e74c3c">-৳${Number(discount).toLocaleString('en-BD')}</td></tr>`;
+      }
+    } else {
+       tableRows += `<tr class="item-row"><td class="sl">1</td><td>General Billing</td><td>—</td><td>—</td><td>৳${Number(resTotal).toLocaleString('en-BD')}</td></tr>`;
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Invoice - ${guestName}</title>
+  <style>
+    @page { size: A4 portrait; margin: 0; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+    body { font-family: 'Inter', Arial, sans-serif; margin: 0; color: #333; }
+    .invoice-wrapper { width: 100%; max-width: 800px; margin: 0 auto; background: #fff; min-height: 100vh; position: relative; }
+    
+    /* Header */
+    .hdr { background-color: #1a2233; color: #fff; padding: 40px 50px; display: flex; justify-content: space-between; align-items: center; }
+    .brand-left { display: flex; align-items: center; gap: 15px; }
+    .brand-left h1 { margin: 0; font-size: 26px; font-weight: 700; color: #ced4db; display: flex; align-items: center; gap: 8px;}
+    .brand-left h1 span { color:#f39c12; }
+    .tagline { font-size: 11px; color: #8f9ea8; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+    .hdr-right h2 { margin: 0; color: #f39c12; font-size: 34px; letter-spacing: 2px; text-transform: uppercase; }
+
+    /* Meta Strip */
+    .meta-strip { display: flex; width: 100%; font-size: 13px; font-weight: 600; margin-bottom: 30px; }
+    .meta-inv { background-color: #f39c12; color: #000; padding: 12px 50px; width: 50%; display: flex; align-items: center; }
+    .meta-date { background-color: #e2e8ec; color: #333; padding: 12px 50px; width: 50%; display: flex; align-items: center; justify-content: flex-end; }
+    
+    /* Bill To */
+    .bill-to { padding: 0 50px; margin-bottom: 30px; }
+    .bill-to h3 { margin: 0 0 5px 0; font-size: 15px; color: #1a2233; font-weight: 700; }
+    .bill-to p { margin: 0; font-size: 13px; color: #555; line-height: 1.5; }
+
+    /* Table */
+    .table-container { padding: 0 50px; margin-bottom: 40px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { padding: 12px; font-size: 13px; font-weight: 700; color: #fff; text-transform: uppercase; border: none; }
+    th.sl { width: 5%; background-color: #f39c12; }
+    th.desc { width: 45%; background-color: #f39c12; }
+    th.bg-gray { background-color: #95a5a6; }
+    
+    td { padding: 15px 12px; font-size: 13px; border-bottom: 1px solid #eaeaea; color: #333; font-weight: 500;}
+    td.sl { text-align: center; }
+    .item-row:nth-child(even) { background-color: #fcfcfc; }
+
+    /* Bottom Section */
+    .bottom-section { padding: 0 50px; display: flex; justify-content: space-between; margin-bottom: 40px;}
+    .left-col { width: 50%; }
+    .ty-msg { font-weight: 600; font-size: 14px; margin-bottom: 25px; color: #1a2233; }
+    .pay-info { margin-bottom: 25px; }
+    .pay-info h4 { margin: 0 0 8px 0; font-size: 14px; color: #1a2233; }
+    .pay-row { display: flex; font-size: 12px; color: #555; margin-bottom: 4px; }
+    .pay-lbl { width: 110px; font-weight: 600;}
+    
+    .right-col { width: 40%; display: flex; flex-direction: column; }
+    .sum-row { display: flex; justify-content: space-between; padding: 6px 15px; font-size: 13px; color: #555; font-weight: 600; }
+    .total-box { background-color: #1a2233; color: #fff; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 700; margin-top: 10px; }
+    
+    /* Footer */
+    .footer-strip { padding: 0 50px; justify-content: space-between; display: flex; align-items: flex-end; margin-top: 50px;}
+    .terms { font-size: 10px; color: #777; width: 50%; line-height: 1.4; }
+    .terms h4 { margin: 0 0 4px 0; font-size: 12px; color: #333; }
+    .sign { width: 30%; text-align: center; border-top: 2px solid #ccc; font-size: 12px; font-weight: 600; padding-top: 8px; color: #333; margin-bottom: 20px;}
+    
+    /* Orange thick bottom border */
+    .bottom-bar { position: relative; bottom: 0; width: 100%; height: 25px; background: #1a2233; display: flex; }
+    .bottom-bar .orange { width: 30%; background: #f39c12; height: 100%;}
+    .bottom-bar .gray { width: 70%; background: #95a5a6; height: 100%;}
+  </style>
+</head>
+<body>
+  <div class="invoice-wrapper">
+    <div class="hdr">
+      <div class="brand-left">
+        <div>
+          <h1>HOTEL <span>FOUNTAIN</span></h1>
+          <div class="tagline">The Pulse Of Modern Hospitality</div>
+        </div>
+      </div>
+      <div class="hdr-right">
+        <h2>INVOICE</h2>
+      </div>
+    </div>
+    
+    <div class="meta-strip">
+      <div class="meta-inv">Invoice# ${res ? res.id : 'N/A'}</div>
+      <div class="meta-date">Date &nbsp;&nbsp; ${dateStr}</div>
+    </div>
+    
+    <div class="bill-to">
+      <h3>Invoice to: ${guestName}</h3>
+      <p>Room: ${grp.room_number || '—'}<br/>
+      Check-In: ${checkIn}<br/>
+      Check-Out: ${checkOut}</p>
+    </div>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th class="sl">SL.</th>
+            <th class="desc">Item Description</th>
+            <th class="bg-gray">Price</th>
+            <th class="bg-gray">Qty.</th>
+            <th class="bg-gray">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="bottom-section">
+      <div class="left-col">
+        <div class="ty-msg">Thank you for your business</div>
+        <div class="pay-info">
+          <h4>Payment Info:</h4>
+          ${Object.entries(byType).map(([tp, amt]) => `<div class="pay-row"><div class="pay-lbl">${tp}:</div><div>৳${Number(amt||0).toLocaleString('en-BD')}</div></div>`).join('')}
+          ${Object.keys(byType).length===0 ? '<div class="pay-row"><div class="pay-lbl">Status:</div><div style="color:#e74c3c;font-weight:700">None Collected</div></div>' : ''}
+          <div class="pay-row" style="margin-top:4px"><div class="pay-lbl">Balance Due:</div><div style="color:${resDue>0?'#e74c3c':'#27ae60'};font-weight:700">৳${Number(resDue||0).toLocaleString('en-BD')}</div></div>
+        </div>
+      </div>
+      <div class="right-col">
+        <div class="sum-row"><span>Sub Total:</span> <span>৳${Number(sub || resTotal).toLocaleString('en-BD')}</span></div>
+        <div class="sum-row"><span>VAT (${comp ? (comp.vatPct*100) : 0}%):</span> <span>${comp ? '৳'+Number(comp.tax).toLocaleString('en-BD') : 'Included'}</span></div>
+        <div class="sum-row"><span>Service Charge (${comp ? (comp.svcPct*100) : 0}%):</span> <span>${comp ? '৳'+Number(comp.svc).toLocaleString('en-BD') : 'Included'}</span></div>
+        <div class="total-box">
+          <span>Total:</span>
+          <span>৳${Number(resTotal).toLocaleString('en-BD')}</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer-strip">
+      <div class="terms">
+        <h4>Terms & Conditions</h4>
+        All dues must be cleared upon checkout. Late checkouts may incur additional charges. Subject to Dhaka jurisdiction.
+      </div>
+      <div class="sign">Authorised Sign</div>
+    </div>
+    
+    <div style="height:40px;"></div>
+    <div class="bottom-bar">
+      <div class="orange"></div>
+      <div class="gray"></div>
+    </div>
+  </div>
+  <script>window.onload=()=>window.print();<\/script>
+</body>
+</html>`
+    printPDF(html)
+  }
+
 const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
 const fmtDate = d => d ? String(d).slice(0,10) : '—'
 const todayDhaka = () => new Date(new Date().toLocaleString('en',{timeZone:'Asia/Dhaka'}))
@@ -1599,9 +1775,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
                           <button className="btn btn-ghost btn-sm print-hide" style={{padding:'2px 8px',fontSize:9,marginRight:4}} title="Print Folio" onClick={()=>{
                             const pInvoiceByType = {...byType};
                             if(r && Object.keys(pInvoiceByType).length===0 && tPaid>0) pInvoiceByType[r.payment_method||'Cash'] = tPaid;
+                            const invoice = r;
+                            const comp = invoice ? null : null;
+                            const { total:resTotal, paid:resPaid, due:resDue } = comp || { total:tTotal, paid:tPaid, due:tDue }
                             window.printInvoice && window.printInvoice(
                               {guest_name:gname,room_number:rno,txs:grp.txs},
-                              r,tTotal,tPaid,tDue,pInvoiceByType
+                              invoice,resTotal,resPaid,resDue,pInvoiceByType,comp
                             )
                           }}>🖨 Print</button>
                           {currentUser?.role==='owner'&&grp.txs.length>0&&(
