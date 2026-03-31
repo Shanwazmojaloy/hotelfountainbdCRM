@@ -59,7 +59,7 @@ function computeBill(r, rooms, foliosMap, settings) {
   const discount=+r.discount||+r.discount_amount||0
   // Single Source of Truth: ensure both UI pages map exactly to db columns
   const invoice = r;
-  const total = +(invoice.total_amount || 0);
+  const total = Math.max(0, sub - discount);
   const paid = +(invoice.paid_amount || 0);
   const due = typeof invoice.total_due !== 'undefined' ? +invoice.total_due : Math.max(0, total - paid);
   return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
@@ -2145,7 +2145,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const discount=+r.discount||0
     // Single Source of Truth: ensure both UI pages map exactly to db columns
     const invoice = r;
-    const total = +(invoice.total_amount || 0);
+    const total = Math.max(0, sub - discount);
     const paid = +(invoice.paid_amount || 0);
     const due = typeof invoice.total_due !== 'undefined' ? +invoice.total_due : Math.max(0, total - paid);
     return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
