@@ -156,8 +156,6 @@ function printInvoice(grp, res, resTotal, resPaid, resDue, byType, comp) {
       </div>
       <div class="right-col">
         <div class="sum-row"><span>Sub Total:</span> <span>৳${Number(sub || resTotal).toLocaleString('en-BD')}</span></div>
-        <div class="sum-row"><span>VAT (${comp ? (comp.vatPct*100) : 0}%):</span> <span>${comp ? '৳'+Number(comp.tax).toLocaleString('en-BD') : 'Included'}</span></div>
-        <div class="sum-row"><span>Service Charge (${comp ? (comp.svcPct*100) : 0}%):</span> <span>${comp ? '৳'+Number(comp.svc).toLocaleString('en-BD') : 'Included'}</span></div>
         <div class="total-box">
           <span>Total:</span>
           <span>৳${Number(resTotal).toLocaleString('en-BD')}</span>
@@ -294,6 +292,7 @@ html,body,#root{height:100%;background:var(--bg);color:var(--tx);font-family:var
 .btn-success{background:rgba(63,185,80,.08);color:var(--grn);border:1px solid rgba(63,185,80,.2)}
 .btn-success:hover:not(:disabled){background:rgba(63,185,80,.18)}
 .btn-info{background:rgba(88,166,255,.08);color:var(--sky);border:1px solid rgba(88,166,255,.2)}
+.btn-info:hover:not(:disabled){background:rgba(88,166,255,.18)}
 .btn-sm{padding:4px 10px;font-size:9.5px}
 
 /* ── BADGES ── */
@@ -787,13 +786,11 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
   },[room.room_number])
 
   const roomRate=+room.price||0
-  const nights=activeRes?nightsCount(activeRes.check_in,activeRes.check_out):0
+  const nights=activeRes?nightsCount(activeRes.check_in,activeRes.check_out) : 0
   const roomCharge=roomRate*nights
   const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
-  const tax=0
-  const svc=0
-  const total=sub+tax+svc
+  const total=sub
   const paid=+activeRes?.paid_amount||0
   const totalDue=Math.max(0,total-paid)
 

@@ -52,10 +52,10 @@ function computeBill(r, rooms, foliosMap, settings) {
   const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
   // Use rates from hotel settings (loaded from Supabase), fallback 0
-  const vatPct=(+settings?.vat_rate||+settings?.vat||0)/100
-  const svcPct=(+settings?.service_charge||+settings?.svc||0)/100
-  const tax=Math.round(sub*vatPct)
-  const svc=Math.round(sub*svcPct)
+  const vatPct=0;
+  const svcPct=0;
+  const tax=0;
+  const svc=0;
   const discount=+r.discount||+r.discount_amount||0
   // Single Source of Truth: ensure both UI pages map exactly to db columns
   const invoice = r;
@@ -978,7 +978,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            {[['Subtotal',sub],['VAT 7%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
+            {[['Subtotal',sub]].map(([l,v])=>(
               <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
             ))}
             <div className="divider" style={{margin:'6px 0'}}/>
@@ -1040,7 +1040,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             <div style={{fontSize:32,marginBottom:10}}>🚪</div>
             <div style={{fontWeight:700,fontSize:17,marginBottom:4}}>{guest?.name||'Guest'}</div>
             <div className="xs muted" style={{marginBottom:12}}>Room {room.room_number} · {nights} night{nights!==1?'s':''}</div>
-            {[['Room Charge',BDT(roomCharge)],['Extra Charges',BDT(extras)],['VAT 7%',BDT(tax)],['Service 5%',BDT(svc)]].map(([l,v])=>(
+            {[['Room Charge',BDT(roomCharge)],['Extra Charges',BDT(extras)]].map(([l,v])=>(
               <div key={l} className="flex fjb xs muted" style={{maxWidth:220,margin:'3px auto'}}><span>{l}</span><span>{v}</span></div>
             ))}
             <div className="divider" style={{maxWidth:220,margin:'8px auto'}}/>
@@ -2446,8 +2446,6 @@ ${dueRows}
       </div>
       <div class="right-col">
         <div class="sum-row"><span>Sub Total:</span> <span>৳${Number(sub || resTotal).toLocaleString('en-BD')}</span></div>
-        <div class="sum-row"><span>VAT (${comp ? (comp.vatPct*100) : 0}%):</span> <span>${comp ? '৳'+Number(comp.tax).toLocaleString('en-BD') : 'Included'}</span></div>
-        <div class="sum-row"><span>Service Charge (${comp ? (comp.svcPct*100) : 0}%):</span> <span>${comp ? '৳'+Number(comp.svc).toLocaleString('en-BD') : 'Included'}</span></div>
         <div class="total-box">
           <span>Total:</span>
           <span>৳${Number(resTotal).toLocaleString('en-BD')}</span>
@@ -2678,7 +2676,7 @@ ${dueRows}
         const r=detailRes
         const gname=getGN(r)
         const roomNo=getRoom(r)
-        const {roomCharge,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}=computeBill(r)
+        const {roomCharge,sub,total,paid,due,folios,nights,roomRate}=computeBill(r)
         const relTx=transactions.filter(t=>t.room_number===roomNo&&t.type!=='Final Settlement')
         return (
           <Modal title={`Bill — ${gname}`} onClose={()=>{setShowBillDetail(false);setDetailRes(null)}}
