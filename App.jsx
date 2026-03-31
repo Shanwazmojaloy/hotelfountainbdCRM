@@ -619,8 +619,8 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
   const roomCharge=roomRate*nights
   const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
-  const tax=Math.round(sub*.07)
-  const svc=Math.round(sub*.05)
+  const tax=0
+  const svc=0
   const total=sub+tax+svc
   const paid=+activeRes?.paid_amount||0
   const totalDue=Math.max(0,total-paid)
@@ -768,7 +768,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            {[['Subtotal',sub],['VAT 7%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
+            {[['Subtotal',sub]].map(([l,v])=>(
               <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
             ))}
             <div className="divider" style={{margin:'6px 0'}}/>
@@ -803,7 +803,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
             <div style={{fontSize:32,marginBottom:10}}>🚪</div>
             <div style={{fontWeight:700,fontSize:17,marginBottom:4}}>{guest?.name||'Guest'}</div>
             <div className="xs muted" style={{marginBottom:12}}>Room {room.room_number} · {nights} night{nights!==1?'s':''}</div>
-            {[['Room Charge',BDT(roomCharge)],['Extra Charges',BDT(extras)],['VAT 7%',BDT(tax)],['Service 5%',BDT(svc)]].map(([l,v])=>(
+            {[['Room Charge',BDT(roomCharge)],['Extra Charges',BDT(extras)]].map(([l,v])=>(
               <div key={l} className="flex fjb xs muted" style={{maxWidth:220,margin:'3px auto'}}><span>{l}</span><span>{v}</span></div>
             ))}
             <div className="divider" style={{maxWidth:220,margin:'8px auto'}}/>
@@ -839,7 +839,6 @@ function AddChargeModal({roomNo,resId,toast,onClose,onDone}) {
     setSaving(true)
     try {
       const [f]=await dbPost('folios',{room_number:roomNo,reservation_id:resId||null,description:desc||cat,category:cat,amount:a,tenant_id:TENANT})
-      await dbPost('transactions',{room_number:roomNo,guest_name:desc||cat,type:cat,amount:a,fiscal_day:todayStr(),tenant_id:TENANT})
       onDone(f)
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
