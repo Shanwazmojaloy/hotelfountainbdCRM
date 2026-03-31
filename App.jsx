@@ -1604,8 +1604,8 @@ function BillingPage({transactions,reservations,toast,reload,currentUser}) {
   return (
     <div>
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">Today</div><div className="stat-val">{BDT(todayT.reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{todayT.length} transactions</div></div>
-        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthT.reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{monthT.length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">Today</div><div className="stat-val">{BDT(todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{todayT.filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0))}</div><div className="stat-sub">{monthT.filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
       </div>
       <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>

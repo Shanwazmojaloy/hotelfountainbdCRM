@@ -2145,8 +2145,8 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const outstanding = reservations
     .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
     .reduce((a, r) => a + Math.max(0, (+r.total_amount||0) - (+r.paid_amount||0)), 0)
-  const todayRevenue=todayT.reduce((a,t)=>a+(+t.amount||0),0)
-  const monthRevenue=monthT.reduce((a,t)=>a+(+t.amount||0),0)
+  const todayRevenue=todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const monthRevenue=monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
   const dueRes = reservations.filter(r => {
     if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false
     return (+r.total_amount||0) > (+r.paid_amount||0)
@@ -2183,7 +2183,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
         setSavedToken(a);
       } catch(e) {}
     }
-    const todayList=transactions.filter(t=>t.fiscal_day===today)
+    const todayList=transactions.filter(t=>t.fiscal_day===today && t.type!=='Balance Carried Forward')
     const totalAmt=todayList.reduce((acc,t)=>acc+(+t.amount||0),0)
     const tokenAmount=a||savedToken||0
     const closingAmt=totalAmt-tokenAmount
@@ -2248,6 +2248,26 @@ ${dueRows}
       const d=new Date(today); d.setDate(d.getDate()+1)
       const nextDay=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
       try{
+        // 1. Delete any existing "Balance Carried Forward" for nextDay
+        const existingFWD = transactions.filter(t=>t.fiscal_day===nextDay && t.type==='Balance Carried Forward');
+        if(existingFWD.length > 0) {
+          await Promise.all(existingFWD.map(t => dbDelete('transactions', t.id)));
+        }
+        
+        // 2. Insert new "Balance Carried Forward" records for all pending dues
+        if(duesCarried.length > 0) {
+          await Promise.all(duesCarried.map(d=>(
+            dbPost('transactions', {
+              tenant_id: TENANT,
+              fiscal_day: nextDay,
+              guest_name: d.gname,
+              room_number: d.room,
+              amount: d.due,
+              type: 'Balance Carried Forward'
+            })
+          )))
+        }
+
         await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
           method:'POST',
           headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
@@ -2405,8 +2425,8 @@ ${dueRows}
     <div>
       {/* Stats */}
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`}</div><div className="stat-val">{BDT(filter==='DATE'?calT.reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{(filter==='DATE'?calT:todayT).length} transactions</div></div>
-        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`}</div><div className="stat-val">{BDT(filter==='DATE'?calT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{(filter==='DATE'?calT:todayT).filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
       </div>
 
