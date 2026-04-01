@@ -2082,11 +2082,18 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
   const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
+  const [hSettingsAll,setHSettingsAll]=useState({})
   useEffect(()=>{
     db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`).then(rows=>{
       if(!Array.isArray(rows)) return
       const m={};rows.forEach(r=>{m[r.key]=r.value})
+      setHSettingsAll(m)
       setHSettings({vat:m.vat_rate||'0',svc:m.service_charge||'0',active_fiscal_day:m.active_fiscal_day})
+      // Load token for current fiscal day
+      const fd=m.active_fiscal_day||todayStr()
+      const dayToken=m[`token_${fd}`]||''
+      setTokenAmt(dayToken)
+      setSavedToken(+dayToken||0)
     }).catch(()=>{})
   },[])
   const [search,setSearch]=useState('')
@@ -2170,29 +2177,35 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     if(!a||a<0){toast('Enter valid token amount','error');return}
     setTokenSaving(true)
     try{
+      // Save token with day-specific key so it doesn't bleed between days
+      await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
+        method:'POST',
+        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+        body:JSON.stringify({key:`token_${today}`,value:String(a),tenant_id:TENANT})
+      })
+      // Also keep legacy key updated for backward compat
       await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
         method:'POST',
         headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
         body:JSON.stringify({key:'daily_token_amount',value:String(a),tenant_id:TENANT})
       })
       setSavedToken(a)
-      toast(`Token amount ${BDT(a)} saved`)
+      toast(`Token amount ${BDT(a)} saved for ${today}`)
     }catch(e){toast(e.message,'error')}
     finally{setTokenSaving(false)}
   }
 
   async function doClosingComplete() {
-    const a=+tokenAmt;
-    if (a && a>=0 && a !== savedToken) {
-      try {
-        await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
-          method:'POST',
-          headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-          body:JSON.stringify({key:'daily_token_amount',value:String(a),tenant_id:TENANT})
-        });
-        setSavedToken(a);
-      } catch(e) {}
-    }
+    const a=+tokenAmt||0;
+    // Save today's token with day-specific key before closing
+    try {
+      await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
+        method:'POST',
+        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+        body:JSON.stringify({key:`token_${today}`,value:String(a),tenant_id:TENANT})
+      });
+      setSavedToken(a);
+    } catch(e) {}
     const todayList=transactions.filter(t=>t.fiscal_day===today && t.type!=='Balance Carried Forward')
     const totalAmt=todayList.reduce((acc,t)=>acc+(+t.amount||0),0)
     const tokenAmount=a||savedToken||0
@@ -2283,6 +2296,9 @@ ${dueRows}
           headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
           body:JSON.stringify({key:'active_fiscal_day',value:nextDay,tenant_id:TENANT})
         })
+        // Reset token for new day
+        setTokenAmt('')
+        setSavedToken(0)
         toast(`✓ Day closed · Fiscal day → ${nextDay}`,'info')
         reload()
       }catch(e){
@@ -2313,12 +2329,23 @@ ${dueRows}
     if (comp) {
       sub = comp.sub; tax = comp.tax; svc = comp.svc; discount = comp.discount; roomCharge=comp.roomCharge; extras=comp.extras;
       let counter = 1;
+      // Room Charge line
       if (roomCharge > 0) {
-        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room Charge (${comp.nights} Nights)</td><td>৳${Number(comp.roomRate||0).toLocaleString('en-BD')}</td><td>${comp.nights||1}</td><td>৳${Number(roomCharge).toLocaleString('en-BD')}</td></tr>`;
+        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room Charge (${comp.nights} Night${comp.nights!==1?'s':''})</td><td>৳${Number(comp.roomRate||0).toLocaleString('en-BD')}</td><td>${comp.nights||1}</td><td>৳${Number(roomCharge).toLocaleString('en-BD')}</td></tr>`;
       }
-      if (extras > 0) {
-        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Extra Services / Folios</td><td>—</td><td>—</td><td>৳${Number(extras).toLocaleString('en-BD')}</td></tr>`;
+      // Itemized individual folio charges instead of lump sum
+      if (comp.folios && comp.folios.length > 0) {
+        comp.folios.forEach(f => {
+          if (+f.amount === 0) return;
+          const isPayment = f.category === 'Payment';
+          if (isPayment) return; // skip payment folios in charges section
+          tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>${f.description || f.category || 'Additional Charge'}</td><td>—</td><td>—</td><td>${+f.amount < 0 ? '<span style="color:#e74c3c">' : ''}৳${Number(Math.abs(+f.amount)||0).toLocaleString('en-BD')}${+f.amount < 0 ? '</span>' : ''}</td></tr>`;
+        });
+      } else if (extras > 0) {
+        // Fallback: show lump sum if no individual folios available
+        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Additional Charges</td><td>—</td><td>—</td><td>৳${Number(extras).toLocaleString('en-BD')}</td></tr>`;
       }
+      // Discount line
       if (discount > 0) {
         tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Discount Applied</td><td>—</td><td>—</td><td style="color:#e74c3c">-৳${Number(discount).toLocaleString('en-BD')}</td></tr>`;
       }
@@ -2447,10 +2474,13 @@ ${dueRows}
       </div>
       <div class="right-col">
         <div class="sum-row"><span>Sub Total:</span> <span>৳${Number(sub || resTotal).toLocaleString('en-BD')}</span></div>
+        ${discount > 0 ? `<div class="sum-row" style="color:#e74c3c"><span>Discount:</span> <span>-৳${Number(discount).toLocaleString('en-BD')}</span></div>` : ''}
         <div class="total-box">
           <span>Total:</span>
           <span>৳${Number(resTotal).toLocaleString('en-BD')}</span>
         </div>
+        <div class="sum-row" style="margin-top:6px;color:#27ae60"><span>Paid:</span> <span>৳${Number(resPaid||0).toLocaleString('en-BD')}</span></div>
+        ${resDue > 0 ? `<div class="sum-row" style="color:#e74c3c;font-weight:700"><span>Balance Due:</span> <span>৳${Number(resDue).toLocaleString('en-BD')}</span></div>` : `<div class="sum-row" style="color:#27ae60;font-weight:700"><span>Status:</span> <span>PAID IN FULL</span></div>`}
       </div>
     </div>
     
@@ -2639,7 +2669,7 @@ ${dueRows}
                               if(invoice && Object.keys(pInvoiceByType).length===0 && tPaid>0) pInvoiceByType[invoice.payment_method||'Cash'] = tPaid;
                               printInvoice(
                                 {guest_name:gname,room_number:rno,txs:grp.txs},
-                                invoice,tTotal,tPaid,tDue,pInvoiceByType
+                                invoice,tTotal,tPaid,tDue,pInvoiceByType,comp
                               )
                             }}>🖨 Print</button>
                           )}
