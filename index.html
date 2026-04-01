@@ -48,7 +48,7 @@ function computeBill(r, rooms, foliosMap, settings) {
   const nights=nightsCount(r.check_in,r.check_out)||1
   const roomCharge=roomRate*nights
   const fKey=r.id||r.room_number
-  const folios=foliosMap[fKey]||foliosMap[r.room_number]||[]
+  const folios=(foliosMap[fKey]||foliosMap[r.room_number]||[]).filter(f=>f.category!=="Receivable")
   const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
   // Use rates from hotel settings (loaded from Supabase), fallback 0
@@ -944,7 +944,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
               </div>
             </div>
             <div style={{textAlign:'right'}}>
-              <div className="xs muted">Total Due</div>
+              <div className="xs muted">Bill Total</div>
               <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(total)}</div>
             </div>
           </div>
@@ -982,7 +982,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
               <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
             ))}
             <div className="divider" style={{margin:'6px 0'}}/>
-            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total Due</span><span>{BDT(total)}</span></div>
+            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Bill Total</span><span>{BDT(total)}</span></div>
           </div>
         </div>
       )}
@@ -2134,7 +2134,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const nights=nightsCount(r.check_in,r.check_out)||1
     const roomCharge=roomRate*nights
     const fKey=r.id||r.room_number
-    const folios=foliosMap[fKey]||foliosMap[r.room_number]||[]
+    const folios=(foliosMap[fKey]||foliosMap[r.room_number]||[]).filter(f=>f.category!=="Receivable")
     const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
     const sub=roomCharge+extras
     // Use rates from hotel settings (loaded from Supabase), fallback 0
@@ -2676,7 +2676,7 @@ ${dueRows}
         const r=detailRes
         const gname=getGN(r)
         const roomNo=getRoom(r)
-        const {roomCharge,sub,total,paid,due,folios,nights,roomRate}=computeBill(r)
+        const {roomCharge,sub,total,paid,due,folios,nights,roomRate,discount}=computeBill(r)
         const relTx=transactions.filter(t=>t.room_number===roomNo&&t.type!=='Final Settlement')
         return (
           <Modal title={`Bill — ${gname}`} onClose={()=>{setShowBillDetail(false);setDetailRes(null)}}
