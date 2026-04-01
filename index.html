@@ -1298,6 +1298,20 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         payment_method:method,
         notes
       })
+      /* ── Auto-create transaction when paid_amount increases ── */
+      const prevPaid = +(res.paid_amount || 0)
+      const paidDiff = safePaid - prevPaid
+      if(paidDiff > 0) {
+        await dbPost('transactions',{
+          reservation_id: res.id,
+          room_number: roomIds[0] || '',
+          guest_name: gn,
+          type: `Room Payment (${method})`,
+          amount: paidDiff,
+          fiscal_day: todayStr(),
+          tenant_id: TENANT
+        })
+      }
       toast('Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
