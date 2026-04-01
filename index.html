@@ -2603,6 +2603,17 @@ ${dueRows}
           })
         }
 
+
+        // 3. Always show all CHECKED_IN reservations so front desk sees current guests
+        if (!search) {
+          reservations.filter(r=>r.status==='CHECKED_IN').forEach(r=>{
+            const key = r.id;
+            if(!unifiedGroups[key]) {
+              unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: false }
+            }
+          })
+        }
+
         const displayList = Object.values(unifiedGroups)
 
         return (
