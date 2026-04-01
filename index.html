@@ -657,9 +657,9 @@ function LoginPage({onLogin, staffList}) {
 }
 
 /* ═══════════════════════ DASHBOARD ══════════════════════════ */
-function Dashboard({rooms,guests,reservations,transactions,setPage}) {
+function Dashboard({rooms,guests,reservations,transactions,setPage,hSettings}) {
   const [chartActive,setChartActive]=useState(13)
-  const today=todayStr()
+  const today=hSettings?.active_fiscal_day||todayStr()
   const occ=rooms.filter(r=>r.status==='OCCUPIED').length
   const occPct=rooms.length?Math.round((occ/rooms.length)*100):0
   const todayT=transactions.filter(t=>t.fiscal_day===today)
@@ -2085,7 +2085,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`).then(rows=>{
       if(!Array.isArray(rows)) return
       const m={};rows.forEach(r=>{m[r.key]=r.value})
-      setHSettings({vat:m.vat_rate||'0',svc:m.service_charge||'0'})
+      setHSettings({vat:m.vat_rate||'0',svc:m.service_charge||'0',active_fiscal_day:m.active_fiscal_day})
     }).catch(()=>{})
   },[])
   const [search,setSearch]=useState('')
@@ -2098,7 +2098,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [tokenAmt,setTokenAmt]=useState('')
   const [savedToken,setSavedToken]=useState(0)
   const [tokenSaving,setTokenSaving]=useState(false)
-  const today=todayStr(), month=today.slice(0,7)
+  const today=hSettings.active_fiscal_day||todayStr(), month=today.slice(0,7)
   const todayT=transactions.filter(t=>t.fiscal_day===today)
   const monthT=transactions.filter(t=>t.fiscal_day?.startsWith(month))
   const calT=calDate?transactions.filter(t=>t.fiscal_day===calDate):[]
@@ -2669,7 +2669,7 @@ ${dueRows}
 
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={async ()=>{await reload();await db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
+      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={async ()=>{await reload();await db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations} active_fiscal_day={hSettings.active_fiscal_day}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
@@ -2777,7 +2777,7 @@ ${dueRows}
   )
 }
 
-function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
+function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,active_fiscal_day}) {
   const fromRow=prefill?._fromRow===true
   const dueResList=(reservations||[]).filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0))
 
@@ -2796,7 +2796,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
 
   const [amount,setAmount]=useState(fromRow&&lockedDue>0?String(lockedDue):dropDueAmt>0?String(dropDueAmt):'')
   const [type,setType]=useState('Room Payment (Cash)')
-  const [fiscal_day,setFiscalDay]=useState(todayStr())
+  const [fiscal_day,setFiscalDay]=useState(active_fiscal_day||todayStr())
   const [saving,setSaving]=useState(false)
   const [payAmt,setPayAmt]=useState('')
   const [payType,setPayType]=useState('Cash')
@@ -4921,7 +4921,7 @@ function App() {
   const [user,setUser]=useState(null)
   const [page,setPage]=useState('dashboard')
   const [data,setData]=useState({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]})
-  const [hSettings,setHSettings]=useState({vat_rate:'0',service_charge:'0'})
+  const [hSettings,setHSettings]=useState({vat_rate:'0',service_charge:'0',active_fiscal_day:''})
   const [foliosMap,setFoliosMap]=useState({})
   const [loading,setLoading]=useState(false)
   const [toastMsg,setToastMsg]=useState(null)
@@ -5165,7 +5165,7 @@ function App() {
 
           {/* Close notif by clicking content area */}
           <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
-            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage}/>}
+            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} hSettings={hSettings}/>}
             {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap}/>}
             {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap}/>}
