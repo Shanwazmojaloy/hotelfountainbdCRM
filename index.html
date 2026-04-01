@@ -836,7 +836,8 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
   const roomRate=+room.price||0
   const nights=activeRes?nightsCount(activeRes.check_in,activeRes.check_out):0
   const roomCharge=roomRate*nights
-  const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
+  const billFolios=folios.filter(f=>f.category!=="Receivable")
+  const extras=billFolios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
   const tax=0
   const svc=0
@@ -967,7 +968,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
                 <span className="xs gold">{BDT(roomCharge)}</span>
               </div>
             )}
-            {folios.map(f=>(
+            {billFolios.map(f=>(
               <div key={f.id} className="folio-row">
                 <div><span>{f.description}</span><span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{f.category}</span></div>
                 <div className="flex fac gap2">
