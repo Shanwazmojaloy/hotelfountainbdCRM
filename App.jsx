@@ -2006,7 +2006,7 @@ function printPDF(htmlContent, filename) {
   })
 }
 
-function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding) {
+function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tokenAmount) {
   const filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
   const total = list.reduce((a,t)=>a+(+t.amount||0),0)
   const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
@@ -2014,6 +2014,8 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding) {
   const todayTotal = todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
   const monthTotal = monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
   const allTotal   = allT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const tkn = +(tokenAmount||0)
+  const closingBalance = todayTotal - tkn
   const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
     @page{size:A4 portrait;margin:5.08mm}
@@ -2036,6 +2038,10 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding) {
     tbody tr:nth-child(even){background:#f2f2f2}
     tbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}
     tbody td:last-child{text-align:right;font-weight:600}
+    .closing-box{margin-top:16px;border:2px solid #000;padding:12px 16px;background:#f8f8f8}
+    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#000}
+    .closing-row.total{border-top:1px solid #ccc;margin-top:4px;padding-top:6px;font-weight:700}
+    .closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}
     .footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between}
     .total-row{font-size:12px;font-weight:700;color:#000}
     .footer-note{font-size:8px;color:#555}
@@ -2049,6 +2055,11 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding) {
   </div>
   <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
   <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
+  <div class="closing-box">
+    <div class="closing-row total"><span>Today's Total Collection</span><span>৳${todayTotal.toLocaleString()}</span></div>
+    <div class="closing-row"><span>Token Amount</span><span>− ৳${tkn.toLocaleString()}</span></div>
+    <div class="closing-row final"><span>Closing Balance</span><span>৳${closingBalance.toLocaleString()}</span></div>
+  </div>
   <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${list.length} transaction${list.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
   </body></html>`
   printPDF(content)
@@ -2284,7 +2295,7 @@ ${dueRows}
   }
 
   function downloadPDF() {
-    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding)
+    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, savedToken)
   }
 
   function openDetail(r) {
