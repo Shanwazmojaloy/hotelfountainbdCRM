@@ -2047,14 +2047,19 @@ function printPDF(htmlContent, filename) {
   })
 }
 
-function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding) {
-  const filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
-  const total = list.reduce((a,t)=>a+(+t.amount||0),0)
+function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, calDate) {
+  let filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
+  if (filter === 'DATE' && calDate) {
+    const [y,m,d] = calDate.split('-'); const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    filterLabel = `${+d}-${mo[+m-1]}-${y}`
+  }
+  const realList = list.filter(t => t.type !== 'Balance Carried Forward')
+  const total = realList.reduce((a,t)=>a+(+t.amount||0),0)
   const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-  const rows = list.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-  const todayTotal = todayT.reduce((a,t)=>a+(+t.amount||0),0)
-  const monthTotal = monthT.reduce((a,t)=>a+(+t.amount||0),0)
-  const allTotal   = allT.reduce((a,t)=>a+(+t.amount||0),0)
+  const rows = realList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
+  const todayTotal = todayT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const monthTotal = monthT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const allTotal   = allT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
   const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
     @page{size:A4 portrait;margin:5.08mm}
@@ -2090,7 +2095,7 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding) {
   </div>
   <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
   <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
-  <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${list.length} transaction${list.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
+  <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${realList.length} transaction${realList.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
   </body></html>`
   printPDF(content)
 }
@@ -2307,7 +2312,7 @@ ${dueRows}
   }
 
   function downloadPDF() {
-    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding)
+    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, calDate)
   }
 
   function openDetail(r) {

@@ -32,12 +32,12 @@ function computeBill(r, rooms, foliosMap, settings) {
   const svcPct=0;
   const tax=0;
   const svc=0;
-  const discount=+r.discount||+r.discount_amount||0
-  // Single Source of Truth: ensure both UI pages map exactly to db columns
+  const discount=0 // Zero-discount policy enforced
+  // Single Source of Truth: Gross Bill Total = Room Charge + Add Charges (no discount)
   const invoice = r;
-  const total = Math.max(0, sub - discount);
+  const total = Math.max(0, sub);
   const paid = +(invoice.paid_amount || 0);
-  const due = typeof invoice.total_due !== 'undefined' ? +invoice.total_due : Math.max(0, total - paid);
+  const due = Math.max(0, total - paid);
   return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
 }
 const AVC = ['#C8A96E','#2EC4B6','#E05C7A','#58A6FF','#3FB950','#9B72CF','#F0A500']
@@ -740,7 +740,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,hSettings}) {
 }
 
 /* ═══════════════════════ ROOMS ══════════════════════════════ */
-function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
+function RoomsPage({rooms,guests,reservations,toast,currentUser,reload,hSettings}) {
   const [filter,setFilter]=useState('ALL')
   const [selRoom,setSelRoom]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
@@ -782,14 +782,14 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
         <RoomModal room={selRoom} guests={guests} reservations={reservations}
           canEdit={canEdit} isSA={isSA} toast={toast}
           onClose={()=>setSelRoom(null)}
-          reload={()=>{ reload(); setSelRoom(null) }}/>
+          reload={()=>{ reload(); setSelRoom(null) }} hSettings={hSettings}/>
       )}
       {showAdd&&isSA&&<AddRoomModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload} rooms={rooms}/>}
     </div>
   )
 }
 
-function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload}) {
+function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,hSettings}) {
   const [status,setStatus]=useState(room.status)
   const [folios,setFolios]=useState([])
   const [fLoad,setFLoad]=useState(true)
@@ -852,7 +852,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
         amount:total,
         room_number:room.room_number,
         guest_name:guest?.name,
-        fiscal_day:todayStr(),
+        fiscal_day:hSettings?.active_fiscal_day||todayStr(),
         settlement_status:receivableStatus(due),
         total_due:due,
         tenant_id:TENANT
@@ -871,7 +871,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
     if(!a || a <= 0) return toast('Enter a valid amount', 'error')
     setPaySaving(true)
     try {
-      await dbPost('transactions',{room_number:room.room_number,guest_name:guest?.name||'Guest',type:payType,amount:a,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{room_number:room.room_number,guest_name:guest?.name||'Guest',type:payType,amount:a,fiscal_day:hSettings?.active_fiscal_day||todayStr(),tenant_id:TENANT})
       const curPaid = +(activeRes.paid_amount || 0)
       await dbPatchReservationSafe(activeRes.id, {paid_amount: curPaid + a})
       await dbPost('folios',{room_number:room.room_number,reservation_id:activeRes.id,description:`Payment (${payType})`,category:'Payment',amount:-a,tenant_id:TENANT})
@@ -1199,7 +1199,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
   const [checkIn,setCheckIn]=useState((res.check_in||'').slice(0,10))
   const [checkOut,setCheckOut]=useState((res.check_out||'').slice(0,10))
   const [grossAmt,setGrossAmt]=useState(String(res.total_amount||0))
-  const [discountAmt,setDiscountAmt]=useState(String(res.discount_amount||0))
+  const [discountAmt,setDiscountAmt]=useState('0') // Zero-discount policy
   const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
   const [method,setMethod]=useState(res.payment_method||'Cash')
   const [notes,setNotes]=useState(res.notes||'')
@@ -1211,8 +1211,8 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
   const nights=nightsCount(checkIn,checkOut)
   const grossNum=Math.max(0,+grossAmt||0)
-  const discountNum=Math.max(0,+discountAmt||0)
-  const totalAmt=Math.max(0,grossNum-discountNum)
+  const discountNum=0 // Zero-discount policy enforced
+  const totalAmt=Math.max(0,grossNum)
   const paidNum=Math.max(0,+paidAmt||0)
   const safePaid=Math.min(totalAmt,paidNum)
   const balance=Math.max(0,totalAmt-safePaid)
@@ -1379,7 +1379,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         </div>
         <div className="fg">
           <label className="flbl">Discount (BDT)</label>
-          <input type="number" className="finput" value={discountAmt} onChange={e=>setDiscountAmt(e.target.value)} min="0"/>
+          <input type="number" className="finput" value="0" disabled={true} style={{opacity:0.5,cursor:'not-allowed'}} min="0"/>
         </div>
       </div>
       <div className="frow">
@@ -1486,8 +1486,8 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
   const autoTotal=selectedRoom&&autoNights?(+selectedRoom.price*autoNights):0
   const grossTotal=Math.max(0,+f.total||autoTotal)
-  const discountAmt=Math.max(0,+f.discount||0)
-  const finalInvoice=Math.max(0,grossTotal-discountAmt)
+  const discountAmt=0 // Zero-discount policy enforced
+  const finalInvoice=Math.max(0,grossTotal)
   const collectedAmt=Math.min(finalInvoice,Math.max(0,+f.collectAmount||0))
   const dueAmt=Math.max(0,finalInvoice-collectedAmt)
 
@@ -1565,7 +1565,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
       )}
       <div className="frow">
         <div className="fg"><label className="flbl">Gross Total (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoTotal||0)}/></div>
-        <div className="fg"><label className="flbl">Discount (BDT)</label><input type="number" className="finput" value={f.discount} onChange={F('discount')} placeholder="0"/></div>
+        <div className="fg"><label className="flbl">Discount (BDT)</label><input type="number" className="finput" value="0" disabled={true} style={{opacity:0.5,cursor:'not-allowed'}} placeholder="0"/></div>
       </div>
       <div className="frow">
         <div className="fg"><label className="flbl">Collect Amount / Deposit (BDT)</label><input type="number" className="finput" value={f.collectAmount} onChange={F('collectAmount')} placeholder="0"/></div>
@@ -2011,9 +2011,9 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding) {
   const total = list.reduce((a,t)=>a+(+t.amount||0),0)
   const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
   const rows = list.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-  const todayTotal = todayT.reduce((a,t)=>a+(+t.amount||0),0)
-  const monthTotal = monthT.reduce((a,t)=>a+(+t.amount||0),0)
-  const allTotal   = allT.reduce((a,t)=>a+(+t.amount||0),0)
+  const todayTotal = todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const monthTotal = monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const allTotal   = allT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
   const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
     @page{size:A4 portrait;margin:5.08mm}
@@ -2126,12 +2126,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const svcPct=0 // Removed as requested
     const tax=0
     const svc=0
-    const discount=+r.discount||0
-    // Single Source of Truth: ensure both UI pages map exactly to db columns
+    const discount=0 // Zero-discount policy enforced
+    // Single Source of Truth: Gross Bill Total = Room Charge + Add Charges (no discount)
     const invoice = r;
-    const total = Math.max(0, sub - discount);
+    const total = Math.max(0, sub);
     const paid = +(invoice.paid_amount || 0);
-    const due = typeof invoice.total_due !== 'undefined' ? +invoice.total_due : Math.max(0, total - paid);
+    const due = Math.max(0, total - paid);
     return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
   }
 
@@ -2711,7 +2711,7 @@ ${dueRows}
                     if(!a||a<=0){toast('Enter valid amount','error');return}
                     try{
                       await dbPatch('reservations',r.id,{paid_amount:Math.min(total,(+r.paid_amount||0)+a)})
-                      await dbPost('transactions',{type:'Room Payment (Cash)',amount:a,room_number:roomNo,guest_name:gname,fiscal_day:todayStr(),tenant_id:TENANT})
+                      await dbPost('transactions',{type:'Room Payment (Cash)',amount:a,room_number:roomNo,guest_name:gname,fiscal_day:hSettings?.active_fiscal_day||todayStr(),tenant_id:TENANT})
                       toast(`৳${a.toLocaleString()} recorded`)
                       await reload()
                       setShowBillDetail(false);setDetailRes(null)
@@ -2837,12 +2837,11 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,active
     const room_number = fromRow?lockedRoom:(selRes?.room_number||resSearch)
     const guest_name  = fromRow?lockedGuest:(selRes?.guest_name||resSearch)
     const resId       = fromRow?lockedResId:selRes?.id
-    // Use computed total (room rate × nights - discount) not stale stored total_amount
+    // Use computed total (room rate × nights) not stale stored total_amount — zero-discount policy
     const _selResRoom = selRes?rooms?.find(rm=>(selRes.room_ids||[]).includes(rm.room_number)):null
     const _selResNts  = selRes?nightsCount(selRes.check_in,selRes.check_out)||1:1
     const _selResComp = _selResRoom?(+_selResRoom.price*_selResNts):0
-    const _selResDisc = selRes?+selRes.discount||0:0
-    const _selResCalc = _selResComp>0?Math.max(0,_selResComp-_selResDisc):(Math.max(0,(+selRes?.total_amount||0)-_selResDisc))
+    const _selResCalc = _selResComp>0?_selResComp:(+selRes?.total_amount||0)
     const resTotal    = fromRow?(prefill._total||0):_selResCalc
     const resPaid     = fromRow?(prefill._paid||0):(+selRes?.paid_amount||0)
     try{
