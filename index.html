@@ -63,7 +63,7 @@ function computeBill(r, rooms, foliosMap, settings) {
      We NEVER read the stale total_due column.                              */
   const dbTotal = +(r.total_amount || 0)
   const computedTotal = Math.max(0, sub - discount)
-  const total = dbTotal > 0 ? Math.max(0, dbTotal - discount) : computedTotal
+  const total = dbTotal > 0 ? dbTotal : computedTotal
   const paid = +(r.paid_amount || 0);
   const due = Math.max(0, total - paid);
   return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
