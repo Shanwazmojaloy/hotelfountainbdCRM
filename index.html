@@ -769,7 +769,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,hSettings}) {
 }
 
 /* ═══════════════════════ ROOMS ══════════════════════════════ */
-function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
+function RoomsPage({rooms,guests,reservations,toast,currentUser,reload,hSettings}) {
   const [filter,setFilter]=useState('ALL')
   const [selRoom,setSelRoom]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
@@ -811,14 +811,15 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
         <RoomModal room={selRoom} guests={guests} reservations={reservations}
           canEdit={canEdit} isSA={isSA} toast={toast}
           onClose={()=>setSelRoom(null)}
-          reload={()=>{ reload(); setSelRoom(null) }}/>
+          reload={()=>{ reload(); setSelRoom(null) }} hSettings={hSettings}/>
       )}
       {showAdd&&isSA&&<AddRoomModal toast={toast} onClose={()=>setShowAdd(false)} reload={reload} rooms={rooms}/>}
     </div>
   )
 }
 
-function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload}) {
+function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,hSettings}) {
+  const activeFiscalDay = hSettings?.active_fiscal_day || todayStr()
   const [status,setStatus]=useState(room.status)
   const [folios,setFolios]=useState([])
   const [fLoad,setFLoad]=useState(true)
@@ -891,7 +892,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
         amount:total,
         room_number:room.room_number,
         guest_name:guest?.name,
-        fiscal_day:todayStr(),
+        fiscal_day:activeFiscalDay,
         settlement_status:receivableStatus(due),
         total_due:due,
         tenant_id:TENANT
@@ -910,7 +911,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload})
     if(!a || a <= 0) return toast('Enter a valid amount', 'error')
     setPaySaving(true)
     try {
-      await dbPost('transactions',{room_number:room.room_number,guest_name:guest?.name||'Guest',type:payType,amount:a,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{room_number:room.room_number,guest_name:guest?.name||'Guest',type:payType,amount:a,fiscal_day:activeFiscalDay,tenant_id:TENANT})
       const curPaid = +(activeRes.paid_amount || 0)
       await dbPatchReservationSafe(activeRes.id, {paid_amount: curPaid + a})
       await dbPost('folios',{room_number:room.room_number,reservation_id:activeRes.id,description:`Payment (${payType})`,category:'Payment',amount:-a,tenant_id:TENANT})
@@ -2750,7 +2751,7 @@ ${dueRows}
                     if(!a||a<=0){toast('Enter valid amount','error');return}
                     try{
                       await dbPatch('reservations',r.id,{paid_amount:Math.min(total,(+r.paid_amount||0)+a)})
-                      await dbPost('transactions',{type:'Room Payment (Cash)',amount:a,room_number:roomNo,guest_name:gname,fiscal_day:todayStr(),tenant_id:TENANT})
+                      await dbPost('transactions',{type:'Room Payment (Cash)',amount:a,room_number:roomNo,guest_name:gname,fiscal_day:today,tenant_id:TENANT})
                       toast(`৳${a.toLocaleString()} recorded`)
                       await reload()
                       setShowBillDetail(false);setDetailRes(null)
