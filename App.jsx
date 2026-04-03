@@ -39,8 +39,10 @@ function computeBill(r, rooms, foliosMap, settings) {
      Otherwise fall back to computed rate × nights + extras.
      "due" is ALWAYS computed live: total − paid.                           */
   const invoice = r;
+  /* Folio extras (minibar, laundry, etc.) are ALWAYS added on top. */
   const dbTotal = +(r.total_amount || 0)
-  const total = dbTotal > 0 ? dbTotal : Math.max(0, sub - discount);
+  const basePrice = dbTotal > 0 ? dbTotal : Math.max(0, roomCharge - discount);
+  const total = basePrice + extras;
   const paid = +(invoice.paid_amount || 0);
   const due = Math.max(0, total - paid);
   return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
