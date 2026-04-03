@@ -57,12 +57,13 @@ function computeBill(r, rooms, foliosMap, settings) {
   const svc=0;
   const discount=0; // Zero-discount policy enforced globally
   /* ── Single Source of Truth ──
-     Strict hierarchy:
-       Base Room Charge = rate × nights
-       Gross Bill Total = Base Room Charge + Total Add Charges (folios)
-       Balance Due      = Gross Bill Total − Amount Paid
-     Always use COMPUTED total. Never trust stale DB total_amount.           */
-  const total = Math.max(0, sub)
+     Hierarchy: Base Room Charge = rate × nights + Add Charges (folios)
+     If total_amount was explicitly set in DB (agreed invoice), trust it.
+     Otherwise fall back to computed rate × nights + extras.
+     Discount is always 0 — no subtraction.
+     "due" is ALWAYS computed live: total − paid.                           */
+  const dbTotal = +(r.total_amount || 0)
+  const total = dbTotal > 0 ? dbTotal : Math.max(0, sub)
   const paid = +(r.paid_amount || 0);
   const due = Math.max(0, total - paid);
   return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
