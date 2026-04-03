@@ -2127,60 +2127,42 @@ input[type='date']{color:var(--tx);color-scheme:dark}
         filterLabel = `${+d}-${mo[+m - 1]}-${y}`
       }
       const realList = list.filter(t => t.type !== 'Balance Carried Forward')
-      // Normalize transaction amounts per guest/room group against reservation paid_amount
-      const normalizedList = [...realList]
-      if (reservations && reservations.length > 0) {
-        const groups = {}
-        normalizedList.forEach((t, i) => {
-          const key = `${t.guest_name || ''}|${t.room_number || ''}`
-          if (!groups[key]) groups[key] = []
-          groups[key].push({ idx: i, t })
+      // Build chronological corrected amounts using ALL transactions
+      const pdfCorrected = {}
+      const pdfAllReal = allT.filter(t => t.type !== 'Balance Carried Forward')
+      const pdfGroups = {}
+      pdfAllReal.forEach(t => {
+        const k = `${t.guest_name || ''}|${t.room_number || ''}`
+        if (!pdfGroups[k]) pdfGroups[k] = []
+        pdfGroups[k].push(t)
+      })
+      Object.entries(pdfGroups).forEach(([key, txs]) => {
+        const rnum = key.split('|')[1]
+        const res = reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
+        if (!res) { txs.forEach(t => { pdfCorrected[t.id] = +t.amount || 0 }); return }
+        const resPaid = +(res.paid_amount || 0)
+        const sorted = [...txs].sort((a, b) =>
+          (a.created_at || a.fiscal_day || '').localeCompare(b.created_at || b.fiscal_day || '') ||
+          String(a.id || '').localeCompare(String(b.id || ''))
+        )
+        let running = 0
+        sorted.forEach(t => {
+          const raw = +t.amount || 0
+          if (resPaid <= 0) { pdfCorrected[t.id] = raw; running += raw; return }
+          if (running >= resPaid) { pdfCorrected[t.id] = 0 }
+          else if (running + raw > resPaid) { pdfCorrected[t.id] = resPaid - running; running = resPaid }
+          else { pdfCorrected[t.id] = raw; running += raw }
         })
-        Object.entries(groups).forEach(([key, entries]) => {
-          const [gname, rnum] = key.split('|')
-          const res = reservations.find(r => (r.room_ids || [r.room_number]).includes(rnum))
-          if (!res) return
-          const resPaid = +(res.paid_amount || 0)
-          if (resPaid <= 0) return
-          const rawSum = entries.reduce((a, e) => a + (+e.t.amount || 0), 0)
-          if (rawSum > 0 && rawSum !== resPaid) {
-            const ratio = resPaid / rawSum
-            let running = 0
-            entries.forEach((e, i) => {
-              if (i === entries.length - 1) {
-                normalizedList[e.idx] = { ...e.t, amount: resPaid - running }
-              } else {
-                const adj = Math.round((+e.t.amount || 0) * ratio)
-                normalizedList[e.idx] = { ...e.t, amount: adj }
-                running += adj
-              }
-            })
-          }
-        })
-      }
+      })
+      // Apply corrected amounts to display list
+      const normalizedList = realList.map(t => ({ ...t, amount: pdfCorrected[t.id] ?? (+t.amount || 0) }))
       const total = normalizedList.reduce((a, t) => a + (+t.amount || 0), 0)
       const now = new Date().toLocaleString('en-BD', { timeZone: 'Asia/Dhaka', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
       const rows = normalizedList.map(t => `<tr><td>${t.fiscal_day || '—'}</td><td>${t.guest_name || '—'}</td><td>${t.room_number || '—'}</td><td>${t.type || 'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount || 0).toLocaleString()}</td></tr>`).join('')
-      // Normalize stat totals using same group-capping approach
+      // Normalize stat totals using corrected amounts
       function normTotal(txArr) {
-        const real = txArr.filter(t => t.type !== 'Balance Carried Forward')
-        if (!reservations || reservations.length === 0) return real.reduce((a, t) => a + (+t.amount || 0), 0)
-        const grps = {}
-        real.forEach(t => {
-          const k = `${t.guest_name || ''}|${t.room_number || ''}`
-          if (!grps[k]) grps[k] = 0
-          grps[k] += (+t.amount || 0)
-        })
-        let out = 0
-        Object.entries(grps).forEach(([k, sum]) => {
-          const rnum = k.split('|')[1]
-          const res = reservations.find(r => (r.room_ids || [r.room_number]).includes(rnum))
-          if (res) {
-            const rp = +(res.paid_amount || 0)
-            out += (rp > 0 && sum > rp) ? rp : sum
-          } else { out += sum }
-        })
-        return out
+        return txArr.filter(t => t.type !== 'Balance Carried Forward')
+          .reduce((a, t) => a + (pdfCorrected[t.id] ?? (+t.amount || 0)), 0)
       }
       const todayTotal = normTotal(todayT)
       const monthTotal = normTotal(monthT)
@@ -2299,29 +2281,52 @@ input[type='date']{color:var(--tx);color-scheme:dark}
         return _computeBillGlobal(r, rooms, foliosMap, hSettings)
       }
 
-      // Normalize transaction totals: cap each guest/room group to reservation's paid_amount
-      function normalizeRevenue(txList) {
-        const real = txList.filter(t => t.type !== 'Balance Carried Forward')
+      // Build corrected transaction amounts for ALL reservations using chronological capping.
+      // For each reservation, walk ALL transactions in chronological order.
+      // Keep each amount as-is until running total reaches paid_amount, then reduce/zero the rest.
+      // Returns a Map: txId -> corrected amount
+      function buildCorrectedAmounts() {
+        const corrected = {}
+        const allReal = transactions.filter(t => t.type !== 'Balance Carried Forward')
+        // Group by guest|room
         const groups = {}
-        real.forEach(t => {
+        allReal.forEach(t => {
           const key = `${t.guest_name || ''}|${t.room_number || ''}`
-          if (!groups[key]) groups[key] = { txs: [], total: 0 }
-          groups[key].txs.push(t)
-          groups[key].total += (+t.amount || 0)
+          if (!groups[key]) groups[key] = []
+          groups[key].push(t)
         })
-        let normalized = 0
-        Object.entries(groups).forEach(([key, grp]) => {
-          const [gname, rnum] = key.split('|')
+        Object.entries(groups).forEach(([key, txs]) => {
+          const rnum = key.split('|')[1]
           const res = reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
-          if (res) {
-            const resPaid = +(res.paid_amount || 0)
-            // Use the lesser of raw transaction sum vs reservation paid_amount
-            normalized += (resPaid > 0 && grp.total > resPaid) ? resPaid : grp.total
-          } else {
-            normalized += grp.total
+          if (!res) {
+            txs.forEach(t => { corrected[t.id] = +t.amount || 0 })
+            return
           }
+          const resPaid = +(res.paid_amount || 0)
+          // Sort chronologically (by created_at, then fiscal_day, then id)
+          const sorted = [...txs].sort((a, b) =>
+            (a.created_at || a.fiscal_day || '').localeCompare(b.created_at || b.fiscal_day || '') ||
+            String(a.id || '').localeCompare(String(b.id || ''))
+          )
+          let running = 0
+          sorted.forEach(t => {
+            const raw = +t.amount || 0
+            if (resPaid <= 0) { corrected[t.id] = raw; running += raw; return }
+            if (running >= resPaid) { corrected[t.id] = 0 }
+            else if (running + raw > resPaid) { corrected[t.id] = resPaid - running; running = resPaid }
+            else { corrected[t.id] = raw; running += raw }
+          })
         })
-        return normalized
+        return corrected
+      }
+
+      const _corrected = buildCorrectedAmounts()
+
+      // Normalize revenue for a period using corrected amounts
+      function normalizeRevenue(txList) {
+        return txList
+          .filter(t => t.type !== 'Balance Carried Forward')
+          .reduce((a, t) => a + (_corrected[t.id] ?? (+t.amount || 0)), 0)
       }
 
       const outstanding = reservations
@@ -2372,37 +2377,8 @@ input[type='date']{color:var(--tx);color-scheme:dark}
           setSavedToken(a);
         } catch (e) { }
         const todayList = transactions.filter(t => t.fiscal_day === today && t.type !== 'Balance Carried Forward')
-        // Normalize transaction amounts per guest/room group against reservation paid_amount
-        const normTodayList = [...todayList]
-        if (reservations && reservations.length > 0) {
-          const groups = {}
-          normTodayList.forEach((t, i) => {
-            const key = `${t.guest_name || ''}|${t.room_number || ''}`
-            if (!groups[key]) groups[key] = []
-            groups[key].push({ idx: i, t })
-          })
-          Object.entries(groups).forEach(([key, entries]) => {
-            const [gname, rnum] = key.split('|')
-            const res = reservations.find(r => (r.room_ids || [r.room_number]).includes(rnum))
-            if (!res) return
-            const resPaid = +(res.paid_amount || 0)
-            if (resPaid <= 0) return
-            const rawSum = entries.reduce((a, e) => a + (+e.t.amount || 0), 0)
-            if (rawSum > 0 && rawSum !== resPaid) {
-              const ratio = resPaid / rawSum
-              let running = 0
-              entries.forEach((e, i) => {
-                if (i === entries.length - 1) {
-                  normTodayList[e.idx] = { ...e.t, amount: resPaid - running }
-                } else {
-                  const adj = Math.round((+e.t.amount || 0) * ratio)
-                  normTodayList[e.idx] = { ...e.t, amount: adj }
-                  running += adj
-                }
-              })
-            }
-          })
-        }
+        // Use chronological corrected amounts
+        const normTodayList = todayList.map(t => ({ ...t, amount: _corrected[t.id] ?? (+t.amount || 0) }))
         const totalAmt = normTodayList.reduce((acc, t) => acc + (+t.amount || 0), 0)
         const tokenAmount = a || savedToken || 0
         const closingAmt = totalAmt - tokenAmount
@@ -2839,28 +2815,13 @@ ${dueRows}
                         const comp = invoice ? computeBill(invoice) : null;
                         const { total: resTotal, paid: resPaid, due: resDue } = comp || { total: 0, paid: 0, due: 0 }
 
-                        const byTypeRaw = {}
+                        const byType = {}
                         grp.txs.forEach(t => {
                           if (t.type === 'Balance Carried Forward') return
                           const tp = t.type || 'Payment'
-                          if (!byTypeRaw[tp]) byTypeRaw[tp] = 0
-                          byTypeRaw[tp] += (+t.amount || 0)
+                          if (!byType[tp]) byType[tp] = 0
+                          byType[tp] += (_corrected[t.id] ?? (+t.amount || 0))
                         })
-                        // Normalize byType so total matches resPaid (the authoritative paid amount)
-                        const byType = { ...byTypeRaw }
-                        if (invoice) {
-                          const rawSum = Object.values(byType).reduce((a, v) => a + v, 0)
-                          if (rawSum > 0 && resPaid > 0 && rawSum !== resPaid) {
-                            const ratio = resPaid / rawSum
-                            Object.keys(byType).forEach(k => { byType[k] = Math.round(byType[k] * ratio) })
-                            // Fix rounding: adjust the largest entry so sum is exact
-                            const adjusted = Object.values(byType).reduce((a, v) => a + v, 0)
-                            if (adjusted !== resPaid) {
-                              const biggest = Object.keys(byType).reduce((a, b) => byType[a] >= byType[b] ? a : b)
-                              byType[biggest] += (resPaid - adjusted)
-                            }
-                          }
-                        }
 
                         const gname = invoice ? getGN(invoice) : (grp.guest_name || '—')
                         const rno = invoice ? getRoom(invoice) : (grp.room_number || '—')
