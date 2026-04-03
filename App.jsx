@@ -2777,7 +2777,7 @@ ${dueRows}
                     if(!a||a<=0){toast('Enter valid amount','error');return}
                     try{
                       await dbPatch('reservations',r.id,{paid_amount:Math.min(total,(+r.paid_amount||0)+a)})
-                      await dbPost('transactions',{type:'Room Payment (Cash)',amount:a,room_number:roomNo,guest_name:gname,fiscal_day:hSettings?.active_fiscal_day||todayStr(),tenant_id:TENANT})
+                      await dbPost('transactions',{type:`Room Payment (${r.payment_method||'Cash'})`,amount:a,room_number:roomNo,guest_name:gname,fiscal_day:hSettings?.active_fiscal_day||todayStr(),tenant_id:TENANT})
                       toast(`৳${a.toLocaleString()} recorded`)
                       await reload()
                       setShowBillDetail(false);setDetailRes(null)
