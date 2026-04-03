@@ -2030,15 +2030,67 @@ function printPDF(htmlContent, filename) {
   })
 }
 
-function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tokenAmount, dueRes, computeBill, getGN, getRoom) {
+function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tokenAmount, dueRes, computeBill, getGN, getRoom, reservations) {
   const filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
   const realList = list.filter(t => t.type !== 'Balance Carried Forward')
-  const total = realList.reduce((a,t)=>a+(+t.amount||0),0)
+  // Normalize transaction amounts per guest/room group against reservation paid_amount
+  const normalizedList = [...realList]
+  if (reservations && reservations.length > 0) {
+    const groups = {}
+    normalizedList.forEach((t, i) => {
+      const key = `${t.guest_name || ''}|${t.room_number || ''}`
+      if (!groups[key]) groups[key] = []
+      groups[key].push({ idx: i, t })
+    })
+    Object.entries(groups).forEach(([key, entries]) => {
+      const [gname, rnum] = key.split('|')
+      const res = reservations.find(r => (r.room_ids || [r.room_number]).includes(rnum))
+      if (!res) return
+      const resPaid = +(res.paid_amount || 0)
+      if (resPaid <= 0) return
+      const rawSum = entries.reduce((a, e) => a + (+e.t.amount || 0), 0)
+      if (rawSum > 0 && rawSum !== resPaid) {
+        const ratio = resPaid / rawSum
+        let running = 0
+        entries.forEach((e, i) => {
+          if (i === entries.length - 1) {
+            normalizedList[e.idx] = { ...e.t, amount: resPaid - running }
+          } else {
+            const adj = Math.round((+e.t.amount || 0) * ratio)
+            normalizedList[e.idx] = { ...e.t, amount: adj }
+            running += adj
+          }
+        })
+      }
+    })
+  }
+  const total = normalizedList.reduce((a,t)=>a+(+t.amount||0),0)
   const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-  const rows = realList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-  const todayTotal = todayT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const monthTotal = monthT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const allTotal   = allT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const rows = normalizedList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
+  // Normalize stat totals using same group-capping approach
+  function normTotal(txArr) {
+    const real = txArr.filter(t => t.type !== 'Balance Carried Forward')
+    if (!reservations || reservations.length === 0) return real.reduce((a, t) => a + (+t.amount || 0), 0)
+    const grps = {}
+    real.forEach(t => {
+      const k = `${t.guest_name || ''}|${t.room_number || ''}`
+      if (!grps[k]) grps[k] = 0
+      grps[k] += (+t.amount || 0)
+    })
+    let out = 0
+    Object.entries(grps).forEach(([k, sum]) => {
+      const rnum = k.split('|')[1]
+      const res = reservations.find(r => (r.room_ids || [r.room_number]).includes(rnum))
+      if (res) {
+        const rp = +(res.paid_amount || 0)
+        out += (rp > 0 && sum > rp) ? rp : sum
+      } else { out += sum }
+    })
+    return out
+  }
+  const todayTotal = normTotal(todayT)
+  const monthTotal = normTotal(monthT)
+  const allTotal = normTotal(allT)
   const tkn = +(tokenAmount||0)
   const closingBalance = todayTotal - tkn
   // Due Details
@@ -2190,12 +2242,35 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const due = Math.max(0, total - paid);
     return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
   }
+  // Normalize transaction totals: cap each guest/room group to reservation's paid_amount
+  function normalizeRevenue(txList) {
+    const real = txList.filter(t => t.type !== 'Balance Carried Forward')
+    const groups = {}
+    real.forEach(t => {
+      const key = `${t.guest_name || ''}|${t.room_number || ''}`
+      if (!groups[key]) groups[key] = { txs: [], total: 0 }
+      groups[key].txs.push(t)
+      groups[key].total += (+t.amount || 0)
+    })
+    let normalized = 0
+    Object.entries(groups).forEach(([key, grp]) => {
+      const [gname, rnum] = key.split('|')
+      const res = reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
+      if (res) {
+        const resPaid = +(res.paid_amount || 0)
+        normalized += (resPaid > 0 && grp.total > resPaid) ? resPaid : grp.total
+      } else {
+        normalized += grp.total
+      }
+    })
+    return normalized
+  }
 
   const outstanding = reservations
     .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
     .reduce((a, r) => a + Math.max(0, (+r.total_amount||0) - (+r.paid_amount||0)), 0)
-  const todayRevenue=todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const monthRevenue=monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const todayRevenue=normalizeRevenue(todayT)
+  const monthRevenue=normalizeRevenue(monthT)
   const dueRes = reservations.filter(r => {
     if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false
     return (+r.total_amount||0) > (+r.paid_amount||0)
@@ -2239,7 +2314,38 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       setSavedToken(a);
     } catch(e) {}
     const todayList=transactions.filter(t=>t.fiscal_day===today && t.type!=='Balance Carried Forward')
-    const totalAmt=todayList.reduce((acc,t)=>acc+(+t.amount||0),0)
+    // Normalize transaction amounts per guest/room group against reservation paid_amount
+    const normTodayList = [...todayList]
+    if (reservations && reservations.length > 0) {
+      const groups = {}
+      normTodayList.forEach((t, i) => {
+        const key = `${t.guest_name || ''}|${t.room_number || ''}`
+        if (!groups[key]) groups[key] = []
+        groups[key].push({ idx: i, t })
+      })
+      Object.entries(groups).forEach(([key, entries]) => {
+        const [gname, rnum] = key.split('|')
+        const res = reservations.find(r => (r.room_ids || [r.room_number]).includes(rnum))
+        if (!res) return
+        const resPaid = +(res.paid_amount || 0)
+        if (resPaid <= 0) return
+        const rawSum = entries.reduce((a, e) => a + (+e.t.amount || 0), 0)
+        if (rawSum > 0 && rawSum !== resPaid) {
+          const ratio = resPaid / rawSum
+          let running = 0
+          entries.forEach((e, i) => {
+            if (i === entries.length - 1) {
+              normTodayList[e.idx] = { ...e.t, amount: resPaid - running }
+            } else {
+              const adj = Math.round((+e.t.amount || 0) * ratio)
+              normTodayList[e.idx] = { ...e.t, amount: adj }
+              running += adj
+            }
+          })
+        }
+      })
+    }
+    const totalAmt=normTodayList.reduce((acc,t)=>acc+(+t.amount||0),0)
     const tokenAmount=a||savedToken||0
     const closingAmt=totalAmt-tokenAmount
     const now=new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
@@ -2253,7 +2359,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     })
     const totalDue=duesCarried.reduce((a,d)=>a+d.due,0)
 
-    const txRows=todayList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
+    const txRows=normTodayList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
     const dueRows=duesCarried.length>0?`
       <h3 style="margin:20px 0 8px;font-size:13px;color:#E05C7A;border-bottom:1px solid #f0c0ca;padding-bottom:4px">⚠ Outstanding Dues — Carried to Next Day</h3>
       <table><thead><tr style="background:#E05C7A"><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>
@@ -2349,7 +2455,7 @@ ${dueRows}
   }
 
   function downloadPDF() {
-    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, savedToken, dueRes, computeBill, getGN, getRoom)
+    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, savedToken, dueRes, computeBill, getGN, getRoom, reservations)
   }
 
   function openDetail(r) {
@@ -2549,7 +2655,7 @@ ${dueRows}
     <div>
       {/* Stats */}
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`}</div><div className="stat-val">{BDT(filter==='DATE'?calT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{(filter==='DATE'?calT:todayT).filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`}</div><div className="stat-val">{BDT(filter==='DATE'?normalizeRevenue(calT):todayRevenue)}</div><div className="stat-sub">{(filter==='DATE'?calT:todayT).filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
       </div>
@@ -2675,13 +2781,27 @@ ${dueRows}
                     const comp = invoice ? computeBill(invoice) : null;
                     const { total:resTotal, paid:resPaid, due:resDue } = comp || { total:0, paid:0, due:0 }
                     
-                    const byType={}
+                    const byTypeRaw={}
                     grp.txs.forEach(t=>{
                       if(t.type==='Balance Carried Forward') return
                       const tp=t.type||'Payment'
-                      if(!byType[tp]) byType[tp]=0
-                      byType[tp]+=(+t.amount||0)
+                      if(!byTypeRaw[tp]) byTypeRaw[tp]=0
+                      byTypeRaw[tp]+=(+t.amount||0)
                     })
+                    // Normalize byType so total matches resPaid (the authoritative paid amount)
+                    const byType={...byTypeRaw}
+                    if(invoice){
+                      const rawSum=Object.values(byType).reduce((a,v)=>a+v,0)
+                      if(rawSum>0 && resPaid>0 && rawSum!==resPaid){
+                        const ratio=resPaid/rawSum
+                        Object.keys(byType).forEach(k=>{byType[k]=Math.round(byType[k]*ratio)})
+                        const adjusted=Object.values(byType).reduce((a,v)=>a+v,0)
+                        if(adjusted!==resPaid){
+                          const biggest=Object.keys(byType).reduce((a,b)=>byType[a]>=byType[b]?a:b)
+                          byType[biggest]+=(resPaid-adjusted)
+                        }
+                      }
+                    }
 
                     const gname = invoice ? getGN(invoice) : (grp.guest_name||'—')
                     const rno = invoice ? getRoom(invoice) : (grp.room_number||'—')
