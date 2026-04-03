@@ -2028,16 +2028,36 @@ function printPDF(htmlContent, filename) {
   })
 }
 
-function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tokenAmount) {
+function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tokenAmount, dueRes, computeBill, getGN, getRoom) {
   const filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
-  const total = list.reduce((a,t)=>a+(+t.amount||0),0)
+  const realList = list.filter(t => t.type !== 'Balance Carried Forward')
+  const total = realList.reduce((a,t)=>a+(+t.amount||0),0)
   const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-  const rows = list.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-  const todayTotal = todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const monthTotal = monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const allTotal   = allT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const rows = realList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
+  const todayTotal = todayT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const monthTotal = monthT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const allTotal   = allT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
   const tkn = +(tokenAmount||0)
   const closingBalance = todayTotal - tkn
+  // Due Details
+  const dueRows = (dueRes||[]).map(r => {
+    const bill = computeBill ? computeBill(r) : {total:0,paid:0,due:0}
+    const gn = getGN ? getGN(r) : (r.guest_name||'—')
+    const rm = getRoom ? getRoom(r) : ((r.room_ids||[]).join(', ')||'—')
+    return `<tr><td>${gn}</td><td>${rm}</td><td style="text-align:right">৳${Number(bill.total||0).toLocaleString()}</td><td style="text-align:right">৳${Number(bill.paid||0).toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#c00">৳${Number(bill.due||0).toLocaleString()}</td><td>${r.status||'—'}</td></tr>`
+  }).join('')
+  const totalDue = (dueRes||[]).reduce((a,r) => {
+    const bill = computeBill ? computeBill(r) : {due:0}
+    return a + (bill.due||0)
+  }, 0)
+  const dueSection = dueRows ? `
+  <div style="margin-top:18px;page-break-inside:avoid">
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #000">Outstanding Dues — Guest Details</div>
+    <table><thead><tr style="background:#8B0000;color:#fff"><th>Guest</th><th>Room</th><th style="text-align:right">Bill Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance Due</th><th>Status</th></tr></thead>
+    <tbody>${dueRows}</tbody>
+    <tfoot><tr style="background:#f2f2f2;font-weight:700"><td colspan="4" style="text-align:right;padding:5px 7px;font-size:10px">Total Outstanding:</td><td style="text-align:right;padding:5px 7px;font-size:12px;color:#c00">৳${totalDue.toLocaleString()}</td><td></td></tr></tfoot>
+    </table>
+  </div>` : ''
   const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
     @page{size:A4 portrait;margin:5.08mm}
@@ -2082,7 +2102,8 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tok
     <div class="closing-row"><span>Token Amount</span><span>− ৳${tkn.toLocaleString()}</span></div>
     <div class="closing-row final"><span>Closing Balance</span><span>৳${closingBalance.toLocaleString()}</span></div>
   </div>
-  <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${list.length} transaction${list.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
+  ${dueSection}
+  <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${realList.length} transaction${realList.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
   </body></html>`
   printPDF(content)
 }
@@ -2326,7 +2347,7 @@ ${dueRows}
   }
 
   function downloadPDF() {
-    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, savedToken)
+    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, savedToken, dueRes, computeBill, getGN, getRoom)
   }
 
   function openDetail(r) {
@@ -2654,6 +2675,7 @@ ${dueRows}
                     
                     const byType={}
                     grp.txs.forEach(t=>{
+                      if(t.type==='Balance Carried Forward') return
                       const tp=t.type||'Payment'
                       if(!byType[tp]) byType[tp]=0
                       byType[tp]+=(+t.amount||0)
