@@ -2043,8 +2043,16 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tok
     pdfGroups[k].push(t)
   })
   Object.entries(pdfGroups).forEach(([key, txs]) => {
-    const rnum = key.split('|')[1]
-    const res = reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
+    const [gname, rnum] = key.split('|')
+    const res = reservations?.find(r => {
+      const rRooms = r.room_ids || [r.room_number]
+      if (!rRooms.includes(rnum)) return false
+      const rGuestName = r.guest_name || ''
+      const gid = String((r.guest_ids || [r.guest_id] || []).filter(Boolean)[0] || '')
+      const g = guests?.find(gg => String(gg.id) === gid)
+      const rName = g ? g.name : rGuestName
+      return rName && gname && rName.toLowerCase() === gname.toLowerCase()
+    }) || reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
     if (!res) { txs.forEach(t => { pdfCorrected[t.id] = +t.amount || 0 }); return }
     const resPaid = +(res.paid_amount || 0)
     const sorted = [...txs].sort((a, b) =>
@@ -2236,8 +2244,16 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       groups[key].push(t)
     })
     Object.entries(groups).forEach(([key, txs]) => {
-      const rnum = key.split('|')[1]
-      const res = reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
+      const [gname, rnum] = key.split('|')
+      const res = reservations?.find(r => {
+        const rRooms = r.room_ids || [r.room_number]
+        if (!rRooms.includes(rnum)) return false
+        const rGuestName = r.guest_name || ''
+        const gid = String((r.guest_ids || [r.guest_id] || []).filter(Boolean)[0] || '')
+        const g = guests?.find(g => String(g.id) === gid)
+        const rName = g ? g.name : rGuestName
+        return rName && gname && rName.toLowerCase() === gname.toLowerCase()
+      }) || reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
       if (!res) { txs.forEach(t => { corrected[t.id] = +t.amount || 0 }); return }
       const resPaid = +(res.paid_amount || 0)
       const sorted = [...txs].sort((a, b) =>
@@ -5113,8 +5129,8 @@ function App() {
       const [rooms,guests,reservations,transactions,tasks,settingsRows,folios]=await Promise.all([
         db('rooms',`?tenant_id=eq.${TENANT}&select=*&order=room_number`),
         fetchAllGuests(),
-        db('reservations',`?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=500`),
-        db('transactions',`?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=400`),
+        db('reservations',`?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=1000`),
+        db('transactions',`?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=1000`),
         db('housekeeping_tasks',`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),
         db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`),
         db('folios',`?tenant_id=eq.${TENANT}&select=*&order=created_at`)
