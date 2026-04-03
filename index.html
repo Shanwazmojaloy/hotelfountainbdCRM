@@ -113,12 +113,12 @@
       const svc = 0;
       const discount = +(r.discount_amount || r.discount || 0);
       /* ── Single Source of Truth ──
-         Hierarchy: Base Room Charge = rate × nights + Add Charges (folios)
-         If total_amount was explicitly set in DB (agreed invoice), trust it.
-         Otherwise fall back to computed rate × nights + extras.
+         Base = DB total_amount (agreed room price) OR computed rate × nights.
+         Folio extras (minibar, laundry, etc.) are ALWAYS added on top.
          "due" is ALWAYS computed live: total − paid.                           */
       const dbTotal = +(r.total_amount || 0)
-      const total = dbTotal > 0 ? dbTotal : Math.max(0, sub - discount)
+      const basePrice = dbTotal > 0 ? dbTotal : Math.max(0, roomCharge - discount)
+      const total = basePrice + extras
       const paid = +(r.paid_amount || 0);
       const due = Math.max(0, total - paid);
       return { roomCharge, extras, sub, tax, svc, discount, total, paid, due, folios, nights, roomRate, vatPct, svcPct }
