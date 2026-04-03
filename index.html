@@ -55,15 +55,14 @@ function computeBill(r, rooms, foliosMap, settings) {
   const svcPct=0;
   const tax=0;
   const svc=0;
-  const discount=+r.discount||+r.discount_amount||0
+  const discount=0; // Zero-discount policy enforced globally
   /* ── Single Source of Truth ──
-     total_amount from DB is the agreed invoice total (set at booking/edit).
-     If it exists AND > 0, trust it over computed room*nights math.
-     "due" is ALWAYS computed live: total − paid.
-     We NEVER read the stale total_due column.                              */
-  const dbTotal = +(r.total_amount || 0)
-  const computedTotal = Math.max(0, sub - discount)
-  const total = dbTotal > 0 ? dbTotal : computedTotal
+     Strict hierarchy:
+       Base Room Charge = rate × nights
+       Gross Bill Total = Base Room Charge + Total Add Charges (folios)
+       Balance Due      = Gross Bill Total − Amount Paid
+     Always use COMPUTED total. Never trust stale DB total_amount.           */
+  const total = Math.max(0, sub)
   const paid = +(r.paid_amount || 0);
   const due = Math.max(0, total - paid);
   return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
@@ -931,6 +930,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,h
     setFolios(p=>[...p,f])
     toast(`Charge ${BDT(f.amount)} added`)
     setShowCharge(false)
+    reload() // Global sync — refresh all tables so billing ledger updates
   }
 
   return (
@@ -1147,7 +1147,7 @@ function AddRoomModal({toast,onClose,reload,rooms}) {
 }
 
 /* ═══════════════════════ RESERVATIONS ═══════════════════════ */
-function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) {
+function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hSettings}) {
   const [filter,setFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [selRes,setSelRes]=useState(null)
@@ -1223,17 +1223,17 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
 
       {selRes&&(
         <ReservationDetail res={selRes} guests={guests} rooms={rooms} toast={toast}
-          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'}/>
+          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'} hSettings={hSettings}/>
       )}
       {showNew&&(
         <NewReservationModal guests={guests} rooms={rooms} toast={toast}
-          onClose={()=>setShowNew(false)} reload={reload}/>
+          onClose={()=>setShowNew(false)} reload={reload} hSettings={hSettings}/>
       )}
     </div>
   )
 }
 
-function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
+function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSettings}) {
   const [status,setStatus]=useState(res.status)
   const [roomIds,setRoomIds]=useState((res.room_ids||[]).map(String))
   const [checkIn,setCheckIn]=useState((res.check_in||'').slice(0,10))
@@ -1251,8 +1251,8 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
   const nights=nightsCount(checkIn,checkOut)
   const grossNum=Math.max(0,+grossAmt||0)
-  const discountNum=Math.max(0,+discountAmt||0)
-  const totalAmt=Math.max(0,grossNum-discountNum)
+  const discountNum=0 // Zero-discount policy enforced
+  const totalAmt=Math.max(0,grossNum)
   const paidNum=Math.max(0,+paidAmt||0)
   const safePaid=Math.min(totalAmt,paidNum)
   const balance=Math.max(0,totalAmt-safePaid)
@@ -1268,8 +1268,6 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
     if(nights<=0) return toast('Check-out must be after check-in','error')
     setSaving(true)
     try {
-      /* paid_amount updates via save() are corrections only.
-         Transactions are recorded via +Pay / RecordPayModal to avoid duplicates. */
       const previousRooms=(res.room_ids||[]).map(String)
       const targetStatusForAssigned=
         status==='CHECKED_IN'?'OCCUPIED':
@@ -1288,6 +1286,22 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         if(room) await dbPatch('rooms',room.id,{status:targetStatusForAssigned})
       }
 
+      /* ── Auto-create transaction when paid_amount increases ── */
+      const oldPaid = +(res.paid_amount || 0)
+      const paidDiff = safePaid - oldPaid
+      if(paidDiff > 0) {
+        const roomNo = roomIds.join(', ') || '—'
+        const fiscalDay = hSettings?.active_fiscal_day || todayStr()
+        await dbPost('transactions',{
+          room_number: roomNo,
+          guest_name: gn,
+          type: `Room Payment (${method})`,
+          amount: paidDiff,
+          fiscal_day: fiscalDay,
+          tenant_id: TENANT
+        })
+      }
+
       await dbPatchReservationSafe(res.id,{
         status,
         room_ids:roomIds,
@@ -1301,7 +1315,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         payment_method:method,
         notes
       })
-      toast('Reservation updated ✓')
+      toast(paidDiff > 0 ? `Reservation updated ✓ · Payment ${BDT(paidDiff)} recorded` : 'Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
@@ -1421,7 +1435,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         </div>
         <div className="fg">
           <label className="flbl">Discount (BDT)</label>
-          <input type="number" className="finput" value={discountAmt} onChange={e=>setDiscountAmt(e.target.value)} min="0"/>
+          <input type="number" className="finput" value="0" disabled={true} style={{opacity:0.5,cursor:'not-allowed'}}/>
         </div>
       </div>
       <div className="frow">
@@ -1511,7 +1525,7 @@ function GuestSearchInput({guests, value, onChange}) {
   )
 }
 
-function NewReservationModal({guests,rooms,toast,onClose,reload}) {
+function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
   const availRooms=rooms.filter(r=>r.status==='AVAILABLE')
   const [f,setF]=useState({
     guestId:'', roomNo:availRooms[0]?.room_number||'',
@@ -1528,8 +1542,8 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
   const autoTotal=selectedRoom&&autoNights?(+selectedRoom.price*autoNights):0
   const grossTotal=Math.max(0,+f.total||autoTotal)
-  const discountAmt=Math.max(0,+f.discount||0)
-  const finalInvoice=Math.max(0,grossTotal-discountAmt)
+  const discountAmt=0 // Zero-discount policy enforced
+  const finalInvoice=Math.max(0,grossTotal)
   const collectedAmt=Math.min(finalInvoice,Math.max(0,+f.collectAmount||0))
   const dueAmt=Math.max(0,finalInvoice-collectedAmt)
 
@@ -1562,7 +1576,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         await dbPost('transactions',{
           reservation_id:created?.id||null,
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:collectedAmt, fiscal_day:todayStr(), tenant_id:TENANT
+          type:`Room Payment (${f.method})`, amount:collectedAmt, fiscal_day:hSettings?.active_fiscal_day||todayStr(), tenant_id:TENANT
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
@@ -1607,7 +1621,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
       )}
       <div className="frow">
         <div className="fg"><label className="flbl">Gross Total (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoTotal||0)}/></div>
-        <div className="fg"><label className="flbl">Discount (BDT)</label><input type="number" className="finput" value={f.discount} onChange={F('discount')} placeholder="0"/></div>
+        <div className="fg"><label className="flbl">Discount (BDT)</label><input type="number" className="finput" value="0" disabled={true} style={{opacity:0.5,cursor:'not-allowed'}}/></div>
       </div>
       <div className="frow">
         <div className="fg"><label className="flbl">Collect Amount / Deposit (BDT)</label><input type="number" className="finput" value={f.collectAmount} onChange={F('collectAmount')} placeholder="0"/></div>
@@ -2315,6 +2329,15 @@ ${dueRows}
         // Reset token for new day
         setTokenAmt('')
         setSavedToken(0)
+        // Re-fetch hSettings so UI immediately reflects new fiscal day
+        try {
+          const rows = await db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`)
+          if(Array.isArray(rows)) {
+            const m={};rows.forEach(r=>{m[r.key]=r.value})
+            setHSettingsAll(m)
+            setHSettings({vat:m.vat_rate||'0',svc:m.service_charge||'0',active_fiscal_day:m.active_fiscal_day})
+          }
+        } catch(e2) {}
         toast(`✓ Day closed · Fiscal day → ${nextDay}`,'info')
         reload()
       }catch(e){

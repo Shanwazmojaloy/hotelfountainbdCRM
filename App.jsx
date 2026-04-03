@@ -891,6 +891,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,h
     setFolios(p=>[...p,f])
     toast(`Charge ${BDT(f.amount)} added`)
     setShowCharge(false)
+    reload() // Global sync — refresh all tables so billing ledger updates
   }
 
   return (
@@ -1107,7 +1108,7 @@ function AddRoomModal({toast,onClose,reload,rooms}) {
 }
 
 /* ═══════════════════════ RESERVATIONS ═══════════════════════ */
-function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) {
+function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hSettings}) {
   const [filter,setFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [selRes,setSelRes]=useState(null)
@@ -1183,17 +1184,17 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
 
       {selRes&&(
         <ReservationDetail res={selRes} guests={guests} rooms={rooms} toast={toast}
-          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'}/>
+          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'} hSettings={hSettings}/>
       )}
       {showNew&&(
         <NewReservationModal guests={guests} rooms={rooms} toast={toast}
-          onClose={()=>setShowNew(false)} reload={reload}/>
+          onClose={()=>setShowNew(false)} reload={reload} hSettings={hSettings}/>
       )}
     </div>
   )
 }
 
-function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
+function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSettings}) {
   const [status,setStatus]=useState(res.status)
   const [roomIds,setRoomIds]=useState((res.room_ids||[]).map(String))
   const [checkIn,setCheckIn]=useState((res.check_in||'').slice(0,10))
@@ -1246,6 +1247,22 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         if(room) await dbPatch('rooms',room.id,{status:targetStatusForAssigned})
       }
 
+      /* ── Auto-create transaction when paid_amount increases ── */
+      const oldPaid = +(res.paid_amount || 0)
+      const paidDiff = safePaid - oldPaid
+      if(paidDiff > 0) {
+        const roomNo = roomIds.join(', ') || '—'
+        const fiscalDay = hSettings?.active_fiscal_day || todayStr()
+        await dbPost('transactions',{
+          room_number: roomNo,
+          guest_name: gn,
+          type: `Room Payment (${method})`,
+          amount: paidDiff,
+          fiscal_day: fiscalDay,
+          tenant_id: TENANT
+        })
+      }
+
       await dbPatchReservationSafe(res.id,{
         status,
         room_ids:roomIds,
@@ -1259,7 +1276,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         payment_method:method,
         notes
       })
-      toast('Reservation updated ✓')
+      toast(paidDiff > 0 ? `Reservation updated ✓ · Payment ${BDT(paidDiff)} recorded` : 'Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
@@ -1469,7 +1486,7 @@ function GuestSearchInput({guests, value, onChange}) {
   )
 }
 
-function NewReservationModal({guests,rooms,toast,onClose,reload}) {
+function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
   const availRooms=rooms.filter(r=>r.status==='AVAILABLE')
   const [f,setF]=useState({
     guestId:'', roomNo:availRooms[0]?.room_number||'',
@@ -1520,7 +1537,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         await dbPost('transactions',{
           reservation_id:created?.id||null,
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:collectedAmt, fiscal_day:todayStr(), tenant_id:TENANT
+          type:`Room Payment (${f.method})`, amount:collectedAmt, fiscal_day:hSettings?.active_fiscal_day||todayStr(), tenant_id:TENANT
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
@@ -2286,6 +2303,15 @@ ${dueRows}
         // Reset token for new day
         setTokenAmt('')
         setSavedToken(0)
+        // Re-fetch hSettings so UI immediately reflects new fiscal day
+        try {
+          const rows = await db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`)
+          if(Array.isArray(rows)) {
+            const m={};rows.forEach(r=>{m[r.key]=r.value})
+            setHSettingsAll(m)
+            setHSettings({vat:m.vat_rate||'0',svc:m.service_charge||'0',active_fiscal_day:m.active_fiscal_day})
+          }
+        } catch(e2) {}
         toast(`✓ Day closed · Fiscal day → ${nextDay}`,'info')
         reload()
       }catch(e){
