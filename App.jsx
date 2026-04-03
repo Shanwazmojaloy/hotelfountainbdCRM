@@ -2056,8 +2056,8 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tok
     if (!res) { txs.forEach(t => { pdfCorrected[t.id] = +t.amount || 0 }); return }
     const resPaid = +(res.paid_amount || 0)
     const sorted = [...txs].sort((a, b) =>
-      (a.created_at || a.fiscal_day || '').localeCompare(b.created_at || b.fiscal_day || '') ||
-      String(a.id || '').localeCompare(String(b.id || ''))
+      (b.created_at || b.fiscal_day || '').localeCompare(a.created_at || a.fiscal_day || '') ||
+      String(b.id || '').localeCompare(String(a.id || ''))
     )
     let running = 0
     sorted.forEach(t => {
@@ -2256,9 +2256,10 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       }) || reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
       if (!res) { txs.forEach(t => { corrected[t.id] = +t.amount || 0 }); return }
       const resPaid = +(res.paid_amount || 0)
+      // Sort REVERSE chronologically — most recent first
       const sorted = [...txs].sort((a, b) =>
-        (a.created_at || a.fiscal_day || '').localeCompare(b.created_at || b.fiscal_day || '') ||
-        String(a.id || '').localeCompare(String(b.id || ''))
+        (b.created_at || b.fiscal_day || '').localeCompare(a.created_at || a.fiscal_day || '') ||
+        String(b.id || '').localeCompare(String(a.id || ''))
       )
       let running = 0
       sorted.forEach(t => {

@@ -2150,8 +2150,8 @@ input[type='date']{color:var(--tx);color-scheme:dark}
         if (!res) { txs.forEach(t => { pdfCorrected[t.id] = +t.amount || 0 }); return }
         const resPaid = +(res.paid_amount || 0)
         const sorted = [...txs].sort((a, b) =>
-          (a.created_at || a.fiscal_day || '').localeCompare(b.created_at || b.fiscal_day || '') ||
-          String(a.id || '').localeCompare(String(b.id || ''))
+          (b.created_at || b.fiscal_day || '').localeCompare(a.created_at || a.fiscal_day || '') ||
+          String(b.id || '').localeCompare(String(a.id || ''))
         )
         let running = 0
         sorted.forEach(t => {
@@ -2321,10 +2321,10 @@ input[type='date']{color:var(--tx);color-scheme:dark}
             return
           }
           const resPaid = +(res.paid_amount || 0)
-          // Sort chronologically (by created_at, then fiscal_day, then id)
+          // Sort REVERSE chronologically — most recent first (preserves latest actual payments)
           const sorted = [...txs].sort((a, b) =>
-            (a.created_at || a.fiscal_day || '').localeCompare(b.created_at || b.fiscal_day || '') ||
-            String(a.id || '').localeCompare(String(b.id || ''))
+            (b.created_at || b.fiscal_day || '').localeCompare(a.created_at || a.fiscal_day || '') ||
+            String(b.id || '').localeCompare(String(a.id || ''))
           )
           let running = 0
           sorted.forEach(t => {
