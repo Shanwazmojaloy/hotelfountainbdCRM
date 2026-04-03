@@ -405,7 +405,7 @@ footer{background:var(--dark);border-top:1px solid var(--br);padding:32px 60px;d
     <a href="#rooms">Rooms</a>
     <a href="#experience">Experience</a>
     <a href="#contact">Contact</a>
-    <a href="hotel-fountain-crm.html">Staff</a>
+    <a href="index.html">Staff</a>
   </div>
 </footer>
 
@@ -454,9 +454,13 @@ function checkAvailability() {
 }
 
 // Modal
+document.getElementById('staffLoginBtn').addEventListener('click', function(e) {
+  e.preventDefault();
+  openModal();
+});
 function openModal(){document.getElementById('loginModal').classList.add('open');}
 function closeModal(){document.getElementById('loginModal').classList.remove('open');}
-function goToCRM(){window.location.href='hotel-fountain-crm.html';}
+function goToCRM(){window.location.href='index.html';}
 document.getElementById('loginModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 
 // Smooth scroll

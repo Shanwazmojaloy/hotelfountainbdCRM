@@ -32,10 +32,15 @@ function computeBill(r, rooms, foliosMap, settings) {
   const svcPct=0;
   const tax=0;
   const svc=0;
-  const discount=0 // Zero-discount policy enforced
-  // Single Source of Truth: Gross Bill Total = Room Charge + Add Charges (no discount)
+  const discount= +(r.discount_amount || r.discount || 0);
+  /* ── Single Source of Truth ──
+     Hierarchy: Base Room Charge = rate × nights + Add Charges (folios)
+     If total_amount was explicitly set in DB (agreed invoice), trust it.
+     Otherwise fall back to computed rate × nights + extras.
+     "due" is ALWAYS computed live: total − paid.                           */
   const invoice = r;
-  const total = Math.max(0, sub);
+  const dbTotal = +(r.total_amount || 0)
+  const total = dbTotal > 0 ? dbTotal : Math.max(0, sub - discount);
   const paid = +(invoice.paid_amount || 0);
   const due = Math.max(0, total - paid);
   return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
@@ -1212,8 +1217,8 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
   const nights=nightsCount(checkIn,checkOut)
   const grossNum=Math.max(0,+grossAmt||0)
-  const discountNum=0 // Zero-discount policy enforced
-  const totalAmt=Math.max(0,grossNum)
+  const discountNum=Math.max(0,+discountAmt||0)
+  const totalAmt=Math.max(0,grossNum-discountNum)
   const paidNum=Math.max(0,+paidAmt||0)
   const safePaid=Math.min(totalAmt,paidNum)
   const balance=Math.max(0,totalAmt-safePaid)
@@ -1396,7 +1401,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
         </div>
         <div className="fg">
           <label className="flbl">Discount (BDT)</label>
-          <input type="number" className="finput" value="0" disabled={true} style={{opacity:0.5,cursor:'not-allowed'}} min="0"/>
+          <input type="number" className="finput" value={discountAmt} onChange={e=>setDiscountAmt(e.target.value)} min="0"/>
         </div>
       </div>
       <div className="frow">
@@ -1503,8 +1508,8 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
   const autoTotal=selectedRoom&&autoNights?(+selectedRoom.price*autoNights):0
   const grossTotal=Math.max(0,+f.total||autoTotal)
-  const discountAmt=0 // Zero-discount policy enforced
-  const finalInvoice=Math.max(0,grossTotal)
+  const discountAmt=Math.max(0,+f.discount||0)
+  const finalInvoice=Math.max(0,grossTotal-discountAmt)
   const collectedAmt=Math.min(finalInvoice,Math.max(0,+f.collectAmount||0))
   const dueAmt=Math.max(0,finalInvoice-collectedAmt)
 
@@ -1582,7 +1587,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
       )}
       <div className="frow">
         <div className="fg"><label className="flbl">Gross Total (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoTotal||0)}/></div>
-        <div className="fg"><label className="flbl">Discount (BDT)</label><input type="number" className="finput" value="0" disabled={true} style={{opacity:0.5,cursor:'not-allowed'}} placeholder="0"/></div>
+        <div className="fg"><label className="flbl">Discount (BDT)</label><input type="number" className="finput" value={f.discount} onChange={F('discount')} min="0"/></div>
       </div>
       <div className="frow">
         <div className="fg"><label className="flbl">Collect Amount / Deposit (BDT)</label><input type="number" className="finput" value={f.collectAmount} onChange={F('collectAmount')} placeholder="0"/></div>
@@ -2874,11 +2879,12 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,active
     const room_number = fromRow?lockedRoom:(selRes?.room_number||resSearch)
     const guest_name  = fromRow?lockedGuest:(selRes?.guest_name||resSearch)
     const resId       = fromRow?lockedResId:selRes?.id
-    // Use computed total (room rate × nights) not stale stored total_amount — zero-discount policy
+    // Use computed total (room rate × nights - discount)
     const _selResRoom = selRes?rooms?.find(rm=>(selRes.room_ids||[]).includes(rm.room_number)):null
     const _selResNts  = selRes?nightsCount(selRes.check_in,selRes.check_out)||1:1
     const _selResComp = _selResRoom?(+_selResRoom.price*_selResNts):0
-    const _selResCalc = _selResComp>0?_selResComp:(+selRes?.total_amount||0)
+    const _selResDisc = selRes?+selRes.discount_amount||+selRes.discount||0:0
+    const _selResCalc = _selResComp>0?Math.max(0,_selResComp-_selResDisc):(Math.max(0,(+selRes?.total_amount||0)-_selResDisc))
     const resTotal    = fromRow?(prefill._total||0):_selResCalc
     const resPaid     = fromRow?(prefill._paid||0):(+selRes?.paid_amount||0)
     try{
