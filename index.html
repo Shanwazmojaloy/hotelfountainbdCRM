@@ -2120,7 +2120,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       })
     }
 
-    function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, calDate, tokenAmount, reservations, rooms, foliosMap, hSettings, guests) {
+    function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, calDate, tokenAmount, reservations, rooms, foliosMap, hSettings, guests, hSettingsAll) {
       let filterLabel = filter === 'TODAY' ? 'Today' : filter === 'MONTH' ? 'This Month' : 'All Time'
       if (filter === 'DATE' && calDate) {
         const [y, m, d] = calDate.split('-'); const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -2175,8 +2175,12 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const todayTotal = normTotal(todayT)
       const monthTotal = normTotal(monthT)
       const allTotal = normTotal(allT)
-      const tkn = +(tokenAmount || 0)
-      const closingBalance = todayTotal - tkn
+      // When a specific DATE is selected, use that date's total and token instead of today's
+      const isDateFilter = filter === 'DATE' && calDate
+      const reportTotal = isDateFilter ? total : todayTotal
+      const reportDateToken = isDateFilter && hSettingsAll ? +(hSettingsAll[`token_${calDate}`] || 0) : +(tokenAmount || 0)
+      const tkn = reportDateToken
+      const closingBalance = reportTotal - tkn
       const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
     @page{size:A4 portrait;margin:5.08mm}
@@ -2209,7 +2213,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
   </style></head><body>
   <div class="header"><div><div class="hotel-name">Hotel Fountain</div><div class="hotel-sub">Billing & Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
   <div class="stats">
-    <div class="stat-box hi"><div class="lbl">Today</div><div class="val">৳${todayTotal.toLocaleString()}</div></div>
+    <div class="stat-box hi"><div class="lbl">${isDateFilter ? filterLabel : 'Today'}</div><div class="val">৳${reportTotal.toLocaleString()}</div></div>
     <div class="stat-box"><div class="lbl">This Month</div><div class="val">৳${monthTotal.toLocaleString()}</div></div>
     <div class="stat-box"><div class="lbl">All Time</div><div class="val">৳${allTotal.toLocaleString()}</div></div>
     <div class="stat-box out"><div class="lbl">Outstanding</div><div class="val">৳${Number(outstanding || 0).toLocaleString()}</div></div>
@@ -2217,7 +2221,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
   <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
   <tbody>${rows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
   <div class="closing-box">
-    <div class="closing-row total"><span>Today's Total Collection</span><span>৳${todayTotal.toLocaleString()}</span></div>
+    <div class="closing-row total"><span>${isDateFilter ? filterLabel + ' Total Collection' : "Today's Total Collection"}</span><span>৳${reportTotal.toLocaleString()}</span></div>
     <div class="closing-row"><span>Token Amount</span><span>− ৳${tkn.toLocaleString()}</span></div>
     <div class="closing-row final"><span>Closing Balance</span><span>৳${closingBalance.toLocaleString()}</span></div>
   </div>
@@ -2507,7 +2511,7 @@ ${dueRows}
       }
 
       function downloadPDF() {
-        downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, calDate, savedToken, reservations, rooms, foliosMap, hSettings, guests)
+        downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, calDate, savedToken, reservations, rooms, foliosMap, hSettings, guests, hSettingsAll)
       }
 
       function openDetail(r) {
