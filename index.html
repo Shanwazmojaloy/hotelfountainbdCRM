@@ -2120,7 +2120,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       })
     }
 
-    function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, calDate, tokenAmount, reservations, rooms, foliosMap, hSettings) {
+    function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, calDate, tokenAmount, reservations, rooms, foliosMap, hSettings, guests) {
       let filterLabel = filter === 'TODAY' ? 'Today' : filter === 'MONTH' ? 'This Month' : 'All Time'
       if (filter === 'DATE' && calDate) {
         const [y, m, d] = calDate.split('-'); const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -2507,7 +2507,7 @@ ${dueRows}
       }
 
       function downloadPDF() {
-        downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, calDate, savedToken, reservations, rooms, foliosMap, hSettings)
+        downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, calDate, savedToken, reservations, rooms, foliosMap, hSettings, guests)
       }
 
       function openDetail(r) {
