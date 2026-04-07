@@ -2220,6 +2220,24 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const reportTotal = isDateFilter ? total : todayTotal
       const reportDateToken = isDateFilter && hSettingsAll ? +(hSettingsAll[`token_${calDate}`] || 0) : +(tokenAmount || 0)
       const tkn = reportDateToken
+      // Compute outstanding dues for the report
+      const duesForReport = reservations
+        .filter(r => (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT'))
+        .map(r => {
+          const room = (r.room_ids || [r.room_number]).filter(Boolean).join(', ') || '—'
+          const gid = String((r.guest_ids || []).filter(Boolean)[0] || '')
+          const g = guests?.find(g => String(g.id) === gid)
+          const gname = g ? g.name : (r.guest_name || '—')
+          const bill = _computeBillGlobal(r, rooms, foliosMap, hSettings)
+          return { gname, room, total: bill.total, paid: bill.paid, due: bill.due, check_in: r.check_in, check_out: r.check_out }
+        })
+        .filter(d => d.due > 0)
+      const totalDueReport = duesForReport.reduce((a, d) => a + d.due, 0)
+      const dueSection = duesForReport.length > 0 ? `
+    <h3 style="margin:20px 0 8px;font-size:13px;color:#E05C7A;border-bottom:1px solid #f0c0ca;padding-bottom:4px">⚠ Outstanding Dues — Carried to Next Day</h3>
+    <table><thead><tr style="background:#E05C7A"><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>
+      ${duesForReport.map((d, i) => `<tr style="${i % 2 ? 'background:#fdf6f6' : ''}"><td>${d.gname}</td><td>${d.room}</td><td>${d.check_in?.slice(0, 10) || '—'}</td><td>${d.check_out?.slice(0, 10) || '—'}</td><td>৳${d.total.toLocaleString()}</td><td>৳${d.paid.toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#E05C7A">৳${d.due.toLocaleString()}</td></tr>`).join('')}
+    </tbody></table>` : ''
       const closingBalance = reportTotal - tkn
       const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
@@ -2236,7 +2254,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
     .stat-box .val{font-size:13px;font-weight:700;color:#000}
     .stat-box.hi{background:#eee;border-color:#000}.stat-box.hi .val{color:#000}
     .stat-box.out .val{color:#000;font-style:italic}
-    table{width:100%;border-collapse:collapse}
+    table{width:100%;border-collapse:collapse;margin-top:6px}
     thead tr{background:#000;color:#fff}
     thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
     thead th:last-child{text-align:right}
@@ -2246,6 +2264,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
     .closing-box{margin-top:16px;border:2px solid #000;padding:12px 16px;background:#f8f8f8}
     .closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#000}
     .closing-row.total{border-top:1px solid #ccc;margin-top:4px;padding-top:6px;font-weight:700}
+    .closing-row.due{color:#000;font-style:italic}
     .closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}
     .footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between}
     .total-row{font-size:12px;font-weight:700;color:#000}
@@ -2260,9 +2279,11 @@ input[type='date']{color:var(--tx);color-scheme:dark}
   </div>
   <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
   <tbody>${rows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
+  ${dueSection}
   <div class="closing-box">
     <div class="closing-row total"><span>${isDateFilter ? filterLabel + ' Total Collection' : "Today's Total Collection"}</span><span>৳${reportTotal.toLocaleString()}</span></div>
     <div class="closing-row"><span>Token Amount</span><span>− ৳${tkn.toLocaleString()}</span></div>
+    ${totalDueReport > 0 ? `<div class="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDueReport.toLocaleString()}</span></div>` : ''}
     <div class="closing-row final"><span>Closing Balance</span><span>৳${closingBalance.toLocaleString()}</span></div>
   </div>
   <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${realList.length} transaction${realList.length !== 1 ? 's' : ''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
