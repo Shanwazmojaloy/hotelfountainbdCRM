@@ -2782,7 +2782,11 @@ ${dueRows}
           })
         }
 
-        const displayList = Object.values(unifiedGroups)
+        const displayList = Object.values(unifiedGroups).sort((a,b)=>{
+          const dA=a.res?.check_in||a.txs[0]?.check_in||''
+          const dB=b.res?.check_in||b.txs[0]?.check_in||''
+          return dB.localeCompare(dA)
+        })
 
         return (
           <div className="card" style={{marginBottom:12}}>
