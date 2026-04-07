@@ -213,25 +213,48 @@ const fetchAllGuests = async () => {
   return all
 }
 
-const RESERVATION_CORE_CREATE_FIELDS = ['guest_ids','room_ids','check_in','check_out','status','total_amount','paid_amount','payment_method','special_requests','tenant_id']
-const RESERVATION_CORE_PATCH_FIELDS = ['status','paid_amount','notes','room_ids','check_in','check_out','total_amount','payment_method']
+/* ── Numeric sanitizer: ensures no NaN/Infinity/undefined reaches Supabase ── */
+const safeNum = (v, fallback = 0) => { const n = Number(v); return (isNaN(n) || !isFinite(n)) ? fallback : n }
+const sanitizePayload = obj => {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    if (['amount','paid_amount','total_amount','discount','discount_amount','outstanding_balance','extra_charges','bill_total'].includes(k)) {
+      out[k] = safeNum(v, 0);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+const RESERVATION_CORE_CREATE_FIELDS = ['guest_ids','room_ids','check_in','check_out','status','total_amount','paid_amount','discount','payment_method','special_requests','on_duty_officer','stay_type','tenant_id']
+const RESERVATION_CORE_PATCH_FIELDS = ['status','paid_amount','notes','room_ids','check_in','check_out','total_amount','discount','payment_method']
 const pickFields = (obj, fields) => fields.reduce((acc,key)=>{ if(obj&&Object.prototype.hasOwnProperty.call(obj,key)&&obj[key]!==undefined) acc[key]=obj[key]; return acc },{})
 const shouldRetryReservation400 = err => /\b(reservations)\b/i.test(String(err?.message||'')) && /\b400\b/.test(String(err?.message||''))
 async function dbPostReservationSafe(payload){
+  const clean = sanitizePayload(payload);
   try{
-    return await dbPost('reservations',payload)
+    return await dbPost('reservations',clean)
   }catch(err){
     if(!shouldRetryReservation400(err)) throw err
-    return await dbPost('reservations',pickFields(payload,RESERVATION_CORE_CREATE_FIELDS))
+    return await dbPost('reservations',pickFields(clean,RESERVATION_CORE_CREATE_FIELDS))
   }
 }
 async function dbPatchReservationSafe(id,payload){
+  const clean = sanitizePayload(payload);
   try{
-    return await dbPatch('reservations',id,payload)
+    return await dbPatch('reservations',id,clean)
   }catch(err){
     if(!shouldRetryReservation400(err)) throw err
-    return await dbPatch('reservations',id,pickFields(payload,RESERVATION_CORE_PATCH_FIELDS))
+    return await dbPatch('reservations',id,pickFields(clean,RESERVATION_CORE_PATCH_FIELDS))
   }
+}
+/* ── Safe transaction POST: sanitizes amount and strips undefined fields ── */
+async function dbPostTransactionSafe(payload){
+  const clean = sanitizePayload(payload);
+  if(!clean.amount || clean.amount <= 0){ console.warn('Skipping transaction with zero/invalid amount:',clean); return null; }
+  return await dbPost('transactions',clean);
 }
 
 const ROLES = {
@@ -838,10 +861,7 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,h
       const due=Math.max(0,total-paidSoFar)
       const paymentStatus=due<=0?'Paid':(paidSoFar>0?'Partial':'Unpaid')
       await dbPatchReservationSafe(activeRes.id,{
-        status:'CHECKED_OUT',
-        checkout_status:'DEPARTED',
-        payment_status:paymentStatus,
-        total_due:due
+        status:'CHECKED_OUT'
       })
       await dbPatch('rooms',room.id,{status:'DIRTY'})
       if(due>0){
@@ -854,14 +874,12 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,h
           tenant_id:TENANT
         })
       }
-      await dbPost('transactions',{
+      await dbPostTransactionSafe({
         type:'Final Settlement',
-        amount:total,
+        amount:safeNum(total),
         room_number:room.room_number,
-        guest_name:guest?.name,
+        guest_name:guest?.name||'Guest',
         fiscal_day:hSettings?.active_fiscal_day||todayStr(),
-        settlement_status:receivableStatus(due),
-        total_due:due,
         tenant_id:TENANT
       })
       if(guest?.id){
@@ -878,9 +896,9 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,h
     if(!a || a <= 0) return toast('Enter a valid amount', 'error')
     setPaySaving(true)
     try {
-      await dbPost('transactions',{room_number:room.room_number,guest_name:guest?.name||'Guest',type:payType,amount:a,fiscal_day:hSettings?.active_fiscal_day||todayStr(),tenant_id:TENANT})
+      await dbPostTransactionSafe({room_number:room.room_number,guest_name:guest?.name||'Guest',type:payType,amount:safeNum(a),fiscal_day:hSettings?.active_fiscal_day||todayStr(),tenant_id:TENANT})
       const curPaid = +(activeRes.paid_amount || 0)
-      await dbPatchReservationSafe(activeRes.id, {paid_amount: curPaid + a})
+      await dbPatchReservationSafe(activeRes.id, {paid_amount: safeNum(curPaid + a)})
       await dbPost('folios',{room_number:room.room_number,reservation_id:activeRes.id,description:`Payment (${payType})`,category:'Payment',amount:-a,tenant_id:TENANT})
       
       // Also deduct from guest permanent balance
@@ -1260,11 +1278,11 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
       if(paidDiff > 0) {
         const roomNo = roomIds.join(', ') || '—'
         const fiscalDay = hSettings?.active_fiscal_day || todayStr()
-        await dbPost('transactions',{
+        await dbPostTransactionSafe({
           room_number: roomNo,
           guest_name: gn,
           type: `Room Payment (${method})`,
-          amount: paidDiff,
+          amount: safeNum(paidDiff),
           fiscal_day: fiscalDay,
           tenant_id: TENANT
         })
@@ -1276,10 +1294,8 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
         check_in:checkIn,
         check_out:checkOut,
         total_amount:totalAmt,
-        discount_amount:discountNum,
+        discount:discountNum,
         paid_amount:safePaid,
-        total_due:balance,
-        payment_status:paymentStatus,
         payment_method:method,
         notes
       })
@@ -1532,7 +1548,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
         guest_ids:[f.guestId], room_ids:[f.roomNo],
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
-        total_amount:totalAmt, paid_amount:collectedAmt, total_due:dueAmt, discount_amount:discountAmt,
+        total_amount:totalAmt, paid_amount:collectedAmt, discount:discountAmt,
         payment_method:f.method, special_requests:f.notes||null,
         on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT
       })
@@ -1541,10 +1557,10 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
         if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
       }
       if(collectedAmt>0) {
-        await dbPost('transactions',{
+        await dbPostTransactionSafe({
           reservation_id:created?.id||null,
-          room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:collectedAmt, fiscal_day:hSettings?.active_fiscal_day||todayStr(), tenant_id:TENANT
+          room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'Guest',
+          type:`Room Payment (${f.method})`, amount:safeNum(collectedAmt), fiscal_day:hSettings?.active_fiscal_day||todayStr(), tenant_id:TENANT
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
@@ -2404,12 +2420,12 @@ ${dueRows}
         // 2. Insert new "Balance Carried Forward" records for all pending dues
         if(duesCarried.length > 0) {
           await Promise.all(duesCarried.map(d=>(
-            dbPost('transactions', {
+            dbPostTransactionSafe({
               tenant_id: TENANT,
               fiscal_day: nextDay,
-              guest_name: d.gname,
-              room_number: d.room,
-              amount: d.due,
+              guest_name: d.gname||'Guest',
+              room_number: d.room||'—',
+              amount: safeNum(d.due),
               type: 'Balance Carried Forward'
             })
           )))
@@ -2868,8 +2884,8 @@ ${dueRows}
                     const a=+document.getElementById('bill-collect-input').value
                     if(!a||a<=0){toast('Enter valid amount','error');return}
                     try{
-                      await dbPatch('reservations',r.id,{paid_amount:Math.min(total,(+r.paid_amount||0)+a)})
-                      await dbPost('transactions',{type:`Room Payment (${r.payment_method||'Cash'})`,amount:a,room_number:roomNo,guest_name:gname,fiscal_day:hSettings?.active_fiscal_day||todayStr(),tenant_id:TENANT})
+                      await dbPatchReservationSafe(r.id,{paid_amount:safeNum(Math.min(total,(+r.paid_amount||0)+a))})
+                      await dbPostTransactionSafe({type:`Room Payment (${r.payment_method||'Cash'})`,amount:safeNum(a),room_number:roomNo,guest_name:gname||'Guest',fiscal_day:hSettings?.active_fiscal_day||todayStr(),tenant_id:TENANT})
                       toast(`৳${a.toLocaleString()} recorded`)
                       await reload()
                       setShowBillDetail(false);setDetailRes(null)
@@ -3004,8 +3020,8 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,active
     const resTotal    = fromRow?(prefill._total||0):_selResCalc
     const resPaid     = fromRow?(prefill._paid||0):(+selRes?.paid_amount||0)
     try{
-      await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,tenant_id:TENANT})
-      if(resId) await dbPatch('reservations',resId,{paid_amount:Math.min(resTotal,resPaid+a)})
+      await dbPostTransactionSafe({room_number,guest_name:guest_name||'Guest',type,amount:safeNum(a),fiscal_day,tenant_id:TENANT})
+      if(resId) await dbPatchReservationSafe(resId,{paid_amount:safeNum(Math.min(resTotal,resPaid+a))})
       // Also deduct from guest permanent balance if linked
       const resObj = reservations?.find(r=>r.id===resId)
       const gId = resObj?.guest_ids?.[0]
