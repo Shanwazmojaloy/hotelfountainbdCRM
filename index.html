@@ -2240,6 +2240,34 @@ input[type='date']{color:var(--tx);color-scheme:dark}
     <table><thead><tr style="background:#E05C7A"><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>
       ${duesForReport.map((d, i) => `<tr style="${i % 2 ? 'background:#fdf6f6' : ''}"><td>${d.gname}</td><td>${d.room}</td><td>${d.check_in?.slice(0, 10) || '—'}</td><td>${d.check_out?.slice(0, 10) || '—'}</td><td>৳${d.total.toLocaleString()}</td><td>৳${d.paid.toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#E05C7A">৳${d.due.toLocaleString()}</td></tr>`).join('')}
     </tbody></table>` : ''
+      // Build billing summary section — mirrors the Billing & Invoices ledger
+      const billingEntries = reservations
+        .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
+        .map(r => {
+          const room = (r.room_ids || [r.room_number]).filter(Boolean).join(', ') || '—'
+          const gid = String((r.guest_ids || []).filter(Boolean)[0] || '')
+          const g = guests?.find(g => String(g.id) === gid)
+          const gname = g ? g.name : (r.guest_name || '—')
+          const bill = _computeBillGlobal(r, rooms, foliosMap, hSettings)
+          const resRoom = rooms?.find(rm => (r.room_ids || []).includes(rm.room_number))
+          const nights = nightsCount(r.check_in, r.check_out) || 1
+          const baseRate = resRoom ? (+resRoom.price || 0) * nights : bill.total
+          const disc = Number(r.discount) || 0
+          return { gname, room, check_in: r.check_in, check_out: r.check_out, baseRate, disc, total: bill.total, paid: bill.paid, due: bill.due }
+        })
+        .sort((a, b) => (b.check_in || '').localeCompare(a.check_in || ''))
+      const billingSummarySection = billingEntries.length > 0 ? `
+    <h3 style="margin:20px 0 8px;font-size:13px;color:#1a1a2e;border-bottom:2px solid #1a1a2e;padding-bottom:4px">📋 Billing Summary — All Active Reservations</h3>
+    <table><thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th style="text-align:right">Base Rate</th><th style="text-align:right">Discount</th><th style="text-align:right">Bill Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>
+      ${billingEntries.map((e, i) => `<tr style="${i % 2 ? 'background:#f2f2f2' : ''}">
+        <td>${e.gname}</td><td>${e.room}</td><td>${e.check_in?.slice(0,10) || '—'}</td><td>${e.check_out?.slice(0,10) || '—'}</td>
+        <td style="text-align:right">৳${e.baseRate.toLocaleString()}</td>
+        <td style="text-align:right;color:${e.disc > 0 ? '#00897B' : '#999'}">${e.disc > 0 ? '৳' + e.disc.toLocaleString() : '—'}</td>
+        <td style="text-align:right;font-weight:700">৳${e.total.toLocaleString()}</td>
+        <td style="text-align:right;color:#2e7d32">৳${e.paid.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:700;color:${e.due > 0 ? '#E05C7A' : '#2e7d32'}">৳${e.due.toLocaleString()}</td>
+      </tr>`).join('')}
+    </tbody></table>` : ''
       const closingBalance = reportTotal - tkn
       const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
@@ -2281,6 +2309,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
   </div>
   <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
   <tbody>${rows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
+  ${billingSummarySection}
   ${dueSection}
   <div class="closing-box">
     <div class="closing-row total"><span>${isDateFilter ? filterLabel + ' Total Collection' : "Today's Total Collection"}</span><span>৳${reportTotal.toLocaleString()}</span></div>
