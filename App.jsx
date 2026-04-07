@@ -949,6 +949,12 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,h
             <div style={{textAlign:'right'}}>
               <div className="xs muted">Bill Total</div>
               <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(total)}</div>
+              {_bill.discount > 0 && <div className="xs" style={{color:'var(--teal)',marginTop:2}}>Discount: {BDT(_bill.discount)}</div>}
+              <div className="xs" style={{marginTop:2}}>
+                <span style={{color:'var(--grn)'}}>Paid: {BDT(_bill.paid)}</span>
+                <span style={{margin:'0 4px',color:'var(--tx3)'}}>·</span>
+                <span style={{color:_bill.due>0?'var(--rose)':'var(--grn)',fontWeight:_bill.due>0?700:400}}>Due: {BDT(_bill.due)}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -981,11 +987,13 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,h
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            {[['Subtotal',sub]].map(([l,v])=>(
-              <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-            ))}
+            <div className="flex fjb xs muted" style={{marginBottom:3}}><span>Base Room Charge</span><span>{BDT(roomCharge)}</span></div>
+            {extras > 0 && <div className="flex fjb xs muted" style={{marginBottom:3}}><span>Extra Charges</span><span>{BDT(extras)}</span></div>}
+            {_bill.discount > 0 && <div className="flex fjb xs" style={{marginBottom:3,color:'var(--teal)'}}><span>Discount</span><span>−{BDT(_bill.discount)}</span></div>}
             <div className="divider" style={{margin:'6px 0'}}/>
             <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Bill Total</span><span>{BDT(total)}</span></div>
+            <div className="flex fjb xs" style={{marginTop:4}}><span style={{color:'var(--grn)'}}>Paid</span><span style={{color:'var(--grn)'}}>{BDT(_bill.paid)}</span></div>
+            <div className="flex fjb xs" style={{marginTop:2}}><span style={{color:_bill.due>0?'var(--rose)':'var(--grn)',fontWeight:700}}>Balance Due</span><span style={{color:_bill.due>0?'var(--rose)':'var(--grn)',fontWeight:700}}>{BDT(_bill.due)}</span></div>
           </div>
         </div>
       )}
@@ -1180,12 +1188,15 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hS
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
-              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
+              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Base Rate</th><th>Discount</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
               {res.slice(0,80).map(invoice=>{
                 const gn=getGN(invoice.guest_ids)
                 const nights=nightsCount(invoice.check_in,invoice.check_out)
+                const invRoom=rooms.find(rm=>(invoice.room_ids||[]).includes(rm.room_number))
+                const baseRate=invRoom?(+invRoom.price||0)*(nights||1):(+invoice.total_amount||0)
+                const disc=+(invoice.discount_amount||invoice.discount||0)
                 const balance=(+invoice.total_amount||0)-(+invoice.paid_amount||0)
                 return (
                   <tr key={invoice.id}>
@@ -1194,6 +1205,8 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hS
                     <td className="xs muted">{fmtDate(invoice.check_in)}</td>
                     <td className="xs muted">{fmtDate(invoice.check_out)}</td>
                     <td className="xs gold">{nights||'—'}</td>
+                    <td className="xs" style={{color:'var(--tx2)'}}>{BDT(baseRate)}</td>
+                    <td className="xs" style={{color:disc>0?'var(--teal)':'var(--tx3)'}}>{disc>0?BDT(disc):'—'}</td>
                     <td className="xs gold">{BDT(invoice.total_amount)}</td>
                     <td className="xs" style={{color:+invoice.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(invoice.paid_amount)}</td>
                     <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
@@ -1235,10 +1248,14 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const [paySaving,setPaySaving]=useState(false)
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
+  const resRoom=rooms.find(rm=>(res.room_ids||[]).includes(rm.room_number))
+  const baseRoomRate=resRoom?(+resRoom.price||0):0
   const nights=nightsCount(checkIn,checkOut)
   const grossNum=Math.max(0,+grossAmt||0)
   const discountNum=Math.max(0,+discountAmt||0)
-  const totalAmt=Math.max(0,grossNum-discountNum)
+  /* total_amount in DB is the AGREED invoice total — discount is display-only metadata.
+     Balance = total_amount − paid_amount (consistent with reservations tab) */
+  const totalAmt=grossNum
   const paidNum=Math.max(0,+paidAmt||0)
   const safePaid=Math.min(totalAmt,paidNum)
   const balance=Math.max(0,totalAmt-safePaid)
@@ -1359,10 +1376,12 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
         {[
           ['Guest',gn],['Rooms',roomIds.join(', ')||'—'],
           ['Check-In',fmtDate(checkIn)],['Check-Out',fmtDate(checkOut)],
-          ['Nights',nights||'—'],['Total Amount',BDT(totalAmt)],
+          ['Nights',nights||'—'],['Base Room Rate',`${BDT(baseRoomRate)}/night`],
+          ['Discount',discountNum>0?BDT(discountNum):'—'],['Total (Invoice)',BDT(totalAmt)],
+          ['Paid',BDT(safePaid)],['Balance Due',BDT(balance)],
           ['Payment Status',paymentStatus],['On-Duty Officer',res.on_duty_officer||'—'],
         ].map(([l,v])=>(
-          <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
+          <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val" style={l==='Balance Due'&&balance>0?{color:'var(--rose)',fontWeight:700}:l==='Discount'&&discountNum>0?{color:'var(--teal)'}:{}}>{v}</div></div>
         ))}
       </div>
       {res.special_requests&&<div className="info-box mb4"><div className="info-lbl">Special Requests</div><div className="info-val" style={{marginTop:4}}>{res.special_requests}</div></div>}
@@ -1427,7 +1446,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
           <label className="flbl">Amount Paid (BDT)</label>
           <input type="number" className="finput" value={paidAmt} onChange={e=>setPaidAmt(e.target.value)} min="0"/>
           <div className="xs mt3" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>
-            Net total: {BDT(totalAmt)} · Balance due: {BDT(balance)}
+            Total: {BDT(totalAmt)} · Paid: {BDT(safePaid)} · Balance due: {BDT(balance)}
           </div>
         </div>
       </div>
@@ -2773,10 +2792,10 @@ ${dueRows}
             </div>
             <div className="tbl-wrap">
               <table className="tbl">
-                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
+                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Base Rate</th><th>Discount</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
                 <tbody>
                   {displayList.length===0?(
-                    <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
+                    <tr><td colSpan={11} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
                   ):displayList.map(grp=>{
                     const invoice = grp.res
                     
@@ -2798,6 +2817,10 @@ ${dueRows}
                     const tTotal = invoice ? resTotal : (grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
                     const tPaid = invoice ? resPaid : 0
                     const tDue = invoice ? resDue : 0
+                    const billingRoom = invoice ? rooms.find(rm=>(invoice.room_ids||[]).includes(rm.room_number)) : null
+                    const billingNights = invoice ? nightsCount(invoice.check_in,invoice.check_out)||1 : 1
+                    const billingBaseRate = billingRoom ? (+billingRoom.price||0)*billingNights : tTotal
+                    const billingDisc = invoice ? +(invoice.discount_amount||invoice.discount||0) : 0
 
                     return (
                       <tr key={invoice?invoice.id:(grp.guest_name+'|'+grp.room_number)}>
@@ -2805,6 +2828,8 @@ ${dueRows}
                         <td><span className="badge bb">{rno}</span></td>
                         <td className="xs muted">{chkIn}</td>
                         <td className="xs muted">{chkOut}</td>
+                        <td className="xs" style={{color:'var(--tx2)'}}>{BDT(billingBaseRate)}</td>
+                        <td className="xs" style={{color:billingDisc>0?'var(--teal)':'var(--tx3)'}}>{billingDisc>0?BDT(billingDisc):'—'}</td>
                         <td className="xs gold">{BDT(tTotal)}</td>
                         <td className="xs" style={{color:'var(--grn)'}}>{BDT(tPaid)}</td>
                         <td className="xs" style={{color:tDue>0?'var(--rose)':'var(--grn)',fontWeight:tDue>0?600:400}}>{BDT(tDue)}</td>
