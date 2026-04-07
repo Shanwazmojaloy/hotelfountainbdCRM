@@ -2198,7 +2198,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
         let running = 0
         sorted.forEach(t => {
           const raw = +t.amount || 0
-          if (resPaid <= 0) { pdfCorrected[t.id] = raw; running += raw; return }
+          if (resPaid <= 0) { pdfCorrected[t.id] = 0; return }
           if (running >= resPaid) { pdfCorrected[t.id] = 0 }
           else if (running + raw > resPaid) { pdfCorrected[t.id] = resPaid - running; running = resPaid }
           else { pdfCorrected[t.id] = raw; running += raw }
@@ -2208,7 +2208,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const normalizedList = realList.map(t => ({ ...t, amount: pdfCorrected[t.id] ?? (+t.amount || 0) }))
       const total = normalizedList.reduce((a, t) => a + (+t.amount || 0), 0)
       const now = new Date().toLocaleString('en-BD', { timeZone: 'Asia/Dhaka', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      const rows = normalizedList.map(t => `<tr><td>${t.fiscal_day || '—'}</td><td>${t.guest_name || '—'}</td><td>${t.room_number || '—'}</td><td>${t.type || 'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount || 0).toLocaleString()}</td></tr>`).join('')
+      const rows = normalizedList.filter(t => (+t.amount || 0) > 0).map(t => `<tr><td>${t.fiscal_day || '—'}</td><td>${t.guest_name || '—'}</td><td>${t.room_number || '—'}</td><td>${t.type || 'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount || 0).toLocaleString()}</td></tr>`).join('')
       // Normalize stat totals using corrected amounts
       function normTotal(txArr) {
         return txArr.filter(t => t.type !== 'Balance Carried Forward')
@@ -2396,7 +2396,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
           let running = 0
           sorted.forEach(t => {
             const raw = +t.amount || 0
-            if (resPaid <= 0) { corrected[t.id] = raw; running += raw; return }
+            if (resPaid <= 0) { corrected[t.id] = 0; return }
             if (running >= resPaid) { corrected[t.id] = 0 }
             else if (running + raw > resPaid) { corrected[t.id] = resPaid - running; running = resPaid }
             else { corrected[t.id] = raw; running += raw }
