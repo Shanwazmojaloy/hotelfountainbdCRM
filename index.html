@@ -2168,110 +2168,81 @@ input[type='date']{color:var(--tx);color-scheme:dark}
         const [y, m, d] = calDate.split('-'); const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
         filterLabel = `${+d}-${mo[+m - 1]}-${y}`
       }
-      const realList = list.filter(t => t.type !== 'Balance Carried Forward')
-      // Build chronological corrected amounts using ALL transactions
-      const pdfCorrected = {}
-      const pdfAllReal = allT.filter(t => t.type !== 'Balance Carried Forward')
-      const pdfGroups = {}
-      pdfAllReal.forEach(t => {
-        const k = `${t.guest_name || ''}|${t.room_number || ''}`
-        if (!pdfGroups[k]) pdfGroups[k] = []
-        pdfGroups[k].push(t)
-      })
-      Object.entries(pdfGroups).forEach(([key, txs]) => {
-        const [gname, rnum] = key.split('|')
-        const res = reservations?.find(r => {
-          const rRooms = r.room_ids || [r.room_number]
-          if (!rRooms.includes(rnum)) return false
-          const rGuestName = r.guest_name || ''
-          const gid = String((r.guest_ids || [r.guest_id] || []).filter(Boolean)[0] || '')
-          const g = guests?.find(g => String(g.id) === gid)
-          const rName = g ? g.name : rGuestName
-          return rName && gname && rName.toLowerCase() === gname.toLowerCase()
-        }) || reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
-        if (!res) { txs.forEach(t => { pdfCorrected[t.id] = +t.amount || 0 }); return }
-        const resPaid = +(res.paid_amount || 0)
-        const sorted = [...txs].sort((a, b) =>
-          (b.created_at || b.fiscal_day || '').localeCompare(a.created_at || a.fiscal_day || '') ||
-          String(b.id || '').localeCompare(String(a.id || ''))
-        )
-        let running = 0
-        sorted.forEach(t => {
-          const raw = +t.amount || 0
-          if (resPaid <= 0) { pdfCorrected[t.id] = 0; return }
-          if (running >= resPaid) { pdfCorrected[t.id] = 0 }
-          else if (running + raw > resPaid) { pdfCorrected[t.id] = resPaid - running; running = resPaid }
-          else { pdfCorrected[t.id] = raw; running += raw }
-        })
-      })
-      // Apply corrected amounts to display list
-      const normalizedList = realList.map(t => ({ ...t, amount: pdfCorrected[t.id] ?? (+t.amount || 0) }))
-      const total = normalizedList.reduce((a, t) => a + (+t.amount || 0), 0)
       const now = new Date().toLocaleString('en-BD', { timeZone: 'Asia/Dhaka', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      const rows = normalizedList.filter(t => (+t.amount || 0) > 0).map(t => `<tr><td>${t.fiscal_day || '—'}</td><td>${t.guest_name || '—'}</td><td>${t.room_number || '—'}</td><td>${t.type || 'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount || 0).toLocaleString()}</td></tr>`).join('')
-      // Normalize stat totals using corrected amounts
-      function normTotal(txArr) {
-        return txArr.filter(t => t.type !== 'Balance Carried Forward')
-          .reduce((a, t) => a + (pdfCorrected[t.id] ?? (+t.amount || 0)), 0)
-      }
-      const todayTotal = normTotal(todayT)
-      const monthTotal = normTotal(monthT)
-      const allTotal = normTotal(allT)
-      // When a specific DATE is selected, use that date's total and token instead of today's
       const isDateFilter = filter === 'DATE' && calDate
-      const reportTotal = isDateFilter ? total : todayTotal
-      const reportDateToken = isDateFilter && hSettingsAll ? +(hSettingsAll[`token_${calDate}`] || 0) : +(tokenAmount || 0)
-      const tkn = reportDateToken
-      // Compute outstanding dues for the report
-      const duesForReport = reservations
-        .filter(r => (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT'))
-        .map(r => {
-          const room = (r.room_ids || [r.room_number]).filter(Boolean).join(', ') || '—'
-          const gid = String((r.guest_ids || []).filter(Boolean)[0] || '')
-          const g = guests?.find(g => String(g.id) === gid)
-          const gname = g ? g.name : (r.guest_name || '—')
-          const bill = _computeBillGlobal(r, rooms, foliosMap, hSettings)
-          return { gname, room, total: bill.total, paid: bill.paid, due: bill.due, check_in: r.check_in, check_out: r.check_out }
-        })
-        .filter(d => d.due > 0)
-      const totalDueReport = duesForReport.reduce((a, d) => a + d.due, 0)
-      const dueSection = duesForReport.length > 0 ? `
+
+      // Corrected amounts (same as billing ledger)
+      const _pdfC = {}
+      const allReal = allT.filter(t => t.type !== 'Balance Carried Forward')
+      const cGrps = {}
+      allReal.forEach(t => { const k = `${t.guest_name||''}|${t.room_number||''}`; if(!cGrps[k])cGrps[k]=[]; cGrps[k].push(t) })
+      Object.entries(cGrps).forEach(([key, txs]) => {
+        const [gname, rnum] = key.split('|')
+        const res = reservations?.find(r => { const rR=r.room_ids||[r.room_number]; if(!rR.includes(rnum))return false; const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||''); const g=guests?.find(g=>String(g.id)===gid); const rN=g?g.name:(r.guest_name||''); return rN&&gname&&rN.toLowerCase()===gname.toLowerCase() }) || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(rnum))
+        if(!res){txs.forEach(t=>{_pdfC[t.id]=+t.amount||0});return}
+        const resPaid=+(res.paid_amount||0)
+        const sorted=[...txs].sort((a,b)=>(b.created_at||b.fiscal_day||'').localeCompare(a.created_at||a.fiscal_day||'')||String(b.id||'').localeCompare(String(a.id||'')))
+        let running=0
+        sorted.forEach(t=>{const raw=+t.amount||0;if(resPaid<=0){_pdfC[t.id]=0;return};if(running>=resPaid){_pdfC[t.id]=0}else if(running+raw>resPaid){_pdfC[t.id]=resPaid-running;running=resPaid}else{_pdfC[t.id]=raw;running+=raw}})
+      })
+      function normTotal(txArr){return txArr.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(_pdfC[t.id]??(+t.amount||0)),0)}
+      const todayTotal=normTotal(todayT), monthTotal=normTotal(monthT), allTotal=normTotal(allT)
+      const reportTotal = isDateFilter ? normTotal(list) : todayTotal
+      const tkn = isDateFilter && hSettingsAll ? +(hSettingsAll[`token_${calDate}`]||0) : +(tokenAmount||0)
+      const closingBalance = reportTotal - tkn
+
+      // Helpers
+      const _getGN = r => { if(r.guest_name)return r.guest_name; const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||''); const g=guests?.find(g=>String(g.id)===gid); return g?g.name:(gid?`ID:${gid}`:'—') }
+      const _getRoom = r => (r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
+
+      // Build EXACT same unified groups as billing ledger
+      const filteredList = list.filter(t => t.type !== 'Balance Carried Forward')
+      const _dueRes = reservations.filter(r => (r.status==='CHECKED_IN'||r.status==='CHECKED_OUT') && _computeBillGlobal(r,rooms,foliosMap,hSettings).due>0)
+      const uGroups = {}
+      filteredList.forEach(t => {
+        const res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guests?.find(g=>g.name===t.guest_name)?.id)) || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
+        const key = res ? res.id : `tx|${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
+        if(!uGroups[key]) uGroups[key]={txs:[],res,guest_name:t.guest_name,room_number:t.room_number,isDue:false}
+        uGroups[key].txs.push(t)
+      })
+      _dueRes.forEach(r => { const key=r.id; if(!uGroups[key]){uGroups[key]={txs:[],res:r,guest_name:_getGN(r),room_number:_getRoom(r),isDue:true}}else{uGroups[key].isDue=true;uGroups[key].res=r} })
+      reservations.filter(r=>r.status==='CHECKED_IN').forEach(r => { const key=r.id; if(!uGroups[key]){uGroups[key]={txs:[],res:r,guest_name:_getGN(r),room_number:_getRoom(r),isDue:false}} })
+
+      const displayList = Object.values(uGroups).sort((a,b)=>{const dA=a.res?.check_in||a.txs[0]?.check_in||'';const dB=b.res?.check_in||b.txs[0]?.check_in||'';return dB.localeCompare(dA)})
+
+      // Build ledger rows with same columns as Billing & Invoices
+      const ledgerRows = displayList.map((grp,i)=>{
+        const invoice=grp.res
+        const comp=invoice?_computeBillGlobal(invoice,rooms,foliosMap,hSettings):null
+        const{total:resTotal,paid:resPaid,due:resDue}=comp||{total:0,paid:0,due:0}
+        const byType={}
+        grp.txs.forEach(t=>{if(t.type==='Balance Carried Forward')return;const tp=t.type||'Payment';if(!byType[tp])byType[tp]=0;byType[tp]+=(_pdfC[t.id]??(+t.amount||0))})
+        const gname=invoice?_getGN(invoice):(grp.guest_name||'—')
+        const rno=invoice?_getRoom(invoice):(grp.room_number||'—')
+        const chkIn=invoice?(invoice.check_in?.slice(0,10)||'—'):(grp.txs[0]?.check_in?.slice(0,10)||'—')
+        const chkOut=invoice?(invoice.check_out?.slice(0,10)||'—'):(grp.txs[0]?.check_out?.slice(0,10)||'—')
+        const tTotal=invoice?resTotal:(grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
+        const tPaid=invoice?resPaid:0
+        const tDue=invoice?resDue:0
+        const bRoom=invoice?rooms.find(rm=>(invoice.room_ids||[]).includes(rm.room_number)):null
+        const bNights=invoice?nightsCount(invoice.check_in,invoice.check_out)||1:1
+        const bBase=bRoom?(+bRoom.price||0)*bNights:tTotal
+        const bDisc=invoice?(Number(invoice.discount)||0):0
+        const pymtStr=Object.keys(byType).length===0?'<span style="color:#999;font-size:8px">—</span>':Object.entries(byType).filter(([,a])=>a>0).map(([tp,amt])=>`<span style="font-size:7px;background:#f0ead6;padding:1px 3px;border-radius:2px">${tp}</span> ৳${amt.toLocaleString()}`).join(', ')
+        return `<tr style="${i%2?'background:#f2f2f2':''}"><td>${gname}</td><td>${rno}</td><td>${chkIn}</td><td>${chkOut}</td><td style="text-align:right">৳${bBase.toLocaleString()}</td><td style="text-align:right;color:${bDisc>0?'#00897B':'#999'}">${bDisc>0?'৳'+bDisc.toLocaleString():'—'}</td><td style="text-align:right;font-weight:700">৳${tTotal.toLocaleString()}</td><td style="text-align:right;color:#2e7d32">৳${tPaid.toLocaleString()}</td><td style="text-align:right;font-weight:700;color:${tDue>0?'#E05C7A':'#2e7d32'}">৳${tDue.toLocaleString()}</td><td style="font-size:8px">${pymtStr}</td></tr>`
+      }).join('')
+
+      // Outstanding dues
+      const totalDueReport = _dueRes.reduce((a,r)=>a+_computeBillGlobal(r,rooms,foliosMap,hSettings).due,0)
+      const dueSection = _dueRes.length>0?`
     <h3 style="margin:20px 0 8px;font-size:13px;color:#E05C7A;border-bottom:1px solid #f0c0ca;padding-bottom:4px">⚠ Outstanding Dues — Carried to Next Day</h3>
     <table><thead><tr style="background:#E05C7A"><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>
-      ${duesForReport.map((d, i) => `<tr style="${i % 2 ? 'background:#fdf6f6' : ''}"><td>${d.gname}</td><td>${d.room}</td><td>${d.check_in?.slice(0, 10) || '—'}</td><td>${d.check_out?.slice(0, 10) || '—'}</td><td>৳${d.total.toLocaleString()}</td><td>৳${d.paid.toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#E05C7A">৳${d.due.toLocaleString()}</td></tr>`).join('')}
-    </tbody></table>` : ''
-      // Build billing summary section — mirrors the Billing & Invoices ledger
-      const billingEntries = reservations
-        .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
-        .map(r => {
-          const room = (r.room_ids || [r.room_number]).filter(Boolean).join(', ') || '—'
-          const gid = String((r.guest_ids || []).filter(Boolean)[0] || '')
-          const g = guests?.find(g => String(g.id) === gid)
-          const gname = g ? g.name : (r.guest_name || '—')
-          const bill = _computeBillGlobal(r, rooms, foliosMap, hSettings)
-          const resRoom = rooms?.find(rm => (r.room_ids || []).includes(rm.room_number))
-          const nights = nightsCount(r.check_in, r.check_out) || 1
-          const baseRate = resRoom ? (+resRoom.price || 0) * nights : bill.total
-          const disc = Number(r.discount) || 0
-          return { gname, room, check_in: r.check_in, check_out: r.check_out, baseRate, disc, total: bill.total, paid: bill.paid, due: bill.due }
-        })
-        .sort((a, b) => (b.check_in || '').localeCompare(a.check_in || ''))
-      const billingSummarySection = billingEntries.length > 0 ? `
-    <h3 style="margin:20px 0 8px;font-size:13px;color:#1a1a2e;border-bottom:2px solid #1a1a2e;padding-bottom:4px">📋 Billing Summary — All Active Reservations</h3>
-    <table><thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th style="text-align:right">Base Rate</th><th style="text-align:right">Discount</th><th style="text-align:right">Bill Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>
-      ${billingEntries.map((e, i) => `<tr style="${i % 2 ? 'background:#f2f2f2' : ''}">
-        <td>${e.gname}</td><td>${e.room}</td><td>${e.check_in?.slice(0,10) || '—'}</td><td>${e.check_out?.slice(0,10) || '—'}</td>
-        <td style="text-align:right">৳${e.baseRate.toLocaleString()}</td>
-        <td style="text-align:right;color:${e.disc > 0 ? '#00897B' : '#999'}">${e.disc > 0 ? '৳' + e.disc.toLocaleString() : '—'}</td>
-        <td style="text-align:right;font-weight:700">৳${e.total.toLocaleString()}</td>
-        <td style="text-align:right;color:#2e7d32">৳${e.paid.toLocaleString()}</td>
-        <td style="text-align:right;font-weight:700;color:${e.due > 0 ? '#E05C7A' : '#2e7d32'}">৳${e.due.toLocaleString()}</td>
-      </tr>`).join('')}
-    </tbody></table>` : ''
-      const closingBalance = reportTotal - tkn
+      ${_dueRes.map((r,i)=>{const b=_computeBillGlobal(r,rooms,foliosMap,hSettings);return `<tr style="${i%2?'background:#fdf6f6':''}"><td>${_getGN(r)}</td><td>${_getRoom(r)}</td><td>${r.check_in?.slice(0,10)||'—'}</td><td>${r.check_out?.slice(0,10)||'—'}</td><td>৳${b.total.toLocaleString()}</td><td>৳${b.paid.toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#E05C7A">৳${b.due.toLocaleString()}</td></tr>`}).join('')}
+    </tbody></table>`:''
+
       const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
-    @page{size:A4 portrait;margin:5.08mm}
+    @page{size:A4 landscape;margin:5.08mm}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
@@ -2282,42 +2253,38 @@ input[type='date']{color:var(--tx);color-scheme:dark}
     .stat-box{background:#f2f2f2;border:1px solid #ccc;padding:6px 8px}
     .stat-box .lbl{font-size:7px;letter-spacing:.1em;color:#555;text-transform:uppercase;margin-bottom:2px}
     .stat-box .val{font-size:13px;font-weight:700;color:#000}
-    .stat-box.hi{background:#eee;border-color:#000}.stat-box.hi .val{color:#000}
-    .stat-box.out .val{color:#000;font-style:italic}
+    .stat-box.hi{background:#eee;border-color:#000}
+    .stat-box.out .val{font-style:italic}
     table{width:100%;border-collapse:collapse;margin-top:6px}
     thead tr{background:#000;color:#fff}
-    thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
-    thead th:last-child{text-align:right}
+    thead th{padding:5px 6px;text-align:left;font-size:7px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
     tbody tr:nth-child(even){background:#f2f2f2}
-    tbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}
-    tbody td:last-child{text-align:right;font-weight:600}
+    tbody td{padding:3px 6px;border-bottom:1px solid #ccc;font-size:9px;color:#000}
     .closing-box{margin-top:16px;border:2px solid #000;padding:12px 16px;background:#f8f8f8}
     .closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#000}
     .closing-row.total{border-top:1px solid #ccc;margin-top:4px;padding-top:6px;font-weight:700}
     .closing-row.due{color:#000;font-style:italic}
-    .closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}
-    .footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between}
-    .total-row{font-size:12px;font-weight:700;color:#000}
-    .footer-note{font-size:8px;color:#555}
+    .closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800}
+    .footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between;font-size:8px;color:#555}
   </style></head><body>
   <div class="header"><div><div class="hotel-name">Hotel Fountain</div><div class="hotel-sub">Billing & Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
   <div class="stats">
-    <div class="stat-box hi"><div class="lbl">${isDateFilter ? filterLabel : 'Today'}</div><div class="val">৳${reportTotal.toLocaleString()}</div></div>
+    <div class="stat-box hi"><div class="lbl">${isDateFilter?filterLabel:'Today'}</div><div class="val">৳${reportTotal.toLocaleString()}</div></div>
     <div class="stat-box"><div class="lbl">This Month</div><div class="val">৳${monthTotal.toLocaleString()}</div></div>
     <div class="stat-box"><div class="lbl">All Time</div><div class="val">৳${allTotal.toLocaleString()}</div></div>
-    <div class="stat-box out"><div class="lbl">Outstanding</div><div class="val">৳${Number(outstanding || 0).toLocaleString()}</div></div>
+    <div class="stat-box out"><div class="lbl">Outstanding</div><div class="val">৳${Number(outstanding||0).toLocaleString()}</div></div>
   </div>
-  <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
-  <tbody>${rows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
-  ${billingSummarySection}
+  <h3 style="font-size:12px;color:#1a1a2e;border-bottom:2px solid #1a1a2e;padding-bottom:4px;margin-bottom:2px">Active Billing Ledger — ${filterLabel}</h3>
+  <table><thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th style="text-align:right">Base Rate</th><th style="text-align:right">Discount</th><th style="text-align:right">Bill Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance Due</th><th>Payments</th></tr></thead>
+  <tbody>${ledgerRows||'<tr><td colspan="10" style="text-align:center;padding:20px;color:#aaa">No billing activity</td></tr>'}</tbody></table>
   ${dueSection}
   <div class="closing-box">
-    <div class="closing-row total"><span>${isDateFilter ? filterLabel + ' Total Collection' : "Today's Total Collection"}</span><span>৳${reportTotal.toLocaleString()}</span></div>
+    <div class="closing-row total"><span>${isDateFilter?filterLabel+' Total Collection':"Today's Total Collection"}</span><span>৳${reportTotal.toLocaleString()}</span></div>
     <div class="closing-row"><span>Token Amount</span><span>− ৳${tkn.toLocaleString()}</span></div>
-    ${totalDueReport > 0 ? `<div class="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDueReport.toLocaleString()}</span></div>` : ''}
+    ${totalDueReport>0?`<div class="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDueReport.toLocaleString()}</span></div>`:''}
     <div class="closing-row final"><span>Closing Balance</span><span>৳${closingBalance.toLocaleString()}</span></div>
   </div>
-  <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${realList.length} transaction${realList.length !== 1 ? 's' : ''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
+  <div class="footer"><span>${displayList.length} records · ${filterLabel}</span><span>Hotel Fountain CRM · Lumea PMS · Confidential</span></div>
   </body></html>`
       printPDF(content)
     }
