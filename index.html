@@ -1291,7 +1291,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
                     const nights = nightsCount(invoice.check_in, invoice.check_out)
                     const invRoom = rooms.find(rm => (invoice.room_ids || []).includes(rm.room_number))
                     const baseRate = invRoom ? (+invRoom.price || 0) * (nights || 1) : (+invoice.total_amount || 0)
-                    const disc = +(invoice.discount_amount || invoice.discount || 0)
+                    const disc = (Number(invoice.discount) || 0)
                     const balance = (+invoice.total_amount || 0) - (+invoice.paid_amount || 0)
                     return (
                       <tr key={invoice.id}>
@@ -1301,7 +1301,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
                         <td className="xs muted">{fmtDate(invoice.check_out)}</td>
                         <td className="xs gold">{nights || '—'}</td>
                         <td className="xs" style={{ color: 'var(--tx2)' }}>{BDT(baseRate)}</td>
-                        <td className="xs" style={{ color: disc > 0 ? 'var(--teal)' : 'var(--tx3)' }}>{disc > 0 ? BDT(disc) : '—'}</td>
+                        <td className="xs" style={{ color: disc > 0 ? 'var(--teal)' : 'var(--tx2)' }}>{disc > 0 ? BDT(disc) : '—'}</td>
                         <td className="xs gold">{BDT(invoice.total_amount)}</td>
                         <td className="xs" style={{ color: +invoice.paid_amount > 0 ? 'var(--grn)' : 'var(--tx2)' }}>{BDT(invoice.paid_amount)}</td>
                         <td className="xs" style={{ color: balance > 0 ? 'var(--rose)' : 'var(--grn)' }}>{BDT(balance)}</td>
@@ -2899,7 +2899,7 @@ ${dueRows}
                         const billingRoom = invoice ? rooms.find(rm => (invoice.room_ids || []).includes(rm.room_number)) : null
                         const billingNights = invoice ? nightsCount(invoice.check_in, invoice.check_out) || 1 : 1
                         const billingBaseRate = billingRoom ? (+billingRoom.price || 0) * billingNights : tTotal
-                        const billingDisc = invoice ? +(invoice.discount_amount || invoice.discount || 0) : 0
+                        const billingDisc = invoice ? (Number(invoice.discount) || 0) : 0
 
                         return (
                           <tr key={invoice ? invoice.id : (grp.guest_name + '|' + grp.room_number)}>
@@ -2908,7 +2908,7 @@ ${dueRows}
                             <td className="xs muted">{chkIn}</td>
                             <td className="xs muted">{chkOut}</td>
                             <td className="xs" style={{ color: 'var(--tx2)' }}>{BDT(billingBaseRate)}</td>
-                            <td className="xs" style={{ color: billingDisc > 0 ? 'var(--teal)' : 'var(--tx3)' }}>{billingDisc > 0 ? BDT(billingDisc) : '—'}</td>
+                            <td className="xs" style={{ color: billingDisc > 0 ? 'var(--teal)' : 'var(--tx2)' }}>{billingDisc > 0 ? BDT(billingDisc) : '—'}</td>
                             <td className="xs gold">{BDT(tTotal)}</td>
                             <td className="xs" style={{ color: 'var(--grn)' }}>{BDT(tPaid)}</td>
                             <td className="xs" style={{ color: tDue > 0 ? 'var(--rose)' : 'var(--grn)', fontWeight: tDue > 0 ? 600 : 400 }}>{BDT(tDue)}</td>
