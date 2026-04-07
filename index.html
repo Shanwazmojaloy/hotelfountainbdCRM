@@ -343,7 +343,7 @@
       owner: { label: 'Founder / Owner', color: '#C8A96E', pages: ['dashboard', 'rooms', 'reservations', 'guests', 'housekeeping', 'billing', 'reports', 'settings'] },
       manager: { label: 'General Manager', color: '#2EC4B6', pages: ['dashboard', 'rooms', 'reservations', 'guests', 'housekeeping', 'billing', 'reports'] },
       receptionist: { label: 'Receptionist', color: '#58A6FF', pages: ['dashboard', 'rooms', 'reservations', 'guests', 'billing'] },
-      housekeeping: { label: 'Housekeeping Staff', color: '#F0A500', pages: ['dashboard', 'housekeeping'] },
+      housekeeping: { label: 'Housekeeping Staff', color: '#F0A500', pages: ['dashboard', 'rooms', 'housekeeping'] },
       accountant: { label: 'Accountant', color: '#3FB950', pages: ['dashboard', 'billing', 'reports'] },
     }
 
@@ -883,7 +883,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
           </div>
           <div className="rooms-grid">
             {filtered.map(room => (
-              <div key={room.id} className={`room-card ${room.status}`} onClick={() => setSelRoom(room)}>
+              <div key={room.id} className={`room-card ${room.status}`} onClick={() => currentUser?.role !== 'housekeeping' && setSelRoom(room)} style={currentUser?.role === 'housekeeping' ? {cursor:'default'} : {}}>
                 {room.status === 'OCCUPIED' && <div style={{ position: 'absolute', top: 5, right: 5, fontSize: 7, background: 'rgba(88,166,255,.25)', color: 'var(--sky)', borderRadius: 3, padding: '1px 5px', border: '1px solid rgba(88,166,255,.3)' }}>FOLIO</div>}
                 <div className="room-no">{room.room_number}</div>
                 <div className="flex fac" style={{ marginBottom: 4 }}><span className={`rdot ${room.status}`} /><span className="room-cat">{room.status.replace('_', ' ')}</span></div>
@@ -2027,10 +2027,15 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const [showAdd, setShowAdd] = useState(false)
       const dirty = rooms.filter(r => r.status === 'DIRTY')
 
+      // ALL = dirty rooms + non-completed tasks; completed tasks only in 'completed' filter
       let list = tasks
       if (filter === 'DIRTY') {
         list = dirty.map(r => ({ id: 'r_' + r.id, room_number: r.room_number, task_type: 'Standard Clean', priority: 'high', status: 'pending', assignee: '—', _dirty: true }))
-      } else if (filter !== 'ALL') {
+      } else if (filter === 'ALL') {
+        const dirtyEntries = dirty.map(r => ({ id: 'r_' + r.id, room_number: r.room_number, task_type: 'Standard Clean', priority: 'high', status: 'pending', assignee: '—', _dirty: true }))
+        const nonCompleted = tasks.filter(t => t.status !== 'completed')
+        list = [...dirtyEntries, ...nonCompleted]
+      } else {
         list = tasks.filter(t => t.status === filter)
       }
 
@@ -2102,7 +2107,8 @@ input[type='date']{color:var(--tx);color-scheme:dark}
     }
 
     function AddTaskModal({ rooms, toast, onClose, reload }) {
-      const [f, setF] = useState({ room_number: rooms[0]?.room_number || '', task_type: 'Standard Clean', priority: 'medium', assignee: '', scheduled_time: '', notes: '' })
+      const dirtyRooms = rooms.filter(r => r.status === 'DIRTY')
+      const [f, setF] = useState({ room_number: dirtyRooms[0]?.room_number || '', task_type: 'Standard Clean', priority: 'medium', assignee: '', scheduled_time: '', notes: '' })
       const F = k => e => setF(p => ({ ...p, [k]: e.target.value }))
       const [saving, setSaving] = useState(false)
       const [payAmt, setPayAmt] = useState('')
@@ -2120,7 +2126,8 @@ input[type='date']{color:var(--tx);color-scheme:dark}
           <div className="frow">
             <div className="fg"><label className="flbl">Room *</label>
               <select className="fselect" value={f.room_number} onChange={F('room_number')}>
-                {rooms.map(r => <option key={r.id} value={r.room_number}>{r.room_number} — {r.status.replace('_', ' ')}</option>)}
+                {dirtyRooms.length === 0 && <option value="">No dirty rooms</option>}
+                {dirtyRooms.map(r => <option key={r.id} value={r.room_number}>{r.room_number} — DIRTY</option>)}
               </select>
             </div>
             <div className="fg"><label className="flbl">Task Type</label>
