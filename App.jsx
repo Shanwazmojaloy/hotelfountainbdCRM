@@ -42,10 +42,11 @@ function computeBill(r, rooms, foliosMap, settings) {
   /* Folio extras (minibar, laundry, etc.) are ALWAYS added on top. */
   const dbTotal = +(r.total_amount || 0)
   const basePrice = dbTotal > 0 ? dbTotal : Math.max(0, roomCharge - discount);
+  const grossRate = dbTotal > 0 ? dbTotal + discount : roomCharge;
   const total = basePrice + extras;
   const paid = +(invoice.paid_amount || 0);
   const due = Math.max(0, total - paid);
-  return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
+  return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct,basePrice,grossRate}
 }
 const AVC = ['#C8A96E','#2EC4B6','#E05C7A','#58A6FF','#3FB950','#9B72CF','#F0A500']
 const avColor = n => AVC[n ? n.charCodeAt(0)%AVC.length : 0]
@@ -1141,7 +1142,7 @@ function AddRoomModal({toast,onClose,reload,rooms}) {
 }
 
 /* ═══════════════════════ RESERVATIONS ═══════════════════════ */
-function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hSettings}) {
+function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hSettings,foliosMap}) {
   const [filter,setFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [selRes,setSelRes]=useState(null)
@@ -1193,23 +1194,19 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hS
             <tbody>
               {res.slice(0,80).map(invoice=>{
                 const gn=getGN(invoice.guest_ids)
-                const nights=nightsCount(invoice.check_in,invoice.check_out)
-                const invRoom=rooms.find(rm=>(invoice.room_ids||[]).includes(rm.room_number))
-                const baseRate=invRoom?(+invRoom.price||0)*(nights||1):(+invoice.total_amount||0)
-                const disc=(Number(invoice.discount)||0)
-                const balance=(+invoice.total_amount||0)-(+invoice.paid_amount||0)
+                const comp = computeBill(invoice, rooms, foliosMap, hSettings)
                 return (
                   <tr key={invoice.id}>
                     <td><div className="flex fac gap2"><Av name={gn} size={24}/><span>{gn}</span></div></td>
                     <td><span className="badge bb">{(invoice.room_ids||[]).join(', ')}</span></td>
                     <td className="xs muted">{fmtDate(invoice.check_in)}</td>
                     <td className="xs muted">{fmtDate(invoice.check_out)}</td>
-                    <td className="xs gold">{nights||'—'}</td>
-                    <td className="xs" style={{color:'var(--tx2)'}}>{BDT(baseRate)}</td>
-                    <td className="xs" style={{color:disc>0?'var(--teal)':'var(--tx2)'}}>{disc>0?BDT(disc):'—'}</td>
-                    <td className="xs gold">{BDT(invoice.total_amount)}</td>
-                    <td className="xs" style={{color:+invoice.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(invoice.paid_amount)}</td>
-                    <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
+                    <td className="xs gold">{comp.nights||'—'}</td>
+                    <td className="xs" style={{color:'var(--tx2)'}}>{BDT(comp.grossRate)}</td>
+                    <td className="xs" style={{color:comp.discount>0?'var(--teal)':'var(--tx2)'}}>{comp.discount>0?BDT(comp.discount):'—'}</td>
+                    <td className="xs gold">{BDT(comp.total)}</td>
+                    <td className="xs" style={{color:+comp.paid>0?'var(--grn)':'var(--tx2)'}}>{BDT(comp.paid)}</td>
+                    <td className="xs" style={{color:comp.due>0?'var(--rose)':'var(--grn)'}}>{BDT(comp.due)}</td>
                     <td><SBadge status={invoice.status}/></td>
                     <td><button className="btn btn-ghost btn-sm" onClick={()=>setSelRes(invoice)}>View</button></td>
                   </tr>
@@ -1222,7 +1219,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hS
 
       {selRes&&(
         <ReservationDetail res={selRes} guests={guests} rooms={rooms} toast={toast}
-          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'} hSettings={hSettings}/>
+          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'} hSettings={hSettings} foliosMap={foliosMap}/>
       )}
       {showNew&&(
         <NewReservationModal guests={guests} rooms={rooms} toast={toast}
@@ -1237,10 +1234,12 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const [roomIds,setRoomIds]=useState((res.room_ids||[]).map(String))
   const [checkIn,setCheckIn]=useState((res.check_in||'').slice(0,10))
   const [checkOut,setCheckOut]=useState((res.check_out||'').slice(0,10))
-  /* grossAmt = reconstructed GROSS (total_amount + discount). total_amount in DB is always NET. */
-  const _initDisc = +(res.discount_amount||res.discount||0)
-  const _initNet = +(res.total_amount||0)
-  const [grossAmt,setGrossAmt]=useState(String(_initNet+_initDisc))
+
+  const comp = computeBill(res, rooms, foliosMap, hSettings)
+  
+  /* grossAmt = reconstructed GROSS. Set to comp.grossRate. */
+  const _initDisc=comp.discount
+  const [grossAmt,setGrossAmt]=useState(String(comp.grossRate))
   const [discountAmt,setDiscountAmt]=useState(String(_initDisc))
   const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
   const [method,setMethod]=useState(res.payment_method||'Cash')
@@ -1251,16 +1250,17 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const [paySaving,setPaySaving]=useState(false)
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
-  const resRoom=rooms.find(rm=>(res.room_ids||[]).includes(rm.room_number))
-  const baseRoomRate=resRoom?(+resRoom.price||0):0
   const nights=nightsCount(checkIn,checkOut)
   const grossNum=Math.max(0,+grossAmt||0)
   const discountNum=Math.max(0,+discountAmt||0)
+  
   /* total_amount in DB = NET (gross − discount). Always subtract discount. */
-  const totalAmt=Math.max(0,grossNum-discountNum)
+  const baseNetAmt=Math.max(0,grossNum-discountNum)
+  // Display Invoice Total INCLUDES folio extras
+  const displayTotalAmt = baseNetAmt + comp.extras
   const paidNum=Math.max(0,+paidAmt||0)
-  const safePaid=Math.min(totalAmt,paidNum)
-  const balance=Math.max(0,totalAmt-safePaid)
+  const safePaid=Math.min(displayTotalAmt,paidNum)
+  const balance=Math.max(0,displayTotalAmt-safePaid)
   const paymentStatus=balance<=0?'Paid':safePaid>0?'Partial':'Unpaid'
 
   function toggleRoom(roomNumber){
@@ -1312,7 +1312,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
         room_ids:roomIds,
         check_in:checkIn,
         check_out:checkOut,
-        total_amount:totalAmt,
+        total_amount:baseNetAmt,
         discount:discountNum,
         paid_amount:safePaid,
         payment_method:method,
@@ -1448,7 +1448,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
           <label className="flbl">Amount Paid (BDT)</label>
           <input type="number" className="finput" value={paidAmt} onChange={e=>setPaidAmt(e.target.value)} min="0"/>
           <div className="xs mt3" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>
-            Total: {BDT(totalAmt)} · Paid: {BDT(safePaid)} · Balance due: {BDT(balance)}
+            Total: {BDT(displayTotalAmt)} {comp.extras>0?`(incl. ${BDT(comp.extras)} extras)`:''} · Paid: {BDT(safePaid)} · Balance due: {BDT(balance)}
           </div>
         </div>
       </div>
@@ -2391,7 +2391,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
 
     const txRows=normTodayList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
     const dueRows=duesCarried.length>0?`
-      <h3 style="margin:20px 0 8px;font-size:13px;color:#E05C7A;border-bottom:1px solid #f0c0ca;padding-bottom:4px">⚠ Outstanding Dues — Carried to Next Day</h3>
+      <h3 style="page-break-before:always;margin:20px 0 8px;font-size:13px;color:#E05C7A;border-bottom:1px solid #f0c0ca;padding-bottom:4px">⚠ Outstanding Dues — Carried to Next Day</h3>
       <table><thead><tr style="background:#E05C7A"><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>
         ${duesCarried.map((d,i)=>`<tr style="${i%2?'background:#fdf6f6':''}"><td>${d.gname}</td><td>${d.room}</td><td>${d.check_in?.slice(0,10)||'—'}</td><td>${d.check_out?.slice(0,10)||'—'}</td><td>৳${d.total.toLocaleString()}</td><td>৳${d.paid.toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#E05C7A">৳${d.due.toLocaleString()}</td></tr>`).join('')}
       </tbody></table>`
@@ -2409,6 +2409,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;backgroun
 table{width:100%;border-collapse:collapse;margin-top:6px}
 thead tr{background:#000;color:#fff}
 thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+thead {display:table-row-group}
 thead th:last-child{text-align:right}
 tbody tr:nth-child(even){background:#f2f2f2}
 tbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}
