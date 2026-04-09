@@ -1250,6 +1250,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const [paySaving,setPaySaving]=useState(false)
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
+  const baseRoomRate = comp.roomRate
   const nights=nightsCount(checkIn,checkOut)
   const grossNum=Math.max(0,+grossAmt||0)
   const discountNum=Math.max(0,+discountAmt||0)
