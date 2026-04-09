@@ -1380,7 +1380,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
           ['Guest',gn],['Rooms',roomIds.join(', ')||'—'],
           ['Check-In',fmtDate(checkIn)],['Check-Out',fmtDate(checkOut)],
           ['Nights',nights||'—'],['Base Room Rate',`${BDT(baseRoomRate)}/night`],
-          ['Discount',discountNum>0?BDT(discountNum):'—'],['Total (Invoice)',BDT(totalAmt)],
+          ['Discount',discountNum>0?BDT(discountNum):'—'],['Total (Invoice)',BDT(displayTotalAmt)],
           ['Paid',BDT(safePaid)],['Balance Due',BDT(balance)],
           ['Payment Status',paymentStatus],['On-Duty Officer',res.on_duty_officer||'—'],
         ].map(([l,v])=>(
