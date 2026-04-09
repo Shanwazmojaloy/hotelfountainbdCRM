@@ -105,7 +105,7 @@
       const roomCharge = roomRate * nights
       const fKey = r.id || r.room_number
       const folios = (foliosMap?.[fKey] || foliosMap?.[r.room_number] || []).filter(f => f.category !== "Receivable")
-      const extras = folios.reduce((a, f) => a + (+f.amount || 0), 0)
+      const extras = folios.filter(f => f.category !== 'Payment').reduce((a, f) => a + (+f.amount || 0), 0)
       const sub = roomCharge + extras
       const vatPct = 0;
       const svcPct = 0;

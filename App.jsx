@@ -25,7 +25,7 @@ function computeBill(r, rooms, foliosMap, settings) {
   const roomCharge=roomRate*nights
   const fKey=r.id||r.room_number
   const folios=(foliosMap[fKey]||foliosMap[r.room_number]||[]).filter(f=>f.category!=="Receivable")
-  const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
+  const extras=folios.filter(f=>f.category!=='Payment').reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
   // Use rates from hotel settings (loaded from Supabase), fallback 0
   const vatPct=0;
@@ -840,15 +840,25 @@ function RoomModal({room,guests,reservations,canEdit,isSA,toast,onClose,reload,h
       .catch(()=>setFLoad(false))
   },[room.room_number])
 
-  const roomRate=+room.price||0
-  const nights=activeRes?nightsCount(activeRes.check_in,activeRes.check_out):0
-  const roomCharge=roomRate*nights
+  const _localFoliosMap = {}
+  if(folios.length>0){
+    const fKey=activeRes?.id||room.room_number
+    _localFoliosMap[fKey]=folios
+    _localFoliosMap[room.room_number]=folios
+  }
+  const _bill=activeRes
+    ? computeBill(activeRes,[room],_localFoliosMap,{})
+    : {roomCharge:0,extras:0,sub:0,tax:0,svc:0,discount:0,total:0,paid:0,due:0,folios:[],nights:0,roomRate:+room.price||0,vatPct:0,svcPct:0}
+  
+  const roomRate=_bill.roomRate
+  const nights=_bill.nights
+  const roomCharge=_bill.roomCharge
   const billFolios=folios.filter(f=>f.category!=="Receivable")
-  const extras=billFolios.reduce((a,f)=>a+(+f.amount||0),0)
-  const sub=roomCharge+extras
+  const extras=_bill.extras
+  const sub=_bill.sub
   const tax=0
   const svc=0
-  const total=sub+tax+svc
+  const total=_bill.total
 
   async function saveStatus() {
     setSaving(true)
