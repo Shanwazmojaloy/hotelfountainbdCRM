@@ -2264,27 +2264,9 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   }
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
+  /* ── Billing delegates to global computeBill — single source of truth ── */
   function computeBill(r) {
-    const room=rooms?.find(rm=>(r.room_ids||[r.room_number]).includes(rm.room_number))
-    const roomRate=+room?.price||+r.rate_per_night||0
-    const nights=nightsCount(r.check_in,r.check_out)||1
-    const roomCharge=roomRate*nights
-    const fKey=r.id||r.room_number
-    const folios=(foliosMap[fKey]||foliosMap[r.room_number]||[]).filter(f=>f.category!=="Receivable")
-    const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
-    const sub=roomCharge+extras
-    // Use rates from hotel settings (loaded from Supabase), fallback 0
-    const vatPct=0 // Removed as requested
-    const svcPct=0 // Removed as requested
-    const tax=0
-    const svc=0
-    const discount=0 // Zero-discount policy enforced
-    // Single Source of Truth: Gross Bill Total = Room Charge + Add Charges (no discount)
-    const invoice = r;
-    const total = Math.max(0, sub);
-    const paid = +(invoice.paid_amount || 0);
-    const due = Math.max(0, total - paid);
-    return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
+    return _computeBillGlobal(r, rooms, foliosMap, hSettings)
   }
   // Build corrected transaction amounts using chronological capping.
   // For each reservation, walk ALL transactions in order. Keep amounts as-is until
