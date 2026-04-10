@@ -19,14 +19,16 @@ const nightsCount = (ci,co) => { if(!ci||!co) return 0; return Math.max(0, Math.
 
 function computeBill(r, rooms, foliosMap, settings) {
   const rids=r.room_ids||[r.room_number]
-  const room=rooms?.find(rm=>rids.some(rid=>String(rid)===String(rm.room_number)))
-  const roomRate=+room?.price||+r.rate_per_night||0
-  const nights=nightsCount(r.check_in,r.check_out)||1
-  const roomCharge=roomRate*nights
+  const selectedRooms = rooms?.filter(rm => rids.some(rid => String(rid) === String(rm.room_number))) || []
+  const computedRoomRate = selectedRooms.reduce((sum, rm) => sum + (+rm.price || 0), 0) || +r.rate_per_night || 0
+  
+  const nights = nightsCount(r.check_in, r.check_out) || 1
+  let roomCharge = computedRoomRate * nights
+  
   const fKey=r.id||r.room_number
   const folios=(foliosMap[fKey]||foliosMap[r.room_number]||[]).filter(f=>f.category!=="Receivable")
   const extras=folios.filter(f=>f.category!=='Payment').reduce((a,f)=>a+(+f.amount||0),0)
-  const sub=roomCharge+extras
+  
   // Use rates from hotel settings (loaded from Supabase), fallback 0
   const vatPct=0;
   const svcPct=0;
@@ -43,6 +45,12 @@ function computeBill(r, rooms, foliosMap, settings) {
   const dbTotal = +(r.total_amount || 0)
   const basePrice = dbTotal > 0 ? dbTotal : Math.max(0, roomCharge - discount);
   const grossRate = dbTotal > 0 ? dbTotal + discount : roomCharge;
+  
+  // Override roomCharge to match the custom basePrice if dbTotal is set
+  if (dbTotal > 0) roomCharge = grossRate;
+  const roomRate = nights > 0 ? roomCharge / nights : roomCharge;
+  const sub = roomCharge + extras;
+  
   const total = basePrice + extras;
   const paid = +(invoice.paid_amount || 0);
   const due = Math.max(0, total - paid);
@@ -2496,13 +2504,16 @@ ${dueRows}
     const guestName = grp.guest_name || 'Guest';
     
     let tableRows = '';
-    let sub = 0; let tax = 0; let svc = 0; let discount = 0; let roomCharge = 0; let extras = 0;
+    let sub = 0; let tax = 0; let svc = 0; let discount = 0; let roomCharge = 0; let extras = 0; let basePrice = 0;
     if (comp) {
-      sub = comp.sub; tax = comp.tax; svc = comp.svc; discount = comp.discount; roomCharge=comp.roomCharge; extras=comp.extras;
+      sub = comp.sub; tax = comp.tax; svc = comp.svc; discount = comp.discount; roomCharge=comp.roomCharge; extras=comp.extras; basePrice=comp.basePrice;
       let counter = 1;
       // Room Charge line
       if (roomCharge > 0) {
-        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room Charge (${comp.nights} Night${comp.nights!==1?'s':''})</td><td>৳${Number(comp.roomRate||0).toLocaleString('en-BD')}</td><td>${comp.nights||1}</td><td>৳${Number(roomCharge).toLocaleString('en-BD')}</td></tr>`;
+        const discountedCharge = Math.max(0, roomCharge - discount);
+        const discountedRate = comp.nights > 0 ? discountedCharge / comp.nights : discountedCharge;
+        const discountMsg = discount > 0 ? `<br/><span style="font-size:10px;color:#777">Original: ৳${Number(comp.roomRate||0).toLocaleString('en-BD')}/night | Discount Applied: ৳${Number(discount).toLocaleString('en-BD')}</span>` : '';
+        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room Charge (${comp.nights} Night${comp.nights!==1?'s':''})${discountMsg}</td><td>৳${Number(discountedRate).toLocaleString('en-BD')}</td><td>${comp.nights||1}</td><td>৳${Number(discountedCharge).toLocaleString('en-BD')}</td></tr>`;
       }
       // Itemized individual folio charges instead of lump sum
       if (comp.folios && comp.folios.length > 0) {
@@ -2516,10 +2527,9 @@ ${dueRows}
         // Fallback: show lump sum if no individual folios available
         tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Additional Charges</td><td>—</td><td>—</td><td>৳${Number(extras).toLocaleString('en-BD')}</td></tr>`;
       }
-      // Discount line
-      if (discount > 0) {
-        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Discount Applied</td><td>—</td><td>—</td><td style="color:#e74c3c">-৳${Number(discount).toLocaleString('en-BD')}</td></tr>`;
-      }
+      
+      // Calculate Sub Total as matched up with table contents
+      sub = basePrice + extras;
     } else {
        tableRows += `<tr class="item-row"><td class="sl">1</td><td>General Billing</td><td>—</td><td>—</td><td>৳${Number(resTotal).toLocaleString('en-BD')}</td></tr>`;
     }
@@ -2645,7 +2655,6 @@ ${dueRows}
       </div>
       <div class="right-col">
         <div class="sum-row"><span>Sub Total:</span> <span>৳${Number(sub || resTotal).toLocaleString('en-BD')}</span></div>
-        ${discount > 0 ? `<div class="sum-row" style="color:#e74c3c"><span>Discount:</span> <span>-৳${Number(discount).toLocaleString('en-BD')}</span></div>` : ''}
         <div class="total-box">
           <span>Total:</span>
           <span>৳${Number(resTotal).toLocaleString('en-BD')}</span>
@@ -2826,7 +2835,7 @@ ${dueRows}
                     const tDue = invoice ? resDue : 0
                     const billingRoom = invoice ? rooms.find(rm=>(invoice.room_ids||[]).includes(rm.room_number)) : null
                     const billingNights = invoice ? nightsCount(invoice.check_in,invoice.check_out)||1 : 1
-                    const billingBaseRate = billingRoom ? (+billingRoom.price||0)*billingNights : tTotal
+                    const billingBaseRate = invoice ? comp.basePrice : tTotal
                     const billingDisc = invoice ? (Number(invoice.discount)||0) : 0
 
                     return (

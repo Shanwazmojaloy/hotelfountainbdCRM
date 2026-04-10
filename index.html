@@ -99,14 +99,16 @@
 
     function computeBill(r, rooms, foliosMap, settings) {
       const rids = r.room_ids || [r.room_number]
-      const room = rooms?.find(rm => rids.some(rid => String(rid) === String(rm.room_number)))
-      const roomRate = +room?.price || +r.rate_per_night || 0
+      const selectedRooms = rooms?.filter(rm => rids.some(rid => String(rid) === String(rm.room_number))) || []
+      const computedRoomRate = selectedRooms.reduce((sum, rm) => sum + (+rm.price || 0), 0) || +r.rate_per_night || 0
+      
       const nights = nightsCount(r.check_in, r.check_out) || 1
-      const roomCharge = roomRate * nights
+      let roomCharge = computedRoomRate * nights
+      
       const fKey = r.id || r.room_number
       const folios = (foliosMap?.[fKey] || foliosMap?.[r.room_number] || []).filter(f => f.category !== "Receivable")
       const extras = folios.filter(f => f.category !== 'Payment').reduce((a, f) => a + (+f.amount || 0), 0)
-      const sub = roomCharge + extras
+      
       const vatPct = 0;
       const svcPct = 0;
       const tax = 0;
@@ -119,6 +121,11 @@
       const dbTotal = +(r.total_amount || 0)
       const basePrice = dbTotal > 0 ? dbTotal : Math.max(0, roomCharge - discount)
       const grossRate = dbTotal > 0 ? dbTotal + discount : roomCharge
+      
+      if (dbTotal > 0) roomCharge = grossRate;
+      const roomRate = nights > 0 ? roomCharge / nights : roomCharge;
+      const sub = roomCharge + extras;
+      
       const total = basePrice + extras
       const paid = +(r.paid_amount || 0);
       const due = Math.max(0, total - paid);
