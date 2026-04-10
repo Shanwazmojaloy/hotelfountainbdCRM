@@ -1455,10 +1455,10 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
       <div className="frow">
         <div className="fg">
           <label className="flbl">Gross Total (BDT)</label>
-          <input type="number" className="finput" value={grossAmt} onChange={e=>setGrossAmt(e.target.value)} min="0"/>
+          <input type="number" className="finput" value={grossAmt} onChange={e=>setGrossAmt(e.target.value)} placeholder={String(autoGross||0)} min="0"/>
         </div>
         <div className="fg">
-          <label className="flbl">Discount (BDT)</label>
+          <label className="flbl">Total Discount (BDT)</label>
           <input type="number" className="finput" value={discountAmt} onChange={e=>setDiscountAmt(e.target.value)} min="0"/>
         </div>
       </div>
@@ -1564,16 +1564,19 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
 
   const selectedRoom=rooms.find(r=>r.room_number===f.roomNo)
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
-  const autoTotal=selectedRoom&&autoNights?(+selectedRoom.price*autoNights):0
-  const grossTotal=Math.max(0,+f.total||autoTotal)
-  const discountAmt=Math.max(0,+f.discount||0)
-  const finalInvoice=Math.max(0,grossTotal-discountAmt)
+  const baseRate=selectedRoom?(+selectedRoom.price):0
+  const discountPerNight=Math.max(0,+f.discount||0)
+  const autoGrossTotal=baseRate&&autoNights?Math.max(0,(baseRate-discountPerNight)*autoNights):0
+  const grossTotal=f.total!==''?Math.max(0,+f.total):autoGrossTotal
+  
+  const totalDbDiscount=discountPerNight*autoNights
+  const finalInvoice=grossTotal
   const collectedAmt=Math.min(finalInvoice,Math.max(0,+f.collectAmount||0))
   const dueAmt=Math.max(0,finalInvoice-collectedAmt)
 
   useEffect(()=>{
-    if(autoTotal>0) setF(p=>({...p,total:String(autoTotal)}))
-  },[f.roomNo,f.checkIn,f.checkOut])
+    if(autoGrossTotal>0 || discountPerNight>0) setF(p=>({...p,total:String(autoGrossTotal)}))
+  },[f.roomNo,f.checkIn,f.checkOut,f.discount])
 
   async function save() {
     if(!f.guestId) return toast('Select a guest','error')
@@ -1588,7 +1591,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
         guest_ids:[f.guestId], room_ids:[f.roomNo],
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
-        total_amount:totalAmt, paid_amount:collectedAmt, discount:discountAmt,
+        total_amount:totalAmt, paid_amount:collectedAmt, discount:totalDbDiscount,
         payment_method:f.method, special_requests:f.notes||null,
         on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT
       })
@@ -1644,8 +1647,8 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
         </div>
       )}
       <div className="frow">
-        <div className="fg"><label className="flbl">Gross Total (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoTotal||0)}/></div>
-        <div className="fg"><label className="flbl">Discount (BDT)</label><input type="number" className="finput" value={f.discount} onChange={F('discount')} min="0"/></div>
+        <div className="fg"><label className="flbl">Gross Total (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoGrossTotal||0)}/></div>
+        <div className="fg"><label className="flbl">Discount / Night (BDT)</label><input type="number" className="finput" value={f.discount} onChange={F('discount')} min="0"/></div>
       </div>
       <div className="frow">
         <div className="fg"><label className="flbl">Collect Amount / Deposit (BDT)</label><input type="number" className="finput" value={f.collectAmount} onChange={F('collectAmount')} placeholder="0"/></div>
