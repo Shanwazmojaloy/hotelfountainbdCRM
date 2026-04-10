@@ -1256,10 +1256,15 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const comp = computeBill(res, rooms, foliosMap, hSettings)
   
   const _discs = {}
+  const _rates = {}
   if(res.room_details) {
-    Object.keys(res.room_details).forEach(k => _discs[k] = res.room_details[k].discount_applied || 0)
+    Object.keys(res.room_details).forEach(k => {
+      _discs[k] = res.room_details[k].discount_applied || 0
+      _rates[k] = res.room_details[k].base_rate || ''
+    })
   }
   const [roomDiscounts, setRoomDiscounts] = useState(_discs)
+  const [roomRates, setRoomRates] = useState(_rates)
 
   const [grossAmt,setGrossAmt]=useState('')
   const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
@@ -1280,7 +1285,8 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
 
   roomIds.forEach(rn => {
     const room = rooms.find(r=>String(r.room_number)===String(rn))
-    const rate = room ? (+room.price || 0) : 0
+    const userRate = roomRates[rn]
+    const rate = userRate !== undefined && userRate !== '' ? (+userRate || 0) : (room ? (+room.price || 0) : 0)
     const disc = (+roomDiscounts[rn] || 0)
     const net = rate - disc
     baseRoomRate += rate
@@ -1303,7 +1309,12 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const paymentStatus=balance<=0?'Paid':safePaid>0?'Partial':'Unpaid'
 
   function toggleRoom(roomNumber){
-    setRoomIds(prev=>prev.includes(roomNumber)?prev.filter(r=>r!==roomNumber):[...prev,roomNumber])
+    setRoomIds(prev=>{
+      if (prev.includes(roomNumber)) return prev.filter(r=>r!==roomNumber)
+      const room = rooms.find(r=>String(r.room_number)===String(roomNumber))
+      setRoomRates(p=>({...p,[roomNumber]:room?room.price:''}))
+      return [...prev,roomNumber]
+    })
   }
 
   async function quickAddCharge(roomNumber) {
@@ -1516,12 +1527,6 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
                       </div>
                     </label>
                     <div style={{display:'flex', gap:10, alignItems:'center'}}>
-                      {selected && (
-                        <div onClick={e=>e.preventDefault()} style={{display:'flex',alignItems:'center',gap:6}}>
-                          <span className="xs muted">Disc/n:</span>
-                          <input type="number" min="0" value={roomDiscounts[r.room_number]||''} onChange={e=>setRoomDiscounts(p=>({...p,[r.room_number]:e.target.value}))} style={{width:60,padding:'2px 6px',background:'var(--bg)',border:'1px solid var(--br)',color:'var(--gold)',borderRadius:4}} placeholder="0" />
-                        </div>
-                      )}
                       {selected && (res.status === 'CHECKED_IN' || res.status === 'CHECKED_OUT') && (
                         <div className="flex gap1" style={{alignItems:'center'}}>
                           <button className="btn btn-ghost btn-sm" onClick={(e)=>{e.preventDefault(); e.stopPropagation(); processPartialCheckout(String(r.room_number))}} style={{fontSize:11,padding:'4px 8px'}} title="Check-out this room only">Check-Out</button>
@@ -1542,6 +1547,52 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
         <div className="fg"><label className="flbl">Check-In Date</label><input type="date" className="finput" value={checkIn} onChange={e=>setCheckIn(e.target.value)}/></div>
         <div className="fg"><label className="flbl">Check-Out Date</label><input type="date" className="finput" value={checkOut} onChange={e=>setCheckOut(e.target.value)}/></div>
       </div>
+      
+      {roomIds.length > 0 && (
+        <div className="fg mb4" style={{border:'1px solid var(--br)', borderRadius:8, background:'var(--bg)'}}>
+          <div style={{padding:'10px 15px', borderBottom:'1px solid var(--br)', background:'rgba(255,255,255,.02)', fontWeight:600, fontSize:13}}>Room Details & Pricing</div>
+          <table style={{width:'100%', borderCollapse:'collapse', fontSize:12, textAlign:'left'}}>
+            <thead>
+              <tr style={{color:'var(--tx2)'}}>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)'}}>Room</th>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)', width:110}}>Daily Rate (৳)</th>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)', width:110}}>Discount (৳)</th>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)', width:80}}>Nights</th>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)', textAlign:'right'}}>Sub-total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roomIds.map(rn => {
+                const room = rooms.find(r=>String(r.room_number)===String(rn))
+                const defRate = room ? (+room.price||0) : 0
+                const userRate = roomRates[rn]
+                const rate = userRate !== undefined && userRate !== '' ? (+userRate || 0) : defRate
+                const disc = (+roomDiscounts[rn] || 0)
+                const subTotal = Math.max(0, rate - disc) * nights
+                return (
+                  <tr key={rn}>
+                    <td style={{padding:'8px 12px', borderBottom:'1px solid var(--br2)'}}>{rn} — {room?.category || 'Unknown'}</td>
+                    <td style={{padding:'4px 12px', borderBottom:'1px solid var(--br2)'}}>
+                      <input type="number" min="0" value={userRate !== undefined ? userRate : defRate} onChange={e=>setRoomRates(p=>({...p,[rn]:e.target.value}))} style={{width:'100%',padding:'4px 6px',background:'var(--bg)',border:'1px solid var(--br)',color:'var(--tx)',borderRadius:4}} />
+                    </td>
+                    <td style={{padding:'4px 12px', borderBottom:'1px solid var(--br2)'}}>
+                      <input type="number" min="0" value={roomDiscounts[rn]||''} placeholder="0" onChange={e=>setRoomDiscounts(p=>({...p,[rn]:e.target.value}))} style={{width:'100%',padding:'4px 6px',background:'var(--bg)',border:'1px solid var(--br)',color:'var(--gold)',borderRadius:4}} />
+                    </td>
+                    <td style={{padding:'8px 12px', borderBottom:'1px solid var(--br2)'}}>{nights}</td>
+                    <td style={{padding:'8px 12px', borderBottom:'1px solid var(--br2)', textAlign:'right', fontWeight:600}}>{BDT(subTotal)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan="4" style={{padding:'8px 12px', textAlign:'right', fontWeight:500}}>Gross Total</td>
+                <td style={{padding:'8px 12px', textAlign:'right', fontWeight:700, color:'var(--gold)', fontSize:14}}>{BDT(autoGross)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
       <div className="frow">
         <div className="fg">
           <label className="flbl">Status</label>
@@ -1651,7 +1702,7 @@ function GuestSearchInput({guests, value, onChange}) {
 
 function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
   const [f,setF]=useState({
-    guestId:'', roomIds:[], roomDiscounts:{},
+    guestId:'', roomIds:[], roomDiscounts:{}, roomRates:{},
     checkIn:todayStr(), checkOut:'',
     total:'', collectAmount:'0', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
   })
@@ -1674,7 +1725,18 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
   },[f.stayType,rooms])
 
   function toggleRoom(roomNumber) {
-    setF(p=>({...p,roomIds:p.roomIds.includes(roomNumber)?p.roomIds.filter(id=>id!==roomNumber):[...p.roomIds,roomNumber]}))
+    setF(p=>{
+      if(p.roomIds.includes(roomNumber)){
+        return {...p,roomIds:p.roomIds.filter(id=>id!==roomNumber)}
+      } else {
+        const room = rooms.find(r=>String(r.room_number)===String(roomNumber))
+        return {
+          ...p,
+          roomIds:[...p.roomIds,roomNumber],
+          roomRates:{...p.roomRates,[roomNumber]:room?room.price:''}
+        }
+      }
+    })
   }
 
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
@@ -1686,7 +1748,8 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
 
   f.roomIds.forEach(rn => {
     const room = rooms.find(r=>String(r.room_number)===String(rn))
-    const rate = room ? (+room.price || 0) : 0
+    const userRate = f.roomRates[rn]
+    const rate = userRate !== undefined && userRate !== '' ? (+userRate || 0) : (room ? (+room.price || 0) : 0)
     const disc = (+f.roomDiscounts[rn] || 0)
     const net = rate - disc
     baseRate += rate
@@ -1782,12 +1845,6 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
                         <div className="info-val">{r.room_number} — {r.category}</div>
                         <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
                       </div>
-                      {selected && (
-                        <div onClick={e=>e.preventDefault()} style={{display:'flex',alignItems:'center',gap:6}}>
-                          <span className="xs muted">Disc/n:</span>
-                          <input type="number" min="0" value={f.roomDiscounts[r.room_number]||''} onChange={e=>setF(p=>({...p,roomDiscounts:{...p.roomDiscounts,[r.room_number]:e.target.value}}))} style={{width:60,padding:'2px 6px',background:'var(--bg)',border:'1px solid var(--br)',color:'var(--gold)',borderRadius:4}} placeholder="0" />
-                        </div>
-                      )}
                     </div>
                   </label>
                 )
@@ -1800,13 +1857,54 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
         <div className="fg"><label className="flbl">Check-In Date *</label><input type="date" className="finput" value={f.checkIn} onChange={F('checkIn')}/></div>
         <div className="fg"><label className="flbl">Check-Out Date *</label><input type="date" className="finput" value={f.checkOut} onChange={F('checkOut')}/></div>
       </div>
-      {autoNights>0&&(
-        <div style={{background:'rgba(200,169,110,.07)',border:'1px solid rgba(200,169,110,.18)',padding:'9px 12px',marginBottom:10,fontSize:12,color:'var(--tx)'}}>
-          {autoNights} night{autoNights!==1?'s':''} × {BDT(baseRate)} = <strong style={{color:'var(--gold)'}}>{BDT(baseRate*autoNights)}</strong> {totalDbDiscount>0 && <span style={{color:'var(--teal)',marginLeft:8}}>( -{BDT(totalDbDiscount/autoNights)}/n discount applied )</span>}
+      
+      {f.roomIds.length > 0 && (
+        <div className="fg mb4" style={{border:'1px solid var(--br)', borderRadius:8, background:'var(--bg)'}}>
+          <div style={{padding:'10px 15px', borderBottom:'1px solid var(--br)', background:'rgba(255,255,255,.02)', fontWeight:600, fontSize:13}}>Room Details & Pricing</div>
+          <table style={{width:'100%', borderCollapse:'collapse', fontSize:12, textAlign:'left'}}>
+            <thead>
+              <tr style={{color:'var(--tx2)'}}>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)'}}>Room</th>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)', width:110}}>Daily Rate (৳)</th>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)', width:110}}>Discount (৳)</th>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)', width:80}}>Nights</th>
+                <th style={{padding:'8px 12px', fontWeight:500, borderBottom:'1px solid var(--br)', textAlign:'right'}}>Sub-total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {f.roomIds.map(rn => {
+                const room = rooms.find(r=>String(r.room_number)===String(rn))
+                const defRate = room ? (+room.price||0) : 0
+                const userRate = f.roomRates[rn]
+                const rate = userRate !== undefined && userRate !== '' ? (+userRate || 0) : defRate
+                const disc = (+f.roomDiscounts[rn] || 0)
+                const subTotal = Math.max(0, rate - disc) * autoNights
+                return (
+                  <tr key={rn}>
+                    <td style={{padding:'8px 12px', borderBottom:'1px solid var(--br2)'}}>{rn} — {room?.category}</td>
+                    <td style={{padding:'4px 12px', borderBottom:'1px solid var(--br2)'}}>
+                      <input type="number" min="0" value={userRate !== undefined ? userRate : defRate} onChange={e=>setF(p=>({...p,roomRates:{...p.roomRates,[rn]:e.target.value}}))} style={{width:'100%',padding:'4px 6px',background:'var(--bg)',border:'1px solid var(--br)',color:'var(--tx)',borderRadius:4}} />
+                    </td>
+                    <td style={{padding:'4px 12px', borderBottom:'1px solid var(--br2)'}}>
+                      <input type="number" min="0" value={f.roomDiscounts[rn]||''} placeholder="0" onChange={e=>setF(p=>({...p,roomDiscounts:{...p.roomDiscounts,[rn]:e.target.value}}))} style={{width:'100%',padding:'4px 6px',background:'var(--bg)',border:'1px solid var(--br)',color:'var(--gold)',borderRadius:4}} />
+                    </td>
+                    <td style={{padding:'8px 12px', borderBottom:'1px solid var(--br2)'}}>{autoNights}</td>
+                    <td style={{padding:'8px 12px', borderBottom:'1px solid var(--br2)', textAlign:'right', fontWeight:600}}>{BDT(subTotal)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan="4" style={{padding:'8px 12px', textAlign:'right', fontWeight:500}}>Gross Total</td>
+                <td style={{padding:'8px 12px', textAlign:'right', fontWeight:700, color:'var(--gold)', fontSize:14}}>{BDT(autoGrossTotal)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       )}
+
       <div className="frow">
-        <div className="fg"><label className="flbl">Gross Total (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoGrossTotal||0)}/></div>
         <div className="fg"><label className="flbl">Collect Amount / Deposit (BDT)</label><input type="number" className="finput" value={f.collectAmount} onChange={F('collectAmount')} placeholder="0"/></div>
       </div>
       <div className="frow">
