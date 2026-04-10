@@ -1565,6 +1565,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
   const selectedRoom=rooms.find(r=>r.room_number===f.roomNo)
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
   const baseRate=selectedRoom?(+selectedRoom.price):0
+  const autoTotal = baseRate*autoNights
   const discountPerNight=Math.max(0,+f.discount||0)
   const autoGrossTotal=baseRate&&autoNights?Math.max(0,(baseRate-discountPerNight)*autoNights):0
   const grossTotal=f.total!==''?Math.max(0,+f.total):autoGrossTotal
