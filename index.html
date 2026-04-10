@@ -1367,6 +1367,88 @@ input[type='date']{color:var(--tx);color-scheme:dark}
         setRoomIds(prev => prev.includes(roomNumber) ? prev.filter(r => r !== roomNumber) : [...prev, roomNumber])
       }
 
+      const [lastConfig, setLastConfig] = useState(`${(res.room_ids||[]).join(',')}|${(res.check_in||'').slice(0,10)}|${(res.check_out||'').slice(0,10)}`)
+
+      useEffect(() => {
+        const currentConfig = `${roomIds.join(',')}|${checkIn}|${checkOut}`
+        if (currentConfig !== lastConfig) {
+          const newNights = checkIn && checkOut ? nightsCount(checkIn, checkOut) : 0
+          const newBaseRoomRate = rooms.filter(r=>roomIds.includes(String(r.room_number))).reduce((a,r)=>a+(+r.price||0),0)
+          const newAutoGross = newNights > 0 ? Math.max(0, newBaseRoomRate * newNights) : 0
+          if (newAutoGross > 0) {
+            setGrossAmt(String(newAutoGross))
+          }
+          setLastConfig(currentConfig)
+        }
+      }, [roomIds, checkIn, checkOut])
+
+      async function quickAddCharge(roomNumber) {
+        const amt = prompt(`Enter Charge Amount (BDT) for Room ${roomNumber}:`)
+        if(!amt || isNaN(amt) || +amt<=0) return
+        const desc = prompt(`Enter Charge Description (e.g. Minibar, Laundry):`, "Room Service")
+        if(!desc) return
+        
+        setSaving(true)
+        try {
+          const fiscalDay = hSettings?.active_fiscal_day || todayStr()
+          await dbPost('folios', {
+            reservation_id: res.id,
+            room_number: String(roomNumber),
+            description: desc,
+            category: 'Extra Charges',
+            amount: safeNum(amt),
+            fiscal_day: fiscalDay,
+            tenant_id: TENANT
+          })
+          toast(`Charge added to Room ${roomNumber}`)
+          reload()
+        } catch(e) { toast(e.message, 'error')}
+        finally { setSaving(false) }
+      }
+
+      async function processPartialCheckout(roomNumber) {
+        if(!window.confirm(`Check out of Room ${roomNumber}?\n\nThis will mark the room AVAILABLE/DIRTY and generate a frozen Folio charge so the main invoice retains its history.`)) return
+        try {
+          setSaving(true)
+          const room = rooms.find(r=>String(r.room_number)===String(roomNumber))
+          const rate = room ? (+room.price||0) : 0
+          const startDate = new Date(res.check_in)
+          const today = new Date()
+          let stayedNights = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 3600 * 24))
+          if(stayedNights <= 0) stayedNights = 1
+          
+          const chargeAmt = rate * stayedNights
+
+          const fiscalDay = hSettings?.active_fiscal_day || todayStr()
+          await dbPost('folios', {
+            reservation_id: res.id,
+            room_number: String(roomNumber),
+            description: `Room Charge - ${roomNumber} (Checked Out)`,
+            category: 'Room Charge',
+            amount: safeNum(chargeAmt),
+            fiscal_day: fiscalDay,
+            tenant_id: TENANT
+          })
+
+          if(room) {
+            await dbPatch('rooms', room.id, { status: 'DIRTY' })
+          }
+
+          const newRoomIds = roomIds.filter(id => String(id) !== String(roomNumber))
+          const newBaseRoomRate = rooms.filter(r=>newRoomIds.includes(String(r.room_number))).reduce((a,r)=>a+(+r.price||0),0)
+          const newAutoTotal = nights > 0 ? Math.max(0, newBaseRoomRate * nights) : 0
+          
+          await dbPatchReservationSafe(res.id, {
+            room_ids: newRoomIds,
+            total_amount: newAutoTotal
+          })
+          toast(`Room ${roomNumber} checked out and Folio charge ${BDT(chargeAmt)} posted.`)
+          reload()
+          onClose()
+        } catch(e) { toast(e.message, 'error')} 
+        finally { setSaving(false) }
+      }
+
       async function save() {
         if (!roomIds.length) return toast('Select at least one room', 'error')
         if (!checkIn || !checkOut) return toast('Set check-in and check-out dates', 'error')
@@ -1500,13 +1582,21 @@ input[type='date']{color:var(--tx);color-scheme:dark}
                   .map(r => {
                     const selected = roomIds.includes(String(r.room_number))
                     return (
-                      <label key={r.id} className="info-box" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', borderColor: selected ? 'rgba(200,169,110,.45)' : 'var(--br)' }}>
-                        <input type="checkbox" checked={selected} onChange={() => toggleRoom(String(r.room_number))} />
-                        <div style={{ flex: 1 }}>
-                          <div className="info-val">{r.room_number} — {r.category}</div>
-                          <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
-                        </div>
-                      </label>
+                      <div key={r.id} className="info-box" style={{ display: 'flex', alignItems: 'center', gap: 8, borderColor: selected ? 'rgba(200,169,110,.45)' : 'var(--br)' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flex: 1 }}>
+                          <input type="checkbox" checked={selected} onChange={() => toggleRoom(String(r.room_number))} />
+                          <div style={{ flex: 1 }}>
+                            <div className="info-val">{r.room_number} — {r.category}</div>
+                            <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
+                          </div>
+                        </label>
+                        {selected && (res.status === 'CHECKED_IN' || res.status === 'CHECKED_OUT') && (
+                          <div className="flex gap1" style={{ alignItems: 'center' }}>
+                            <button className="btn btn-ghost btn-sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); processPartialCheckout(String(r.room_number)) }} style={{ fontSize: 11, padding: '4px 8px' }} title="Check-out this room only">Check-Out</button>
+                            <button className="btn btn-gold btn-sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); quickAddCharge(String(r.room_number)) }} style={{ fontSize: 11, padding: '4px 8px' }} title="Add Extra Charge to Room">+ Charge</button>
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
               </div>
