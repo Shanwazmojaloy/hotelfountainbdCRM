@@ -237,8 +237,8 @@ const sanitizePayload = obj => {
   return out;
 }
 
-const RESERVATION_CORE_CREATE_FIELDS = ['guest_ids','room_ids','check_in','check_out','status','total_amount','paid_amount','discount','payment_method','special_requests','on_duty_officer','stay_type','tenant_id']
-const RESERVATION_CORE_PATCH_FIELDS = ['status','paid_amount','notes','room_ids','check_in','check_out','total_amount','discount','payment_method']
+const RESERVATION_CORE_CREATE_FIELDS = ['guest_ids','room_ids','check_in','check_out','status','total_amount','paid_amount','discount','payment_method','special_requests','on_duty_officer','stay_type','tenant_id','room_details']
+const RESERVATION_CORE_PATCH_FIELDS = ['status','paid_amount','notes','room_ids','check_in','check_out','total_amount','discount','payment_method','room_details']
 const pickFields = (obj, fields) => fields.reduce((acc,key)=>{ if(obj&&Object.prototype.hasOwnProperty.call(obj,key)&&obj[key]!==undefined) acc[key]=obj[key]; return acc },{})
 const shouldRetryReservation400 = err => /\b(reservations)\b/i.test(String(err?.message||'')) && /\b400\b/.test(String(err?.message||''))
 async function dbPostReservationSafe(payload){
@@ -1255,10 +1255,13 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
 
   const comp = computeBill(res, rooms, foliosMap, hSettings)
   
-  /* grossAmt = reconstructed GROSS. Set to comp.grossRate. */
-  const _initDisc=comp.discount
-  const [grossAmt,setGrossAmt]=useState(String(comp.grossRate))
-  const [discountAmt,setDiscountAmt]=useState(String(_initDisc))
+  const _discs = {}
+  if(res.room_details) {
+    Object.keys(res.room_details).forEach(k => _discs[k] = res.room_details[k].discount_applied || 0)
+  }
+  const [roomDiscounts, setRoomDiscounts] = useState(_discs)
+
+  const [grossAmt,setGrossAmt]=useState('')
   const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
   const [method,setMethod]=useState(res.payment_method||'Cash')
   const [notes,setNotes]=useState(res.notes||'')
@@ -1268,14 +1271,31 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const [paySaving,setPaySaving]=useState(false)
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
-  const baseRoomRate = comp.roomRate
   const nights=nightsCount(checkIn,checkOut)
-  const grossNum=Math.max(0,+grossAmt||0)
-  const discountNum=Math.max(0,+discountAmt||0)
   
-  /* total_amount in DB = NET (gross − discount). Always subtract discount. */
-  const baseNetAmt=Math.max(0,grossNum-discountNum)
-  // Display Invoice Total INCLUDES folio extras
+  const roomDetailsPayload = {}
+  let baseRoomRate = 0
+  let totalDbDiscount = 0
+  let autoGross = 0
+
+  roomIds.forEach(rn => {
+    const room = rooms.find(r=>String(r.room_number)===String(rn))
+    const rate = room ? (+room.price || 0) : 0
+    const disc = (+roomDiscounts[rn] || 0)
+    const net = rate - disc
+    baseRoomRate += rate
+    totalDbDiscount += (disc * nights)
+    autoGross += Math.max(0, net * nights)
+
+    roomDetailsPayload[rn] = {
+      base_rate: rate,
+      discount_applied: disc,
+      net_amount: Math.max(0, net * nights)
+    }
+  })
+
+  // fallback logic
+  const baseNetAmt = grossAmt!=='' ? Math.max(0,+grossAmt||0) : autoGross
   const displayTotalAmt = baseNetAmt + comp.extras
   const paidNum=Math.max(0,+paidAmt||0)
   const safePaid=Math.min(displayTotalAmt,paidNum)
@@ -1285,21 +1305,6 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   function toggleRoom(roomNumber){
     setRoomIds(prev=>prev.includes(roomNumber)?prev.filter(r=>r!==roomNumber):[...prev,roomNumber])
   }
-
-  const [lastConfig, setLastConfig] = useState(`${(res.room_ids||[]).join(',')}|${(res.check_in||'').slice(0,10)}|${(res.check_out||'').slice(0,10)}`)
-
-  useEffect(() => {
-    const currentConfig = `${roomIds.join(',')}|${checkIn}|${checkOut}`
-    if (currentConfig !== lastConfig) {
-      const newNights = checkIn && checkOut ? nightsCount(checkIn, checkOut) : 0
-      const newBaseRoomRate = rooms.filter(r=>roomIds.includes(String(r.room_number))).reduce((a,r)=>a+(+r.price||0),0)
-      const newAutoGross = newNights > 0 ? Math.max(0, newBaseRoomRate * newNights) : 0
-      if (newAutoGross > 0) {
-        setGrossAmt(String(newAutoGross))
-      }
-      setLastConfig(currentConfig)
-    }
-  }, [roomIds, checkIn, checkOut])
 
   async function quickAddCharge(roomNumber) {
     const amt = prompt(`Enter Charge Amount (BDT) for Room ${roomNumber}:`)
@@ -1414,10 +1419,11 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
         check_in:checkIn,
         check_out:checkOut,
         total_amount:baseNetAmt,
-        discount:discountNum,
+        discount:totalDbDiscount,
         paid_amount:safePaid,
         payment_method:method,
-        notes
+        notes,
+        room_details:roomDetailsPayload
       })
       toast(paidDiff > 0 ? `Reservation updated ✓ · Payment ${BDT(paidDiff)} recorded` : 'Reservation updated ✓')
       reload()
@@ -1480,11 +1486,11 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
           ['Guest',gn],['Rooms',roomIds.join(', ')||'—'],
           ['Check-In',fmtDate(checkIn)],['Check-Out',fmtDate(checkOut)],
           ['Nights',nights||'—'],['Base Room Rate',`${BDT(baseRoomRate)}/night`],
-          ['Discount',discountNum>0?BDT(discountNum):'—'],['Total (Invoice)',BDT(displayTotalAmt)],
+          ['Discount',totalDbDiscount>0?BDT(totalDbDiscount):'—'],['Total (Invoice)',BDT(displayTotalAmt)],
           ['Paid',BDT(safePaid)],['Balance Due',BDT(balance)],
           ['Payment Status',paymentStatus],['On-Duty Officer',res.on_duty_officer||'—'],
         ].map(([l,v])=>(
-          <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val" style={l==='Balance Due'&&balance>0?{color:'var(--rose)',fontWeight:700}:l==='Discount'&&discountNum>0?{color:'var(--teal)'}:{}}>{v}</div></div>
+          <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val" style={l==='Balance Due'&&balance>0?{color:'var(--rose)',fontWeight:700}:l==='Discount'&&totalDbDiscount>0?{color:'var(--teal)'}:{}}>{v}</div></div>
         ))}
       </div>
       {res.special_requests&&<div className="info-box mb4"><div className="info-lbl">Special Requests</div><div className="info-val" style={{marginTop:4}}>{res.special_requests}</div></div>}
@@ -1509,12 +1515,20 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
                         <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
                       </div>
                     </label>
-                    {selected && (res.status === 'CHECKED_IN' || res.status === 'CHECKED_OUT') && (
-                      <div className="flex gap1" style={{alignItems:'center'}}>
-                        <button className="btn btn-ghost btn-sm" onClick={(e)=>{e.preventDefault(); e.stopPropagation(); processPartialCheckout(String(r.room_number))}} style={{fontSize:11,padding:'4px 8px'}} title="Check-out this room only">Check-Out</button>
-                        <button className="btn btn-gold btn-sm" onClick={(e)=>{e.preventDefault(); e.stopPropagation(); quickAddCharge(String(r.room_number))}} style={{fontSize:11,padding:'4px 8px'}} title="Add Extra Charge to Room">+ Charge</button>
-                      </div>
-                    )}
+                    <div style={{display:'flex', gap:10, alignItems:'center'}}>
+                      {selected && (
+                        <div onClick={e=>e.preventDefault()} style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span className="xs muted">Disc/n:</span>
+                          <input type="number" min="0" value={roomDiscounts[r.room_number]||''} onChange={e=>setRoomDiscounts(p=>({...p,[r.room_number]:e.target.value}))} style={{width:60,padding:'2px 6px',background:'var(--bg)',border:'1px solid var(--br)',color:'var(--gold)',borderRadius:4}} placeholder="0" />
+                        </div>
+                      )}
+                      {selected && (res.status === 'CHECKED_IN' || res.status === 'CHECKED_OUT') && (
+                        <div className="flex gap1" style={{alignItems:'center'}}>
+                          <button className="btn btn-ghost btn-sm" onClick={(e)=>{e.preventDefault(); e.stopPropagation(); processPartialCheckout(String(r.room_number))}} style={{fontSize:11,padding:'4px 8px'}} title="Check-out this room only">Check-Out</button>
+                          <button className="btn btn-gold btn-sm" onClick={(e)=>{e.preventDefault(); e.stopPropagation(); quickAddCharge(String(r.room_number))}} style={{fontSize:11,padding:'4px 8px'}} title="Add Extra Charge to Room">+ Charge</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )
               })}
@@ -1544,12 +1558,8 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
       </div>
       <div className="frow">
         <div className="fg">
-          <label className="flbl">Gross Total (BDT)</label>
+          <label className="flbl">Gross Total Override (BDT) — Leave empty for auto</label>
           <input type="number" className="finput" value={grossAmt} onChange={e=>setGrossAmt(e.target.value)} placeholder={String(autoGross||0)} min="0"/>
-        </div>
-        <div className="fg">
-          <label className="flbl">Total Discount (BDT)</label>
-          <input type="number" className="finput" value={discountAmt} onChange={e=>setDiscountAmt(e.target.value)} min="0"/>
         </div>
       </div>
       <div className="frow">
@@ -1641,9 +1651,9 @@ function GuestSearchInput({guests, value, onChange}) {
 
 function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
   const [f,setF]=useState({
-    guestId:'', roomIds:[],
+    guestId:'', roomIds:[], roomDiscounts:{},
     checkIn:todayStr(), checkOut:'',
-    total:'', discount:'0', collectAmount:'0', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
+    total:'', collectAmount:'0', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
   })
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
@@ -1668,20 +1678,36 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
   }
 
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
-  const baseRate=rooms.filter(r=>f.roomIds.includes(String(r.room_number))).reduce((a,r)=>a+(+r.price||0),0)
-  const autoTotal = baseRate*autoNights
-  const discountPerNight=Math.max(0,+f.discount||0)
-  const autoGrossTotal=baseRate&&autoNights?Math.max(0,(baseRate-discountPerNight)*autoNights):0
-  const grossTotal=f.total!==''?Math.max(0,+f.total):autoGrossTotal
   
-  const totalDbDiscount=discountPerNight*autoNights
+  const roomDetailsPayload = {}
+  let baseRate = 0
+  let totalDbDiscount = 0
+  let autoGrossTotal = 0
+
+  f.roomIds.forEach(rn => {
+    const room = rooms.find(r=>String(r.room_number)===String(rn))
+    const rate = room ? (+room.price || 0) : 0
+    const disc = (+f.roomDiscounts[rn] || 0)
+    const net = rate - disc
+    baseRate += rate
+    totalDbDiscount += (disc * autoNights)
+    autoGrossTotal += Math.max(0, net * autoNights)
+
+    roomDetailsPayload[rn] = {
+      base_rate: rate,
+      discount_applied: disc,
+      net_amount: Math.max(0, net * autoNights)
+    }
+  })
+
+  const grossTotal=f.total!==''?Math.max(0,+f.total):autoGrossTotal
   const finalInvoice=grossTotal
   const collectedAmt=Math.min(finalInvoice,Math.max(0,+f.collectAmount||0))
   const dueAmt=Math.max(0,finalInvoice-collectedAmt)
 
   useEffect(()=>{
-    if(autoGrossTotal>0 || discountPerNight>0) setF(p=>({...p,total:String(autoGrossTotal)}))
-  },[f.roomIds.join(','),f.checkIn,f.checkOut,f.discount])
+    if(autoGrossTotal>0 || totalDbDiscount>0) setF(p=>({...p,total:String(autoGrossTotal)}))
+  },[f.roomIds.join(','), f.checkIn, f.checkOut, JSON.stringify(f.roomDiscounts)])
 
   async function save() {
     if(!f.guestId) return toast('Select a guest','error')
@@ -1698,7 +1724,8 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
         status:isCheckIn?'CHECKED_IN':'RESERVED',
         total_amount:totalAmt, paid_amount:collectedAmt, discount:totalDbDiscount,
         payment_method:f.method, special_requests:f.notes||null,
-        on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT
+        on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT,
+        room_details:roomDetailsPayload
       })
       if(isCheckIn) {
         for(const id of f.roomIds) {
@@ -1750,9 +1777,17 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
                 return (
                   <label key={r.id} className="info-box" style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',borderColor:selected?'rgba(200,169,110,.45)':'var(--br)'}}>
                     <input type="checkbox" checked={selected} onChange={()=>toggleRoom(String(r.room_number))}/>
-                    <div style={{flex:1}}>
-                      <div className="info-val">{r.room_number} — {r.category}</div>
-                      <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
+                    <div style={{flex:1, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                      <div>
+                        <div className="info-val">{r.room_number} — {r.category}</div>
+                        <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
+                      </div>
+                      {selected && (
+                        <div onClick={e=>e.preventDefault()} style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span className="xs muted">Disc/n:</span>
+                          <input type="number" min="0" value={f.roomDiscounts[r.room_number]||''} onChange={e=>setF(p=>({...p,roomDiscounts:{...p.roomDiscounts,[r.room_number]:e.target.value}}))} style={{width:60,padding:'2px 6px',background:'var(--bg)',border:'1px solid var(--br)',color:'var(--gold)',borderRadius:4}} placeholder="0" />
+                        </div>
+                      )}
                     </div>
                   </label>
                 )
@@ -1767,15 +1802,14 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,hSettings}) {
       </div>
       {autoNights>0&&(
         <div style={{background:'rgba(200,169,110,.07)',border:'1px solid rgba(200,169,110,.18)',padding:'9px 12px',marginBottom:10,fontSize:12,color:'var(--tx)'}}>
-          {autoNights} night{autoNights!==1?'s':''} × {BDT(baseRate)} = <strong style={{color:'var(--gold)'}}>{BDT(autoTotal)}</strong>
+          {autoNights} night{autoNights!==1?'s':''} × {BDT(baseRate)} = <strong style={{color:'var(--gold)'}}>{BDT(baseRate*autoNights)}</strong> {totalDbDiscount>0 && <span style={{color:'var(--teal)',marginLeft:8}}>( -{BDT(totalDbDiscount/autoNights)}/n discount applied )</span>}
         </div>
       )}
       <div className="frow">
         <div className="fg"><label className="flbl">Gross Total (BDT)</label><input type="number" className="finput" value={f.total} onChange={F('total')} placeholder={String(autoGrossTotal||0)}/></div>
-        <div className="fg"><label className="flbl">Discount / Night (BDT)</label><input type="number" className="finput" value={f.discount} onChange={F('discount')} min="0"/></div>
+        <div className="fg"><label className="flbl">Collect Amount / Deposit (BDT)</label><input type="number" className="finput" value={f.collectAmount} onChange={F('collectAmount')} placeholder="0"/></div>
       </div>
       <div className="frow">
-        <div className="fg"><label className="flbl">Collect Amount / Deposit (BDT)</label><input type="number" className="finput" value={f.collectAmount} onChange={F('collectAmount')} placeholder="0"/></div>
         <div className="fg">
           <label className="flbl">Invoice Preview</label>
           <div className="info-box">
@@ -2635,20 +2669,33 @@ ${dueRows}
     if (comp) {
       sub = comp.sub; tax = comp.tax; svc = comp.svc; discount = comp.discount; roomCharge=comp.roomCharge; extras=comp.extras; basePrice=comp.basePrice;
       let counter = 1;
-      // Room Charge line
-      if (roomCharge > 0) {
-        const discountedCharge = Math.max(0, roomCharge - discount);
-        const discountedRate = comp.nights > 0 ? discountedCharge / comp.nights : discountedCharge;
-        const discountMsg = discount > 0 ? `<br/><span style="font-size:10px;color:#777">Original: ৳${Number(comp.roomRate||0).toLocaleString('en-BD')}/night | Discount Applied: ৳${Number(discount).toLocaleString('en-BD')}</span>` : '';
-        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room Charge (${comp.nights} Night${comp.nights!==1?'s':''})${discountMsg}</td><td>৳${Number(discountedRate).toLocaleString('en-BD')}</td><td>${comp.nights||1}</td><td>৳${Number(discountedCharge).toLocaleString('en-BD')}</td></tr>`;
+      const nights = comp.nights || 1;
+      
+      if (res && res.room_details && Object.keys(res.room_details).length > 0) {
+        Object.keys(res.room_details).forEach(roomNo => {
+          const rd = res.room_details[roomNo];
+          tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room ${roomNo} (${nights} Night${nights !== 1 ? 's' : ''})</td><td>৳${Number(rd.base_rate || 0).toLocaleString('en-BD')}</td><td>${nights}</td><td>৳${Number((rd.base_rate || 0) * nights).toLocaleString('en-BD')}</td></tr>`;
+          if (rd.discount_applied > 0) {
+            tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Discount (Room ${roomNo})</td><td>—</td><td>—</td><td style="color:#e74c3c">-৳${Number(rd.discount_applied * nights).toLocaleString('en-BD')}</td></tr>`;
+          }
+        });
+      } else {
+        // Room Charge line
+        if (roomCharge > 0) {
+          const discountedCharge = Math.max(0, roomCharge - discount);
+          const discountedRate = nights > 0 ? discountedCharge / nights : discountedCharge;
+          const discountMsg = discount > 0 ? `<br/><span style="font-size:10px;color:#777">Original: ৳${Number(comp.roomRate||0).toLocaleString('en-BD')}/night | Discount Applied: ৳${Number(discount).toLocaleString('en-BD')}</span>` : '';
+          tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room Charge (${nights} Night${nights!==1?'s':''})${discountMsg}</td><td>৳${Number(discountedRate).toLocaleString('en-BD')}</td><td>${nights}</td><td>৳${Number(discountedCharge).toLocaleString('en-BD')}</td></tr>`;
+        }
       }
+
       // Itemized individual folio charges instead of lump sum
       if (comp.folios && comp.folios.length > 0) {
         comp.folios.forEach(f => {
           if (+f.amount === 0) return;
           const isPayment = f.category === 'Payment';
           if (isPayment) return; // skip payment folios in charges section
-          tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>${f.description || f.category || 'Additional Charge'}</td><td>—</td><td>—</td><td>${+f.amount < 0 ? '<span style="color:#e74c3c">' : ''}৳${Number(Math.abs(+f.amount)||0).toLocaleString('en-BD')}${+f.amount < 0 ? '</span>' : ''}</td></tr>`;
+          tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>${f.room_number ? 'Rm ' + f.room_number + ' - ' : ''}${f.description || f.category || 'Additional Charge'}</td><td>—</td><td>—</td><td>${+f.amount < 0 ? '<span style="color:#e74c3c">' : ''}৳${Number(Math.abs(+f.amount)||0).toLocaleString('en-BD')}${+f.amount < 0 ? '</span>' : ''}</td></tr>`;
         });
       } else if (extras > 0) {
         // Fallback: show lump sum if no individual folios available
