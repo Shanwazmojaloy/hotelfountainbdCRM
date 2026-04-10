@@ -1721,21 +1721,35 @@ input[type='date']{color:var(--tx);color-scheme:dark}
     }
 
     function NewReservationModal({ guests, rooms, toast, onClose, reload, hSettings }) {
-      const availRooms = rooms.filter(r => r.status === 'AVAILABLE')
       const [f, setF] = useState({
-        guestId: '', roomNo: availRooms[0]?.room_number || '',
+        guestId: '', roomIds: [],
         checkIn: todayStr(), checkOut: '',
         total: '', discount: '0', collectAmount: '0', method: 'Cash', notes: '', officer: '', stayType: 'CHECK_IN'
       })
       const F = k => e => setF(p => ({ ...p, [k]: e.target.value }))
       const [saving, setSaving] = useState(false)
-      const [payAmt, setPayAmt] = useState('')
-      const [payType, setPayType] = useState('Cash')
-      const [paySaving, setPaySaving] = useState(false)
 
-      const selectedRoom = rooms.find(r => r.room_number === f.roomNo)
+      const availRooms = rooms.filter(r => {
+        if (f.stayType === 'CHECK_IN') return r.status === 'AVAILABLE'
+        return true
+      })
+
+      useEffect(() => {
+        if (f.stayType === 'CHECK_IN') {
+          const validIds = f.roomIds.filter(id => {
+            const room = rooms.find(r => String(r.room_number) === String(id))
+            return room && room.status === 'AVAILABLE'
+          })
+          if (validIds.length !== f.roomIds.length) setF(p => ({ ...p, roomIds: validIds }))
+        }
+      }, [f.stayType, rooms])
+
+      function toggleRoom(roomNumber) {
+        setF(p => ({ ...p, roomIds: p.roomIds.includes(roomNumber) ? p.roomIds.filter(id => id !== roomNumber) : [...p.roomIds, roomNumber] }))
+      }
+
       const autoNights = f.checkIn && f.checkOut ? nightsCount(f.checkIn, f.checkOut) : 0
-      const baseRate = selectedRoom ? (+selectedRoom.price) : 0
+      const baseRate = rooms.filter(r => f.roomIds.includes(String(r.room_number))).reduce((a, r) => a + (+r.price || 0), 0)
       const autoTotal = baseRate * autoNights
       const discountPerNight = Math.max(0, +f.discount || 0)
       const autoGrossTotal = baseRate && autoNights ? Math.max(0, (baseRate - discountPerNight) * autoNights) : 0
@@ -1748,11 +1762,11 @@ input[type='date']{color:var(--tx);color-scheme:dark}
 
       useEffect(() => {
         if (autoGrossTotal > 0 || discountPerNight > 0) setF(p => ({ ...p, total: String(autoGrossTotal) }))
-      }, [f.roomNo, f.checkIn, f.checkOut, f.discount])
+      }, [f.roomIds.join(','), f.checkIn, f.checkOut, f.discount])
 
       async function save() {
         if (!f.guestId) return toast('Select a guest', 'error')
-        if (!f.roomNo) return toast('Select a room', 'error')
+        if (f.roomIds.length === 0) return toast('Select at least one room', 'error')
         if (!f.checkIn || !f.checkOut) return toast('Set check-in and check-out dates', 'error')
         if (autoNights <= 0) return toast('Check-out must be after check-in', 'error')
         setSaving(true)
@@ -1760,7 +1774,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
           const isCheckIn = f.stayType === 'CHECK_IN'
           const totalAmt = finalInvoice
           const created = await dbPostReservationSafe({
-            guest_ids: [f.guestId], room_ids: [f.roomNo],
+            guest_ids: [f.guestId], room_ids: f.roomIds,
             check_in: f.checkIn, check_out: f.checkOut,
             status: isCheckIn ? 'CHECKED_IN' : 'RESERVED',
             total_amount: totalAmt, paid_amount: collectedAmt, discount: totalDbDiscount,
@@ -1768,17 +1782,19 @@ input[type='date']{color:var(--tx);color-scheme:dark}
             on_duty_officer: f.officer || null, stay_type: f.stayType, tenant_id: TENANT
           })
           if (isCheckIn) {
-            const room = rooms.find(r => r.room_number === f.roomNo)
-            if (room) await dbPatch('rooms', room.id, { status: 'OCCUPIED' })
+            for (const id of f.roomIds) {
+              const room = rooms.find(r => String(r.room_number) === String(id))
+              if (room) await dbPatch('rooms', room.id, { status: 'OCCUPIED' })
+            }
           }
           if (collectedAmt > 0) {
             await dbPostTransactionSafe({
               reservation_id: created?.id || null,
-              room_number: f.roomNo, guest_name: guests.find(g => g.id === f.guestId)?.name || 'Guest',
+              room_number: f.roomIds.join(','), guest_name: guests.find(g => g.id === f.guestId)?.name || 'Guest',
               type: `Room Payment (${f.method})`, amount: safeNum(collectedAmt), fiscal_day: hSettings?.active_fiscal_day || todayStr(), tenant_id: TENANT
             })
           }
-          toast(isCheckIn ? `Check-in complete — Rm ${f.roomNo} ✓` : 'Reservation created ✓')
+          toast(isCheckIn ? `Check-in complete — Rm ${f.roomIds.join(',')} ✓` : 'Reservation created ✓')
           await reload()
           onClose()
         } catch (e) { toast(e.message || 'Save failed', 'error'); setSaving(false) }
@@ -1803,10 +1819,27 @@ input[type='date']{color:var(--tx);color-scheme:dark}
               <GuestSearchInput guests={guests} value={f.guestId} onChange={id => setF(p => ({ ...p, guestId: id }))} />
             </div>
             <div className="fg">
-              <label className="flbl">Room * {availRooms.length === 0 && <span style={{ color: 'var(--rose)' }}>— no available rooms</span>}</label>
-              <select className="fselect" value={f.roomNo} onChange={F('roomNo')}>
-                {availRooms.map(r => <option key={r.id} value={r.room_number}>{r.room_number} — {r.category} — {BDT(r.price)}/n</option>)}
-              </select>
+              <label className="flbl">Rooms * {availRooms.length === 0 && <span style={{ color: 'var(--rose)' }}>— no available rooms</span>}</label>
+              <details className="info-box">
+                <summary style={{ cursor: 'pointer', listStyle: 'none', outline: 'none' }}>
+                  <span className="info-val">{f.roomIds.length ? f.roomIds.join(', ') : 'Select one or more rooms...'}</span>
+                  <div className="xs muted">Dropdown list · showing {f.stayType === 'CHECK_IN' ? 'AVAILABLE' : 'ALL'}</div>
+                </summary>
+                <div className="g2" style={{ marginTop: 10 }}>
+                  {availRooms.map(r => {
+                    const selected = f.roomIds.includes(String(r.room_number))
+                    return (
+                      <label key={r.id} className="info-box" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', borderColor: selected ? 'rgba(200,169,110,.45)' : 'var(--br)' }}>
+                        <input type="checkbox" checked={selected} onChange={() => toggleRoom(String(r.room_number))} />
+                        <div style={{ flex: 1 }}>
+                          <div className="info-val">{r.room_number} — {r.category}</div>
+                          <div className="xs muted">{BDT(r.price)} / night · {r.status}</div>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              </details>
             </div>
           </div>
           <div className="frow">
@@ -1815,7 +1848,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
           </div>
           {autoNights > 0 && (
             <div style={{ background: 'rgba(200,169,110,.07)', border: '1px solid rgba(200,169,110,.18)', padding: '9px 12px', marginBottom: 10, fontSize: 12, color: 'var(--tx)' }}>
-              {autoNights} night{autoNights !== 1 ? 's' : ''} × {BDT(selectedRoom?.price || 0)} = <strong style={{ color: 'var(--gold)' }}>{BDT(autoTotal)}</strong>
+              {autoNights} night{autoNights !== 1 ? 's' : ''} × {BDT(baseRate)} = <strong style={{ color: 'var(--gold)' }}>{BDT(autoTotal)}</strong>
             </div>
           )}
           <div className="frow">
