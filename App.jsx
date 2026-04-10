@@ -238,7 +238,7 @@ const sanitizePayload = obj => {
 }
 
 const RESERVATION_CORE_CREATE_FIELDS = ['guest_ids','room_ids','check_in','check_out','status','total_amount','paid_amount','discount','payment_method','special_requests','on_duty_officer','stay_type','tenant_id','room_details']
-const RESERVATION_CORE_PATCH_FIELDS = ['status','paid_amount','notes','room_ids','check_in','check_out','total_amount','discount','payment_method','room_details']
+const RESERVATION_CORE_PATCH_FIELDS = ['status','paid_amount','special_requests','room_ids','check_in','check_out','total_amount','discount','payment_method','room_details']
 const pickFields = (obj, fields) => fields.reduce((acc,key)=>{ if(obj&&Object.prototype.hasOwnProperty.call(obj,key)&&obj[key]!==undefined) acc[key]=obj[key]; return acc },{})
 const shouldRetryReservation400 = err => /\b(reservations)\b/i.test(String(err?.message||'')) && /\b400\b/.test(String(err?.message||''))
 async function dbPostReservationSafe(payload){
@@ -1269,7 +1269,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const [grossAmt,setGrossAmt]=useState('')
   const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
   const [method,setMethod]=useState(res.payment_method||'Cash')
-  const [notes,setNotes]=useState(res.notes||'')
+  const [notes,setNotes]=useState(res.special_requests||'')
   const [saving,setSaving]=useState(false)
   const [payAmt,setPayAmt]=useState('')
   const [payType,setPayType]=useState('Cash')
@@ -1433,7 +1433,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
         discount:totalDbDiscount,
         paid_amount:safePaid,
         payment_method:method,
-        notes,
+        special_requests:notes,
         room_details:roomDetailsPayload
       })
       toast(paidDiff > 0 ? `Reservation updated ✓ · Payment ${BDT(paidDiff)} recorded` : 'Reservation updated ✓')
