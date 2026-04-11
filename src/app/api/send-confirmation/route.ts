@@ -130,10 +130,13 @@ export async function POST(req: NextRequest) {
   const GMAIL_USER = process.env.GMAIL_USER;
   const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
-  // ── DEV / NO CREDENTIALS: log only ───────────────────────────────────
+  // ── NO CREDENTIALS: return real error so CRM shows it ────────────────
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-    console.log('[send-confirmation] Gmail credentials not set — would send to:', guest_email);
-    return NextResponse.json({ ok: true, method: 'console-only' });
+    console.error('[send-confirmation] GMAIL_USER or GMAIL_APP_PASSWORD not set in Vercel env vars');
+    return NextResponse.json(
+      { ok: false, error: 'Email not configured — add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Settings → Environment Variables, then Redeploy.' },
+      { status: 500 }
+    );
   }
 
   // ── SEND VIA GMAIL SMTP ───────────────────────────────────────────────
