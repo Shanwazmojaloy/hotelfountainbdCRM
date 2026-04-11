@@ -1,12 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "",
-  "outputDirectory": ".",
-  "installCommand": "",
-  "builds": [
-    { "src": "index.html", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "framework": "nextjs"
 }
