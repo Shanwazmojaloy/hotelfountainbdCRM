@@ -116,6 +116,14 @@ export default function HotelFountainLanding() {
   const today = new Date();
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
 
+  // Always start at top on load/refresh
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, []);
+
   const [availCount, setAvailCount] = useState<number | null>(null);
   const [checkIn, setCheckIn] = useState(fmt(today));
   const [checkOut, setCheckOut] = useState(fmt(tomorrow));
