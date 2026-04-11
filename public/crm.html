@@ -770,10 +770,10 @@ input[type='date']{color:var(--tx);color-scheme:dark}
         return { d: ds.slice(8), v: transactions.filter(t => t.fiscal_day === ds).reduce((a, t) => a + (+t.amount || 0), 0), ds }
       })
       const checkedIn = reservations.filter(r => r.status === 'CHECKED_IN').slice(0, 6)
-      const getGN = gids => {
+      const getGN = (gids, fallback) => {
         const gid = String((gids || []).filter(Boolean)[0] || '')
         const g = guests.find(g => String(g.id) === gid)
-        return g ? g.name : (gid ? `ID:${gid}` : 'Unknown')
+        return g ? g.name : (gid ? `ID:${gid}` : (fallback || 'Unknown'))
       }
 
       return (
@@ -828,9 +828,9 @@ input[type='date']{color:var(--tx);color-scheme:dark}
                   ? <div style={{ padding: '18px 0', textAlign: 'center', color: 'var(--tx3)', fontSize: 12 }}>No active check-ins</div>
                   : checkedIn.map(r => (
                     <div key={r.id} className="flex fac gap2" style={{ padding: '8px 0', borderBottom: '1px solid var(--br2)' }}>
-                      <Av name={getGN(r.guest_ids)} size={28} />
+                      <Av name={getGN(r.guest_ids, r.guest_name)} size={28} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getGN(r.guest_ids)}</div>
+                        <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getGN(r.guest_ids, r.guest_name)}</div>
                         <div className="xs muted">Rm {(r.room_ids || []).join(',')} · Out: {fmtDate(r.check_out)}</div>
                       </div>
                       <span className="badge bb">{BDT(r.total_amount)}</span>
@@ -1257,10 +1257,10 @@ input[type='date']{color:var(--tx);color-scheme:dark}
         }
         return a;
       }, { DUE: 0 })
-      const getGN = gids => {
+      const getGN = (gids, fallback) => {
         const gid = String((gids || []).filter(Boolean)[0] || '')
         const g = guests.find(g => String(g.id) === gid)
-        return g ? g.name : (gid ? `ID:${gid}` : 'Unknown')
+        return g ? g.name : (gid ? `ID:${gid}` : (fallback || 'Unknown'))
       }
 
       let res = filter === 'ALL' ? reservations :
@@ -1268,7 +1268,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
           reservations.filter(r => r.status === filter)
       if (search) {
         const q = search.toLowerCase()
-        res = res.filter(r => getGN(r.guest_ids).toLowerCase().includes(q) || (r.room_ids || []).join('').includes(q) || r.on_duty_officer?.toLowerCase().includes(q))
+        res = res.filter(r => getGN(r.guest_ids, r.guest_name).toLowerCase().includes(q) || (r.room_ids || []).join('').includes(q) || r.on_duty_officer?.toLowerCase().includes(q))
       }
 
       return (
@@ -1356,7 +1356,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const [notes, setNotes] = useState(res.special_requests || '')
       const [saving, setSaving] = useState(false)
 
-      const gn = guests.find(g => String(g.id) === String((res.guest_ids || [])[0] || ''))?.name || 'Unknown'
+      const gn = guests.find(g => String(g.id) === String((res.guest_ids || [])[0] || ''))?.name || res.guest_name || 'Unknown'
       const nights = nightsCount(checkIn, checkOut)
       
       const roomDetailsPayload = {}
@@ -5647,7 +5647,7 @@ ${dueRows}
 
       const allowed = ROLES[user.role]?.pages || []
       const cur = allowed.includes(page) ? page : allowed[0]
-      const pendRes = data.reservations.filter(r => r.status === 'PENDING').length
+      const pendResList = data.reservations.filter(r => r.status === 'PENDING'); const pendRes = pendResList.length
       const hkUrgent = data.tasks.filter(t => t.status === 'pending' && t.priority === 'high').length
       const dirtyRooms = data.rooms.filter(r => r.status === 'DIRTY').length
       const totalNotifs = pendRes + hkUrgent + dirtyRooms
@@ -5738,11 +5738,14 @@ ${dueRows}
                         <span>Notifications</span>
                         <button style={{ background: 'none', border: 'none', color: 'var(--tx3)', cursor: 'pointer', fontSize: 15, lineHeight: 1 }} onClick={() => setNotifOpen(false)}>×</button>
                       </div>
-                      {pendRes > 0 && (
-                        <div className="notif-item" onClick={() => { setPage('reservations'); setNotifOpen(false) }}>
-                          📅 {pendRes} pending reservation{pendRes > 1 ? 's' : ''} awaiting confirmation
+                      {pendResList.length > 0 && pendResList.map(r => (
+                        <div key={r.id} className="notif-item" onClick={() => { setPage('reservations'); setNotifOpen(false) }} style={{ borderBottom: '1px solid var(--br2)', padding: '10px 14px' }}>
+                          <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--gold)' }}>📅 {r.guest_name || 'Unknown Guest'}</div>
+                          <div style={{ fontSize: 11, color: 'var(--tx2)', marginTop: 2 }}>{r.room_type || 'Room TBD'}</div>
+                          <div style={{ fontSize: 10, color: 'var(--tx3)', marginTop: 1 }}>{r.phone || r.email || 'No contact'} · {r.check_in?.slice(0,10)} → {r.check_out?.slice(0,10)}</div>
+                          <div style={{ marginTop: 4 }}><span style={{ fontSize: 9, letterSpacing: '.12em', background: 'rgba(200,169,110,.15)', color: 'var(--gold)', padding: '2px 7px' }}>PENDING CONFIRMATION</span></div>
                         </div>
-                      )}
+                      ))}
                       {hkUrgent > 0 && (
                         <div className="notif-item" onClick={() => { setPage('housekeeping'); setNotifOpen(false) }}>
                           🧹 {hkUrgent} high-priority housekeeping task{hkUrgent > 1 ? 's' : ''}
