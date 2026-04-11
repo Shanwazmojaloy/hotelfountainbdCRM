@@ -170,15 +170,15 @@ export default function HotelFountainLanding() {
         email: bookForm.email,
         phone: bookForm.phone,
         room_type: bookingModal.room?.supabaseType,
-        room_id: bookingModal.room?.id,
         check_in: checkIn,
         check_out: checkOut,
-        guests,
+        guests: parseInt(guests) || 2,
         status: 'pending',
         source: 'Direct Web',
         created_at: new Date().toISOString(),
         room_ids: [],
         guest_ids: [],
+        tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8',
       }]);
     } catch {}
     setBookStatus('success');
