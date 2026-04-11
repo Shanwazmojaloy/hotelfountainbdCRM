@@ -19,6 +19,15 @@ interface ConfirmationPayload {
   room_type: string;
   check_in: string;
   check_out: string;
+  nights?: number;
+  room_charge?: number;
+  discount?: number;
+  extras?: number;
+  total_amount?: number;
+  paid_amount?: number;
+  balance_due?: number;
+  payment_method?: string;
+  payment_status?: string;
 }
 
 function buildEmailHtml(p: ConfirmationPayload): string {
@@ -50,19 +59,52 @@ function buildEmailHtml(p: ConfirmationPayload): string {
             <p style="color:#C8BFB0;font-size:14px;line-height:1.8;margin:0 0 20px">Greetings from Hotel Fountain!</p>
             <p style="color:#C8BFB0;font-size:14px;line-height:1.8;margin:0 0 20px">We are pleased to inform you that your reservation has been <strong style="color:#C8A96E">confirmed</strong>. Your room is now officially blocked for your upcoming stay.</p>
 
-            <!-- DETAILS TABLE -->
+            <!-- STAY DETAILS TABLE -->
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:rgba(200,169,110,.04);border:1px solid rgba(200,169,110,.15);margin:28px 0">
-              <tr style="border-bottom:1px solid rgba(200,169,110,.08)">
+              <tr>
                 <td style="padding:14px 24px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#9A907C;width:40%">Room Type</td>
                 <td style="padding:14px 24px;font-size:13px;color:#EEE9E2;font-weight:400">${p.room_type}</td>
               </tr>
-              <tr style="border-bottom:1px solid rgba(200,169,110,.08)">
+              <tr>
                 <td style="padding:14px 24px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#9A907C;border-top:1px solid rgba(200,169,110,.08)">Check-In</td>
                 <td style="padding:14px 24px;font-size:13px;color:#EEE9E2;font-weight:400;border-top:1px solid rgba(200,169,110,.08)">${p.check_in} at 12:00 PM</td>
               </tr>
               <tr>
                 <td style="padding:14px 24px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#9A907C;border-top:1px solid rgba(200,169,110,.08)">Check-Out</td>
                 <td style="padding:14px 24px;font-size:13px;color:#EEE9E2;font-weight:400;border-top:1px solid rgba(200,169,110,.08)">${p.check_out} at 12:00 PM</td>
+              </tr>
+              ${p.nights ? `<tr>
+                <td style="padding:14px 24px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#9A907C;border-top:1px solid rgba(200,169,110,.08)">Duration</td>
+                <td style="padding:14px 24px;font-size:13px;color:#EEE9E2;font-weight:400;border-top:1px solid rgba(200,169,110,.08)">${p.nights} Night${p.nights !== 1 ? 's' : ''}</td>
+              </tr>` : ''}
+            </table>
+
+            <!-- BILLING TABLE -->
+            <div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#9A907C;margin-bottom:10px">Billing Summary</div>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:rgba(200,169,110,.04);border:1px solid rgba(200,169,110,.15);margin-bottom:28px">
+              ${p.room_charge ? `<tr>
+                <td style="padding:12px 24px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9A907C;width:50%">Room Charge</td>
+                <td style="padding:12px 24px;font-size:13px;color:#EEE9E2;text-align:right">৳${p.room_charge.toLocaleString()}</td>
+              </tr>` : ''}
+              ${p.discount && p.discount > 0 ? `<tr>
+                <td style="padding:12px 24px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9A907C;border-top:1px solid rgba(200,169,110,.08)">Discount</td>
+                <td style="padding:12px 24px;font-size:13px;color:#3FB950;text-align:right;border-top:1px solid rgba(200,169,110,.08)">− ৳${p.discount.toLocaleString()}</td>
+              </tr>` : ''}
+              ${p.extras && p.extras > 0 ? `<tr>
+                <td style="padding:12px 24px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9A907C;border-top:1px solid rgba(200,169,110,.08)">Extra Charges</td>
+                <td style="padding:12px 24px;font-size:13px;color:#EEE9E2;text-align:right;border-top:1px solid rgba(200,169,110,.08)">৳${p.extras.toLocaleString()}</td>
+              </tr>` : ''}
+              <tr>
+                <td style="padding:14px 24px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#C8A96E;font-weight:700;border-top:2px solid rgba(200,169,110,.3);background:rgba(200,169,110,.06)">Total Amount</td>
+                <td style="padding:14px 24px;font-size:15px;color:#C8A96E;font-weight:700;text-align:right;border-top:2px solid rgba(200,169,110,.3);background:rgba(200,169,110,.06)">৳${(p.total_amount || 0).toLocaleString()}</td>
+              </tr>
+              ${p.paid_amount && p.paid_amount > 0 ? `<tr>
+                <td style="padding:12px 24px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9A907C;border-top:1px solid rgba(200,169,110,.08)">Advance Paid ${p.payment_method ? `(${p.payment_method})` : ''}</td>
+                <td style="padding:12px 24px;font-size:13px;color:#3FB950;text-align:right;border-top:1px solid rgba(200,169,110,.08)">৳${p.paid_amount.toLocaleString()}</td>
+              </tr>` : ''}
+              <tr>
+                <td style="padding:14px 24px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;border-top:1px solid rgba(200,169,110,.2);color:${p.balance_due && p.balance_due > 0 ? '#F0A500' : '#3FB950'}">Balance Due</td>
+                <td style="padding:14px 24px;font-size:15px;font-weight:700;text-align:right;border-top:1px solid rgba(200,169,110,.2);color:${p.balance_due && p.balance_due > 0 ? '#F0A500' : '#3FB950'}">${p.balance_due && p.balance_due > 0 ? `৳${p.balance_due.toLocaleString()}` : '✓ Fully Paid'}</td>
               </tr>
             </table>
 
@@ -92,24 +134,37 @@ function buildEmailHtml(p: ConfirmationPayload): string {
 }
 
 function buildEmailText(p: ConfirmationPayload): string {
-  return `Dear ${p.guest_name},
-
-Greetings from Hotel Fountain!
-
-Your reservation has been confirmed. Your room is now officially blocked for your upcoming stay.
-
-RESERVATION DETAILS
--------------------
-Room Type  : ${p.room_type}
-Check-In   : ${p.check_in} at 12:00 PM
-Check-Out  : ${p.check_out} at 12:00 PM
-
-For any queries, please contact us at hotellfountainbd@gmail.com or +880 1322-840799.
-
-Best regards,
-The Management
-Hotel Fountain
-House-05, Road-02, Nikunja-02, Dhaka 1229`;
+  const lines = [
+    `Dear ${p.guest_name},`,
+    ``,
+    `Greetings from Hotel Fountain!`,
+    ``,
+    `Your reservation has been confirmed. Your room is now officially blocked for your upcoming stay.`,
+    ``,
+    `RESERVATION DETAILS`,
+    `-------------------`,
+    `Room Type  : ${p.room_type}`,
+    `Check-In   : ${p.check_in} at 12:00 PM`,
+    `Check-Out  : ${p.check_out} at 12:00 PM`,
+    ...(p.nights ? [`Duration   : ${p.nights} Night${p.nights !== 1 ? 's' : ''}`] : []),
+    ``,
+    `BILLING SUMMARY`,
+    `---------------`,
+    ...(p.room_charge ? [`Room Charge  : ৳${p.room_charge.toLocaleString()}`] : []),
+    ...(p.discount && p.discount > 0 ? [`Discount     : - ৳${p.discount.toLocaleString()}`] : []),
+    ...(p.extras && p.extras > 0 ? [`Extra Charges: ৳${p.extras.toLocaleString()}`] : []),
+    `Total Amount : ৳${(p.total_amount || 0).toLocaleString()}`,
+    ...(p.paid_amount && p.paid_amount > 0 ? [`Advance Paid : ৳${p.paid_amount.toLocaleString()}${p.payment_method ? ` (${p.payment_method})` : ''}`] : []),
+    `Balance Due  : ${p.balance_due && p.balance_due > 0 ? `৳${p.balance_due.toLocaleString()}` : 'Fully Paid'}`,
+    ``,
+    `For any queries, please contact us at hotellfountainbd@gmail.com or +880 1322-840799.`,
+    ``,
+    `Best regards,`,
+    `The Management`,
+    `Hotel Fountain`,
+    `House-05, Road-02, Nikunja-02, Dhaka 1229`,
+  ];
+  return lines.join('\n');
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -117,7 +172,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { guest_name, guest_email, room_type, check_in, check_out } =
+  const { guest_name, guest_email, room_type, check_in, check_out,
+    nights, room_charge, discount, extras, total_amount,
+    paid_amount, balance_due, payment_method, payment_status } =
     req.body as ConfirmationPayload;
 
   if (!guest_email || !guest_name) {
@@ -134,7 +191,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
-  const payload: ConfirmationPayload = { guest_name, guest_email, room_type, check_in, check_out };
+  const payload: ConfirmationPayload = {
+    guest_name, guest_email, room_type, check_in, check_out,
+    nights, room_charge, discount, extras, total_amount,
+    paid_amount, balance_due, payment_method, payment_status,
+  };
 
   try {
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {

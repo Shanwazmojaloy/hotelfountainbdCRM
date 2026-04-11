@@ -1527,7 +1527,16 @@ input[type='date']{color:var(--tx);color-scheme:dark}
                 guest_email: res.email,
                 room_type: res.room_type || roomIds.join(', '),
                 check_in: checkIn,
-                check_out: checkOut
+                check_out: checkOut,
+                nights,
+                room_charge: baseNetAmt,
+                discount: totalDbDiscount,
+                extras: comp.extras || 0,
+                total_amount: displayTotalAmt,
+                paid_amount: safePaid,
+                balance_due: balance,
+                payment_method: method,
+                payment_status: paymentStatus
               })
             })
             .then(async r => {
