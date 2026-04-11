@@ -173,7 +173,7 @@ export default function HotelFountainLanding() {
         check_in: checkIn,
         check_out: checkOut,
         guests: parseInt(guests) || 2,
-        status: 'pending',
+        status: 'PENDING',
         source: 'Direct Web',
         created_at: new Date().toISOString(),
         room_ids: [],
