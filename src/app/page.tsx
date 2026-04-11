@@ -134,7 +134,7 @@ export default function HotelFountainLanding() {
   useEffect(() => {
     async function fetchCount() {
       try {
-        const { data } = await supabase.from('rooms').select('id').eq('status', 'available');
+        const { data } = await supabase.from('rooms').select('id').eq('status', 'AVAILABLE');
         if (data) setAvailCount(data.length);
       } catch {}
     }
