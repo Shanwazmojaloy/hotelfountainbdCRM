@@ -1295,7 +1295,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
                 </thead>
                 <tbody>
                   {res.slice(0, 80).map(invoice => {
-                    const gn = getGN(invoice.guest_ids)
+                    const gn = getGN(invoice.guest_ids, invoice.guest_name)
                     const comp = _computeBillGlobal(invoice, rooms, foliosMap, hSettings)
                     return (
                       <tr key={invoice.id}>
@@ -1517,7 +1517,23 @@ input[type='date']{color:var(--tx);color-scheme:dark}
             special_requests: notes,
             room_details: roomDetailsPayload
           })
-          toast(paidDiff > 0 ? `Reservation updated ✓ · Payment ${BDT(paidDiff)} recorded` : 'Reservation updated ✓')
+          // Send confirmation email when PENDING → RESERVED/CHECKED_IN
+          if ((res.status === 'PENDING') && (status === 'RESERVED' || status === 'CHECKED_IN') && res.email) {
+            fetch('/api/send-confirmation', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                guest_name: res.guest_name || gn,
+                guest_email: res.email,
+                room_type: res.room_type || roomIds.join(', '),
+                check_in: checkIn,
+                check_out: checkOut
+              })
+            }).catch(() => {})
+            toast('Reservation Confirmed & Confirmation Email Sent to Guest ✓')
+          } else {
+            toast(paidDiff > 0 ? `Reservation updated ✓ · Payment ${BDT(paidDiff)} recorded` : 'Reservation updated ✓')
+          }
           reload()
         } catch (e) { toast(e.message, 'error'); setSaving(false) }
       }
