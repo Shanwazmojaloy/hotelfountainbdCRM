@@ -126,31 +126,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'guest_name and guest_email are required' });
   }
 
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
-  if (!RESEND_API_KEY) {
-    console.error('[send-confirmation] RESEND_API_KEY not set');
+  if (!BREVO_API_KEY) {
+    console.error('[send-confirmation] BREVO_API_KEY not set');
     return res.status(500).json({
       ok: false,
-      error: 'Email not configured — add RESEND_API_KEY in Vercel Settings → Environment Variables, then Redeploy.',
+      error: 'Email not configured — add BREVO_API_KEY in Vercel Settings → Environment Variables, then Redeploy.',
     });
   }
 
   const payload: ConfirmationPayload = { guest_name, guest_email, room_type, check_in, check_out };
 
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'api-key': BREVO_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Hotel Fountain <hotellfountainbd@gmail.com>',
-        to: [guest_email],
+        sender: { name: 'Hotel Fountain', email: 'hotellfountainbd@gmail.com' },
+        to: [{ email: guest_email, name: guest_name }],
         subject: 'Reservation Confirmed — Hotel Fountain',
-        html: buildEmailHtml(payload),
-        text: buildEmailText(payload),
+        htmlContent: buildEmailHtml(payload),
+        textContent: buildEmailText(payload),
       }),
     });
 
