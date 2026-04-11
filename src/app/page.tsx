@@ -58,19 +58,19 @@ const CSS = `
   input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(.5) sepia(1) saturate(2) hue-rotate(10deg); }
   ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:var(--dark2)} ::-webkit-scrollbar-thumb{background:var(--br);border-radius:3px} ::-webkit-scrollbar-thumb:hover{background:var(--gold)}
   @media(max-width:768px){
-    .hero-grid{grid-template-columns:1fr\!important}
-    .hero-right-panel{display:none\!important}
-    .hero-left-panel{padding:120px 24px 60px\!important}
-    .stats-bar{padding:20px 24px\!important;flex-wrap:wrap;gap:16px}
-    .rooms-grid{grid-template-columns:1fr\!important}
-    .exp-grid{grid-template-columns:1fr\!important}
-    .exp-visual{display:none\!important}
-    .avail-grid{grid-template-columns:1fr 1fr\!important}
-    .contact-grid{grid-template-columns:1fr\!important}
-    .sec{padding:70px 24px\!important}
-    .nav-links{display:none\!important}
-    .mobile-menu-btn{display:flex\!important}
-    footer{flex-direction:column\!important;gap:16px\!important;text-align:center\!important;padding:24px\!important}
+    .hero-grid{grid-template-columns:1fr!important}
+    .hero-right-panel{display:none!important}
+    .hero-left-panel{padding:120px 24px 60px!important}
+    .stats-bar{padding:20px 24px!important;flex-wrap:wrap;gap:16px}
+    .rooms-grid{grid-template-columns:1fr!important}
+    .exp-grid{grid-template-columns:1fr!important}
+    .exp-visual{display:none!important}
+    .avail-grid{grid-template-columns:1fr 1fr!important}
+    .contact-grid{grid-template-columns:1fr!important}
+    .sec{padding:70px 24px!important}
+    .nav-links{display:none!important}
+    .mobile-menu-btn{display:flex!important}
+    footer{flex-direction:column!important;gap:16px!important;text-align:center!important;padding:24px!important}
   }
 `;
 
@@ -106,7 +106,7 @@ export default function HotelFountainLanding() {
   }, []);
 
   async function checkAvailability() {
-    if (\!checkIn || \!checkOut) { setAvailResult({ rooms:[], error:'Please select check-in and check-out dates.' }); return; }
+    if (!checkIn || !checkOut) { setAvailResult({ rooms:[], error:'Please select check-in and check-out dates.' }); return; }
     if (new Date(checkOut) <= new Date(checkIn)) { setAvailResult({ rooms:[], error:'Check-out must be after check-in.' }); return; }
     setSearching(true); setAvailResult(null);
     try {
@@ -114,15 +114,15 @@ export default function HotelFountainLanding() {
       if (roomType) q = q.eq('type', roomType);
       const { data, error } = await q;
       if (error) throw error;
-      const results = data && data.length > 0 ? data : ROOMS.filter(r => \!roomType || r.supabaseType === roomType);
+      const results = data && data.length > 0 ? data : ROOMS.filter(r => !roomType || r.supabaseType === roomType);
       setAvailResult({ rooms: results });
     } catch {
-      setAvailResult({ rooms: ROOMS.filter(r => \!roomType || r.supabaseType === roomType) });
+      setAvailResult({ rooms: ROOMS.filter(r => !roomType || r.supabaseType === roomType) });
     } finally { setSearching(false); }
   }
 
   async function submitBooking() {
-    if (\!bookForm.name || \!bookForm.email) return;
+    if (!bookForm.name || !bookForm.email) return;
     setBookStatus('sending');
     try {
       await supabase.from('reservations').insert([{
@@ -151,7 +151,7 @@ export default function HotelFountainLanding() {
           ))}
           <button className="ob" style={{ padding:'9px 22px', fontSize:10 }} onClick={() => setLoginModal(true)}>Staff Login</button>
         </div>
-        <button className="mobile-menu-btn" onClick={() => setMobileMenu(\!mobileMenu)} style={{ display:'none', background:'none', border:'1px solid var(--br)', color:'var(--tx)', padding:'8px 12px', cursor:'pointer', fontSize:16 }}>☰</button>
+        <button className="mobile-menu-btn" onClick={() => setMobileMenu(!mobileMenu)} style={{ display:'none', background:'none', border:'1px solid var(--br)', color:'var(--tx)', padding:'8px 12px', cursor:'pointer', fontSize:16 }}>☰</button>
       </nav>
 
       {mobileMenu && (
@@ -321,7 +321,7 @@ export default function HotelFountainLanding() {
                 <div className="gs" style={{ padding:16, background:'rgba(200,169,110,.06)', border:'1px solid var(--br)', color:'var(--tx2)', fontSize:13 }}>No rooms available for selected dates. Please try different dates or room type.</div>
               ) : (
                 <div>
-                  <div className="gs" style={{ fontSize:9, letterSpacing:'.2em', textTransform:'uppercase', color:'var(--gold)', marginBottom:20 }}>{availResult.rooms.length} Room{availResult.rooms.length\!==1?'s':''} Available</div>
+                  <div className="gs" style={{ fontSize:9, letterSpacing:'.2em', textTransform:'uppercase', color:'var(--gold)', marginBottom:20 }}>{availResult.rooms.length} Room{availResult.rooms.length!==1?'s':''} Available</div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:12 }}>
                     {availResult.rooms.map((r: any, i: number) => {
                       const cat = ROOMS.find(rm => rm.supabaseType === (r.type || r.supabaseType)) || ROOMS[0];
@@ -418,7 +418,7 @@ export default function HotelFountainLanding() {
                     </div>
                   ))}
                 </div>
-                <button className="gb" disabled={bookStatus==='sending'||\!bookForm.name||\!bookForm.email} style={{ width:'100%', padding:15, marginTop:28, fontSize:10, ...glow }} onClick={submitBooking}>
+                <button className="gb" disabled={bookStatus==='sending'||!bookForm.name||!bookForm.email} style={{ width:'100%', padding:15, marginTop:28, fontSize:10, ...glow }} onClick={submitBooking}>
                   {bookStatus==='sending' ? 'Submitting…' : 'Confirm Reservation →'}
                 </button>
                 <p className="gs" style={{ fontSize:10, color:'var(--tx3)', textAlign:'center', marginTop:12 }}>No payment required now · Our team will contact you to confirm</p>
