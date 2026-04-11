@@ -146,9 +146,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Hotel Fountain <onboarding@resend.dev>',
+        from: 'Hotel Fountain <hotellfountainbd@gmail.com>',
         to: [guest_email],
-        reply_to: 'hotellfountainbd@gmail.com',
         subject: 'Reservation Confirmed — Hotel Fountain',
         html: buildEmailHtml(payload),
         text: buildEmailText(payload),
