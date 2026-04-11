@@ -1529,8 +1529,20 @@ input[type='date']{color:var(--tx);color-scheme:dark}
                 check_in: checkIn,
                 check_out: checkOut
               })
-            }).catch(() => {})
-            toast('Reservation Confirmed & Confirmation Email Sent to Guest ✓')
+            })
+            .then(async r => {
+              const d = await r.json().catch(() => ({}))
+              if (r.ok && d.ok) {
+                toast('Reservation Confirmed & Confirmation Email Sent to Guest ✓')
+              } else {
+                console.error('[email] send failed:', d)
+                toast('Reservation Confirmed ✓ — Email failed: ' + (d.error || ('HTTP ' + r.status)))
+              }
+            })
+            .catch(err => {
+              console.error('[email] network error:', err)
+              toast('Reservation Confirmed ✓ — Email could not be sent (network error)')
+            })
           } else {
             toast(paidDiff > 0 ? `Reservation updated ✓ · Payment ${BDT(paidDiff)} recorded` : 'Reservation updated ✓')
           }

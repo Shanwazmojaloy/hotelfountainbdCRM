@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Hotel Fountain <bookings@hotelfountainbd.com>',
+        from: 'Hotel Fountain <onboarding@resend.dev>',
         to: [guest_email],
         reply_to: 'hotellfountainbd@gmail.com',
         subject: 'Reservation Confirmed - Hotel Fountain',
