@@ -28,67 +28,65 @@ function buildEmailHtml(p: ConfirmationPayload): string {
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Reservation Confirmed – Hotel Fountain</title>
-  <style>
-    body{margin:0;padding:0;background:#f4f1ec;font-family:'Helvetica Neue',Arial,sans-serif}
-    .wrap{max-width:580px;margin:40px auto;background:#07090E;border:1px solid rgba(200,169,110,.2)}
-    .header{background:#07090E;padding:40px 48px 28px;border-bottom:1px solid rgba(200,169,110,.15);text-align:center}
-    .logo-text{font-size:26px;color:#EEE9E2;letter-spacing:.12em;font-weight:300}
-    .logo-text em{color:#C8A96E;font-style:italic}
-    .tag{font-size:10px;color:#9A907C;letter-spacing:.2em;text-transform:uppercase;margin-top:6px}
-    .body{padding:40px 48px}
-    .status-badge{display:inline-block;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);color:#3FB950;font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:6px 16px;margin-bottom:28px}
-    h1{color:#EEE9E2;font-size:28px;font-weight:300;margin:0 0 16px;line-height:1.3}
-    p{color:#C8BFB0;font-size:14px;line-height:1.8;margin:0 0 20px}
-    .details-box{background:rgba(200,169,110,.04);border:1px solid rgba(200,169,110,.15);padding:24px;margin:28px 0}
-    .detail-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(200,169,110,.08)}
-    .detail-row:last-child{border-bottom:none}
-    .detail-label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#9A907C}
-    .detail-value{font-size:13px;color:#EEE9E2;font-weight:400}
-    .sig{margin-top:28px;padding-top:24px;border-top:1px solid rgba(200,169,110,.1)}
-    .sig-name{font-size:18px;color:#C8A96E;font-style:italic;margin-bottom:4px}
-    .sig-sub{font-size:11px;color:#9A907C;letter-spacing:.1em}
-    .footer{padding:24px 48px;border-top:1px solid rgba(200,169,110,.1);text-align:center}
-    .footer p{font-size:10px;color:#6a6a5a;margin:0;line-height:1.7}
-    .footer a{color:#C8A96E;text-decoration:none}
-  </style>
 </head>
-<body>
-  <div class="wrap">
-    <div class="header">
-      <div class="logo-text">Hotel <em>Fountain</em></div>
-      <div class="tag">Dhaka, Bangladesh</div>
-    </div>
-    <div class="body">
-      <div class="status-badge">✓ Reservation Confirmed</div>
-      <h1>Dear ${p.guest_name},</h1>
-      <p>Greetings from Hotel Fountain!</p>
-      <p>We are pleased to inform you that your reservation has been <strong style="color:#C8A96E">confirmed</strong>. Your room is now officially blocked for your upcoming stay.</p>
-      <div class="details-box">
-        <div class="detail-row">
-          <span class="detail-label">Room Type</span>
-          <span class="detail-value">${p.room_type}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Check-In</span>
-          <span class="detail-value">${p.check_in} at 12:00 PM</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Check-Out</span>
-          <span class="detail-value">${p.check_out} at 12:00 PM</span>
-        </div>
-      </div>
-      <p>We look forward to welcoming you soon. For any queries or special requests, please contact us at <a href="mailto:hotellfountainbd@gmail.com" style="color:#C8A96E">hotellfountainbd@gmail.com</a> or call <strong style="color:#EEE9E2">+880 1322-840799</strong>.</p>
-      <div class="sig">
-        <div class="sig-name">The Management</div>
-        <div class="sig-sub">Hotel Fountain · Dhaka, Bangladesh</div>
-      </div>
-    </div>
-    <div class="footer">
-      <p>Hotel Fountain · House-05, Road-02, Nikunja-02, Dhaka 1229<br/>
-        <a href="mailto:hotellfountainbd@gmail.com">hotellfountainbd@gmail.com</a> · +880 1322-840799
-      </p>
-    </div>
-  </div>
+<body style="margin:0;padding:0;background:#f4f1ec;font-family:'Helvetica Neue',Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f1ec;padding:40px 0">
+    <tr><td align="center">
+      <table width="580" cellpadding="0" cellspacing="0" border="0" style="max-width:580px;background:#07090E;border:1px solid rgba(200,169,110,.2)">
+
+        <!-- HEADER -->
+        <tr>
+          <td style="background:#07090E;padding:40px 48px 28px;border-bottom:1px solid rgba(200,169,110,.15);text-align:center">
+            <div style="font-size:26px;color:#EEE9E2;letter-spacing:.12em;font-weight:300">Hotel <em style="color:#C8A96E;font-style:italic">Fountain</em></div>
+            <div style="font-size:10px;color:#9A907C;letter-spacing:.2em;text-transform:uppercase;margin-top:6px">Dhaka, Bangladesh</div>
+          </td>
+        </tr>
+
+        <!-- BODY -->
+        <tr>
+          <td style="padding:40px 48px">
+            <div style="display:inline-block;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);color:#3FB950;font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:6px 16px;margin-bottom:28px">✓ Reservation Confirmed</div>
+            <h1 style="color:#EEE9E2;font-size:28px;font-weight:300;margin:0 0 16px;line-height:1.3">Dear ${p.guest_name},</h1>
+            <p style="color:#C8BFB0;font-size:14px;line-height:1.8;margin:0 0 20px">Greetings from Hotel Fountain!</p>
+            <p style="color:#C8BFB0;font-size:14px;line-height:1.8;margin:0 0 20px">We are pleased to inform you that your reservation has been <strong style="color:#C8A96E">confirmed</strong>. Your room is now officially blocked for your upcoming stay.</p>
+
+            <!-- DETAILS TABLE -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:rgba(200,169,110,.04);border:1px solid rgba(200,169,110,.15);margin:28px 0">
+              <tr style="border-bottom:1px solid rgba(200,169,110,.08)">
+                <td style="padding:14px 24px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#9A907C;width:40%">Room Type</td>
+                <td style="padding:14px 24px;font-size:13px;color:#EEE9E2;font-weight:400">${p.room_type}</td>
+              </tr>
+              <tr style="border-bottom:1px solid rgba(200,169,110,.08)">
+                <td style="padding:14px 24px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#9A907C;border-top:1px solid rgba(200,169,110,.08)">Check-In</td>
+                <td style="padding:14px 24px;font-size:13px;color:#EEE9E2;font-weight:400;border-top:1px solid rgba(200,169,110,.08)">${p.check_in} at 12:00 PM</td>
+              </tr>
+              <tr>
+                <td style="padding:14px 24px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#9A907C;border-top:1px solid rgba(200,169,110,.08)">Check-Out</td>
+                <td style="padding:14px 24px;font-size:13px;color:#EEE9E2;font-weight:400;border-top:1px solid rgba(200,169,110,.08)">${p.check_out} at 12:00 PM</td>
+              </tr>
+            </table>
+
+            <p style="color:#C8BFB0;font-size:14px;line-height:1.8;margin:0 0 20px">We look forward to welcoming you soon. For any queries or special requests, please contact us at <a href="mailto:hotellfountainbd@gmail.com" style="color:#C8A96E">hotellfountainbd@gmail.com</a> or call <strong style="color:#EEE9E2">+880 1322-840799</strong>.</p>
+            <div style="margin-top:28px;padding-top:24px;border-top:1px solid rgba(200,169,110,.1)">
+              <div style="font-size:18px;color:#C8A96E;font-style:italic;margin-bottom:4px">The Management</div>
+              <div style="font-size:11px;color:#9A907C;letter-spacing:.1em">Hotel Fountain · Dhaka, Bangladesh</div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- FOOTER -->
+        <tr>
+          <td style="padding:24px 48px;border-top:1px solid rgba(200,169,110,.1);text-align:center">
+            <p style="font-size:10px;color:#6a6a5a;margin:0;line-height:1.7">
+              Hotel Fountain · House-05, Road-02, Nikunja-02, Dhaka 1229<br/>
+              <a href="mailto:hotellfountainbd@gmail.com" style="color:#C8A96E;text-decoration:none">hotellfountainbd@gmail.com</a> · +880 1322-840799
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
 </body>
 </html>`;
 }
@@ -148,6 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       body: JSON.stringify({
         sender: { name: 'Hotel Fountain', email: 'hotellfountainbd@gmail.com' },
         to: [{ email: guest_email, name: guest_name }],
+        replyTo: { name: 'Hotel Fountain', email: 'hotellfountainbd@gmail.com' },
         subject: 'Reservation Confirmed — Hotel Fountain',
         htmlContent: buildEmailHtml(payload),
         textContent: buildEmailText(payload),
