@@ -571,7 +571,7 @@ export default function HotelFountainLanding() {
             <button key={l} onClick={() => scrollTo(l.toLowerCase())} style={{ background: 'none', border: 'none', fontSize: 10, color: 'var(--tx3)', letterSpacing: '.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx3)')}>{l}</button>
           ))}
           <button onClick={() => setTncOpen(true)} style={{ background: 'none', border: 'none', fontSize: 10, color: 'var(--tx3)', letterSpacing: '.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx3)')}>Terms</button>
-          <button onClick={() => setLoginModal(true)} style={{ background: 'none', border: 'none', fontSize: 10, color: 'var(--tx3)', letterSpacing: '.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx3)')}>Staff</button>
+          <a href="/crm.html" style={{ background: 'none', border: 'none', fontSize: 10, color: 'var(--tx3)', letterSpacing: '.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s', textDecoration: 'none' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx3)')}>Staff</a>
         </div>
       </footer>
 
