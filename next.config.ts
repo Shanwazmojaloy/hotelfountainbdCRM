@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // nodemailer uses native Node.js modules — must be kept external, not bundled
-  serverExternalPackages: ['nodemailer'],
   headers: async () => [
     {
       // Force crm.html to never be cached — always fetch fresh from server

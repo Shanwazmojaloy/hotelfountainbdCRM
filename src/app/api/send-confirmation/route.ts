@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
 
 // ─────────────────────────────────────────────────────────────
 // Email Confirmation API Route
 // POST /api/send-confirmation
 //
-// Sends via Gmail SMTP using an App Password.
+// Sends via Resend API (pure fetch — no native modules, Turbopack-safe).
+// Emails arrive from: onboarding@resend.dev  (reply-to: hotellfountainbd@gmail.com)
+//
 // Required Vercel env vars:
-//   GMAIL_USER         = hotellfountainbd@gmail.com
-//   GMAIL_APP_PASSWORD = <16-char Google App Password>
+//   RESEND_API_KEY = re_xxxxxxxxxxxxxxxxxxxx
 // ─────────────────────────────────────────────────────────────
 
 interface ConfirmationPayload {
@@ -127,41 +127,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'guest_name and guest_email are required' }, { status: 400 });
   }
 
-  const GMAIL_USER = process.env.GMAIL_USER;
-  const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-  // ── NO CREDENTIALS: return real error so CRM shows it ────────────────
-  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-    console.error('[send-confirmation] GMAIL_USER or GMAIL_APP_PASSWORD not set in Vercel env vars');
+  if (!RESEND_API_KEY) {
+    console.error('[send-confirmation] RESEND_API_KEY not set in Vercel env vars');
     return NextResponse.json(
-      { ok: false, error: 'Email not configured — add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Settings → Environment Variables, then Redeploy.' },
+      { ok: false, error: 'Email not configured — add RESEND_API_KEY in Vercel Settings → Environment Variables, then Redeploy.' },
       { status: 500 }
     );
   }
 
-  // ── SEND VIA GMAIL SMTP ───────────────────────────────────────────────
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: GMAIL_USER,
-        pass: GMAIL_APP_PASSWORD,
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        from: 'Hotel Fountain <onboarding@resend.dev>',
+        to: [guest_email],
+        reply_to: 'hotellfountainbd@gmail.com',
+        subject: 'Reservation Confirmed — Hotel Fountain',
+        html: buildEmailHtml({ guest_name, guest_email, room_type, check_in, check_out }),
+        text: buildEmailText({ guest_name, guest_email, room_type, check_in, check_out }),
+      }),
     });
 
-    await transporter.sendMail({
-      from: `Hotel Fountain <${GMAIL_USER}>`,
-      to: guest_email,
-      replyTo: GMAIL_USER,
-      subject: 'Reservation Confirmed — Hotel Fountain',
-      html: buildEmailHtml({ guest_name, guest_email, room_type, check_in, check_out }),
-      text: buildEmailText({ guest_name, guest_email, room_type, check_in, check_out }),
-    });
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error('[send-confirmation] Resend error:', res.status, detail);
+      return NextResponse.json({ ok: false, error: 'Resend API error', detail }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[send-confirmation] Gmail error:', message);
-    return NextResponse.json({ error: 'Failed to send email', detail: message }, { status: 500 });
+    console.error('[send-confirmation] fetch error:', message);
+    return NextResponse.json({ ok: false, error: 'Failed to send email', detail: message }, { status: 500 });
   }
 }
