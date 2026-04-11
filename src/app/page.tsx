@@ -126,7 +126,7 @@ export default function HotelFountainLanding() {
   const [bookingModal, setBookingModal] = useState<{ open: boolean; room: any | null }>({ open: false, room: null });
   const [bookForm, setBookForm] = useState({ name: '', email: '', phone: '' });
   const [bookStatus, setBookStatus] = useState<'idle' | 'sending' | 'success'>('idle');
-  const [loginModal, setLoginModal] = useState(false);
+
   const [mobileMenu, setMobileMenu] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
   const [tncOpen, setTncOpen] = useState(false);
@@ -201,7 +201,7 @@ export default function HotelFountainLanding() {
           {['Rooms', 'Experience', 'Availability', 'Contact'].map(l => (
             <button key={l} onClick={() => scrollTo(l.toLowerCase())} style={{ background: 'none', border: 'none', color: 'var(--tx2)', fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx2)')}>{l}</button>
           ))}
-          <button className="ob" style={{ padding: '9px 22px', fontSize: 10 }} onClick={() => setLoginModal(true)}>Staff Login</button>
+          <a href="/crm.html" className="ob" style={{ padding: '9px 22px', fontSize: 10, textDecoration: 'none', display: 'inline-block' }}>Staff Login</a>
         </div>
         <button className="mobile-menu-btn" onClick={() => setMobileMenu(!mobileMenu)} style={{ display: 'none', background: 'none', border: '1px solid var(--br)', color: 'var(--tx)', padding: '8px 12px', cursor: 'pointer', fontSize: 16 }}>☰</button>
       </nav>
@@ -211,7 +211,7 @@ export default function HotelFountainLanding() {
           {['Rooms', 'Experience', 'Availability', 'Contact'].map(l => (
             <button key={l} onClick={() => scrollTo(l.toLowerCase())} style={{ background: 'none', border: 'none', color: 'var(--tx2)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', cursor: 'pointer', textAlign: 'left' }}>{l}</button>
           ))}
-          <button className="gb" onClick={() => { setLoginModal(true); setMobileMenu(false); }}>Staff Login</button>
+          <a href="/crm.html" className="gb" style={{ textDecoration: 'none', display: 'block', textAlign: 'center', padding: '13px 32px' }} onClick={() => setMobileMenu(false)}>Staff Login</a>
         </div>
       )}
 
@@ -621,20 +621,6 @@ export default function HotelFountainLanding() {
         </div>
       )}
 
-      {/* STAFF LOGIN MODAL */}
-      {loginModal && (
-        <div className="mo" onClick={e => { if (e.target === e.currentTarget) setLoginModal(false); }}>
-          <div className="gc afi" style={{ width: '100%', maxWidth: 420, padding: 48, position: 'relative' }}>
-            <button onClick={() => setLoginModal(false)} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', color: 'var(--tx3)', fontSize: 20, cursor: 'pointer' }}>✕</button>
-            <div className="cg" style={{ fontSize: 28, color: 'var(--tx)', fontWeight: 300, marginBottom: 6 }}>Staff Login</div>
-            <div className="gs" style={{ fontSize: 11, color: 'var(--tx3)', letterSpacing: '.1em', marginBottom: 36 }}>Lumea · Hotel Fountain CRM</div>
-            <input type="email" placeholder="Staff Email" className="fi gs" style={{ marginBottom: 14 }} />
-            <input type="password" placeholder="Password" className="fi gs" style={{ marginBottom: 8 }} />
-            <button className="gb" style={{ width: '100%', padding: 14, marginTop: 8 }} onClick={() => window.location.href = '/dashboard'}>Access CRM →</button>
-            <p className="gs" style={{ fontSize: 10, color: 'var(--tx3)', textAlign: 'center', marginTop: 16 }}>Authorised staff only</p>
-          </div>
-        </div>
-      )}
     </>
   );
 }
