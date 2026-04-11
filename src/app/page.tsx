@@ -299,7 +299,7 @@ export default function HotelFountainLanding() {
 
       {/* STATS BAR */}
       <div className="gs stats-bar" style={{ background: 'var(--dark2)', borderTop: '1px solid var(--br)', borderBottom: '1px solid var(--br)', padding: '28px 60px', display: 'flex', flexWrap: 'wrap' }}>
-        {[{ num: '48', lbl: 'Premium Rooms' }, { num: '৳4,000', lbl: 'Starting Rate / Night' }, { num: '24/7', lbl: 'Concierge Service' }, { num: '4.8★', lbl: 'Guest Rating' }].map((s, i, a) => (
+        {[{ num: '28', lbl: 'Premium Rooms' }, { num: '৳4,000', lbl: 'Starting Rate / Night' }, { num: '24/7', lbl: 'Concierge Service' }, { num: '4.8★', lbl: 'Guest Rating' }].map((s, i, a) => (
           <div key={s.lbl} style={{ flex: 1, minWidth: 140, padding: '0 32px', borderRight: i < a.length - 1 ? '1px solid var(--br)' : 'none', textAlign: 'center' }}>
             <div className="cg" style={{ fontSize: 36, color: 'var(--gold)', fontWeight: 300, lineHeight: 1 }}>{s.num}</div>
             <div style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--tx3)', marginTop: 6 }}>{s.lbl}</div>
