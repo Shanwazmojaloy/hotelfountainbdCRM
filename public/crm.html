@@ -1177,9 +1177,6 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const [amt, setAmt] = useState('')
       const [desc, setDesc] = useState('')
       const [saving, setSaving] = useState(false)
-      const [payAmt, setPayAmt] = useState('')
-      const [payType, setPayType] = useState('Cash')
-      const [paySaving, setPaySaving] = useState(false)
 
       async function save() {
         const a = parseFloat(amt)
@@ -1209,9 +1206,6 @@ input[type='date']{color:var(--tx);color-scheme:dark}
     function AddRoomModal({ toast, onClose, reload, rooms }) {
       const [f, setF] = useState({ room_number: '', category: 'Fountain Deluxe', price: 4000, status: 'AVAILABLE' })
       const [saving, setSaving] = useState(false)
-      const [payAmt, setPayAmt] = useState('')
-      const [payType, setPayType] = useState('Cash')
-      const [paySaving, setPaySaving] = useState(false)
       const F = k => e => setF(p => ({ ...p, [k]: e.target.value }))
       async function save() {
         if (!f.room_number) return toast('Room number required', 'error')
@@ -2249,9 +2243,6 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const [f, setF] = useState({ name: guest.name || '', phone: guest.phone || '', email: guest.email || '', id_type: guest.id_type || 'NID', id_number: guest.id_number || guest.id_card || '', nationality: guest.nationality || '', city: guest.city || '', address: guest.address || '' })
       const F = k => e => setF(p => ({ ...p, [k]: e.target.value }))
       const [saving, setSaving] = useState(false)
-      const [payAmt, setPayAmt] = useState('')
-      const [payType, setPayType] = useState('Cash')
-      const [paySaving, setPaySaving] = useState(false)
       async function save() {
         if (!f.name.trim()) return toast('Name required', 'error')
         setSaving(true)
@@ -2287,9 +2278,6 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const [f, setF] = useState({ name: '', phone: '', email: '', id_type: 'NID', id_number: '', nationality: '', city: '', address: '' })
       const F = k => e => setF(p => ({ ...p, [k]: e.target.value }))
       const [saving, setSaving] = useState(false)
-      const [payAmt, setPayAmt] = useState('')
-      const [payType, setPayType] = useState('Cash')
-      const [paySaving, setPaySaving] = useState(false)
       async function save() {
         if (!f.name.trim()) return toast('Name required', 'error')
         setSaving(true)
@@ -2412,9 +2400,6 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const [f, setF] = useState({ room_number: dirtyRooms[0]?.room_number || '', task_type: 'Standard Clean', priority: 'medium', assignee: '', scheduled_time: '', notes: '' })
       const F = k => e => setF(p => ({ ...p, [k]: e.target.value }))
       const [saving, setSaving] = useState(false)
-      const [payAmt, setPayAmt] = useState('')
-      const [payType, setPayType] = useState('Cash')
-      const [paySaving, setPaySaving] = useState(false)
       async function save() {
         if (!f.room_number) return toast('Room required', 'error')
         setSaving(true)
@@ -3317,8 +3302,8 @@ ${dueSection}
                         const tDue = invoice ? resDue : 0
                         const billingRoom = invoice ? rooms.find(rm => (invoice.room_ids || []).includes(rm.room_number)) : null
                         const billingNights = invoice ? nightsCount(invoice.check_in, invoice.check_out) || 1 : 1
-                        const billingBaseRate = invoice ? comp?.grossRate : tTotal
-                        const billingDisc = invoice ? comp?.discount : 0
+                        const billingBaseRate = invoice ? (comp?.grossRate || 0) : tTotal
+                        const billingDisc = invoice ? (comp?.discount || 0) : 0
 
                         return (
                           <tr key={invoice ? invoice.id : (grp.guest_name + '|' + grp.room_number)}>
@@ -3513,9 +3498,6 @@ ${dueSection}
       const [type, setType] = useState('Room Payment (Cash)')
       const [fiscal_day, setFiscalDay] = useState(active_fiscal_day || todayStr())
       const [saving, setSaving] = useState(false)
-      const [payAmt, setPayAmt] = useState('')
-      const [payType, setPayType] = useState('Cash')
-      const [paySaving, setPaySaving] = useState(false)
 
       function pickRes(r) {
         setSelRes(r)
@@ -3968,9 +3950,6 @@ ${dueSection}
       const [f, setF] = useState({ name: '', email: '', pw: '', role: 'receptionist', device: '' })
       const F = k => e => setF(p => ({ ...p, [k]: e.target.value }))
       const [saving, setSaving] = useState(false)
-      const [payAmt, setPayAmt] = useState('')
-      const [payType, setPayType] = useState('Cash')
-      const [paySaving, setPaySaving] = useState(false)
       async function save() {
         if (!f.name || !f.email || !f.pw) return toast('Name, email and password required', 'error')
         setSaving(true)
@@ -4006,9 +3985,6 @@ ${dueSection}
       const [f, setF] = useState({ ...user })
       const F = k => e => setF(p => ({ ...p, [k]: e.target.value }))
       const [saving, setSaving] = useState(false)
-      const [payAmt, setPayAmt] = useState('')
-      const [payType, setPayType] = useState('Cash')
-      const [paySaving, setPaySaving] = useState(false)
       async function save() {
         if (!f.name || !f.email || !f.pw) return toast('All fields required', 'error')
         setSaving(true)
