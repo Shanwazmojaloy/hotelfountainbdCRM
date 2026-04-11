@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import nodemailer from 'nodemailer';
 
 // ─────────────────────────────────────────────────────────────
 // Email Confirmation API Route
 // POST /api/send-confirmation
 //
-// Uses Resend (https://resend.com) to send a confirmation email.
-// Set RESEND_API_KEY in your Vercel environment variables.
-// From address: bookings@hotelfountainbd.com (verify in Resend dashboard)
-// Fallback: logs to console if API key not set (for dev / before Resend setup).
+// Sends via Gmail SMTP using an App Password.
+// Required Vercel env vars:
+//   GMAIL_USER         = hotellfountainbd@gmail.com
+//   GMAIL_APP_PASSWORD = <16-char Google App Password>
 // ─────────────────────────────────────────────────────────────
 
 interface ConfirmationPayload {
@@ -42,7 +43,6 @@ function buildEmailHtml(payload: ConfirmationPayload): string {
     .detail-row:last-child{border-bottom:none}
     .detail-label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#9A907C}
     .detail-value{font-size:13px;color:#EEE9E2;font-weight:400}
-    .closing{font-size:13px;color:#9A907C;line-height:1.8;margin-top:28px}
     .sig{margin-top:28px;padding-top:24px;border-top:1px solid rgba(200,169,110,.1)}
     .sig-name{font-size:18px;color:#C8A96E;font-style:italic;margin-bottom:4px}
     .sig-sub{font-size:11px;color:#9A907C;letter-spacing:.1em}
@@ -61,8 +61,7 @@ function buildEmailHtml(payload: ConfirmationPayload): string {
       <div class="status-badge">✓ Reservation Confirmed</div>
       <h1>Dear ${guest_name},</h1>
       <p>Greetings from Hotel Fountain!</p>
-      <p>We are pleased to inform you that your reservation has been <strong style="color:#C8A96E">confirmed</strong>. We have received your reservation fee, and your room is now officially blocked for your upcoming stay.</p>
-
+      <p>We are pleased to inform you that your reservation has been <strong style="color:#C8A96E">confirmed</strong>. We have received your reservation and your room is now officially blocked for your upcoming stay.</p>
       <div class="details-box">
         <div class="detail-row">
           <span class="detail-label">Room Type</span>
@@ -77,9 +76,7 @@ function buildEmailHtml(payload: ConfirmationPayload): string {
           <span class="detail-value">${check_out} at 12:00 PM</span>
         </div>
       </div>
-
-      <p>We look forward to welcoming you soon. If you have any further questions or special requests, please feel free to contact us at <a href="mailto:hotellfountainbd@gmail.com" style="color:#C8A96E">hotellfountainbd@gmail.com</a> or call us at <strong style="color:#EEE9E2">+880 1322-840799</strong>.</p>
-
+      <p>We look forward to welcoming you soon. For any queries or special requests, please contact us at <a href="mailto:hotellfountainbd@gmail.com" style="color:#C8A96E">hotellfountainbd@gmail.com</a> or call <strong style="color:#EEE9E2">+880 1322-840799</strong>.</p>
       <div class="sig">
         <div class="sig-name">The Management</div>
         <div class="sig-sub">Hotel Fountain · Dhaka, Bangladesh</div>
@@ -101,7 +98,7 @@ function buildEmailText(payload: ConfirmationPayload): string {
 
 Greetings from Hotel Fountain!
 
-We are pleased to inform you that your reservation has been confirmed. We have received your reservation fee, and your room is now officially blocked for your upcoming stay.
+Your reservation has been confirmed. Your room is now officially blocked for your upcoming stay.
 
 RESERVATION DETAILS
 -------------------
@@ -109,12 +106,11 @@ Room Type  : ${room_type}
 Check-In   : ${check_in} at 12:00 PM
 Check-Out  : ${check_out} at 12:00 PM
 
-We look forward to welcoming you soon. If you have any further questions, please feel free to contact us.
+For any queries, please contact us at hotellfountainbd@gmail.com or +880 1322-840799.
 
 Best regards,
 The Management
 Hotel Fountain
-hotellfountainbd@gmail.com | +880 1322-840799
 House-05, Road-02, Nikunja-02, Dhaka 1229`;
 }
 
@@ -131,42 +127,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'guest_name and guest_email are required' }, { status: 400 });
   }
 
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  const GMAIL_USER = process.env.GMAIL_USER;
+  const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
-  // ── DEV / NO KEY: log and return success ──────────────────────────────
-  if (!RESEND_API_KEY) {
-    console.log('[send-confirmation] No RESEND_API_KEY set — would send to:', guest_email);
-    console.log('[send-confirmation] Subject: Reservation Confirmed - Hotel Fountain');
+  // ── DEV / NO CREDENTIALS: log only ───────────────────────────────────
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    console.log('[send-confirmation] Gmail credentials not set — would send to:', guest_email);
     return NextResponse.json({ ok: true, method: 'console-only' });
   }
 
-  // ── SEND VIA RESEND ───────────────────────────────────────────────────
+  // ── SEND VIA GMAIL SMTP ───────────────────────────────────────────────
   try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: GMAIL_USER,
+        pass: GMAIL_APP_PASSWORD,
       },
-      body: JSON.stringify({
-        from: 'Hotel Fountain <onboarding@resend.dev>',
-        to: [guest_email],
-        reply_to: 'hotellfountainbd@gmail.com',
-        subject: 'Reservation Confirmed - Hotel Fountain',
-        html: buildEmailHtml({ guest_name, guest_email, room_type, check_in, check_out }),
-        text: buildEmailText({ guest_name, guest_email, room_type, check_in, check_out }),
-      }),
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      console.error('[send-confirmation] Resend error:', data);
-      return NextResponse.json({ error: 'Email provider error', detail: data }, { status: 502 });
-    }
+    await transporter.sendMail({
+      from: `Hotel Fountain <${GMAIL_USER}>`,
+      to: guest_email,
+      replyTo: GMAIL_USER,
+      subject: 'Reservation Confirmed — Hotel Fountain',
+      html: buildEmailHtml({ guest_name, guest_email, room_type, check_in, check_out }),
+      text: buildEmailText({ guest_name, guest_email, room_type, check_in, check_out }),
+    });
 
-    return NextResponse.json({ ok: true, id: data.id });
-  } catch (err) {
-    console.error('[send-confirmation] Network error:', err);
-    return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[send-confirmation] Gmail error:', message);
+    return NextResponse.json({ error: 'Failed to send email', detail: message }, { status: 500 });
   }
 }
