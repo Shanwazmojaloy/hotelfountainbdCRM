@@ -4214,7 +4214,7 @@ ${dueSection}
                   ))}
                 </div>
                 <button className="btn btn-gold" onClick={postGBP} disabled={busy === 'gbp'}>{busy === 'gbp' ? '📍 Posting…' : '📍 Generate & Post to GBP'}</button>
-                {gbpResult && \!gbpResult.error && (
+                {gbpResult && !gbpResult.error && (
                   <div style={{ marginTop: 14, background: 'rgba(63,185,80,.05)', border: '1px solid rgba(63,185,80,.2)', padding: '14px' }}>
                     <div style={{ fontSize: 11, color: 'var(--grn)', fontWeight: 600, marginBottom: 8 }}>✓ Posted to Google Business Profile</div>
                     {gbpResult.post_content && <div style={{ fontSize: 11, color: 'var(--tx2)', lineHeight: 1.7, background: 'rgba(0,0,0,.3)', padding: '10px 12px', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{gbpResult.post_content}</div>}
