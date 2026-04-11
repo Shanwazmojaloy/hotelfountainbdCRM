@@ -177,6 +177,8 @@ export default function HotelFountainLanding() {
         status: 'pending',
         source: 'Direct Web',
         created_at: new Date().toISOString(),
+        room_ids: [],
+        guest_ids: [],
       }]);
     } catch {}
     setBookStatus('success');
