@@ -145,7 +145,7 @@ export default function HotelFountainLanding() {
   }, []);
 
   async function checkAvailability() {
-    if (\!checkIn || \!checkOut) { setAvailResult({ rooms: [], error: 'Please select check-in and check-out dates.' }); return; }
+    if (!checkIn || !checkOut) { setAvailResult({ rooms: [], error: 'Please select check-in and check-out dates.' }); return; }
     if (new Date(checkOut) <= new Date(checkIn)) { setAvailResult({ rooms: [], error: 'Check-out must be after check-in.' }); return; }
     setSearching(true); setAvailResult(null);
     try {
