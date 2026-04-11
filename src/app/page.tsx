@@ -124,7 +124,7 @@ export default function HotelFountainLanding() {
   const [searching, setSearching] = useState(false);
   const [availResult, setAvailResult] = useState<{ rooms: any[]; error?: string } | null>(null);
   const [bookingModal, setBookingModal] = useState<{ open: boolean; room: any | null }>({ open: false, room: null });
-  const [bookForm, setBookForm] = useState({ name: '', email: '', phone: '' });
+  const [bookForm, setBookForm] = useState({ name: '', email: '', phone: '', address: '' });
   const [bookStatus, setBookStatus] = useState<'idle' | 'sending' | 'success'>('idle');
 
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -165,6 +165,27 @@ export default function HotelFountainLanding() {
     if (!bookForm.name || !bookForm.email) return;
     setBookStatus('sending');
     try {
+      // 1 — Create or find guest record
+      const { data: guestData, error: guestError } = await supabase
+        .from('guests')
+        .insert([{
+          name: bookForm.name,
+          email: bookForm.email,
+          phone: bookForm.phone,
+          address: bookForm.address || null,
+          tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8',
+          total_stays: 0,
+          total_spent: 0,
+          loyalty_points: 0,
+          outstanding_balance: 0,
+          vip: false,
+        }])
+        .select('id')
+        .single();
+
+      const guestId = (!guestError && guestData?.id) ? guestData.id : null;
+
+      // 2 — Create reservation linked to the new guest
       await supabase.from('reservations').insert([{
         guest_name: bookForm.name,
         email: bookForm.email,
@@ -177,7 +198,7 @@ export default function HotelFountainLanding() {
         source: 'Direct Web',
         created_at: new Date().toISOString(),
         room_ids: [],
-        guest_ids: [],
+        guest_ids: guestId ? [guestId] : [],
         tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8',
       }]);
     } catch {}
@@ -305,7 +326,7 @@ export default function HotelFountainLanding() {
                       ৳{room.rate.toLocaleString()} <span className="gs" style={{ fontSize: 10, color: 'var(--tx3)', letterSpacing: '.1em', fontWeight: 300 }}>/ night</span>
                     </div>
                   </div>
-                  <button className="gb" style={{ padding: '10px 20px', fontSize: 9 }} onClick={() => { setBookingModal({ open: true, room }); setBookStatus('idle'); setBookForm({ name: '', email: '', phone: '' }); }}>Book Now</button>
+                  <button className="gb" style={{ padding: '10px 20px', fontSize: 9 }} onClick={() => { setBookingModal({ open: true, room }); setBookStatus('idle'); setBookForm({ name: '', email: '', phone: '', address: '' }); }}>Book Now</button>
                 </div>
               </div>
             </div>
@@ -433,7 +454,7 @@ export default function HotelFountainLanding() {
                           <div className="cg" style={{ fontSize: 18, color: 'var(--tx)' }}>{r.name || cat.name}</div>
                           <div className="gs" style={{ fontSize: 9, color: 'var(--tx3)', letterSpacing: '.1em', textTransform: 'uppercase' }}>Up to {cat.maxGuests} Guests</div>
                           <div className="cg" style={{ fontSize: 20, color: 'var(--gold)' }}>৳{(r.rate || cat.rate).toLocaleString()} <span className="gs" style={{ fontSize: 10, color: 'var(--tx3)' }}>/night</span></div>
-                          <button className="gb" style={{ padding: '9px 0', fontSize: 9, marginTop: 4 }} onClick={() => { setBookingModal({ open: true, room: { ...cat, ...r } }); setBookStatus('idle'); setBookForm({ name: '', email: '', phone: '' }); }}>Book This Room</button>
+                          <button className="gb" style={{ padding: '9px 0', fontSize: 9, marginTop: 4 }} onClick={() => { setBookingModal({ open: true, room: { ...cat, ...r } }); setBookStatus('idle'); setBookForm({ name: '', email: '', phone: '', address: '' }); }}>Book This Room</button>
                         </div>
                       );
                     })}
@@ -602,6 +623,7 @@ export default function HotelFountainLanding() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {[
                     { label: 'Full Name *', type: 'text', key: 'name', ph: 'Your full name' },
+                    { label: 'Address', type: 'text', key: 'address', ph: 'Street, area or city' },
                     { label: 'Email Address *', type: 'email', key: 'email', ph: 'your@email.com' },
                     { label: 'Phone Number', type: 'tel', key: 'phone', ph: '+880 — — —' },
                   ].map(f => (
