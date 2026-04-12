@@ -2757,38 +2757,49 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       }
 
       // Build corrected transaction amounts for ALL reservations using chronological capping.
-      // For each reservation, walk ALL transactions in chronological order.
-      // Keep each amount as-is until running total reaches paid_amount, then reduce/zero the rest.
+      // Groups ALL transactions for a reservation together (by res ID, not room+guest) so
+      // multi-room reservations are capped ONCE at paid_amount — prevents double-counting.
+      // Handles comma-separated room_number values (e.g. "407,408") from legacy entries.
       // Returns a Map: txId -> corrected amount
       function buildCorrectedAmounts() {
         const corrected = {}
         const allReal = transactions.filter(t => t.type !== 'Balance Carried Forward')
-        // Group by guest|room
-        const groups = {}
+
+        // Step 1: resolve each transaction to its reservation, group by res.id
+        const resTxMap = {}   // resId -> { res, txs[] }
+        const orphanTxs = []  // no matching reservation found
+
         allReal.forEach(t => {
-          const key = `${t.guest_name || ''}|${t.room_number || ''}`
-          if (!groups[key]) groups[key] = []
-          groups[key].push(t)
-        })
-        Object.entries(groups).forEach(([key, txs]) => {
-          const [gname, rnum] = key.split('|')
-          // Match reservation by BOTH guest name AND room (most accurate), fallback to room-only
+          const rawRnum = t.room_number || ''
+          const gname = (t.guest_name || '').trim()
+          // Support comma-separated room_number like "407,408"
+          const rnums = rawRnum.split(',').map(s => s.trim()).filter(Boolean)
+
+          // Try name + any-room match first (most accurate), then room-only fallback
           const res = reservations?.find(r => {
-            const rRooms = r.room_ids || [r.room_number]
-            if (!rRooms.includes(rnum)) return false
-            // Try to match guest name
-            const rGuestName = r.guest_name || ''
+            const rRooms = (r.room_ids || [r.room_number]).filter(Boolean)
+            if (!rnums.some(rn => rRooms.includes(rn))) return false
             const gid = String((r.guest_ids || [r.guest_id] || []).filter(Boolean)[0] || '')
-            const g = guests?.find(g => String(g.id) === gid)
-            const rName = g ? g.name : rGuestName
+            const g = guests?.find(gg => String(gg.id) === gid)
+            const rName = (g ? g.name : (r.guest_name || '')).trim()
             return rName && gname && rName.toLowerCase() === gname.toLowerCase()
-          }) || reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
-          if (!res) {
-            txs.forEach(t => { corrected[t.id] = +t.amount || 0 })
-            return
-          }
+          }) || reservations?.find(r => {
+            const rRooms = (r.room_ids || [r.room_number]).filter(Boolean)
+            return rnums.some(rn => rRooms.includes(rn))
+          })
+
+          if (!res) { orphanTxs.push(t); return }
+          if (!resTxMap[res.id]) resTxMap[res.id] = { res, txs: [] }
+          resTxMap[res.id].txs.push(t)
+        })
+
+        // Step 2: orphan transactions keep raw amount
+        orphanTxs.forEach(t => { corrected[t.id] = +t.amount || 0 })
+
+        // Step 3: per reservation, cap total across ALL rooms at paid_amount
+        Object.values(resTxMap).forEach(({ res, txs }) => {
           const resPaid = +(res.paid_amount || 0)
-          // Sort REVERSE chronologically — most recent first (preserves latest actual payments)
+          // Sort REVERSE chronologically — most recent first
           const sorted = [...txs].sort((a, b) =>
             (b.created_at || b.fiscal_day || '').localeCompare(a.created_at || a.fiscal_day || '') ||
             String(b.id || '').localeCompare(String(a.id || ''))
@@ -2802,6 +2813,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
             else { corrected[t.id] = raw; running += raw }
           })
         })
+
         return corrected
       }
 
