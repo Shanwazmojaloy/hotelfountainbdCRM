@@ -2044,23 +2044,26 @@ input[type='date']{color:var(--tx);color-scheme:dark}
     }
 
     /* ═══════════════════════ GUESTS ═════════════════════════════ */
-    function GuestsPage({ guests, reservations, rooms, toast, currentUser, reload, hSettings, foliosMap }) {
+    function GuestsPage({ guests, reservations, rooms, toast, currentUser, reload, hSettings, foliosMap, aiLeads = [] }) {
       const [search, setSearch] = useState('')
       const [filter, setFilter] = useState('ALL')
       const [sel, setSel] = useState(null)
       const [showAdd, setShowAdd] = useState(false)
       const [page, setPage] = useState(1)
       const PAGE_SIZE = 15
+      // AI Leads state
+      const [aiSearch, setAiSearch] = useState('')
+      const [aiSegFilter, setAiSegFilter] = useState('ALL')
+      const [expandedPitch, setExpandedPitch] = useState(null)
+
+      const SEG_COLOR = { corporate: '#C8A96E', events: '#58A6FF', travel: '#3FB950', embassy: '#9E7BFF', airlines: '#E06C7A' }
+      const SEG_LABEL = { corporate: 'Corporate', events: 'Events', travel: 'Travel', embassy: 'Embassy / NGO', airlines: 'Airlines' }
 
       // Memoize status counts and guest-status mapping
       const { counts, statusMap } = useMemo(() => {
         const counts = { ALL: guests.length, DUE: 0, CHECKED_IN: 0, CHECKED_OUT: 0, RESERVED: 0 };
         const statusMap = {};
-
-        guests.forEach(g => {
-          if (+g.outstanding_balance > 0) counts.DUE++;
-        });
-
+        guests.forEach(g => { if (+g.outstanding_balance > 0) counts.DUE++; });
         (reservations || []).forEach(r => {
           (r.guest_ids || []).forEach(gid => {
             const id = String(gid);
@@ -2068,63 +2071,175 @@ input[type='date']{color:var(--tx);color-scheme:dark}
             statusMap[id].add(r.status);
           });
         });
-
-        // Count guests per unique category
         Object.keys(statusMap).forEach(gid => {
           const statuses = statusMap[gid];
           if (statuses.has('CHECKED_IN')) counts.CHECKED_IN++;
           if (statuses.has('CHECKED_OUT')) counts.CHECKED_OUT++;
           if (statuses.has('PENDING') || statuses.has('CONFIRMED')) counts.RESERVED++;
         });
-
         return { counts, statusMap };
       }, [guests, reservations]);
 
       const filtered = useMemo(() => {
         let list = guests;
-
-        // Status Filter
-        if (filter !== 'ALL') {
-          if (filter === 'DUE') {
-            list = list.filter(g => +g.outstanding_balance > 0);
-          } else if (filter === 'RESERVED') {
-            list = list.filter(g => {
-              const s = statusMap[String(g.id)];
-              return s && (s.has('PENDING') || s.has('CONFIRMED'));
-            });
-          } else {
-            list = list.filter(g => statusMap[String(g.id)]?.has(filter));
-          }
+        if (filter === 'DUE') {
+          list = list.filter(g => +g.outstanding_balance > 0);
+        } else if (filter === 'RESERVED') {
+          list = list.filter(g => { const s = statusMap[String(g.id)]; return s && (s.has('PENDING') || s.has('CONFIRMED')); });
+        } else if (filter !== 'ALL') {
+          list = list.filter(g => statusMap[String(g.id)]?.has(filter));
         }
-
-        // Search Filter
         if (search) {
           const q = search.toLowerCase();
           list = list.filter(g => g.name?.toLowerCase().includes(q) || g.phone?.includes(q) || g.email?.toLowerCase().includes(q));
         }
-
         return list;
       }, [guests, search, filter, statusMap]);
 
+      const filteredAiLeads = useMemo(() => {
+        let list = aiLeads;
+        if (aiSegFilter !== 'ALL') list = list.filter(l => l.source === `AI-${aiSegFilter}`);
+        if (aiSearch) {
+          const q = aiSearch.toLowerCase();
+          list = list.filter(l => l.name?.toLowerCase().includes(q) || l.company?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q));
+        }
+        return list; // already sorted newest-first from DB
+      }, [aiLeads, aiSegFilter, aiSearch]);
+
       const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
       const pageList = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-
-      // Reset page on search or filter change
       useEffect(() => { setPage(1) }, [search, filter])
 
+      // ── TAB BAR (shared) ──
+      const TabBar = () => (
+        <div className="tabs" style={{ marginBottom: 0 }}>
+          {['ALL', 'CHECKED_IN', 'CHECKED_OUT', 'RESERVED', 'DUE'].map(s => (
+            <button key={s} className={`tab${filter === s ? ' on' : ''}`} onClick={() => setFilter(s)}>
+              {s === 'ALL' ? `All (${guests.length})` : s === 'DUE' ? `Due (${counts.DUE})` : `${s.replace('_', ' ')} (${counts[s] || 0})`}
+            </button>
+          ))}
+          <button
+            className={`tab${filter === 'AI_LEADS' ? ' on' : ''}`}
+            onClick={() => setFilter('AI_LEADS')}
+            style={filter === 'AI_LEADS' ? { borderColor: '#C8A96E', color: '#C8A96E', background: 'rgba(200,169,110,.08)' } : { color: '#C8A96E' }}
+          >
+            ✦ AI Leads {aiLeads.length > 0 ? `(${aiLeads.length})` : ''}
+          </button>
+        </div>
+      )
+
+      // ── AI LEADS VIEW ──
+      if (filter === 'AI_LEADS') {
+        const segCounts = ['corporate','events','travel','embassy','airlines'].reduce((acc, s) => {
+          acc[s] = aiLeads.filter(l => l.source === `AI-${s}`).length; return acc;
+        }, {});
+        return (
+          <div>
+            <div className="flex fac fjb mb4" style={{ flexWrap: 'wrap', gap: 8, alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <TabBar />
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {/* Segment sub-filters */}
+                  {['ALL','corporate','events','travel','embassy','airlines'].map(s => (
+                    <button key={s} onClick={() => setAiSegFilter(s)}
+                      style={{ fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', padding: '3px 10px', border: `1px solid ${aiSegFilter === s ? (SEG_COLOR[s] || '#C8A96E') : 'var(--br2)'}`, background: aiSegFilter === s ? `rgba(${s==='corporate'?'200,169,110':s==='events'?'88,166,255':s==='travel'?'63,185,80':s==='embassy'?'158,123,255':'224,108,122'},.1)` : 'transparent', color: aiSegFilter === s ? (SEG_COLOR[s] || '#C8A96E') : 'var(--tx3)', cursor: 'pointer', transition: 'all .15s' }}>
+                      {s === 'ALL' ? `All Segments` : SEG_LABEL[s]} {s !== 'ALL' && segCounts[s] > 0 ? `· ${segCounts[s]}` : ''}
+                    </button>
+                  ))}
+                  <div className="srch" style={{ width: 240, marginLeft: 4 }}><span className="xs muted">⌕</span><input placeholder="Search leads…" value={aiSearch} onChange={e => setAiSearch(e.target.value)} /></div>
+                </div>
+              </div>
+              <span className="badge bgold">{filteredAiLeads.length} leads</span>
+            </div>
+
+            {filteredAiLeads.length === 0 ? (
+              <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>✦</div>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: 18, color: 'var(--gold)', marginBottom: 8 }}>No AI Leads Yet</div>
+                <div style={{ fontSize: 12, color: 'var(--tx3)' }}>Leads are generated every Saturday at 9:00 AM BDT by the SEO &amp; GEO Agent.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
+                {filteredAiLeads.map(lead => {
+                  const seg = (lead.source || '').replace('AI-', '');
+                  const clr = SEG_COLOR[seg] || '#C8A96E';
+                  const notesParts = (lead.notes || '').split(' | Est: ');
+                  const bookingNeed = notesParts[0].replace(/^\[.*?\]\s*/, '');
+                  const estValue = notesParts[1] || '';
+                  const pitch = lead.email_draft || '';
+                  const isExpanded = expandedPitch === lead.id;
+                  const dateStr = lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                  return (
+                    <div key={lead.id} style={{ background: 'var(--card)', border: `1px solid rgba(${seg==='corporate'?'200,169,110':seg==='events'?'88,166,255':seg==='travel'?'63,185,80':seg==='embassy'?'158,123,255':'224,108,122'},.2)`, borderTop: `2px solid ${clr}`, padding: '16px', position: 'relative', transition: 'border-color .2s' }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                        <span style={{ fontSize: 8, letterSpacing: '.14em', textTransform: 'uppercase', color: clr, background: `rgba(${seg==='corporate'?'200,169,110':seg==='events'?'88,166,255':seg==='travel'?'63,185,80':seg==='embassy'?'158,123,255':'224,108,122'},.1)`, border: `1px solid ${clr}30`, padding: '2px 8px', fontWeight: 600 }}>
+                          {SEG_LABEL[seg] || seg.toUpperCase()}
+                        </span>
+                        <span style={{ fontSize: 9, color: 'var(--tx3)' }}>{dateStr}</span>
+                      </div>
+                      {/* Name & Role */}
+                      <div style={{ fontFamily: 'var(--serif)', fontSize: 16, color: 'var(--tx)', fontWeight: 600, marginBottom: 2 }}>{lead.name}</div>
+                      {lead.company && <div style={{ fontSize: 11, color: 'var(--tx3)', marginBottom: 6 }}>{lead.company}</div>}
+                      {/* Contact */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginBottom: 10 }}>
+                        {lead.email && <span style={{ fontSize: 10, color: '#4A9EFF' }}>✉ {lead.email}</span>}
+                        {lead.phone && <span style={{ fontSize: 10, color: 'var(--tx3)' }}>📞 {lead.phone}</span>}
+                      </div>
+                      {/* Booking Need */}
+                      {bookingNeed && (
+                        <div style={{ borderLeft: `2px solid ${clr}`, paddingLeft: 10, marginBottom: 8, fontSize: 11, color: 'var(--tx2)', lineHeight: 1.6, background: 'rgba(0,0,0,.2)', padding: '6px 10px' }}>
+                          {bookingNeed}
+                        </div>
+                      )}
+                      {/* Est. Value */}
+                      {estValue && (
+                        <div style={{ fontSize: 10, color: 'var(--grn)', marginBottom: 10 }}>💰 Est. value: {estValue}</div>
+                      )}
+                      {/* Pitch toggle */}
+                      {pitch && (
+                        <div>
+                          <button
+                            onClick={() => setExpandedPitch(isExpanded ? null : lead.id)}
+                            style={{ fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: '#58A6FF', background: 'rgba(88,166,255,.06)', border: '1px solid rgba(88,166,255,.2)', padding: '4px 12px', cursor: 'pointer', width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all .15s' }}
+                          >
+                            <span>✉ Ready-to-Send Pitch</span>
+                            <span style={{ fontSize: 12, transition: 'transform .2s', display: 'inline-block', transform: isExpanded ? 'rotate(180deg)' : 'none' }}>▾</span>
+                          </button>
+                          {isExpanded && (
+                            <div style={{ marginTop: 6, background: 'rgba(88,166,255,.03)', border: '1px solid rgba(88,166,255,.1)', padding: '10px 12px', fontSize: 11, color: 'var(--tx2)', whiteSpace: 'pre-wrap', lineHeight: 1.7, maxHeight: 300, overflowY: 'auto' }}>
+                              {pitch}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {/* Status badge */}
+                      <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, letterSpacing: '.1em', textTransform: 'uppercase', color: lead.status === 'email_drafted' ? 'var(--grn)' : 'var(--tx3)', background: lead.status === 'email_drafted' ? 'rgba(63,185,80,.08)' : 'rgba(255,255,255,.03)', border: `1px solid ${lead.status === 'email_drafted' ? 'rgba(63,185,80,.2)' : 'var(--br2)'}`, padding: '2px 7px' }}>
+                          {lead.status === 'email_drafted' ? '✓ Pitch Ready' : lead.status || 'new'}
+                        </span>
+                        {pitch && (
+                          <button
+                            onClick={() => { navigator.clipboard?.writeText(pitch); toast('Pitch copied to clipboard!') }}
+                            style={{ fontSize: 8, letterSpacing: '.08em', color: 'var(--tx3)', background: 'none', border: '1px solid var(--br2)', padding: '2px 8px', cursor: 'pointer' }}
+                          >Copy Pitch</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // ── STANDARD GUEST TABLE VIEW ──
       return (
         <div>
           <div className="flex fac fjb mb4" style={{ flexWrap: 'wrap', gap: 8, alignItems: 'flex-end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div className="tabs" style={{ marginBottom: 0 }}>
-                {['ALL', 'CHECKED_IN', 'CHECKED_OUT', 'RESERVED', 'DUE'].map(s => (
-                  <button key={s} className={`tab${filter === s ? ' on' : ''}`} onClick={() => setFilter(s)}>
-                    {s === 'ALL' ? `All (${guests.length})` :
-                      s === 'DUE' ? `Due (${counts.DUE})` :
-                        `${s.replace('_', ' ')} (${counts[s] || 0})`}
-                  </button>
-                ))}
-              </div>
+              <TabBar />
               <div className="srch" style={{ width: 320 }}><span className="xs muted">⌕</span><input placeholder="Search name, phone, email…" value={search} onChange={e => setSearch(e.target.value)} /></div>
             </div>
             <div className="flex gap2" style={{ alignItems: 'center' }}>
@@ -2153,30 +2268,19 @@ input[type='date']{color:var(--tx);color-scheme:dark}
               </table>
             </div>
           </div>
-          {/* Pagination controls */}
           {totalPages > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 4px', flexWrap: 'wrap', gap: 8 }}>
-              <div className="xs muted">
-                Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} guests
-              </div>
+              <div className="xs muted">Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} guests</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(1)} style={{ padding: '4px 8px', opacity: page === 1 ? .35 : 1 }}>«</button>
                 <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} style={{ padding: '4px 10px', opacity: page === 1 ? .35 : 1 }}>‹ Prev</button>
-                {/* Page number pills */}
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
-                  .reduce((acc, p, i, arr) => {
-                    if (i > 0 && arr[i - 1] !== p - 1) acc.push('...')
-                    acc.push(p); return acc
-                  }, [])
-                  .map((p, i) =>
-                    p === '...'
-                      ? <span key={'e' + i} className="xs muted" style={{ padding: '0 4px' }}>…</span>
-                      : <button key={p} className={`btn btn-sm${p === page ? ' btn-gold' : ' btn-ghost'}`}
-                        style={{ padding: '4px 9px', minWidth: 30 }}
-                        onClick={() => setPage(p)}>{p}</button>
-                  )
-                }
+                  .reduce((acc, p, i, arr) => { if (i > 0 && arr[i - 1] !== p - 1) acc.push('...'); acc.push(p); return acc; }, [])
+                  .map((p, i) => p === '...'
+                    ? <span key={'e' + i} className="xs muted" style={{ padding: '0 4px' }}>…</span>
+                    : <button key={p} className={`btn btn-sm${p === page ? ' btn-gold' : ' btn-ghost'}`} style={{ padding: '4px 9px', minWidth: 30 }} onClick={() => setPage(p)}>{p}</button>
+                  )}
                 <button className="btn btn-ghost btn-sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)} style={{ padding: '4px 10px', opacity: page === totalPages ? .35 : 1 }}>Next ›</button>
                 <button className="btn btn-ghost btn-sm" disabled={page === totalPages} onClick={() => setPage(totalPages)} style={{ padding: '4px 8px', opacity: page === totalPages ? .35 : 1 }}>»</button>
               </div>
@@ -3238,8 +3342,12 @@ ${dueSection}
             })
 
             // 2. Process dueRes (reservations with pending balances)
+            // TODAY view: only inject CHECKED_IN dues. CHECKED_OUT dues from previous days
+            // are carried forward as "Balance Carried Forward" transactions and appear via
+            // step 1 above — showing them again here would double-up old closed records.
             if (!search) {
               dueRes.forEach(r => {
+                if (filter === 'TODAY' && r.status !== 'CHECKED_IN') return;
                 const key = r.id;
                 if (!unifiedGroups[key]) {
                   unifiedGroups[key] = { txs: [], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: true }
@@ -3270,7 +3378,10 @@ ${dueSection}
             return (
               <div className="card" style={{ marginBottom: 12 }}>
                 <div className="card-hd">
-                  <span className="card-title" style={{ fontSize: 14 }}>Active Billing Ledger — {label}</span>
+                  <div>
+                    <span className="card-title" style={{ fontSize: 14 }}>Active Billing Ledger — {label}</span>
+                    {filter === 'TODAY' && <div style={{ fontSize: 9, color: 'var(--tx3)', marginTop: 2, letterSpacing: '.06em' }}>Checked-in guests + today's transactions · Checked-out dues appear in ALL view</div>}
+                  </div>
                   <span className="badge bgold">{displayList.length} records</span>
                 </div>
                 <div className="tbl-wrap">
@@ -4616,14 +4727,15 @@ const KEYWORDS = [
       // loadAll returns a promise so callers can await it
       const loadAll = useCallback(async () => {
         try {
-          const [rooms, guests, reservations, transactions, tasks, settingsRows, folios] = await Promise.all([
+          const [rooms, guests, reservations, transactions, tasks, settingsRows, folios, leads] = await Promise.all([
             db('rooms', `?tenant_id=eq.${TENANT}&select=*&order=room_number`),
             fetchAllGuests(),
             db('reservations', `?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=1000`),
             db('transactions', `?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=1000`),
             db('housekeeping_tasks', `?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),
             db('hotel_settings', `?tenant_id=eq.${TENANT}&select=key,value`),
-            db('folios', `?tenant_id=eq.${TENANT}&select=*&order=created_at`)
+            db('folios', `?tenant_id=eq.${TENANT}&select=*&order=created_at`),
+            db('leads', `?tenant_id=eq.${TENANT}&source=like.AI-*&select=*&order=created_at.desc&limit=500`)
           ])
           setData({
             rooms: Array.isArray(rooms) ? rooms : [],
@@ -4631,6 +4743,7 @@ const KEYWORDS = [
             reservations: Array.isArray(reservations) ? reservations : [],
             transactions: Array.isArray(transactions) ? transactions : [],
             tasks: Array.isArray(tasks) ? tasks : [],
+            leads: Array.isArray(leads) ? leads : [],
           })
           const sM = {}
           if (Array.isArray(settingsRows)) settingsRows.forEach(r => { sM[r.key] = r.value })
@@ -4649,7 +4762,7 @@ const KEYWORDS = [
       }, [toast])
 
       useEffect(() => {
-        if (!user) { setData({ rooms: [], guests: [], reservations: [], transactions: [], tasks: [] }); return }
+        if (!user) { setData({ rooms: [], guests: [], reservations: [], transactions: [], tasks: [], leads: [] }); return }
         setLoading(true)
         loadAll().finally(() => setLoading(false))
         const interval = setInterval(loadAll, 90000)
@@ -4685,7 +4798,7 @@ const KEYWORDS = [
         setUser(null)
         setPage('dashboard')
         setNotifOpen(false)
-        setData({ rooms: [], guests: [], reservations: [], transactions: [], tasks: [] })
+        setData({ rooms: [], guests: [], reservations: [], transactions: [], tasks: [], leads: [] })
         setToastMsg(null)
       }
 
@@ -4837,7 +4950,7 @@ const KEYWORDS = [
                 {cur === 'dashboard' && <Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} hSettings={hSettings} />}
                 {cur === 'rooms' && <RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap} />}
                 {cur === 'reservations' && <ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap} />}
-                {cur === 'guests' && <GuestsPage guests={data.guests} reservations={data.reservations} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap} />}
+                {cur === 'guests' && <GuestsPage guests={data.guests} reservations={data.reservations} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} hSettings={hSettings} foliosMap={foliosMap} aiLeads={data.leads || []} />}
                 {cur === 'housekeeping' && <HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} />}
                 {cur === 'billing' && <BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} hSettings={hSettings} foliosMap={foliosMap} />}
                 {cur === 'reports' && <ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests} />}
