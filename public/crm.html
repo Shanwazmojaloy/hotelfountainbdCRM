@@ -3369,11 +3369,19 @@ ${dueSection}
               })
             }
 
-            const displayList = Object.values(unifiedGroups).sort((a, b) => {
+            let displayList = Object.values(unifiedGroups).sort((a, b) => {
               const dA = a.res?.check_in || a.txs[0]?.check_in || ''
               const dB = b.res?.check_in || b.txs[0]?.check_in || ''
               return dB.localeCompare(dA)
             })
+            // HF-Core: TODAY = only rows with fiscal_day===today activity OR currently CHECKED_IN
+            if (filter === 'TODAY') {
+              displayList = displayList.filter(grp => {
+                const hasTodayActivity = grp.txs.some(t => t.fiscal_day === today && t.type !== 'Balance Carried Forward')
+                const isCheckedIn = grp.res?.status === 'CHECKED_IN'
+                return hasTodayActivity || isCheckedIn
+              })
+            }
 
             return (
               <div className="card" style={{ marginBottom: 12 }}>
@@ -3415,6 +3423,9 @@ ${dueSection}
                         const billingNights = invoice ? nightsCount(invoice.check_in, invoice.check_out) || 1 : 1
                         const billingBaseRate = invoice ? (comp?.grossRate || 0) : tTotal
                         const billingDisc = invoice ? (comp?.discount || 0) : 0
+
+                        // HF-Core: hide rows with no financial activity in TODAY view
+                        if (filter === 'TODAY' && tPaid === 0 && tDue === 0) return null
 
                         return (
                           <tr key={invoice ? invoice.id : (grp.guest_name + '|' + grp.room_number)}>
