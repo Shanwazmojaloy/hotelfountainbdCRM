@@ -2826,6 +2826,46 @@ input[type='date']{color:var(--tx);color-scheme:dark}
           .reduce((a, t) => a + (_corrected[t.id] ?? (+t.amount || 0)), 0)
       }
 
+      // Helper: resolve a transaction to its reservation (same logic as buildCorrectedAmounts)
+      function resolveTxToRes(t) {
+        const rnums = (t.room_number || '').split(',').map(s => s.trim()).filter(Boolean)
+        const gname = (t.guest_name || '').trim()
+        return reservations?.find(r => {
+          const rRooms = (r.room_ids || [r.room_number]).filter(Boolean)
+          if (!rnums.some(rn => rRooms.includes(rn))) return false
+          const gid = String((r.guest_ids || [r.guest_id] || []).filter(Boolean)[0] || '')
+          const g = guests?.find(gg => String(gg.id) === gid)
+          const rName = (g ? g.name : (r.guest_name || '')).trim()
+          return rName && gname && rName.toLowerCase() === gname.toLowerCase()
+        }) || reservations?.find(r => {
+          const rRooms = (r.room_ids || [r.room_number]).filter(Boolean)
+          return rnums.some(rn => rRooms.includes(rn))
+        })
+      }
+
+      // TODAY KPI paid = exact .reduce() sum of the 'Paid' column for visible table rows.
+      // Uses the same filter rules as the billing table so KPI always matches table exactly.
+      const todayVisiblePaid = (() => {
+        const seenResIds = new Set()
+        // Step 1: collect reservations that have a real payment transaction today
+        todayT.forEach(t => {
+          if (t.type === 'Balance Carried Forward' || parseFloat(t.amount || 0) <= 0) return
+          const res = resolveTxToRes(t)
+          if (res) seenResIds.add(res.id)
+        })
+        // Step 2: also include CHECKED_IN reservations with outstanding dues (always visible)
+        reservations.filter(r => r.status === 'CHECKED_IN' && computeBill(r).due > 0)
+          .forEach(r => seenResIds.add(r.id))
+        // Step 3: .reduce() — sum paid_amount for visible reservations, skip zero-paid/zero-due
+        return [...seenResIds].reduce((acc, id) => {
+          const r = reservations.find(r => r.id === id)
+          if (!r) return acc
+          const { paid, due } = computeBill(r)
+          if (paid === 0 && due === 0) return acc   // hidden row — don't count
+          return acc + paid
+        }, 0)
+      })()
+
       const outstanding = reservations
         .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
         .reduce((a, r) => a + computeBill(r).due, 0)
@@ -3271,7 +3311,7 @@ ${dueSection}
         <div>
           {/* Stats */}
           <div className="stats-row" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
-            <div className="stat" style={{ '--ac': 'var(--gold)' }}><div className="stat-ico">💰</div><div className="stat-lbl">{(() => { const ds = filter === 'DATE' && calDate ? calDate : today; const [y, m, d] = ds.split('-'); const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${+d}-${mo[+m - 1]}-${y}` })()}</div><div className="stat-val">{BDT(filter === 'DATE' ? normalizeRevenue(calT) : todayRevenue)}</div><div className="stat-sub">{(() => { const base = filter === 'DATE' ? calT : todayT; const cnt = base.filter(t => t.type !== 'Balance Carried Forward' && parseFloat(t.amount || 0) > 0).length; return `${cnt} transaction${cnt !== 1 ? 's' : ''}` })()}</div></div>
+            <div className="stat" style={{ '--ac': 'var(--gold)' }}><div className="stat-ico">💰</div><div className="stat-lbl">{(() => { const ds = filter === 'DATE' && calDate ? calDate : today; const [y, m, d] = ds.split('-'); const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${+d}-${mo[+m - 1]}-${y}` })()}</div><div className="stat-val">{BDT(filter === 'DATE' ? normalizeRevenue(calT) : filter === 'MONTH' ? monthRevenue : todayVisiblePaid)}</div><div className="stat-sub">{(() => { const base = filter === 'DATE' ? calT : todayT; const cnt = base.filter(t => t.type !== 'Balance Carried Forward' && parseFloat(t.amount || 0) > 0).length; return `${cnt} transaction${cnt !== 1 ? 's' : ''}` })()}</div></div>
             <div className="stat" style={{ '--ac': 'var(--teal)' }}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.filter(t => t.type !== 'Balance Carried Forward').length} transactions</div></div>
             <div className="stat" style={{ '--ac': 'var(--rose)' }}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
           </div>
