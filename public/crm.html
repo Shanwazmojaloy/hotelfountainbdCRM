@@ -2844,13 +2844,23 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       }
 
       // TODAY KPI paid = exact .reduce() sum of the 'Paid' column for visible table rows.
-      // Uses the same filter rules as the billing table so KPI always matches table exactly.
+      // Uses the IDENTICAL resolver as the billing table (step 1) so KPI always matches exactly.
       const todayVisiblePaid = (() => {
+        // Mirror the billing table's exact transaction→reservation resolver (line ~3390)
+        const tableResolve = t =>
+          reservations?.find(r =>
+            (r.room_ids || [r.room_number]).includes(t.room_number) &&
+            (r.guest_ids || []).includes(guests?.find(g => g.name === t.guest_name)?.id)
+          ) ||
+          reservations?.find(r =>
+            (r.room_ids || [r.room_number]).includes(t.room_number)
+          )
+
         const seenResIds = new Set()
         // Step 1: collect reservations that have a real payment transaction today
         todayT.forEach(t => {
           if (t.type === 'Balance Carried Forward' || parseFloat(t.amount || 0) <= 0) return
-          const res = resolveTxToRes(t)
+          const res = tableResolve(t)
           if (res) seenResIds.add(res.id)
         })
         // Step 2: also include CHECKED_IN reservations with outstanding dues (always visible)
