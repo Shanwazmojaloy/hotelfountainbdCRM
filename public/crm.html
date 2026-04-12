@@ -3259,7 +3259,7 @@ ${dueSection}
         <div>
           {/* Stats */}
           <div className="stats-row" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
-            <div className="stat" style={{ '--ac': 'var(--gold)' }}><div className="stat-ico">💰</div><div className="stat-lbl">{(() => { const ds = filter === 'DATE' && calDate ? calDate : today; const [y, m, d] = ds.split('-'); const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${+d}-${mo[+m - 1]}-${y}` })()}</div><div className="stat-val">{BDT(filter === 'DATE' ? normalizeRevenue(calT) : todayRevenue)}</div><div className="stat-sub">{(filter === 'DATE' ? calT : todayT).filter(t => t.type !== 'Balance Carried Forward').length} transactions</div></div>
+            <div className="stat" style={{ '--ac': 'var(--gold)' }}><div className="stat-ico">💰</div><div className="stat-lbl">{(() => { const ds = filter === 'DATE' && calDate ? calDate : today; const [y, m, d] = ds.split('-'); const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return `${+d}-${mo[+m - 1]}-${y}` })()}</div><div className="stat-val">{BDT(filter === 'DATE' ? normalizeRevenue(calT) : todayRevenue)}</div><div className="stat-sub">{(() => { const base = filter === 'DATE' ? calT : todayT; const cnt = base.filter(t => t.type !== 'Balance Carried Forward' && parseFloat(t.amount || 0) > 0).length; return `${cnt} transaction${cnt !== 1 ? 's' : ''}` })()}</div></div>
             <div className="stat" style={{ '--ac': 'var(--teal)' }}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.filter(t => t.type !== 'Balance Carried Forward').length} transactions</div></div>
             <div className="stat" style={{ '--ac': 'var(--rose)' }}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
           </div>
@@ -3374,12 +3374,18 @@ ${dueSection}
               const dB = b.res?.check_in || b.txs[0]?.check_in || ''
               return dB.localeCompare(dA)
             })
-            // HF-Core: TODAY = only rows with fiscal_day===today activity OR currently CHECKED_IN
+            // HF-Core STRICT: TODAY = CHECKED_IN with dues or today payment | CHECKED_OUT with today payment only
             if (filter === 'TODAY') {
               displayList = displayList.filter(grp => {
-                const hasTodayActivity = grp.txs.some(t => t.fiscal_day === today && t.type !== 'Balance Carried Forward')
                 const isCheckedIn = grp.res?.status === 'CHECKED_IN'
-                return hasTodayActivity || isCheckedIn
+                const hasTodayTx = grp.txs.some(t => t.fiscal_day === today && t.type !== 'Balance Carried Forward' && parseFloat(t.amount || 0) > 0)
+                if (isCheckedIn) {
+                  // In-house guests: show only if they have today's payment OR still have an outstanding due
+                  const hasDue = grp.res ? computeBill(grp.res).due > 0 : false
+                  return hasTodayTx || hasDue
+                }
+                // Checked-out / any other status: ONLY if real payment was recorded today
+                return hasTodayTx
               })
             }
 
