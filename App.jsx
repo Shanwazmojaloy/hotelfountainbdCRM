@@ -2053,6 +2053,8 @@ function GoogleSheetsCard({toast}) {
 
 /* ═══════════════════════ ROOT APP ═══════════════════════════ */
 export default function App() {
+    // Debugging: log user and loading state on every render
+    console.log('[App Render] user:', user, 'loading:', loading);
   // BUG FIX: user state is the source of truth — must be null initially
   const [user,setUser]=useState(null)
   const [page,setPage]=useState('dashboard')
