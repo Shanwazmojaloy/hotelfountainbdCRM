@@ -969,6 +969,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
           })
           await dbPatch('rooms', room.id, { status: 'DIRTY' })
           if (due > 0) {
+            // Guest has an unpaid balance at checkout — record the receivable folio
             await dbPost('folios', {
               room_number: room.room_number,
               reservation_id: activeRes.id,
@@ -977,15 +978,21 @@ input[type='date']{color:var(--tx);color-scheme:dark}
               amount: due,
               tenant_id: TENANT
             })
+            // HF-Core: ONLY post Final Settlement transaction when there is an actual
+            // outstanding due at checkout. If due === 0 the guest already paid in full
+            // on a prior fiscal day — no new transaction should be created, otherwise
+            // the guest appears on today's billing report even though they paid yesterday.
+            await dbPostTransactionSafe({
+              type: 'Final Settlement',
+              amount: safeNum(due),          // post only the remaining unpaid amount
+              room_number: room.room_number,
+              guest_name: guest?.name || 'Guest',
+              fiscal_day: activeFiscalDay,
+              tenant_id: TENANT
+            })
           }
-          await dbPostTransactionSafe({
-            type: 'Final Settlement',
-            amount: safeNum(total),
-            room_number: room.room_number,
-            guest_name: guest?.name || 'Guest',
-            fiscal_day: activeFiscalDay,
-            tenant_id: TENANT
-          })
+          // If due === 0: guest is fully settled. Payment transactions already exist
+          // from when they actually paid. No new transaction needed at checkout.
           if (guest?.id) {
             const curBal = +(guest.outstanding_balance || 0)
             await dbPatch('guests', guest.id, { outstanding_balance: curBal + due })
