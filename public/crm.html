@@ -918,6 +918,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       const [fLoad, setFLoad] = useState(true)
       const [showCharge, setShowCharge] = useState(false)
       const [showCO, setShowCO] = useState(false)
+      const [showDueWarning, setShowDueWarning] = useState(false)
       const [saving, setSaving] = useState(false)
       const [payAmt, setPayAmt] = useState('')
       const [payType, setPayType] = useState('Cash')
@@ -1029,7 +1030,7 @@ input[type='date']{color:var(--tx);color-scheme:dark}
               {activeRes && canEdit && (
                 <>
                   <button className="btn btn-info btn-sm" onClick={() => setShowCharge(true)}>+ Add Charge</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => setShowCO(true)}>🚪 Check Out</button>
+                  <button className="btn btn-danger btn-sm" onClick={() => { if (_bill.due > 0) { setShowDueWarning(true) } else { setShowCO(true) } }}>🚪 Check Out</button>
                 </>
               )}
               <div style={{ flex: 1 }} />
@@ -1167,6 +1168,56 @@ input[type='date']{color:var(--tx);color-scheme:dark}
                 )}
               </div>
             </Modal>
+          )}
+
+          {/* ── Smart Notification: Outstanding Balance Warning ── */}
+          {showDueWarning && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+              <div style={{ background: '#1a1c22', border: '1.5px solid #C8A96E', borderRadius: 14, maxWidth: 420, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+                {/* Header band — amber/warning */}
+                <div style={{ background: 'linear-gradient(135deg,#7a5500 0%,#a06a00 100%)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 22 }}>⚠️</span>
+                  <span style={{ fontWeight: 800, fontSize: 15, color: '#FFE082', letterSpacing: '.04em' }}>Outstanding Balance Reminder</span>
+                </div>
+                {/* Body */}
+                <div style={{ padding: '18px 22px 8px' }}>
+                  <p style={{ fontSize: 13, color: '#e0cfa0', lineHeight: 1.6, margin: '0 0 16px' }}>
+                    Note: <strong style={{ color: '#FFD54F' }}>{guest?.name || 'This guest'}</strong> still has an unpaid balance of{' '}
+                    <strong style={{ color: '#FF6B6B', fontSize: 15 }}>{BDT(_bill.due)}</strong>.
+                    Please confirm if payment has been collected or if this should be moved to City Ledger.
+                  </p>
+                  {/* Data Summary */}
+                  <div style={{ background: 'rgba(200,169,110,0.08)', border: '1px solid rgba(200,169,110,0.25)', borderRadius: 8, padding: '12px 14px', marginBottom: 18 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, color: '#aaa' }}>Total Outstanding</span>
+                      <span style={{ fontWeight: 700, fontSize: 15, color: '#FF6B6B' }}>{BDT(_bill.due)}</span>
+                    </div>
+                    <div style={{ height: 1, background: 'rgba(200,169,110,0.15)', margin: '6px 0' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: '#aaa' }}>Pending / Extra Charges</span>
+                      <span style={{ fontWeight: 600, fontSize: 13, color: '#C8A96E' }}>{extras > 0 ? BDT(extras) : '—'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                      <span style={{ fontSize: 12, color: '#aaa' }}>Room</span>
+                      <span style={{ fontSize: 12, color: '#ccc' }}>Room {room.room_number} · {guest?.name || '—'}</span>
+                    </div>
+                  </div>
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingBottom: 18 }}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setShowDueWarning(false)} style={{ fontSize: 12 }}>
+                      ✕ Cancel
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      style={{ background: 'linear-gradient(135deg,#7a5500,#C8A96E)', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: 'pointer' }}
+                      onClick={() => { setShowDueWarning(false); setShowCO(true) }}
+                    >
+                      ✓ Acknowledge &amp; Proceed
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </Modal>
       )
