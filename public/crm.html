@@ -2649,9 +2649,8 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       })
       function normTotal(txArr){return txArr.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(_pdfC[t.id]??(+t.amount||0)),0)}
       const todayTotal=normTotal(todayT), monthTotal=normTotal(monthT), allTotal=normTotal(allT)
-      const reportTotal = isDateFilter ? normTotal(list) : todayTotal
+      let reportTotal = normTotal(list)
       const tkn = isDateFilter && hSettingsAll ? +(hSettingsAll[`token_${calDate}`]||0) : +(tokenAmount||0)
-      const closingBalance = reportTotal - tkn
 
       // Helpers
       const _getGN = r => { if(r.guest_name)return r.guest_name; const gid=String((r.guest_ids||[r.guest_id]||[]).filter(Boolean)[0]||''); const g=guests?.find(g=>String(g.id)===gid); return g?g.name:(gid?`ID:${gid}`:'—') }
@@ -2669,6 +2668,19 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       })
       _dueRes.forEach(r => { const key=r.id; if(!uGroups[key]){uGroups[key]={txs:[],res:r,guest_name:_getGN(r),room_number:_getRoom(r),isDue:true}}else{uGroups[key].isDue=true;uGroups[key].res=r} })
       reservations.filter(r=>r.status==='CHECKED_IN').forEach(r => { const key=r.id; if(!uGroups[key]){uGroups[key]={txs:[],res:r,guest_name:_getGN(r),room_number:_getRoom(r),isDue:false}} })
+
+      // Fix: for non-date filters mirror todayVisiblePaid exactly — sum paid_amount for visible
+      // reservations (same reservation-based approach as the KPI) instead of raw tx total.
+      if (!isDateFilter) {
+        const _seenIds = new Set()
+        filteredList.forEach(t => {
+          const res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guests?.find(g=>g.name===t.guest_name)?.id))||reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
+          if (res) _seenIds.add(res.id)
+        })
+        reservations.filter(r=>r.status==='CHECKED_IN'&&_computeBillGlobal(r,rooms,foliosMap,hSettings).due>0).forEach(r=>_seenIds.add(r.id))
+        reportTotal = [..._seenIds].reduce((acc,id)=>{const r=reservations.find(r=>r.id===id);if(!r)return acc;const{paid,due}=_computeBillGlobal(r,rooms,foliosMap,hSettings);if(paid===0&&due===0)return acc;return acc+paid},0)
+      }
+      const closingBalance = reportTotal - tkn
 
       const displayList = Object.values(uGroups).sort((a,b)=>{const dA=a.res?.check_in||a.txs[0]?.check_in||'';const dB=b.res?.check_in||b.txs[0]?.check_in||'';return dB.localeCompare(dA)})
 
@@ -3500,9 +3512,10 @@ ${dueSection}
                 const isCheckedIn = grp.res?.status === 'CHECKED_IN'
                 const hasTodayTx = grp.txs.some(t => t.fiscal_day === today && t.type !== 'Balance Carried Forward' && parseFloat(t.amount || 0) > 0)
                 if (isCheckedIn) {
-                  // In-house guests: show only if they have today's payment OR still have an outstanding due
+                  // In-house guests: show if they have today's payment, outstanding due, or checked in today
                   const hasDue = grp.res ? computeBill(grp.res).due > 0 : false
-                  return hasTodayTx || hasDue
+                  const isCheckInToday = grp.res?.check_in?.slice(0, 10) === today
+                  return hasTodayTx || hasDue || isCheckInToday
                 }
                 // Checked-out / any other status: ONLY if real payment was recorded today
                 return hasTodayTx
