@@ -3494,18 +3494,13 @@ ${dueSection}
               const dB = b.res?.check_in || b.txs[0]?.check_in || ''
               return dB.localeCompare(dA)
             })
-            // HF-Core STRICT: TODAY = CHECKED_IN with dues or today payment | CHECKED_OUT with today payment only
+            // HF-Core: TODAY = has today transaction | outstanding due > 0 | checked in today
             if (filter === 'TODAY') {
               displayList = displayList.filter(grp => {
-                const isCheckedIn = grp.res?.status === 'CHECKED_IN'
                 const hasTodayTx = grp.txs.some(t => t.fiscal_day === today && t.type !== 'Balance Carried Forward' && parseFloat(t.amount || 0) > 0)
-                if (isCheckedIn) {
-                  // In-house guests: show only if they have today's payment OR still have an outstanding due
-                  const hasDue = grp.res ? computeBill(grp.res).due > 0 : false
-                  return hasTodayTx || hasDue
-                }
-                // Checked-out / any other status: ONLY if real payment was recorded today
-                return hasTodayTx
+                const hasDue = grp.res ? computeBill(grp.res).due > 0 : false
+                const isCheckInToday = (grp.res?.check_in || grp.txs[0]?.check_in || '').slice(0, 10) === today
+                return hasTodayTx || hasDue || isCheckInToday
               })
             }
 
