@@ -2352,52 +2352,18 @@ function printPDF(htmlContent, filename) {
   })
 }
 
-function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tokenAmount, dueRes, computeBill, getGN, getRoom, reservations) {
+function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tokenAmount, dueRes, computeBill, getGN, getRoom, reservations, corrected) {
   const filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
   const realList = list.filter(t => t.type !== 'Balance Carried Forward')
-  // Build chronological corrected amounts using ALL transactions
-  const pdfCorrected = {}
-  const pdfAllReal = allT.filter(t => t.type !== 'Balance Carried Forward')
-  const pdfGroups = {}
-  pdfAllReal.forEach(t => {
-    const k = `${t.guest_name || ''}|${t.room_number || ''}`
-    if (!pdfGroups[k]) pdfGroups[k] = []
-    pdfGroups[k].push(t)
-  })
-  Object.entries(pdfGroups).forEach(([key, txs]) => {
-    const [gname, rnum] = key.split('|')
-    const res = reservations?.find(r => {
-      const rRooms = r.room_ids || [r.room_number]
-      if (!rRooms.includes(rnum)) return false
-      const rGuestName = r.guest_name || ''
-      const gid = String((r.guest_ids || [r.guest_id] || []).filter(Boolean)[0] || '')
-      const g = guests?.find(gg => String(gg.id) === gid)
-      const rName = g ? g.name : rGuestName
-      return rName && gname && rName.toLowerCase() === gname.toLowerCase()
-    }) || reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
-    if (!res) { txs.forEach(t => { pdfCorrected[t.id] = +t.amount || 0 }); return }
-    const resPaid = +(res.paid_amount || 0)
-    const sorted = [...txs].sort((a, b) =>
-      (b.created_at || b.fiscal_day || '').localeCompare(a.created_at || a.fiscal_day || '') ||
-      String(b.id || '').localeCompare(String(a.id || ''))
-    )
-    let running = 0
-    sorted.forEach(t => {
-      const raw = +t.amount || 0
-      if (resPaid <= 0) { pdfCorrected[t.id] = raw; running += raw; return }
-      if (running >= resPaid) { pdfCorrected[t.id] = 0 }
-      else if (running + raw > resPaid) { pdfCorrected[t.id] = resPaid - running; running = resPaid }
-      else { pdfCorrected[t.id] = raw; running += raw }
-    })
-  })
-  const normalizedList = realList.map(t => ({ ...t, amount: pdfCorrected[t.id] ?? (+t.amount || 0) }))
+  // Use the pre-built corrected amounts map from the component (same source as the KPI)
+  const normalizedList = realList.map(t => ({ ...t, amount: corrected[t.id] ?? (+t.amount || 0) }))
   const total = normalizedList.reduce((a,t)=>a+(+t.amount||0),0)
   const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
   const rows = normalizedList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-  // Normalize stat totals using corrected amounts
+  // Normalize stat totals using the same corrected amounts map as the KPI
   function normTotal(txArr) {
     return txArr.filter(t => t.type !== 'Balance Carried Forward')
-      .reduce((a, t) => a + (pdfCorrected[t.id] ?? (+t.amount || 0)), 0)
+      .reduce((a, t) => a + (corrected[t.id] ?? (+t.amount || 0)), 0)
   }
   const todayTotal = normTotal(todayT)
   const monthTotal = normTotal(monthT)
@@ -2746,7 +2712,7 @@ ${dueRows}
   }
 
   function downloadPDF() {
-    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, savedToken, dueRes, computeBill, getGN, getRoom, reservations)
+    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, savedToken, dueRes, computeBill, getGN, getRoom, reservations, _corrected)
   }
 
   function openDetail(r) {
@@ -3036,7 +3002,7 @@ ${dueRows}
 
         // 1. Process filtered transactions
         list.forEach(t=>{
-          const res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guests?.find(g=>g.name===t.guest_name)?.id)) || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
+          const res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guests?.find(g=>g.name===t.guest_name)?.id)) || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&r.status==='CHECKED_IN') || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
           const key = res ? res.id : `tx|${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
           if(!unifiedGroups[key]) unifiedGroups[key] = { txs:[], res, guest_name:t.guest_name, room_number:t.room_number, isDue: false }
           unifiedGroups[key].txs.push(t)
