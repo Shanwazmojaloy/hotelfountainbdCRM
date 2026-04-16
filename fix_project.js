@@ -1,28 +1,36 @@
 const fs = require('fs');
 const path = require('path');
 
-// Dynamically get today's date in YYYY-MM-DD format
-const today = new Date().toISOString().split('T')[0]; 
-const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+// THE STRICT DATE
+const targetDate = "2026-04-16";
+const crmPath = path.join(__dirname, 'crm.html');
 
-const files = fs.readdirSync(__dirname).filter(f => f.endsWith('.html'));
-
-files.forEach(file => {
-    let content = fs.readFileSync(file, 'utf8');
+if (fs.existsSync(crmPath)) {
+    let content = fs.readFileSync(crmPath, 'utf8');
     
-    // SMART FILTER: Include any guest who paid yesterday OR today
-    const smartFilter = `activeGuests.filter(guest => {
-        const hasRecentPayment = guest.payments && guest.payments.some(p => ["${yesterday}", "${today}"].includes(p.date));
-        return hasRecentPayment;
+    // THE LOGIC: Show if (Paid Today > 0) OR (Total Bill - Total Paid > 0)
+    const activeReportFilter = `activeGuests.filter(guest => {
+        // 1. Check if they paid anything TODAY
+        const paidToday = guest.payments ? 
+            guest.payments.filter(p => p.date === "${targetDate}")
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0) : 0;
+        
+        // 2. Check if they still owe money (Balance Due)
+        const totalBill = Number(guest.billTotal || 0);
+        const totalPaidAllTime = Number(guest.paid || 0);
+        const balanceDue = totalBill - totalPaidAllTime;
+
+        // Keep them visible if they paid today OR if they still owe money
+        return (paidToday > 0) || (balanceDue > 0);
     })`;
 
-    // Replace the old rigid filter with this smart one
-    content = content.replace(/activeGuests\.filter\(guest =>.*?\)/s, smartFilter);
+    // Inject the new filter into the HTML
+    content = content.replace(/activeGuests\.filter\(guest =>.*?\)/s, activeReportFilter);
     
-    // Also update the Summary Card to be inclusive
+    // Keep the Summary Card strictly to April 16th cash only
     content = content.replace(/allTransactions\.filter\(.*?\)\.reduce/g, 
-        `allTransactions.filter(t => ["${yesterday}", "${today}"].includes(t.date)).reduce`);
+        `allTransactions.filter(t => t.date === "${targetDate}").reduce`);
 
-    fs.writeFileSync(file, content);
-    console.log(`✅ Smart report logic applied to ${file}`);
-});
+    fs.writeFileSync(crmPath, content);
+    console.log("✅ Report Optimized: Showing today's payers and all outstanding debtors.");
+}
