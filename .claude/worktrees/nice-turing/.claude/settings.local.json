@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(GIT_DIR='/c/Users/ahmed/OneDrive/Desktop/New folder/claude/Hotel Fountain CRM/.git' GIT_WORK_TREE='/c/Users/ahmed/OneDrive/Desktop/New folder/claude/Hotel Fountain CRM' git status)",
+      "Read(//c/Users/ahmed/OneDrive/Desktop/New folder/claude/Hotel Fountain CRM/.git/**)",
+      "Bash(python3 -c:*)"
+    ]
+  }
+}
