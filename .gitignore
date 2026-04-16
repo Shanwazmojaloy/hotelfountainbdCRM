@@ -1,0 +1,6 @@
+﻿node_modules/
+.next/
+.env*
+*.log
+
+hotelfountainbdcrm-493018-a9e9e586dedb.json

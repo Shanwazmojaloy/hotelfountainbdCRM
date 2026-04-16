@@ -1,0 +1,10 @@
+﻿{
+  "version": 2,
+  "public": true,
+  "name": "hotel-fountain-crm",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/crm.html", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
