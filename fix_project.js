@@ -1,20 +1,28 @@
 const fs = require('fs');
 const path = require('path');
 
-// We will allow both yesterday and today to be counted in the "Today" report
-const datesToInclude = ["2026-04-15", "2026-04-16"];
+// Dynamically get today's date in YYYY-MM-DD format
+const today = new Date().toISOString().split('T')[0]; 
+const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
 const files = fs.readdirSync(__dirname).filter(f => f.endsWith('.html'));
 
 files.forEach(file => {
     let content = fs.readFileSync(file, 'utf8');
     
-    // Updated Logic: Count any transaction if its date is in our list
-    const newLogic = `allTransactions.filter(t => ["2026-04-15", "2026-04-16"].includes(t.date)).reduce`;
+    // SMART FILTER: Include any guest who paid yesterday OR today
+    const smartFilter = `activeGuests.filter(guest => {
+        const hasRecentPayment = guest.payments && guest.payments.some(p => ["${yesterday}", "${today}"].includes(p.date));
+        return hasRecentPayment;
+    })`;
+
+    // Replace the old rigid filter with this smart one
+    content = content.replace(/activeGuests\.filter\(guest =>.*?\)/s, smartFilter);
     
-    // We replace the old strict filter with the new inclusive one
-    const updatedContent = content.replace(/allTransactions\.filter\(t => t\.date === "2026-04-16"\)\.reduce/g, newLogic);
-    
-    fs.writeFileSync(file, updatedContent);
-    console.log(`✅ Updated ${file} to include yesterday and today.`);
+    // Also update the Summary Card to be inclusive
+    content = content.replace(/allTransactions\.filter\(.*?\)\.reduce/g, 
+        `allTransactions.filter(t => ["${yesterday}", "${today}"].includes(t.date)).reduce`);
+
+    fs.writeFileSync(file, content);
+    console.log(`✅ Smart report logic applied to ${file}`);
 });
