@@ -1,20 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 
-const crmPath = path.join(__dirname, 'hotel-fountain-crm-fixed.html');
-if (fs.existsSync(crmPath)) {
-    let html = fs.readFileSync(crmPath, 'utf8');
+// We will allow both yesterday and today to be counted in the "Today" report
+const datesToInclude = ["2026-04-15", "2026-04-16"];
+
+const files = fs.readdirSync(__dirname).filter(f => f.endsWith('.html'));
+
+files.forEach(file => {
+    let content = fs.readFileSync(file, 'utf8');
     
-    // This logic ensures we only sum transactions where the date matches TODAY (2026-04-16)
-    const todayStr = '2026-04-16'; 
+    // Updated Logic: Count any transaction if its date is in our list
+    const newLogic = `allTransactions.filter(t => ["2026-04-15", "2026-04-16"].includes(t.date)).reduce`;
     
-    // Targeted replacement for the Today Card calculation
-    // We are looking for where the 'today-collection' or 'summary-card' logic lives
-    const improvedLogic = `.filter(t => t.date === '${todayStr}').reduce((sum, t) => sum + Number(t.amount || 0), 0)`;
+    // We replace the old strict filter with the new inclusive one
+    const updatedContent = content.replace(/allTransactions\.filter\(t => t\.date === "2026-04-16"\)\.reduce/g, newLogic);
     
-    // This regex looks for 'allTransactions' being reduced and injects the filter before it
-    html = html.replace(/allTransactions\.reduce/g, `allTransactions.filter(t => t.date === '${todayStr}').reduce`);
-    
-    fs.writeFileSync(crmPath, html);
-    console.log(`✅ Forced Today's Filter (60 BDT) into ${crmPath}`);
-}
+    fs.writeFileSync(file, updatedContent);
+    console.log(`✅ Updated ${file} to include yesterday and today.`);
+});
