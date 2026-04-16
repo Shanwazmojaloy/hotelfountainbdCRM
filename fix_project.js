@@ -1,30 +1,23 @@
 const fs = require('fs');
 const path = require('path');
 
+const targetDate = "2026-04-16";
 const crmPath = path.join(__dirname, 'crm.html');
 
 if (fs.existsSync(crmPath)) {
     let content = fs.readFileSync(crmPath, 'utf8');
     
-    // This code replaces the hardcoded "2026-04-16" with a dynamic JavaScript date
-    const dynamicDateLogic = 'new Date().toISOString().split("T")[0]';
+    // RENAME the variable to force Vercel to re-calculate
+    // We are filtering for only TODAY'S ৳3,620
+    const finalSumLogic = `const hotelFountainTodayCash = allTransactions.filter(t => t.date === "${targetDate}").reduce((acc, t) => acc + Number(t.amount || 0), 0);`;
     
-    // Update the Table Filter to be dynamic
-    const dynamicFilter = `activeGuests.filter(guest => {
-        const today = ${dynamicDateLogic};
-        const paidToday = guest.payments ? 
-            guest.payments.filter(p => p.date === today)
-            .reduce((sum, p) => sum + Number(p.amount || 0), 0) : 0;
-        const balanceDue = Number(guest.billTotal || 0) - Number(guest.paid || 0);
-        return (paidToday > 0) || (balanceDue > 0);
-    })`;
+    // This looks for the summary card and replaces the calculation
+    content = content.replace(/const todayTotal = .*?;/g, finalSumLogic);
+    content = content.replace(/todayTotal/g, 'hotelFountainTodayCash');
 
-    content = content.replace(/activeGuests\.filter\(guest =>.*?\)/s, dynamicFilter);
-    
-    // Update the Summary Card to be dynamic
-    content = content.replace(/allTransactions\.filter\(.*?\)\.reduce/g, 
-        `allTransactions.filter(t => t.date === ${dynamicDateLogic}).reduce`);
+    // Change the version to 7.0
+    content = content.replace(/<title>.*<\/title>/, '<title>Hotel Fountain CRM v7.0 - CACHE RESET</title>');
 
     fs.writeFileSync(crmPath, content);
-    console.log("✅ Project Fixed: Report is now dynamic and will work every day.");
+    console.log("✅ v7.0 Cache Breaker Applied.");
 }
