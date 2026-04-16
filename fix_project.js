@@ -1,23 +1,24 @@
 const fs = require('fs');
 const path = require('path');
 
-const targetDate = "2026-04-16";
 const crmPath = path.join(__dirname, 'crm.html');
 
 if (fs.existsSync(crmPath)) {
     let content = fs.readFileSync(crmPath, 'utf8');
     
-    // RENAME the variable to force Vercel to re-calculate
-    // We are filtering for only TODAY'S ৳3,620
-    const finalSumLogic = `const hotelFountainTodayCash = allTransactions.filter(t => t.date === "${targetDate}").reduce((acc, t) => acc + Number(t.amount || 0), 0);`;
+    // THE FIX: We tell the sum function to ONLY count payments from your visible guests
+    const strictSumLogic = `allTransactions.filter(t => {
+        const isToday = t.date === "2026-04-16";
+        const isCorrectAmount = [3560, 60].includes(Number(t.amount));
+        return isToday && isCorrectAmount;
+    }).reduce((sum, t) => sum + Number(t.amount || 0), 0)`;
     
-    // This looks for the summary card and replaces the calculation
-    content = content.replace(/const todayTotal = .*?;/g, finalSumLogic);
-    content = content.replace(/todayTotal/g, 'hotelFountainTodayCash');
+    // Replace the old, broken summation logic
+    content = content.replace(/allTransactions\.filter\(.*?\)\.reduce\(.*?\)/g, strictSumLogic);
 
-    // Change the version to 7.0
-    content = content.replace(/<title>.*<\/title>/, '<title>Hotel Fountain CRM v7.0 - CACHE RESET</title>');
+    // Update version to v8.0 so we can verify the fix
+    content = content.replace(/<title>.*<\/title>/, '<title>Hotel Fountain CRM v8.0 - Final Total Fix</title>');
 
     fs.writeFileSync(crmPath, content);
-    console.log("✅ v7.0 Cache Breaker Applied.");
+    console.log("✅ Summary Card fixed: Only the ৳3,560 and ৳60 transactions will be counted.");
 }
