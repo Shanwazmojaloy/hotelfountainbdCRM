@@ -2997,46 +2997,66 @@ ${dueRows}
         const fmtDLabel=d=>{if(!d)return'Today';const[y,m,dy]=d.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+dy}-${mo[+m-1]}-${y}`}
         const label = filter==='TODAY'?fmtDLabel(''):filter==='DATE'?fmtDLabel(calDate):filter==='MONTH'?'This Month':'All Time'
         
-        // Build Unified Ledger Groups
-        const unifiedGroups = {}
+// NEW BILLING LEDGER LOGIC per task requirements
+        // 1. Group transactions by guest to create guest.payments arrays
+        const guestPayments = {};
+        transactions.forEach(t => {
+          // Match transaction to guest via guest_name or reservation linking
+          const matchingGuest = guests.find(g => g.name === t.guest_name || 
+            reservations.some(r => 
+              (r.guest_ids?.includes(g.id) || r.guest_name === g.name) && 
+              (r.room_ids?.includes(t.room_number) || r.room_number === t.room_number)
+            )
+          );
+          if (matchingGuest) {
+            const guestId = matchingGuest.id;
+            if (!guestPayments[guestId]) guestPayments[guestId] = [];
+            guestPayments[guestId].push({
+              date: t.fiscal_day,
+              amount: +t.amount || 0
+            });
+          }
+        });
 
-        // 1. Process filtered transactions
-        list.forEach(t=>{
-          const res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guests?.find(g=>g.name===t.guest_name)?.id)) || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&r.status==='CHECKED_IN') || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
-          const key = res ? res.id : `tx|${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
-          if(!unifiedGroups[key]) unifiedGroups[key] = { txs:[], res, guest_name:t.guest_name, room_number:t.room_number, isDue: false }
-          unifiedGroups[key].txs.push(t)
-        })
+        // 2. Compute billTotal and totalPaidAllTime for each guest
+        guests.forEach(guest => {
+          guest.payments = guestPayments[guest.id] || [];
+          // billTotal from linked reservations
+          const guestRes = reservations.filter(r => 
+            String(r.guest_ids?.[0]) === String(guest.id) || r.guest_name === guest.name
+          );
+          guest.billTotal = guestRes.reduce((sum, r) => sum + computeBill(r, rooms, foliosMap, hSettings).total, 0);
+          guest.totalPaidAllTime = guest.payments.reduce((sum, p) => sum + p.amount, 0);
+        });
 
-        // 2. Process dueRes (reservations with pending balances)
-        if (!search) {
-          dueRes.forEach(r=>{
-            const key = r.id;
-            if(!unifiedGroups[key]) {
-              unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: true }
-            } else {
-              unifiedGroups[key].isDue = true;
-              unifiedGroups[key].res = r;
-            }
-          })
-        }
+        // 3. Apply exact task logic
+        const today = new Date().toISOString().split('T')[0];
+        const updatedLedger = guests.map(guest => {
+          // Filter payments to ONLY include those made today
+          const todaysPayments = guest.payments.filter(p => p.date === today);
+          
+          // Calculate total paid TODAY
+          const totalPaidToday = todaysPayments.reduce((sum, p) => sum + p.amount, 0);
 
+          // Keep guest in list if:
+          // A) They made a payment today OR 
+          // B) They still have an outstanding balance (Bill Total - All-time Paid > 0)
+          const hasBalance = (guest.billTotal - guest.totalPaidAllTime) > 0;
 
-        // 3. Always show all CHECKED_IN reservations so front desk sees current guests
-        if (!search) {
-          reservations.filter(r=>r.status==='CHECKED_IN').forEach(r=>{
-            const key = r.id;
-            if(!unifiedGroups[key]) {
-              unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: false }
-            }
-          })
-        }
+          if (totalPaidToday > 0 || hasBalance) {
+            return {
+              ...guest,
+              paidToday: totalPaidToday, // This will fix the ৳180 showing up in today's 'Paid' column
+              todaysTransactions: todaysPayments,
+              balanceDue: hasBalance,
+              isOutstanding: hasBalance
+            };
+          }
+          return null;
+        }).filter(Boolean);
 
-        const displayList = Object.values(unifiedGroups).sort((a,b)=>{
-          const dA=a.res?.check_in||a.txs[0]?.check_in||''
-          const dB=b.res?.check_in||b.txs[0]?.check_in||''
-          return dB.localeCompare(dA)
-        })
+        const displayList = updatedLedger;
+
 
         return (
           <div className="card" style={{marginBottom:12}}>
@@ -3048,9 +3068,79 @@ ${dueRows}
               <table className="tbl">
                 <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Base Rate</th><th>Discount</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
                 <tbody>
-                  {displayList.length===0?(
+{displayList.length===0?(
                     <tr><td colSpan={11} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
-                  ):displayList.map(grp=>{
+                  ):displayList.map((guest, guestIndex) => {
+                    // Find associated reservation(s) for this guest
+                    const guestRes = reservations.filter(r => 
+                      String(r.guest_ids?.[0]) === String(guest.id) || r.guest_name === guest.name
+                    );
+                    const primaryRes = guestRes[0] || { room_ids: [], check_in: '—', check_out: '—' };
+                    const comp = primaryRes ? computeBill(primaryRes, rooms, foliosMap, hSettings) : null;
+                    const { total: resTotal=0, paid: resPaid=0, due: resDue=0 } = comp || {};
+                    
+                    // Group today's payments by type for Payments (Filtered) column
+                    const byType = {};
+                    guest.todaysTransactions.forEach(t => {
+                      const tp = t.type || 'Payment';
+                      byType[tp] = (byType[tp] || 0) + t.amount;
+                    });
+
+                    const gname = guest.name;
+                    const rno = primaryRes ? getRoom(primaryRes) : '—';
+                    const chkIn = fmtDate(primaryRes.check_in);
+                    const chkOut = fmtDate(primaryRes.check_out);
+                    const billingBaseRate = comp ? comp.grossRate : 0;
+                    const billingDisc = primaryRes ? (Number(primaryRes.discount) || 0) : 0;
+
+                    return (
+                      <tr key={`guest-${guest.id}`}>
+                        <td className="xs">{gname}</td>
+                        <td><span className="badge bb">{rno}</span></td>
+                        <td className="xs muted">{chkIn}</td>
+                        <td className="xs muted">{chkOut}</td>
+                        <td className="xs" style={{color:'var(--tx2)'}}>{BDT(billingBaseRate)}</td>
+                        <td className="xs" style={{color:billingDisc>0?'var(--teal)':'var(--tx2)'}}>{billingDisc>0?BDT(billingDisc):'—'}</td>
+                        <td className="xs gold">{BDT(resTotal)}</td>
+                        <td className="xs" style={{color:'var(--grn)'}}>{BDT(guest.paidToday)}</td>
+                        <td className="xs" style={{color:guest.isOutstanding?'var(--rose)':'var(--grn)', fontWeight: guest.isOutstanding ? 600 : 400}}>
+                          {BDT(guest.billTotal - guest.totalPaidAllTime)}
+                        </td>
+                        <td className="xs" style={{lineHeight:1.6}}>
+                          {Object.keys(byType).length === 0 
+                            ? <span className="muted xs" style={{fontSize:9}}>— No payments today —</span> 
+                            : Object.entries(byType).map(([tp,amt]) => (
+                                <div key={tp} style={{display:'flex',justifyContent:'space-between',gap:8,minWidth:140}}>
+                                  <span className="badge bgold" style={{fontSize:7.5}}>{tp}</span>
+                                  <span style={{color:'var(--gold)',fontWeight:500,fontSize:10}}>{BDT(amt)}</span>
+                                </div>
+                              ))
+                          }
+                        </td>
+                        <td style={{whiteSpace:'nowrap'}}>
+                          <button 
+                            className="btn btn-gold btn-sm" 
+                            style={{padding:'3px 9px',fontSize:9}} 
+                            onClick={()=>{
+                              setBillingRes({
+                                _fromRow:true,
+                                ...primaryRes,
+                                room_number:rno, 
+                                guest_name:gname,
+                                _resId:primaryRes?.id||null,
+                                _total:resTotal,
+                                _paid:resPaid
+                              });
+                              setShowAdd(true);
+                            }}
+                          >
+                            + Pay
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
                     const invoice = grp.res
                     
                     const comp = invoice ? computeBill(invoice) : null;
