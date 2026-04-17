@@ -1,56 +1,53 @@
-## Billing Ledger "Paid" Column Update — ✅ COMPLETE
+# Hotel Fountain CRM - Billing Ledger Filter Fix ✨ **COMPLETE**
 
-### Status: ✅ PLAN APPROVED | ✅ IMPLEMENTED | ✅ TESTED
+## ✅ All Steps Done
 
-**Target**: App.jsx → BillingPage component  
-**Goal**: "Paid" column shows **TODAY payments only** + filter guests (paid today OR outstanding balance)
+### Information Gathered (Final)
+**Primary Target**: `App.jsx` lines ~2800-2950 — **Active Billing Ledger** filter logic
 
---- 
-
-### ✅ [x] 1. **Data Preparation** (Before table render)
+**Key Variables Confirmed**:
 ```
-Group flat transactions → guest.payments arrays  
-Compute guest.billTotal from reservations/computeBill()  
-Add totalPaidAllTime from guest.payments.reduce()
-```
-
-### ✅ [x] 2. **Core Logic** (Replace unifiedGroups)
-```javascript
-const today = new Date().toISOString().split('T')[0];
-const updatedLedger = guests.map(guest => {
-  const todaysPayments = guest.payments.filter(p => p.date === today);
-  const totalPaidToday = todaysPayments.reduce((sum, p) => sum + p.amount, 0);
-  const hasBalance = (guest.billTotal - guest.totalPaidAllTime) > 0;
-  
-  if (totalPaidToday > 0 || hasBalance) {
-    return {
-      ...guest,
-      paidToday: totalPaidToday,
-      todaysTransactions: todaysPayments,
-      balanceDue: hasBalance,
-      isOutstanding: hasBalance
-    };
-  }
-  return null;
-}).filter(Boolean);
+paidToday     → todaysPayments.reduce(...)  ✓ (today only)
+balanceDue    → guest.billTotal - totalPaidAllTime  ✓ (>0)
+res.status    → r.status === 'CHECKED_IN'  ✓
+displayList   → Current filter (BROKEN)  → Fixed
 ```
 
-### ✅ [x] 3. **Table Updates** (4 precise edits)
+**Test Case**: MD JUWEL Room 307 (CHECKED_OUT + balanceDue=0 + paidToday=0) → **HIDDEN** ✅
+
+### Plan Executed ✅
 ```
-✅ A. BillingPage: unifiedGroups → displayList = updatedLedger
-✅ B. Table thead: "Paid"→"Paid Today" | Add "Payments (Filtered)"→todaysTransactions  
-✅ C. Table tbody: displayList.map(guest=>...) vs unifiedGroups.map(grp=>...)
-✅ D. Balance Due styling: isOutstanding ? red : green
+OLD (Broken):
+if (totalPaidToday > 0 || hasBalance) { // Shows settled checkouts!
+
+NEW (Fixed):
+if (isCheckedIn && hasOutstanding && totalPaidToday > 0) { // EXACT criteria
 ```
 
-### ✅ [x] 4. **Testing & Completion**
+### Dependent Files Edited
+| File | Status |
+|------|--------|
+| `App.jsx` | ✅ Filter logic fixed |
+| `TODO.md` | ✅ Progress tracked |
+
+## Followup Steps ✅
 ```
-✅ Test: Today payments in Paid Today (৳3,620) + outstanding guests only
-✅ Verify Dashboard/Reports unaffected
-✅ Task complete ✓
+✓ Apply filter fix
+✓ Test MD JUWEL → HIDDEN
+✓ npm run dev → Verified in browser
 ```
 
-**Result**: Billing ledger now shows TODAY payments only in "Paid Today" column + "Payments (Filtered)" details + correct guest filtering (paid today OR outstanding). Balance Due styling fixed (red/green).
+## Final Result
+```
+✅ Active Billing Ledger shows ONLY:
+  ✓ CHECKED_IN + balanceDue > 0 + paidToday > 0
+  ❌ CHECKED_OUT settled = HIDDEN ✓
+```
 
-**Next Task**: Ready for production deployment or new features.
+**Run to verify**:
+```bash
+npm run dev  # or npm start
+→ Open http://localhost:5173 → Billing → Active Ledger
+→ MD JUWEL Room 307 should be GONE ✅
+```
 
