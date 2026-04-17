@@ -4,7 +4,7 @@
             const comp = invoice ? computeBill(invoice) : null;
             
             // STRICT DATE: Only match the date shown in the UI header
-            const reportDate = filter === "TODAY" ? "2026-04-17" : calDate;
+            const reportDate = filter === "TODAY" ? "2026-04-18" : calDate;
             
             const todaysPayments = grp.txs.filter(t => t.date === reportDate);
             const paidInReportPeriod = todaysPayments.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
@@ -15,7 +15,7 @@
             return { ...grp, paidInReportPeriod, balanceDue, status: invoice?.status };
           })
           .filter(grp => {
-            // THE GHOST REMOVER: Hide guests with 0 activity and 0 balance
+            // THE GHOST REMOVER: Only show if currently in room, owes money, or paid cash TODAY
             const isStaying = grp.status === "CHECKED_IN";
             const owesMoney = grp.balanceDue > 0;
             const paidToday = grp.paidInReportPeriod > 0;
