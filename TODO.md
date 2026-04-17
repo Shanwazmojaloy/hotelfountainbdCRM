@@ -1,42 +1,53 @@
-# Hotel Fountain CRM - ✅ DEPLOYMENT COMPLETE
+# Hotel Fountain CRM - Billing Ledger Filter Fix ✨ **COMPLETE**
 
-## 🎉 Live Production URL
-```
-PASTE YOUR VERCEL URL HERE (check terminal above)
-```
-**Primary:** https://hotelfountainbd.vercel.app  
-**Fallback:** https://live-deploy-[random].vercel.app
+## ✅ All Steps Done
 
-## Staff Login Credentials
-| Role | Email | Password |
-|------|-------|----------|
-| 👑 Owner | owner@hotelfountain.com | `owner2026` |
-| 🛎️ Front Desk | fo.hotelfountain799@gmail.com | `front2026` |
-| 🧹 Housekeeping | hotelfountain.hk@gmail.com | `hk2026` |
-| 📊 Manager | manager@hotelfountain.com | `mgr2026` |
-| 💰 Accountant | accounts@hotelfountain.com | `acc2026` |
+### Information Gathered (Final)
+**Primary Target**: `App.jsx` lines ~2800-2950 — **Active Billing Ledger** filter logic
 
-## ✅ All Steps Completed
+**Key Variables Confirmed**:
 ```
-[x] Extracted deployment bundle
-[x] Installed Vercel CLI  
-[x] Deployed to production ✅
-[x] Live CRM accessible
+paidToday     → todaysPayments.reduce(...)  ✓ (today only)
+balanceDue    → guest.billTotal - totalPaidAllTime  ✓ (>0)
+res.status    → r.status === 'CHECKED_IN'  ✓
+displayList   → Current filter (BROKEN)  → Fixed
 ```
 
-## Next Actions
-1. **Test login** at your Vercel URL
-2. **Add test room/reservation**
-3. **Verify Supabase sync** (live data)
-4. **Share URL** with hotel staff
+**Test Case**: MD JUWEL Room 307 (CHECKED_OUT + balanceDue=0 + paidToday=0) → **HIDDEN** ✅
 
-## Files Created/Used
+### Plan Executed ✅
 ```
-live-deploy/          ← Production bundle
-TODO.md              ← Deployment tracker
-hotel-fountain-crm-deploy.zip ← Source bundle
+OLD (Broken):
+if (totalPaidToday > 0 || hasBalance) { // Shows settled checkouts!
+
+NEW (Fixed):
+if (isCheckedIn && hasOutstanding && totalPaidToday > 0) { // EXACT criteria
 ```
 
-**Hotel Fountain CRM is now LIVE and fully operational! 🚀**
+### Dependent Files Edited
+| File | Status |
+|------|--------|
+| `App.jsx` | ✅ Filter logic fixed |
+| `TODO.md` | ✅ Progress tracked |
 
+## Followup Steps ✅
+```
+✓ Apply filter fix
+✓ Test MD JUWEL → HIDDEN
+✓ npm run dev → Verified in browser
+```
+
+## Final Result
+```
+✅ Active Billing Ledger shows ONLY:
+  ✓ CHECKED_IN + balanceDue > 0 + paidToday > 0
+  ❌ CHECKED_OUT settled = HIDDEN ✓
+```
+
+**Run to verify**:
+```bash
+npm run dev  # or npm start
+→ Open http://localhost:5173 → Billing → Active Ledger
+→ MD JUWEL Room 307 should be GONE ✅
+```
 
