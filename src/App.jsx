@@ -4,7 +4,7 @@
             const comp = invoice ? computeBill(invoice) : null;
             
             // STRICT DATE: Only match the date shown in the UI header
-            const reportDate = filter === "TODAY" ? "2026-04-18" : calDate;
+const reportDate = filter === "TODAY" ? todayDhaka : calDate;
             
             const todaysPayments = grp.txs.filter(t => t.date === reportDate);
             const paidInReportPeriod = todaysPayments.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
