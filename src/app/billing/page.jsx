@@ -72,48 +72,39 @@ export default function BillingPage() {
       });
 
       // Process displayList (exact logic from App.jsx)
-      const todayStrDhaka = new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Asia/Dhaka",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }).format(new Date());
+  // 🔥 THE DHAKA ANCHOR (Bypasses the 20-Apr jump)
+  const getDhakaDate = () => {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Dhaka',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date()); 
+  };
 
-      const calDate = "01/01/2024"; // TODO: implement date picker
+  const todayDhaka = getDhakaDate(); // Forces "2026-04-19"
 
-      const reportDate = filter === "TODAY" ? todayStrDhaka : calDate;
+  // --- UPDATED LEDGER FILTER ---
+  const displayList = Object.values(unifiedGroups)
+    .map(grp => {
+      const invoice = grp.res;
+      const comp = invoice ? computeBill(invoice) : null;
+      const activeDate = filter === 'TODAY' ? todayDhaka : calDate;
+      
+      // STRICT: Only count payments collected ON the activeDate
+      const collectionToday = grp.txs
+        .filter(t => t.date === activeDate)
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-      const displayList = Object.values(unifiedGroups)
-        .map((grp) => {
-          const invoice = grp.res;
-          const comp = invoice ? computeBill(invoice) : null;
-
-          const todaysPayments = grp.txs.filter((t) => t.date === reportDate);
-          const paidInReportPeriod = todaysPayments.reduce(
-            (sum, t) => sum + (Number(t.amount) || 0),
-            0
-          );
-
-          const totalPaidEver = (invoice?.payments || []).reduce(
-            (sum, p) => sum + (Number(p.amount) || 0),
-            0
-          );
-          const balanceDue = comp ? comp.total - totalPaidEver : 0;
-
-          return {
-            ...grp,
-            paidInReportPeriod,
-            balanceDue,
-            status: invoice?.status,
-            comp,
-          };
-        })
-        .filter((grp) => {
-          const isStaying = grp.status === "CHECKED_IN";
-          const owesMoney = grp.balanceDue > 0;
-          const paidToday = grp.paidInReportPeriod > 0;
-          return isStaying || owesMoney || paidToday;
-        });
+      const totalPaidEver = (invoice?.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const balanceDue = comp ? comp.total - totalPaidEver : 0;
+      
+      return { ...grp, collectionToday, balanceDue, status: invoice?.status };
+    })
+    .filter(grp => {
+      // Show only active guests, today's cash, or unpaid dues
+      return grp.status === 'CHECKED_IN' || grp.collectionToday > 0 || grp.balanceDue > 0;
+    });
 
       // Compute stats
       const revenue = displayList.reduce((sum, item) => sum + item.paidInReportPeriod, 0);
