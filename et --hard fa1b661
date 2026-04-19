@@ -1,0 +1,20 @@
+[33m7b6c669[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mblackboxai/tailwind-v4-postcss-final-fix[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m chore: resolve dependencies and prepare production build
+[33ma370cff[m final: force nextjs route generation for /crm
+[33ma6d915d[m deploy: force nextjs framework detection and clear build cache
+[33m4bf68cd[m build: local build success, forcing production update
+[33m4a59b11[m fix: remove forced redirect to allow CRM to load
+[33m100b5c7[m fix: resolve build crash and 404 routing
+[33m8f38570[m fix: enforce nextjs framework and fix tailwind v4 utility error
+[33m2ce3a65[m[33m ([m[1;31morigin/blackboxai/tailwind-v4-postcss-final-fix[m[33m)[m fix: enforce nextjs framework and tailwind v4 theme compliance
+[33me04891b[m Merge pull request #35 from Shanwazmojaloy/blackboxai/tailwind-v4-postcss-final-fix
+[33mfa1b661[m chore: stage lint/TS config tweaks to PR #35 (no functional change)
+[33m001a7c7[m fix(vscode-css): disable @theme/@apply lint warnings for Tailwind v4 - .vscode/settings.json: css.validate false, unknownAtRules ignore - globals.css: stylelint-disable comments Resolves VSCode 'Unknown at rule' errors (build unaffected)
+[33mdfffe7c[m fix: resolve 404 by fixing build output directory
+[33m30d1c9b[m fix(vercel-nextjs): add buildCommand to vercel.json, unified next.config.mjs, /crm page for 404 fix - vercel.json: explicit next build for .next output (fixes public dir error) - next.config.mjs: JS-compatible, merged configs, no static export - app/crm/page.tsx: redirect /crm or crm.html to dashboard - Build succeeds locally
+[33m738c2b6[m fix: set Vercel output directory to .next for Next.js build
+[33m9ab4391[m fix: correctly define glass-border in tailwind v4 theme
+[33m2327401[m fix: implement tailwind v4 theme variables in globals.css
+[33m5178257[m Merge pull request #34 from Shanwazmojaloy/blackboxai/tailwind-v4-postcss-final-fix
+[33maa4644f[m docs: add note for vercel inspect command execution with logs (task completion)
+[33m4887181[m Merge pull request #33 from Shanwazmojaloy/blackboxai/tailwind-v4-postcss-final-fix
+[33m834c225[m[33m ([m[1;31morigin/blackboxai/tailwind-theme-fix[m[33m, [m[1;32mblackboxai/tailwind-theme-fix[m[33m)[m fix: TypeScript errors - globals.css.d.ts + layout.tsx children typing
