@@ -1,93 +1,17 @@
-
-
-:root {
-  --background: #07090E;
-  --foreground: #EEE9E2;
-  --gold: #C8A96E;
-  /* Liquid Glass Theme */
-  --teal-bg: #012a2e;
-  --teal-dark: #011a1d;
-  --neon-cyan: #00f2ff;
-  --neon-teal: #00d4ff;
-  --glass-bg: rgba(1, 42, 46, 0.8);
-  --glass-border: rgba(6, 120, 132, 0.2);
-}
+@import "tailwindcss";
 
 @theme {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-teal-bg: var(--teal-bg);
-  --color-neon-cyan: var(--neon-cyan);
-  --color-gold: 219 169 110;
-  --color-neon-teal: var(--neon-teal);
-  --color-glass-bg: var(--glass-bg);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  
-  --shadow-neon-glow: 0 0 1rem var(--neon-cyan), 0 0 3rem var(--neon-cyan);
-  
-  --border-glass-border: var(--glass-border);
-  
-  --backdrop-blur-xl: 32px;
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-hotel-teal: #012a2e;
+  --color-neon-cyan: #00f2ff;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+:root {
+  --glass-bg: rgba(4, 42, 46, 0.45);
 }
 
-html {
-  scroll-behavior: smooth;
+.liquid-glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  @apply border border-glass-border rounded-2xl;
 }
-
-body {
-background: linear-gradient(135deg, #0f172a 0%, #0f7666 50%, #000 100%);
-color: var(--foreground);
-font-family: var(--font-sans), sans-serif;
-antialiased: true;
-  overflow-x: hidden;
-}
-
-/* Liquid Glass Components */
-/* Component classes using Tailwind utilities directly - no custom @layer needed with config extensions */
-.glass {
-  @apply bg-glass-bg backdrop-blur-xl border border-glass-border shadow-2xl shadow-teal-900/50;
-}
-.glass-card {
-  @apply glass rounded-2xl p-6 md:p-8/50;
-}
-.btn-neon {
-  @apply bg-gradient-to-r from-neon-cyan to-neon-teal text-black font-semibold px-6 py-3 rounded-xl min-h-12 flex items-center justify-center shadow-lg hover:shadow-neon-glow active:scale-95 transition-all duration-200 uppercase tracking-wider text-sm;
-}
-.btn-glass {
-  @apply glass px-6 py-3 rounded-xl min-h-12 flex items-center justify-center hover:border-neon-cyan/50 hover:text-neon-cyan transition-all duration-200 uppercase tracking-wider text-sm;
-}
-.bottom-nav {
-  @apply fixed bottom-0 left-0 right-0 z-50 flex md:hidden h-16 glass border-t border-glass-border;
-}
-.stats-scroll {
-  @apply flex overflow-x-auto snap-x snap-mandatory pb-2 gap-4 [&::-webkit-scrollbar]:hidden;
-}
-.progress-ring {
-  @apply inline-block shadow-neon-glow;
-}
-
-/* Mobile First Grid */
-@layer utilities {
-  .grid-1col { @apply grid-cols-1; }
-  .grid-2col { @apply md:grid-cols-2; }
-  .grid-3col { @apply md:grid-cols-3 lg:grid-cols-4; }
-}
-
-/* Custom Scrollbar */
-@layer base {
-  ::-webkit-scrollbar { @apply w-2 h-2; }
-  ::-webkit-scrollbar-track { @apply bg-teal-dark/50 rounded-full; }
-  ::-webkit-scrollbar-thumb { @apply bg-neon-cyan/30 hover:bg-neon-cyan/50 rounded-full; }
-}
-
-/* Status Dots */
-.status-checked-in { @apply w-3 h-3 bg-green-400 rounded-full neon-glow; }
-.status-due { @apply w-3 h-3 bg-yellow-400 rounded-full animate-pulse; }
-.status-paid { @apply w-3 h-3 bg-emerald-400 rounded-full; }
