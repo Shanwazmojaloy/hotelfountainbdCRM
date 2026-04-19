@@ -1,6 +1,7 @@
-import { redirect } from 'next/navigation';
+
+import Dashboard from '../../src/components/Dashboard';
 
 export default function CrmPage() {
-  redirect('/'); // Redirect crm.html or /crm to dashboard
+  return <Dashboard />;
 }
 
