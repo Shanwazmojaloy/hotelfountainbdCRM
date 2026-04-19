@@ -1,71 +1,10 @@
 @import "tailwindcss";
-
-/* stylelint-disable at-rule-no-unknown */
 @theme {
-  /* This maps the variable so Tailwind recognizes 'border-glass-border' */
   --color-glass-border: rgba(255, 255, 255, 0.08);
   --color-hotel-teal: #012a2e;
-  --color-neon-cyan: #00f2ff;
 }
-
-:root {
-  --glass-bg: rgba(4, 42, 46, 0.45);
-}
-
-/* Updated utility using the theme variable */
 .liquid-glass-card {
-  background: var(--glass-bg);
+  background: rgba(4, 42, 46, 0.45);
   backdrop-filter: blur(14px);
-  /* stylelint-disable at-rule-no-unknown */
   @apply border border-glass-border rounded-2xl;
-}
-
-.glass,
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(14px);
-  /* stylelint-disable at-rule-no-unknown */
-  @apply border border-glass-border;
-}
-
-.glass {
-  @apply rounded-3xl;
-}
-
-.glass-card {
-  @apply rounded-[2rem] shadow-[0_0_40px_rgba(0,242,255,0.08)];
-}
-
-.btn-neon {
-  @apply inline-flex items-center justify-center rounded-2xl border border-neon-cyan/30 bg-[rgba(0,242,255,0.12)] text-neon-cyan shadow-[0_0_20px_rgba(0,242,255,0.15)] transition duration-300 hover:bg-[rgba(0,242,255,0.18)] hover:shadow-[0_0_30px_rgba(0,242,255,0.35)];
-}
-
-.btn-glass {
-  @apply inline-flex items-center justify-center rounded-2xl border border-teal-600/30 bg-white/5 text-slate-100/90 shadow-sm transition duration-300 hover:bg-white/10;
-}
-
-.stats-scroll {
-  display: flex;
-  gap: 1rem;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x mandatory;
-}
-
-.status-checked-in,
-.status-due,
-.status-paid {
-  @apply inline-flex h-3.5 w-3.5 rounded-full;
-}
-
-.status-checked-in {
-  @apply bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)];
-}
-
-.status-due {
-  @apply bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)];
-}
-
-.status-paid {
-  @apply bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)];
 }
