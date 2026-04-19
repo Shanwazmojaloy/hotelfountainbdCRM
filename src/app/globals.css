@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
 
 :root {
   --background: #07090E;
@@ -15,13 +13,22 @@
   --glass-border: rgba(6, 120, 132, 0.2);
 }
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-teal-bg: var(--teal-bg);
   --color-neon-cyan: var(--neon-cyan);
+  --color-gold: 219 169 110;
+  --color-neon-teal: var(--neon-teal);
+  --color-glass-bg: var(--glass-bg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  --shadow-neon-glow: 0 0 1rem var(--neon-cyan), 0 0 3rem var(--neon-cyan);
+  
+  --border-glass-border: var(--glass-border);
+  
+  --backdrop-blur-xl: 32px;
 }
 
 *, *::before, *::after {
@@ -43,31 +50,27 @@ antialiased: true;
 }
 
 /* Liquid Glass Components */
-@layer components {
-  .glass {
-    @apply bg-glass-bg backdrop-blur-xl border border-glass-border shadow-2xl shadow-teal-900/50;
-  }
-  .glass-card {
-    @apply glass rounded-2xl p-6 md:p-8 border-opacity-50;
-  }
-  .neon-glow {
-    box-shadow: 0 0 1rem var(--neon-cyan), 0 0 3rem var(--neon-cyan);
-  }
-  .btn-neon {
-    @apply bg-gradient-to-r from-neon-cyan to-neon-teal text-black font-semibold px-6 py-3 rounded-xl min-h-12 flex items-center justify-center shadow-lg hover:neon-glow active:scale-95 transition-all duration-200 uppercase tracking-wider text-sm;
-  }
-  .btn-glass {
-    @apply glass px-6 py-3 rounded-xl min-h-12 flex items-center justify-center border-opacity-50 hover:border-neon-cyan/50 hover:text-neon-cyan transition-all duration-200 uppercase tracking-wider text-sm;
-  }
-  .bottom-nav {
-    @apply fixed bottom-0 left-0 right-0 z-50 flex md:hidden h-16 glass border-t border-glass-border;
-  }
-  .stats-scroll {
-    @apply flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 gap-4;
-  }
-  .progress-ring {
-    @apply inline-block neon-glow;
-  }
+/* Component classes using Tailwind utilities directly - no custom @layer needed with config extensions */
+.glass {
+  @apply bg-glass-bg backdrop-blur-xl border border-glass-border shadow-2xl shadow-teal-900/50;
+}
+.glass-card {
+  @apply glass rounded-2xl p-6 md:p-8/50;
+}
+.btn-neon {
+  @apply bg-gradient-to-r from-neon-cyan to-neon-teal text-black font-semibold px-6 py-3 rounded-xl min-h-12 flex items-center justify-center shadow-lg hover:shadow-neon-glow active:scale-95 transition-all duration-200 uppercase tracking-wider text-sm;
+}
+.btn-glass {
+  @apply glass px-6 py-3 rounded-xl min-h-12 flex items-center justify-center hover:border-neon-cyan/50 hover:text-neon-cyan transition-all duration-200 uppercase tracking-wider text-sm;
+}
+.bottom-nav {
+  @apply fixed bottom-0 left-0 right-0 z-50 flex md:hidden h-16 glass border-t border-glass-border;
+}
+.stats-scroll {
+  @apply flex overflow-x-auto snap-x snap-mandatory pb-2 gap-4 [&::-webkit-scrollbar]:hidden;
+}
+.progress-ring {
+  @apply inline-block shadow-neon-glow;
 }
 
 /* Mobile First Grid */
