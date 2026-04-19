@@ -1,8 +1,10 @@
 @import "tailwindcss";
+
 @theme {
   --color-glass-border: rgba(255, 255, 255, 0.08);
   --color-hotel-teal: #012a2e;
 }
+
 .liquid-glass-card {
   background: rgba(4, 42, 46, 0.45);
   backdrop-filter: blur(14px);
