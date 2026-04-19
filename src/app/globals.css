@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  /* This maps the variable so Tailwind recognizes 'border-glass-border' */
   --color-glass-border: rgba(255, 255, 255, 0.08);
   --color-hotel-teal: #012a2e;
   --color-neon-cyan: #00f2ff;
@@ -10,6 +11,7 @@
   --glass-bg: rgba(4, 42, 46, 0.45);
 }
 
+/* Updated utility using the theme variable */
 .liquid-glass-card {
   background: var(--glass-bg);
   backdrop-filter: blur(14px);
