@@ -1,12 +1,10 @@
-# Tailwind v4 Custom Theme Fix TODO
+# Tailwind v4 Build Fix Progress
 
-## Plan Steps:
-- [x] 1. User approved fix plan for custom utilities.
-- [x] 2. Create tailwind.config.js with extended theme (colors, utilities).
-- [x] 3. Update src/app/globals.css to use @theme properly, fix @apply chains.
-- [ ] 4. Test npm run build.
-- [ ] 5. Commit/push to PR #30.
-- [ ] 6. Complete.
+- [x] User approved theme extension plan
+- [x] Update tailwind.config.js with glass-border, neon, glass colors
+- [ ] npm run build verify
+- [ ] Push new PR if needed
+- [ ] Vercel deploy success
 
-**Next:** Update globals.css
+Next: npm run build verify
 
