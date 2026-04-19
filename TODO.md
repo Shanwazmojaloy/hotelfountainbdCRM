@@ -1,11 +1,12 @@
-# Hotel Fountain CRM - Tailwind v4 PostCSS Fix TODO
+# Fix Vercel Build 404 Task TODO
 
-## Plan Steps:
-- [x] 1. User approved the update plan for postcss.config.mjs and dependencies.
-- [x] 2. Update postcss.config.mjs to use @tailwindcss/postcss.
-- [x] 3. Provide npm install command.
-- [x] 4. Verify Sidebar.jsx classes (already correct - no change).
-- [ ] 5. Complete task with attempt_completion, including updated files and commands.
+- [x] Create TODO.md with steps
+- [ ] Update vercel.json with explicit build command
+- [ ] Create next.config.mjs merging configs (delete .js/.ts duplicates)
+- [ ] Create app/crm/page.tsx as dashboard redirect
+- [ ] Test next build locally
+- [ ] Commit/push/PR
+- [ ] Deploy test
 
-**All steps complete except final summary.**
+Current git branch: blackboxai/tailwind-v4-postcss-final-fix
 
