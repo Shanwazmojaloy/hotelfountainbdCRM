@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* stylelint-disable at-rule-no-unknown */
 @theme {
   /* This maps the variable so Tailwind recognizes 'border-glass-border' */
   --color-glass-border: rgba(255, 255, 255, 0.08);
@@ -15,5 +16,6 @@
 .liquid-glass-card {
   background: var(--glass-bg);
   backdrop-filter: blur(14px);
+  /* stylelint-disable at-rule-no-unknown */
   @apply border border-glass-border rounded-2xl;
 }
