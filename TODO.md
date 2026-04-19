@@ -1,15 +1,12 @@
-- [x] Fix Timezone Jump (Dhaka UTC+6)
+# Final Billing Fix Progress
 
-- [x] Strict Transaction Filtering (No yesterday bleed)
+**Previous 8/8**:
+- [x] All tasks committed b9848bb
 
-- [x] Persistence of Unpaid Dues
+**Final Timezone/Shift-Lock**:
+- [ ] 1. Global `todayStrDhaka()` Intl DD-MM-YYYY
+- [ ] 2. ReportsPage lock state/UI/button
+- [ ] 3. displayList filter confirm (already good)
+- [ ] 4. Commit/push PR #27
 
-- [x] Guest-Centric Ledger Mapping
-
-- [x] Liquid Glass UI Styling
-
-- [x] Mobile Responsive Layout
-
-- [x] Implementation of 'Closing Complete' Button
-
-- [x] Shift-Locking (Locked until next Dhaka day)
+Ready for code edits.
