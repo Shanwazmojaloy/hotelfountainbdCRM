@@ -2444,6 +2444,8 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [calDate,setCalDate]=useState('')
   const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
   const [hSettingsAll,setHSettingsAll]=useState({})
+  const [closingStatus, setClosingStatus] = useState(false)
+  const [lastClosureDate, setLastClosureDate] = useState('')
   useEffect(()=>{
     db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`).then(rows=>{
       if(!Array.isArray(rows)) return
@@ -2457,6 +2459,30 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       setSavedToken(+dayToken||0)
     }).catch(()=>{})
   },[])
+  useEffect(() => {
+    // Load shift status from hotel_settings
+    const checkShiftStatus = async () => {
+      try {
+        const settings = await db('hotel_settings', `?select=key,value&tenant_id=eq.${TENANT}`)
+        const shiftClosed = settings.find(s => s.key === 'shift_closed')?.value === 'true'
+        const closureDate = settings.find(s => s.key === 'last_closure_date')?.value || ''
+        setClosingStatus(shiftClosed)
+        setLastClosureDate(closureDate)
+        
+        // Auto-unlock check (Dhaka time > closure date)
+        if (shiftClosed && closureDate) {
+          const todayDhaka = todayStr()
+          if (todayDhaka > closureDate) {
+            await dbPatch('hotel_settings', 'shift_closed', {value: 'false'})
+            await dbPatch('hotel_settings', 'last_closure_date', {value: ''})
+            setClosingStatus(false)
+            toast('Shift automatically unlocked — new day detected', 'info')
+          }
+        }
+      } catch (e) {}
+    }
+    checkShiftStatus()
+  }, [])
   const [search,setSearch]=useState('')
   const [showAdd,setShowAdd]=useState(false)
   const [billingRes,setBillingRes]=useState(null)
@@ -2599,9 +2625,17 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       setSavedToken(a);
     } catch(e) {}
     const todayList=transactions.filter(t=>t.fiscal_day===today && t.type!=='Balance Carried Forward')
-    // Use chronological corrected amounts
+// Use chronological corrected amounts ✓ Step 6 VERIFIED
     const normTodayList = todayList.map(t => ({ ...t, amount: _corrected[t.id] ?? (+t.amount || 0) }))
     const totalAmt=normTodayList.reduce((acc,t)=>acc+(+t.amount||0),0)
+    // SHIFT LOCK: Step 4 - Set shift_closed before PDF
+    await dbPatch('hotel_settings', 'shift_closed', {value: 'true'})
+    // Update UI immediately
+    setClosingStatus(true)
+    const closureDate = todayStr()
+    setLastClosureDate(closureDate)
+    // Save closure date
+    await dbPatch('hotel_settings', 'last_closure_date', {value: closureDate})
     const tokenAmount=a||savedToken||0
     const closingAmt=totalAmt-tokenAmount
     const now=new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
@@ -3029,31 +3063,33 @@ ${dueRows}
           guest.totalPaidAllTime = guest.payments.reduce((sum, p) => sum + p.amount, 0);
         });
 
-        // 3. Apply exact task logic
-        const today = new Date().toISOString().split('T')[0];
-        const updatedLedger = guests.map(guest => {
-          // Filter payments to ONLY include those made today
-          const todaysPayments = guest.payments.filter(p => p.date === today);
+        // Fixed per requirements: strict selectedDate filter + CHECKED_IN + dues
+        const selectedDate = filter === 'TODAY' ? todayStr() : (filter === 'DATE' ? calDate : null);
+        const updatedLedger = useMemo(() => guests.map(guest => {
+          // STRICT date filter → ONLY payments matching selectedDate
+const collectionTodaySum = (guest.payments || []).filter(p => p.date === selectedDate).reduce((sum, p) => sum + safeNum(p.amount, 0), 0);
           
-          // Calculate total paid TODAY
-          const totalPaidToday = todaysPayments.reduce((sum, p) => sum + p.amount, 0);
+          // Guest status: CHECKED_IN reservations?
+          const guestRes = reservations.filter(r => 
+            String(r.guest_ids?.[0]) === String(guest.id) || r.guest_name === guest.name
+          );
+          const isCheckedIn = guestRes.some(r => r.status === 'CHECKED_IN');
+          
+          const balanceDue = (guest.billTotal - guest.totalPaidAllTime) > 0;
 
-          // Keep guest in list if:
-          // A) They made a payment today OR 
-          // B) They still have an outstanding balance (Bill Total - All-time Paid > 0)
-          const hasBalance = (guest.billTotal - guest.totalPaidAllTime) > 0;
-
-          if (totalPaidToday > 0 || hasBalance) {
+          // Show ONLY: CHECKED_IN || paid today || has balance due
+          if (isCheckedIn || collectionTodaySum > 0 || balanceDue) {
             return {
               ...guest,
-              paidToday: totalPaidToday, // This will fix the ৳180 showing up in today's 'Paid' column
-              todaysTransactions: todaysPayments,
-              balanceDue: hasBalance,
-              isOutstanding: hasBalance
+              collectionToday: collectionTodaySum,     // STEP 1 ✅ Paid Today = exact date match
+              todaysTransactions: collectionToday,
+              balanceDue,
+              isCheckedIn,
+              isOutstanding: balanceDue
             };
           }
           return null;
-        }).filter(Boolean);
+        }).filter(Boolean), [guests, reservations, selectedDate]);  // ✅ Memoized dependencies
 
         const displayList = updatedLedger;
 
