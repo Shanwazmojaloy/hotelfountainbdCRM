@@ -14,7 +14,9 @@ export default function Layout({ children }) {
       <BottomNav activePage={activePage} setActivePage={setActivePage} />
       
       {/* Sidebar - Desktop Only */}
-      <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      <div className="hidden md:block glass w-64 border-r border-teal-800/30 flex-shrink-0">
+        <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      </div>
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden md:ml-0 md:pl-4 md:pb-0">

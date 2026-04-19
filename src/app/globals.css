@@ -1,6 +1,6 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #07090E;
@@ -35,7 +35,10 @@ html {
 }
 
 body {
-  @apply bg-gradient-to-br from-slate-900 via-teal-950 to-black text-foreground antialiased;
+background: linear-gradient(135deg, #0f172a 0%, #0f7666 50%, #000 100%);
+color: var(--foreground);
+font-family: var(--font-sans), sans-serif;
+antialiased: true;
   overflow-x: hidden;
 }
 

@@ -3,10 +3,10 @@
 import { Home, Building2, DollarSign, Users } from 'lucide-react';
 
 const navItems = [
-  { id: 'dashboard', icon: HomeIcon, label: 'Dashboard' },
-  { id: 'rooms', icon: BuildingOfficeIcon, label: 'Rooms' },
-  { id: 'billing', icon: CurrencyDollarIcon, label: 'Billing' },
-  { id: 'guests', icon: UsersIcon, label: 'Guests' },
+  { id: 'dashboard', icon: Home, label: 'Dashboard' },
+  { id: 'rooms', icon: Building2, label: 'Rooms' },
+  { id: 'billing', icon: DollarSign, label: 'Billing' },
+  { id: 'guests', icon: Users, label: 'Guests' },
 ];
 
 export default function Sidebar({ activePage, setActivePage }) {
@@ -28,7 +28,7 @@ export default function Sidebar({ activePage, setActivePage }) {
             }`}
             onClick={() => setActivePage(item.id)}
           >
-            <item.icon className="w-5 h-5 flex-shrink-0" />
+<item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
             <span className="font-medium text-left">{item.label}</span>
           </button>
         ))}
