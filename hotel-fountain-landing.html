@@ -1,59 +1,52 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hotel Fountain | Premium Booking</title>
+    <title>Hotel Fountain | Premium Rooms</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #000; color: #d4af37; font-family: 'Playfair Display', serif; }
-        .gold-border { border: 1px solid #d4af37; }
-        .gold-bg { background-color: #d4af37; color: #000; }
+        body { background-color: #030712; color: #f3f4f6; font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .gold-text { color: #d4af37; }
+        .gold-border { border: 1px solid rgba(212, 175, 55, 0.3); }
+        .section-padding { padding: 80px 20px; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
-    <div class="max-w-4xl w-full gold-border p-8 rounded-lg bg-zinc-900/50 backdrop-blur-md">
-        <h1 class="text-4xl font-serif mb-6 text-center tracking-widest uppercase">Check Availability</h1>
-        
-        <form id="bookingForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <input type="text" id="fullName" placeholder="Full Name" class="bg-transparent border-b border-gold-500 p-2 outline-none" required>
-            <input type="text" id="phone" placeholder="Phone Number" class="bg-transparent border-b border-gold-500 p-2 outline-none" required>
-            <input type="email" id="email" placeholder="Email Address" class="bg-transparent border-b border-gold-500 p-2 outline-none" required>
-            <select id="roomType" class="bg-black border-b border-gold-500 p-2 outline-none">
-                <option value="Standard">Standard Room</option>
-                <option value="Deluxe">Deluxe Room</option>
-                <option value="Suite">Royal Suite</option>
-            </select>
-            <input type="date" id="checkIn" class="bg-transparent border-b border-gold-500 p-2 outline-none md:col-span-2">
-            
-            <button type="submit" class="md:col-span-2 gold-bg font-bold py-4 px-8 mt-4 hover:bg-yellow-600 transition-all uppercase tracking-widest">
-                Check Availability & Book
-            </button>
-        </form>
-    </div>
+<body>
+    <header class="w-full p-6 flex justify-between items-center border-b border-white/5 backdrop-blur-md sticky top-0 z-50 bg-black/80">
+        <div class="text-xl font-serif gold-text tracking-widest">HOTEL FOUNTAIN</div>
+        <a href="/crm" class="gold-border px-4 py-2 text-xs uppercase tracking-widest hover:bg-[#d4af37] hover:text-black transition-all">Staff Login</a>
+    </header>
 
-    <script>
-    document.getElementById('bookingForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const data = {
-            guestName: document.getElementById('fullName').value,
-            contact: document.getElementById('phone').value,
-            email: document.getElementById('email').value,
-            roomType: document.getElementById('roomType').value,
-            date: document.getElementById('checkIn').value
-        };
+    <main class="flex flex-col w-full max-w-7xl mx-auto">
+        <section class="section-padding text-center">
+            <h2 class="text-sm uppercase tracking-[0.3em] gold-text mb-4">Accommodations</h2>
+            <h1 class="text-5xl font-serif mb-8">Our <span class="italic">Rooms</span> & Suites</h1>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="gold-border p-6 bg-zinc-900/40 rounded-sm">
+                    <div class="h-64 bg-zinc-800 mb-4 rounded-sm"></div>
+                    <h3 class="text-2xl font-serif mb-2">Fountain Deluxe</h3>
+                    <p class="text-gray-400 text-sm mb-4">Elegant room with premium air conditioning and office support.</p>
+                    <div class="text-xl gold-text font-serif">৳4,000</div>
+                </div>
+                </div>
+        </section>
 
-        try {
-            const response = await fetch('https://hotelfountainbd-crm.vercel.app/api/bookings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if (response.ok) alert('Booking request sent to Hotel Fountain Front Desk!');
-        } catch (err) {
-            alert('Connected to CRM: Local testing mode active.');
-        }
-    });
-    </script>
+        <section class="section-padding bg-zinc-900/20">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h2 class="text-sm uppercase tracking-[0.3em] gold-text mb-4">The Experience</h2>
+                    <h2 class="text-4xl font-serif mb-6">More Than a <span class="italic">Stay</span></h2>
+                    <p class="text-gray-400 leading-relaxed">From our rooftop restaurant to the business center, every facility is crafted to exceed expectations.</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="gold-border p-4 text-center">Restaurant</div>
+                    <div class="gold-border p-4 text-center">Business Center</div>
+                </div>
+            </div>
+        </section>
+    </main>
 </body>
 </html>
