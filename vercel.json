@@ -1,1 +1,9 @@
-{"version": 2, "framework": "nextjs", "outputDirectory": ".next"}
+{
+  "version": 2,
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "rewrites": [
+    { "source": "/crm.html", "destination": "/crm.html" },
+    { "source": "/landing", "destination": "/index.html" }
+  ]
+}
