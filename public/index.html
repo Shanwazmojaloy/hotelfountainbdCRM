@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Hotel Fountain | Luxury Hospitality in Dhaka</title>
   <meta name="description" content="Hotel Fountain — Premier luxury hospitality in the heart of Dhaka. Book your stay in our Fountain Deluxe, Premium Deluxe, Twin Deluxe, Superior Deluxe or Royal Suite rooms."/>
+  <link rel="icon" type="image/png" href="logo.png"/>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet"/>
   <style>
     /* ── RESET & TOKENS ── */
@@ -207,7 +208,10 @@
 
   <!-- ── NAVBAR ── -->
   <nav class="nav" id="navbar">
-    <div class="nav-brand">Hotel <em>Fountain</em></div>
+    <div class="nav-brand" style="display:flex;align-items:center;gap:10px">
+      <img src="logo.png" alt="Hotel Fountain" style="height:36px;width:auto;object-fit:contain" onerror="this.style.display='none'"/>
+      Hotel <em>Fountain</em>
+    </div>
     <div class="nav-links">
       <a href="#rooms">Rooms</a>
       <a href="#amenities">Experience</a>
@@ -220,7 +224,7 @@
   <!-- ── HERO ── -->
   <section class="hero" id="home">
     <div class="hero-bg"></div>
-    <img src="Front View.jpg" alt="Hotel Fountain" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.18;pointer-events:none;z-index:0" onerror="this.style.display='none'"/>
+    <img src="front-view.jpg" alt="Hotel Fountain" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.18;pointer-events:none;z-index:0" onerror="this.style.display='none'"/>
     <div class="hero-grid"></div>
     <div class="hero-glow"></div>
     <div class="hero-glow2"></div>
@@ -280,7 +284,7 @@
       <div class="room-card">
         <div class="room-card-img" style="background:linear-gradient(135deg,#0D1520,#1A2535)">
           <div class="room-badge">Most Popular</div>
-          <img src="Fountain Deluxe.jpeg" alt="Fountain Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <img src="room-fountain-deluxe.jpeg" alt="Fountain Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
           <div class="room-card-img-inner" style="color:var(--gold);display:none">🛏</div>
         </div>
         <div class="room-card-body">
@@ -303,7 +307,7 @@
       <div class="room-card">
         <div class="room-card-img" style="background:linear-gradient(135deg,#0D1A2A,#1A2B3E)">
           <div class="room-badge" style="background:var(--sky);color:#07090E">Premium</div>
-          <img src="Premium Deluxe.jpg" alt="Premium Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <img src="room-premium-deluxe.jpeg" alt="Premium Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
           <div class="room-card-img-inner" style="color:var(--sky);display:none">🏨</div>
         </div>
         <div class="room-card-body">
@@ -326,7 +330,7 @@
       <div class="room-card">
         <div class="room-card-img" style="background:linear-gradient(135deg,#141210,#201A12)">
           <div class="room-badge" style="background:rgba(200,169,110,.22);color:var(--gold);border:1px solid rgba(200,169,110,.3)">Superior</div>
-          <img src="Superior Deluxe.jpeg" alt="Superior Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <img src="room-superior-deluxe.jpeg" alt="Superior Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
           <div class="room-card-img-inner" style="color:var(--gold);display:none">✨</div>
         </div>
         <div class="room-card-body">
@@ -349,7 +353,7 @@
       <div class="room-card">
         <div class="room-card-img" style="background:linear-gradient(135deg,#0D1A12,#122010)">
           <div class="room-badge" style="background:rgba(63,185,80,.18);color:var(--grn);border:1px solid rgba(63,185,80,.28)">Twin</div>
-          <img src="Twin Deluxe.jpg" alt="Twin Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <img src="room-twin-deluxe.jpg" alt="Twin Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
           <div class="room-card-img-inner" style="color:var(--grn);display:none">🛏</div>
         </div>
         <div class="room-card-body">
@@ -372,7 +376,7 @@
       <div class="room-card room-card-wide">
         <div class="room-card-img" style="background:linear-gradient(135deg,#1A1505,#2A2010)">
           <div class="room-badge" style="background:linear-gradient(90deg,#C8A96E,#E0C585);color:#07090E">Royal Suite</div>
-          <img src="Royal Suite.jpeg" alt="Royal Suite" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <img src="room-royal-suite.jpeg" alt="Royal Suite" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
           <div class="room-card-img-inner" style="color:var(--gold);display:none">👑</div>
         </div>
         <div class="room-card-body">
