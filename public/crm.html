@@ -1974,15 +1974,24 @@ ${dueRows}
         })
 
         // 2. Process dueRes (reservations with pending balances)
+        // Rules for injecting a due that has NO transaction in the current period:
+        //   TODAY / DATE  → never inject; only transactions in that exact date show
+        //   MONTH         → inject only if the reservation is active this month
+        //   ALL           → inject everything
         if (!search) {
           dueRes.forEach(r=>{
             const key = r.id;
-            if(!unifiedGroups[key]) {
-              unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: true }
-            } else {
+            if(unifiedGroups[key]) {
+              // Already has a transaction in this period — just flag it as due
               unifiedGroups[key].isDue = true;
               unifiedGroups[key].res = r;
+            } else if(filter==='ALL') {
+              unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: true }
+            } else if(filter==='MONTH') {
+              const inMonth=(r.check_in?.slice(0,7)===month)||(r.check_out?.slice(0,7)===month)||(r.status==='CHECKED_IN')
+              if(inMonth) unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: true }
             }
+            // filter === 'TODAY' or 'DATE': no injection — previous-date dues stay out
           })
         }
 
