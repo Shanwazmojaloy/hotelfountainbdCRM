@@ -582,6 +582,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
 function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
   const [filter,setFilter]=useState('ALL')
   const [selRoom,setSelRoom]=useState(null)
+  const [showAdd,setShowAdd]=useState(false)
   const canEdit=['owner','manager','receptionist'].includes(currentUser?.role)
   const canHKStatus=currentUser?.role==='housekeeping'  // HK can only change dirty→available
   const isSA=currentUser?.role==='owner'
@@ -649,12 +650,16 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
 
   const roomRate=+room.price||0
   const nights=activeRes?nightsCount(activeRes.check_in,activeRes.check_out):0
-  const roomCharge=roomRate*nights
+  let roomCharge=roomRate*nights
   const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
-  const tax=Math.round(sub*.07)
-  const svc=Math.round(sub*.05)
-  const total=sub+tax+svc
+  const discount=+(activeRes?.discount_amount||activeRes?.discount||0)
+  const dbTotal=+(activeRes?.total_amount||0)
+  const basePrice=dbTotal>0?dbTotal:Math.max(0,sub-discount)
+  const _taxBase=basePrice/1.20
+  const tax=Math.round(_taxBase*0.15)
+  const svc=Math.round(_taxBase*0.05)
+  const total=basePrice+extras
 
   async function saveStatus() {
     setSaving(true)
@@ -753,7 +758,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            {[['Subtotal',sub],['VAT 7%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
+            {[['Subtotal',sub],['VAT 15%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
               <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
             ))}
             <div className="divider" style={{margin:'6px 0'}}/>
@@ -2051,7 +2056,10 @@ ${dueRows}
       {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
-      {showBillDetail&&detailRes&&(
+      {showBillDetail&&detailRes&&(()=>{
+        const {roomCharge,sub,tax,svc,total,paid,due,folios,nights,roomRate,vatPct,svcPct}=computeBill(detailRes)
+        const relTx=transactions.filter(t=>(detailRes.room_ids||[detailRes.room_number]).includes(t.room_number)&&t.type!=='Balance Carried Forward')
+        return (
         <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
           <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
             <div className="flex fac gap3">
@@ -2062,9 +2070,9 @@ ${dueRows}
                 <div className="xs" style={{color:'var(--amb)',marginTop:2}}>{nights} night{nights!==1?'s':''} · {BDT(roomRate)}/night</div>
               </div>
             </div>
-            <div style={{textAlign:'right'}}>
-              <div className="xs muted">Total Due</div>
-              <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(due)}</div>
+            <div style={{textAlign:'right',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
+              <div><div className="xs muted">Total Due</div><div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(due)}</div></div>
+              <button className="btn btn-ghost btn-sm" onClick={()=>{setShowBillDetail(false);setDetailRes(null)}}>✕ Close</button>
             </div>
           </div>
           {/* Info grid */}
@@ -2095,7 +2103,7 @@ ${dueRows}
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            {[['Subtotal',sub],['VAT 7%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
+            {[['Subtotal',sub],[`VAT ${vatPct||15}%`,tax],[`Service Charge ${svcPct||5}%`,svc]].map(([l,v])=>(
               <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
             ))}
             <div className="divider" style={{margin:'6px 0'}}/>
@@ -2106,7 +2114,8 @@ ${dueRows}
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
@@ -2348,7 +2357,7 @@ function ReportsPage({transactions,rooms,reservations,guests}) {
 function SettingsPage({currentUser,toast,staffList,setStaffList}) {
   const isSA=currentUser?.role==='owner'
   const [tab,setTab]=useState('hotel')
-  const [hs,setHS]=useState({hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'7',svc:'5'})
+  const [hs,setHS]=useState({hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'15',svc:'5'})
   const [hsSaving,setHsSaving]=useState(false)
   const HS=k=>e=>setHS(p=>({...p,[k]:e.target.value}))
   const [showAddUser,setShowAddUser]=useState(false)
