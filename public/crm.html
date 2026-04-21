@@ -3319,7 +3319,8 @@ function App() {
                               <div style={{marginBottom:10}}>
                                 <div style={{fontSize:7,letterSpacing:'.14em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:5,fontWeight:200}}>🏨 Assign Room Number</div>
                                 <select
-                                  style={{width:'100%',background:'rgba(200,169,110,.06)',border:'1px solid rgba(200,169,110,.25)',padding:'7px 10px',color:'var(--tx)',fontFamily:'var(--sans)',fontSize:12,fontWeight:300,outline:'none',colorScheme:'dark',appearance:'none',backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%234A4538' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",backgroundRepeat:'no-repeat',backgroundPosition:'right 10px center',paddingRight:28}}
+                                  className="fselect"
+                                  style={{width:'100%',fontSize:12,padding:'7px 10px',border:'1px solid rgba(200,169,110,.25)'}}
                                   value={assignedRoom}
                                   onChange={e=>setSelectedRooms(p=>({...p,[res.id]:e.target.value}))}
                                 >
@@ -3342,7 +3343,6 @@ function App() {
                                       await dbPatch('reservations',res.id,{
                                         status:'RESERVED',
                                         room_ids:[assignedRoom],
-                                        room_number:assignedRoom,
                                         total_amount: info.totalAmount||((assignedRoomObj?.price||0)*info.nights)
                                       })
                                       // Send confirmation email via mailto
