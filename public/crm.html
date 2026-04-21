@@ -21,8 +21,16 @@
   <div id="root" style="height:100%"></div>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script>(function(){var _w=console.warn;console.warn=function(){if(typeof arguments[0]==='string'&&arguments[0].includes('in-browser Babel'))return;_w.apply(console,arguments);};})();</script>
+  <script>
+    // Suppress the "You are using the in-browser Babel transformer" console.warn
+    (function(){var _w=console.warn;console.warn=function(){if(typeof arguments[0]==='string'&&arguments[0].includes('in-browser Babel'))return;_w.apply(console,arguments);};})();
+    // Defer Babel's DOMContentLoaded handler into a setTimeout so it doesn't block
+    // the DCL event and trigger a [Violation] "DOMContentLoaded handler took Nms" warning
+    var __ael=document.addEventListener.bind(document);
+    document.addEventListener=function(t,f,o){if(t==='DOMContentLoaded'){var _f=f;f=function(){setTimeout(_f,0)};}return __ael(t,f,o);};
+  </script>
   <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+  <script>document.addEventListener=__ael;</script>
   <script type="text/babel" data-type="module">
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
