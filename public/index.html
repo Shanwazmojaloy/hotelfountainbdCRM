@@ -78,8 +78,9 @@
     .rooms-header{padding:96px 48px 52px;max-width:1100px;margin:0 auto}
     .rooms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:1100px;margin:0 auto;padding:0 48px 96px}
     .room-card{position:relative;overflow:hidden;cursor:default;display:flex;flex-direction:column}
-    .room-card-img{height:240px;background:var(--s2);position:relative;overflow:hidden;transition:transform .5s;flex-shrink:0}
-    .room-card:hover .room-card-img img,.room-card:hover .room-card-img-inner{transform:scale(1.03)}
+    .room-card-img{height:240px;background:var(--s2);position:relative;overflow:hidden;flex-shrink:0}
+    .room-card:hover .room-card-img img{transform:scale(1.03)}
+    .room-card:hover .room-card-img-inner{transform:scale(1.03)}
     .room-card-img-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;opacity:.14;transition:transform .5s}
     .room-badge{position:absolute;top:14px;left:14px;background:var(--gold);color:#07090E;font-family:var(--sans);font-size:7.5px;padding:3px 10px;letter-spacing:.15em;text-transform:uppercase;font-weight:500;z-index:2}
     .room-card-body{background:var(--s1);border:1px solid var(--br2);border-top:none;padding:20px 18px 22px;flex:1;display:flex;flex-direction:column}
@@ -219,6 +220,7 @@
   <!-- ── HERO ── -->
   <section class="hero" id="home">
     <div class="hero-bg"></div>
+    <img src="Front View.jpg" alt="Hotel Fountain" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.18;pointer-events:none;z-index:0" onerror="this.style.display='none'"/>
     <div class="hero-grid"></div>
     <div class="hero-glow"></div>
     <div class="hero-glow2"></div>
@@ -278,7 +280,8 @@
       <div class="room-card">
         <div class="room-card-img" style="background:linear-gradient(135deg,#0D1520,#1A2535)">
           <div class="room-badge">Most Popular</div>
-          <div class="room-card-img-inner" style="color:var(--gold)">🛏</div>
+          <img src="Fountain Deluxe.jpeg" alt="Fountain Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <div class="room-card-img-inner" style="color:var(--gold);display:none">🛏</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Fountain Deluxe</div>
@@ -300,7 +303,8 @@
       <div class="room-card">
         <div class="room-card-img" style="background:linear-gradient(135deg,#0D1A2A,#1A2B3E)">
           <div class="room-badge" style="background:var(--sky);color:#07090E">Premium</div>
-          <div class="room-card-img-inner" style="color:var(--sky)">🏨</div>
+          <img src="Premium Deluxe.jpg" alt="Premium Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <div class="room-card-img-inner" style="color:var(--sky);display:none">🏨</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Premium Deluxe</div>
@@ -322,7 +326,8 @@
       <div class="room-card">
         <div class="room-card-img" style="background:linear-gradient(135deg,#141210,#201A12)">
           <div class="room-badge" style="background:rgba(200,169,110,.22);color:var(--gold);border:1px solid rgba(200,169,110,.3)">Superior</div>
-          <div class="room-card-img-inner" style="color:var(--gold)">✨</div>
+          <img src="Superior Deluxe.jpeg" alt="Superior Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <div class="room-card-img-inner" style="color:var(--gold);display:none">✨</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Superior Deluxe</div>
@@ -344,7 +349,8 @@
       <div class="room-card">
         <div class="room-card-img" style="background:linear-gradient(135deg,#0D1A12,#122010)">
           <div class="room-badge" style="background:rgba(63,185,80,.18);color:var(--grn);border:1px solid rgba(63,185,80,.28)">Twin</div>
-          <div class="room-card-img-inner" style="color:var(--grn)">🛏</div>
+          <img src="Twin Deluxe.jpg" alt="Twin Deluxe" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <div class="room-card-img-inner" style="color:var(--grn);display:none">🛏</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Twin Deluxe</div>
@@ -366,7 +372,8 @@
       <div class="room-card room-card-wide">
         <div class="room-card-img" style="background:linear-gradient(135deg,#1A1505,#2A2010)">
           <div class="room-badge" style="background:linear-gradient(90deg,#C8A96E,#E0C585);color:#07090E">Royal Suite</div>
-          <div class="room-card-img-inner" style="color:var(--gold)">👑</div>
+          <img src="Royal Suite.jpeg" alt="Royal Suite" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <div class="room-card-img-inner" style="color:var(--gold);display:none">👑</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Royal Suite</div>
@@ -447,6 +454,10 @@
           <div class="fg">
             <label class="flbl" for="guestEmail">Email Address *</label>
             <input class="finput" type="email" id="guestEmail" placeholder="your@email.com" required/>
+          </div>
+          <div class="fg">
+            <label class="flbl" for="guestAddress">Address</label>
+            <input class="finput" type="text" id="guestAddress" placeholder="City / District, Country"/>
           </div>
           <div class="fg">
             <label class="flbl" for="roomType">Room Type *</label>
@@ -634,6 +645,7 @@
     const name     = document.getElementById('guestName').value.trim()
     const phone    = document.getElementById('guestPhone').value.trim()
     const email    = document.getElementById('guestEmail').value.trim()
+    const address  = document.getElementById('guestAddress').value.trim()
     const room     = document.getElementById('roomType').value
     const checkIn  = document.getElementById('checkIn').value
     const checkOut = document.getElementById('checkOut').value
@@ -681,6 +693,7 @@
         special_requests: [
           `ONLINE BOOKING — Room Type: ${room}`,
           `Guest: ${name} | Phone: ${phone} | Email: ${email}`,
+          address ? `Address: ${address}` : '',
           special ? `Requests: ${special}` : ''
         ].filter(Boolean).join(' | '),
         on_duty_officer: 'Online Booking',
@@ -698,6 +711,7 @@
         document.getElementById('guestName').value = ''
         document.getElementById('guestPhone').value = ''
         document.getElementById('guestEmail').value = ''
+        document.getElementById('guestAddress').value = ''
         document.getElementById('checkIn').value = ''
         document.getElementById('checkOut').value = ''
         document.getElementById('specialReq').value = ''

@@ -1663,12 +1663,14 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
   const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
+  const [activeFiscalDay,setActiveFiscalDay]=useState('')
   const calInputRef=useRef()
   useEffect(()=>{
     db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`).then(rows=>{
       if(!Array.isArray(rows)) return
       const m={};rows.forEach(r=>{m[r.key]=r.value})
       setHSettings({vat:m.vat_rate||'0',svc:m.service_charge||'0'})
+      if(m.active_fiscal_day) setActiveFiscalDay(m.active_fiscal_day)
     }).catch(()=>{})
   },[])
   const [search,setSearch]=useState('')
@@ -1681,7 +1683,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [tokenAmt,setTokenAmt]=useState('')
   const [savedToken,setSavedToken]=useState(0)
   const [tokenSaving,setTokenSaving]=useState(false)
-  const today=todayStr(), month=today.slice(0,7)
+  const today=activeFiscalDay||todayStr(), month=today.slice(0,7)
 
   const todayT = transactions.filter(t=>t.fiscal_day===today);
   const monthT = transactions.filter(t=>t.fiscal_day?.startsWith(month));
@@ -1869,6 +1871,7 @@ ${dueRows}
           headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
           body:JSON.stringify({key:'active_fiscal_day',value:nextDay,tenant_id:TENANT})
         })
+        setActiveFiscalDay(nextDay)
         toast(`✓ Day closed · Fiscal day → ${nextDay}`,'info')
         reload()
       }catch(e){
@@ -2156,7 +2159,7 @@ ${dueRows}
       })()}
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
+      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations} fiscalDay={today}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
@@ -2227,7 +2230,7 @@ ${dueRows}
   )
 }
 
-function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
+function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,fiscalDay}) {
   const fromRow=prefill?._fromRow===true
   const dueResList=(reservations||[]).filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0))
 
@@ -2246,7 +2249,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
 
   const [amount,setAmount]=useState(fromRow&&lockedDue>0?String(lockedDue):dropDueAmt>0?String(dropDueAmt):'')
   const [type,setType]=useState('Room Payment (Cash)')
-  const [fiscal_day,setFiscalDay]=useState(todayStr())
+  const [fiscal_day,setFiscalDay]=useState(fiscalDay||todayStr())
   const [saving,setSaving]=useState(false)
 
   function pickRes(r){
@@ -3047,6 +3050,7 @@ function App() {
   useEffect(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; },[])
   const [clock,setClock]=useState(new Date())
   const [notifOpen,setNotifOpen]=useState(false)
+  const [selectedRooms,setSelectedRooms]=useState({})
   // Staff list lives here so Settings can mutate it
   const [staffList,setStaffList]=useState(INIT_STAFF)
   // Load staff from Supabase on mount (overrides INIT_STAFF)
@@ -3137,21 +3141,24 @@ function App() {
 
   // Helper: resolve guest info from pending reservations
   function getPendingGuestInfo(res) {
-    // First try to find guest in guests list
     const guestId=String((res.guest_ids||[])[0]||'')
     const g=data.guests.find(x=>String(x.id)===guestId)
-    // Parse special_requests for online bookings (format: "ONLINE BOOKING — Room Type: X | Guest: Y | Phone: Z | Email: W")
     const sr=res.special_requests||''
-    const roomMatch=sr.match(/Room Type:\s*([^|]+)/)
-    const phoneMatch=sr.match(/Phone:\s*([^|]+)/)
-    const emailMatch=sr.match(/Email:\s*([^|]+)/)
+    const roomMatch  = sr.match(/Room Type:\s*([^|]+)/)
+    const phoneMatch = sr.match(/Phone:\s*([^|]+)/)
+    const emailMatch = sr.match(/Email:\s*([^|]+)/)
+    const addrMatch  = sr.match(/Address:\s*([^|]+)/)
+    const nights = res.check_in&&res.check_out ? Math.max(1,Math.round((new Date(res.check_out)-new Date(res.check_in))/86400000)) : 1
     return {
-      name: g?.name || res.on_duty_officer || 'Walk-in Guest',
-      phone: g?.phone || (phoneMatch?phoneMatch[1].trim():'—'),
-      email: g?.email || (emailMatch?emailMatch[1].trim():'—'),
-      roomType: (roomMatch?roomMatch[1].trim():null) || (res.room_ids||[]).join(', ') || 'Not assigned',
-      checkIn: res.check_in,
+      name:     g?.name     || res.on_duty_officer || 'Walk-in Guest',
+      phone:    g?.phone    || (phoneMatch ? phoneMatch[1].trim() : '—'),
+      email:    g?.email    || (emailMatch ? emailMatch[1].trim() : '—'),
+      address:  g?.address  || (addrMatch  ? addrMatch[1].trim()  : '—'),
+      roomType: (roomMatch  ? roomMatch[1].trim() : null) || (res.room_ids||[]).join(', ') || 'Not specified',
+      checkIn:  res.check_in,
       checkOut: res.check_out,
+      nights,
+      totalAmount: +res.total_amount || 0,
       isOnline: sr.includes('ONLINE BOOKING'),
       id: res.id
     }
@@ -3254,41 +3261,73 @@ function App() {
                     {/* ── PENDING BOOKING CARDS from Landing Page ── */}
                     {pendResList.length>0&&(
                       <div>
-                        <div style={{padding:'8px 16px',fontSize:8,letterSpacing:'.18em',color:'var(--gold)',textTransform:'uppercase',fontFamily:'var(--sans)',fontWeight:200,background:'rgba(200,169,110,.03)',borderBottom:'1px solid var(--br2)'}}>
-                          📅 Pending Booking Requests — {pendResList.length} new
+                        <div style={{padding:'8px 16px',fontSize:8,letterSpacing:'.18em',color:'var(--rose)',textTransform:'uppercase',fontFamily:'var(--sans)',fontWeight:400,background:'rgba(224,92,122,.07)',borderBottom:'1px solid rgba(224,92,122,.2)',display:'flex',alignItems:'center',gap:6}}>
+                          <span style={{width:7,height:7,borderRadius:'50%',background:'var(--rose)',display:'inline-block',animation:'pulse 2s infinite',flexShrink:0}}/>
+                          📅 Pending Booking Requests — {pendResList.length} awaiting confirmation
                         </div>
                         {pendResList.map(res=>{
                           const info=getPendingGuestInfo(res)
+                          const assignedRoom=selectedRooms[res.id]||''
+                          const availRooms=data.rooms.filter(r=>r.status==='AVAILABLE'||r.status==='RESERVED')
                           return (
-                            <div key={res.id} style={{padding:'14px 16px',borderBottom:'1px solid var(--br2)',background:info.isOnline?'rgba(200,169,110,.03)':'transparent'}}>
+                            <div key={res.id} style={{padding:'14px 16px',borderBottom:'1px solid var(--br2)',background:'rgba(224,92,122,.03)'}}>
                               {/* Guest info row */}
                               <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:10}}>
                                 <div style={{display:'flex',alignItems:'center',gap:10}}>
-                                  <div style={{width:34,height:34,borderRadius:'50%',background:`linear-gradient(135deg,var(--gold),rgba(200,169,110,.3))`,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--sans)',fontSize:12,color:'#07090E',fontWeight:500,flexShrink:0}}>
+                                  <div style={{width:34,height:34,borderRadius:'50%',background:'linear-gradient(135deg,var(--rose),rgba(224,92,122,.4))',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--sans)',fontSize:12,color:'#fff',fontWeight:500,flexShrink:0}}>
                                     {info.name.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
                                   </div>
                                   <div>
-                                    <div style={{fontFamily:'var(--sans)',fontSize:13,fontWeight:400,color:'var(--tx)',marginBottom:2}}>{info.name}</div>
-                                    {info.isOnline&&<span style={{background:'rgba(200,169,110,.12)',border:'1px solid rgba(200,169,110,.25)',color:'var(--gold)',fontSize:7.5,padding:'1px 6px',fontFamily:'var(--sans)',letterSpacing:'.1em',textTransform:'uppercase'}}>Online Booking</span>}
+                                    <div style={{fontFamily:'var(--sans)',fontSize:13,fontWeight:500,color:'var(--tx)',marginBottom:3}}>{info.name}</div>
+                                    <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                                      {info.isOnline&&<span style={{background:'rgba(200,169,110,.12)',border:'1px solid rgba(200,169,110,.25)',color:'var(--gold)',fontSize:7,padding:'1px 6px',fontFamily:'var(--sans)',letterSpacing:'.1em',textTransform:'uppercase'}}>🌐 Online</span>}
+                                      <span style={{background:'rgba(224,92,122,.12)',border:'1px solid rgba(224,92,122,.25)',color:'var(--rose)',fontSize:7,padding:'1px 6px',fontFamily:'var(--sans)',letterSpacing:'.1em',textTransform:'uppercase'}}>Pending</span>
+                                    </div>
                                   </div>
                                 </div>
-                                <div style={{fontSize:8,color:'var(--tx3)',fontFamily:'var(--sans)',fontWeight:200,letterSpacing:'.06em',textAlign:'right',whiteSpace:'nowrap'}}>{fmtDate(info.checkIn)}<br/>→ {fmtDate(info.checkOut)}</div>
+                                <div style={{fontSize:8,color:'var(--tx3)',fontFamily:'var(--sans)',fontWeight:200,letterSpacing:'.06em',textAlign:'right',whiteSpace:'nowrap',lineHeight:1.6}}>
+                                  {fmtDate(info.checkIn)}<br/>→ {fmtDate(info.checkOut)}<br/>
+                                  <span style={{color:'var(--gold)'}}>{info.nights} night{info.nights!==1?'s':''}</span>
+                                </div>
                               </div>
 
                               {/* Detail grid */}
-                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:12}}>
-                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'7px 10px'}}>
-                                  <div style={{fontSize:7,letterSpacing:'.16em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:3,fontWeight:200}}>📞 Contact</div>
-                                  <div style={{fontSize:11.5,color:'var(--tx)',fontFamily:'var(--sans)',fontWeight:300}}>{info.phone}</div>
+                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,marginBottom:10}}>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'6px 9px'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.14em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:2,fontWeight:200}}>📞 Contact</div>
+                                  <div style={{fontSize:11,color:'var(--tx)',fontFamily:'var(--sans)',fontWeight:300}}>{info.phone}</div>
                                 </div>
-                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'7px 10px'}}>
-                                  <div style={{fontSize:7,letterSpacing:'.16em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:3,fontWeight:200}}>🏷 Room Type</div>
-                                  <div style={{fontSize:11.5,color:'var(--gold)',fontFamily:'var(--sans)',fontWeight:300}}>{info.roomType}</div>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'6px 9px'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.14em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:2,fontWeight:200}}>🏷 Room Type</div>
+                                  <div style={{fontSize:11,color:'var(--gold)',fontFamily:'var(--sans)',fontWeight:300}}>{info.roomType}</div>
                                 </div>
-                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'7px 10px',gridColumn:'span 2'}}>
-                                  <div style={{fontSize:7,letterSpacing:'.16em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:3,fontWeight:200}}>✉️ Email</div>
-                                  <div style={{fontSize:11.5,color:'var(--tx2)',fontFamily:'var(--sans)',fontWeight:300,wordBreak:'break-all'}}>{info.email}</div>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'6px 9px'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.14em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:2,fontWeight:200}}>✉️ Email</div>
+                                  <div style={{fontSize:10,color:'var(--tx2)',fontFamily:'var(--sans)',fontWeight:300,wordBreak:'break-all'}}>{info.email}</div>
                                 </div>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'6px 9px'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.14em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:2,fontWeight:200}}>📍 Address</div>
+                                  <div style={{fontSize:10,color:'var(--tx2)',fontFamily:'var(--sans)',fontWeight:300}}>{info.address}</div>
+                                </div>
+                                <div style={{background:'rgba(200,169,110,.06)',border:'1px solid rgba(200,169,110,.2)',padding:'6px 9px',gridColumn:'span 2'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.14em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:2,fontWeight:200}}>💰 Estimated Total</div>
+                                  <div style={{fontSize:13,color:'var(--gold)',fontFamily:'var(--serif)',fontWeight:300}}>৳{info.totalAmount.toLocaleString()}</div>
+                                </div>
+                              </div>
+
+                              {/* Room assignment */}
+                              <div style={{marginBottom:10}}>
+                                <div style={{fontSize:7,letterSpacing:'.14em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:5,fontWeight:200}}>🏨 Assign Room Number</div>
+                                <select
+                                  style={{width:'100%',background:'rgba(200,169,110,.06)',border:'1px solid rgba(200,169,110,.25)',padding:'7px 10px',color:'var(--tx)',fontFamily:'var(--sans)',fontSize:12,fontWeight:300,outline:'none',colorScheme:'dark',appearance:'none',backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%234A4538' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",backgroundRepeat:'no-repeat',backgroundPosition:'right 10px center',paddingRight:28}}
+                                  value={assignedRoom}
+                                  onChange={e=>setSelectedRooms(p=>({...p,[res.id]:e.target.value}))}
+                                >
+                                  <option value="">— Select room to assign —</option>
+                                  {availRooms.map(r=>(
+                                    <option key={r.room_number} value={r.room_number}>{r.room_number} · {r.room_type||'Standard'} · ৳{(+r.price||0).toLocaleString()}/night</option>
+                                  ))}
+                                </select>
                               </div>
 
                               {/* Actions */}
@@ -3297,19 +3336,68 @@ function App() {
                                   className="btn btn-success btn-sm"
                                   style={{flex:1,justifyContent:'center',fontSize:9.5,letterSpacing:'.12em'}}
                                   onClick={async()=>{
+                                    if(!assignedRoom) return toast('Please assign a room number first','error')
                                     try{
-                                      await dbPatch('reservations',res.id,{status:'RESERVED'})
-                                      toast(`✓ Booking confirmed for ${info.name}`,'success')
+                                      const assignedRoomObj=data.rooms.find(r=>r.room_number===assignedRoom)
+                                      await dbPatch('reservations',res.id,{
+                                        status:'RESERVED',
+                                        room_ids:[assignedRoom],
+                                        room_number:assignedRoom,
+                                        total_amount: info.totalAmount||((assignedRoomObj?.price||0)*info.nights)
+                                      })
+                                      // Send confirmation email via mailto
+                                      const checkInFmt=info.checkIn?new Date(info.checkIn).toLocaleDateString('en-BD',{day:'numeric',month:'long',year:'numeric'}):info.checkIn
+                                      const checkOutFmt=info.checkOut?new Date(info.checkOut).toLocaleDateString('en-BD',{day:'numeric',month:'long',year:'numeric'}):info.checkOut
+                                      const emailBody=[
+                                        `Dear ${info.name},`,
+                                        ``,
+                                        `Your reservation at Hotel Fountain has been CONFIRMED.`,
+                                        ``,
+                                        `--- RESERVATION DETAILS ---`,
+                                        `Guest Name   : ${info.name}`,
+                                        `Contact      : ${info.phone}`,
+                                        `Address      : ${info.address}`,
+                                        `Room Number  : ${assignedRoom}`,
+                                        `Room Type    : ${info.roomType}`,
+                                        `Check-In     : ${checkInFmt}`,
+                                        `Check-Out    : ${checkOutFmt}`,
+                                        `Duration     : ${info.nights} night${info.nights!==1?'s':''}`,
+                                        ``,
+                                        `--- BILLING INFORMATION ---`,
+                                        `Total Amount : BDT ${info.totalAmount.toLocaleString()}`,
+                                        `Paid Amount  : BDT 0`,
+                                        `Balance Due  : BDT ${info.totalAmount.toLocaleString()}`,
+                                        ``,
+                                        `Please present this email at check-in.`,
+                                        `Check-in time: 12:00 PM | Check-out: 12:00 PM`,
+                                        ``,
+                                        `For any queries: +880 1322-840799`,
+                                        `Hotel Fountain | House-02, Road-02, Nikunja-02, Dhaka 1229`,
+                                        ``,
+                                        `Thank you for choosing Hotel Fountain!`,
+                                      ].join('%0D%0A')
+                                      if(info.email&&info.email!=='—'){
+                                        window.open(`mailto:${info.email}?subject=Booking Confirmation — Hotel Fountain (Room ${assignedRoom})&body=${emailBody}`)
+                                      }
+                                      toast(`✓ Booking confirmed · Room ${assignedRoom} assigned · Email ready to send`,'success')
+                                      setSelectedRooms(p=>{ const n={...p}; delete n[res.id]; return n })
                                       loadAll()
                                       setNotifOpen(false)
                                     }catch(e){toast(e.message,'error')}
                                   }}
-                                >✓ Confirm Booking</button>
+                                >✓ Confirm &amp; Send Email</button>
                                 <button
-                                  className="btn btn-ghost btn-sm"
+                                  className="btn btn-danger btn-sm"
                                   style={{fontSize:9.5,letterSpacing:'.1em'}}
-                                  onClick={()=>{ setPage('reservations'); setNotifOpen(false) }}
-                                >View</button>
+                                  onClick={async()=>{
+                                    if(!window.confirm(`Cancel booking request from ${info.name}?`)) return
+                                    try{
+                                      await dbPatch('reservations',res.id,{status:'CANCELLED'})
+                                      toast(`Booking from ${info.name} cancelled`,'info')
+                                      loadAll()
+                                    }catch(e){toast(e.message,'error')}
+                                  }}
+                                >✕ Cancel</button>
                               </div>
                             </div>
                           )
