@@ -4,7 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Hotel Fountain | Luxury Hospitality in Dhaka</title>
-  <meta name="description" content="Hotel Fountain — Premier luxury hospitality experience in the heart of Dhaka. Book your stay in our Standard, Deluxe or Royal Suite rooms."/>
+  <meta name="description" content="Hotel Fountain — Premier luxury hospitality in the heart of Dhaka. Book your stay in our Fountain Deluxe, Premium Deluxe, Twin Deluxe, Superior Deluxe or Royal Suite rooms."/>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet"/>
   <style>
     /* ── RESET & TOKENS ── */
@@ -19,176 +19,187 @@
       --rose:#E05C7A;--grn:#3FB950;--sky:#58A6FF;
     }
     html{scroll-behavior:smooth}
-    body{background:var(--bg);color:var(--tx);font-family:var(--sans);font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+    body{background:var(--bg);color:var(--tx);font-family:var(--sans);font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden;display:block}
     ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(200,169,110,.2);border-radius:2px}
     a{text-decoration:none;color:inherit}
     img{display:block;max-width:100%}
 
     /* ── NAVBAR ── */
     .nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:68px;transition:all .35s;background:transparent}
-    .nav.scrolled{background:rgba(7,9,14,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--br)}
+    .nav.scrolled{background:rgba(7,9,14,.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--br)}
     .nav-brand{font-family:var(--serif);font-size:22px;font-weight:400;color:var(--gold);letter-spacing:.03em}
     .nav-brand em{font-style:italic;font-weight:300}
     .nav-links{display:flex;align-items:center;gap:32px}
-    .nav-links a{font-family:var(--sans);font-size:11px;color:var(--tx2);letter-spacing:.2em;text-transform:uppercase;font-weight:300;transition:color .2s}
+    .nav-links a{font-family:var(--sans);font-size:10.5px;color:var(--tx2);letter-spacing:.2em;text-transform:uppercase;font-weight:300;transition:color .2s}
     .nav-links a:hover{color:var(--gold)}
-    .nav-cta{background:var(--gold);color:#07090E;font-family:var(--sans);font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;padding:9px 22px;cursor:pointer;border:none;transition:all .2s}
+    .nav-cta{background:var(--gold);color:#07090E;font-family:var(--sans);font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;padding:10px 24px;cursor:pointer;border:none;transition:all .2s}
     .nav-cta:hover{background:var(--gold2)}
 
     /* ── HERO ── */
-    .hero{position:relative;height:100vh;min-height:620px;display:flex;align-items:center;overflow:hidden}
-    .hero-bg{position:absolute;inset:0;background:linear-gradient(135deg,#07090E 0%,#0D1520 35%,#0A1218 65%,#07090E 100%)}
-    .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(200,169,110,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(200,169,110,.025) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,rgba(0,0,0,.7) 30%,transparent 75%)}
-    .hero-glow{position:absolute;top:20%;left:5%;width:600px;height:500px;background:radial-gradient(ellipse,rgba(200,169,110,.055) 0%,transparent 65%);pointer-events:none}
-    .hero-glow2{position:absolute;bottom:10%;right:5%;width:500px;height:400px;background:radial-gradient(ellipse,rgba(88,166,255,.03) 0%,transparent 60%);pointer-events:none}
+    .hero{position:relative;height:100vh;min-height:640px;display:flex;align-items:center;overflow:hidden}
+    .hero-bg{position:absolute;inset:0;background:linear-gradient(135deg,#07090E 0%,#0D1520 40%,#0A1218 70%,#07090E 100%)}
+    .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(200,169,110,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(200,169,110,.022) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,rgba(0,0,0,.65) 30%,transparent 75%)}
+    .hero-glow{position:absolute;top:15%;left:3%;width:700px;height:550px;background:radial-gradient(ellipse,rgba(200,169,110,.05) 0%,transparent 65%);pointer-events:none}
+    .hero-glow2{position:absolute;bottom:10%;right:5%;width:500px;height:400px;background:radial-gradient(ellipse,rgba(88,166,255,.025) 0%,transparent 60%);pointer-events:none}
     .hero-content{position:relative;z-index:2;padding:0 48px;max-width:700px}
-    .hero-eyebrow{display:flex;align-items:center;gap:14px;margin-bottom:24px}
-    .hero-eyebrow-line{width:32px;height:1px;background:linear-gradient(90deg,transparent,var(--gold));opacity:.7}
+    .hero-eyebrow{display:flex;align-items:center;gap:14px;margin-bottom:28px}
+    .hero-eyebrow-line{width:32px;height:1px;background:linear-gradient(90deg,transparent,var(--gold));opacity:.6}
     .hero-eyebrow span{font-family:var(--sans);font-size:9px;color:var(--tx3);letter-spacing:.28em;text-transform:uppercase;font-weight:200}
-    .hero-tag{display:inline-block;border:1px solid rgba(200,169,110,.25);padding:4px 12px;font-family:var(--sans);font-size:8px;color:var(--gold);letter-spacing:.2em;text-transform:uppercase;font-weight:300;margin-bottom:20px;background:rgba(200,169,110,.04)}
-    .hero-title{font-family:var(--serif);font-size:clamp(52px,7vw,88px);font-weight:300;line-height:1.0;color:var(--tx);margin-bottom:20px}
+    .hero-tag{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(200,169,110,.2);padding:5px 14px;font-family:var(--sans);font-size:8px;color:var(--gold);letter-spacing:.18em;text-transform:uppercase;font-weight:300;margin-bottom:22px;background:rgba(200,169,110,.04)}
+    .hero-title{font-family:var(--serif);font-size:clamp(52px,7.5vw,96px);font-weight:300;line-height:.95;color:var(--tx);margin-bottom:22px}
     .hero-title em{font-style:italic;color:var(--gold);display:block;font-weight:300}
-    .hero-sub{font-family:var(--sans);font-size:13.5px;color:var(--tx2);line-height:1.75;max-width:480px;margin-bottom:36px;font-weight:300;letter-spacing:.02em}
+    .hero-sub{font-family:var(--sans);font-size:13.5px;color:var(--tx2);line-height:1.8;max-width:480px;margin-bottom:40px;font-weight:300;letter-spacing:.015em}
     .hero-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
     .btn-primary{background:var(--gold);color:#07090E;font-family:var(--sans);font-size:10.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;padding:15px 36px;cursor:pointer;border:none;transition:all .22s;display:inline-flex;align-items:center;gap:8px}
     .btn-primary:hover{background:var(--gold2);transform:translateY(-2px)}
     .btn-secondary{background:transparent;color:var(--tx2);font-family:var(--sans);font-size:10.5px;font-weight:300;letter-spacing:.18em;text-transform:uppercase;padding:14px 28px;cursor:pointer;border:1px solid var(--br);transition:all .22s;display:inline-flex;align-items:center;gap:8px}
-    .btn-secondary:hover{background:var(--gdim);color:var(--tx);border-color:rgba(200,169,110,.3)}
-
-    /* hero right watermark */
-    .hero-watermark{position:absolute;right:8%;top:50%;transform:translateY(-50%);z-index:1;text-align:center;opacity:.06;pointer-events:none}
+    .btn-secondary:hover{background:var(--gdim);color:var(--tx);border-color:rgba(200,169,110,.28)}
+    .hero-watermark{position:absolute;right:6%;top:50%;transform:translateY(-50%);z-index:1;text-align:center;opacity:.045;pointer-events:none;user-select:none}
     .hero-watermark span{font-family:var(--serif);font-size:clamp(80px,12vw,160px);color:var(--gold);font-weight:300;font-style:italic;line-height:1;display:block}
 
     /* ── STATS BAR ── */
-    .stats-bar{background:var(--s1);border-top:1px solid var(--br2);border-bottom:1px solid var(--br2)}
-    .stats-inner{display:grid;grid-template-columns:repeat(4,1fr);max-width:1100px;margin:0 auto}
+    .stats-bar{background:var(--s1);border-top:1px solid var(--br2);border-bottom:1px solid var(--br2);width:100%}
+    .stats-inner{display:grid;grid-template-columns:repeat(4,1fr);max-width:1100px;margin:0 auto;width:100%}
     .stat-item{padding:28px 24px;border-right:1px solid var(--br2);text-align:center}
     .stat-item:last-child{border-right:none}
-    .stat-num{font-family:var(--serif);font-size:38px;font-weight:300;color:var(--gold);line-height:1;margin-bottom:6px}
+    .stat-num{font-family:var(--serif);font-size:36px;font-weight:300;color:var(--gold);line-height:1;margin-bottom:7px}
     .stat-label{font-family:var(--sans);font-size:8px;color:var(--tx3);letter-spacing:.2em;text-transform:uppercase;font-weight:200}
 
-    /* ── SECTIONS ── */
-    .section{padding:96px 48px;max-width:1100px;margin:0 auto}
-    .sect-eyebrow{font-family:var(--sans);font-size:8px;color:var(--gold);letter-spacing:.28em;text-transform:uppercase;font-weight:300;margin-bottom:12px}
-    .sect-title{font-family:var(--serif);font-size:clamp(34px,5vw,52px);font-weight:300;color:var(--tx);line-height:1.1;margin-bottom:16px}
+    /* ── GENERIC SECTION ── */
+    .section{padding:96px 48px;max-width:1100px;margin:0 auto;width:100%;display:block}
+    .sect-eyebrow{font-family:var(--sans);font-size:8px;color:var(--gold);letter-spacing:.28em;text-transform:uppercase;font-weight:300;margin-bottom:12px;display:block}
+    .sect-title{font-family:var(--serif);font-size:clamp(34px,5vw,52px);font-weight:300;color:var(--tx);line-height:1.08;margin-bottom:16px}
     .sect-title em{font-style:italic;color:var(--gold)}
-    .sect-sub{font-family:var(--sans);font-size:13px;color:var(--tx2);line-height:1.8;max-width:520px;font-weight:300;margin-bottom:48px}
+    .sect-sub{font-family:var(--sans);font-size:13px;color:var(--tx2);line-height:1.82;max-width:520px;font-weight:300;margin-bottom:52px}
+    .gold-line{width:40px;height:1px;background:linear-gradient(90deg,var(--gold),transparent);margin-bottom:20px}
 
     /* ── ROOMS ── */
-    .rooms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
-    .room-card{position:relative;overflow:hidden;cursor:pointer;group}
-    .room-card-img{height:280px;background:var(--s2);position:relative;overflow:hidden;transition:transform .5s}
-    .room-card:hover .room-card-img{transform:scale(1.03)}
-    .room-img-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;opacity:.15;background:linear-gradient(135deg,var(--s2),var(--s3))}
+    .rooms-section{background:var(--bg);width:100%;display:block}
+    .rooms-header{padding:96px 48px 52px;max-width:1100px;margin:0 auto}
+    .rooms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:1100px;margin:0 auto;padding:0 48px 96px}
+    .room-card{position:relative;overflow:hidden;cursor:default;display:flex;flex-direction:column}
+    .room-card-img{height:240px;background:var(--s2);position:relative;overflow:hidden;transition:transform .5s;flex-shrink:0}
+    .room-card:hover .room-card-img img,.room-card:hover .room-card-img-inner{transform:scale(1.03)}
+    .room-card-img-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;opacity:.14;transition:transform .5s}
     .room-badge{position:absolute;top:14px;left:14px;background:var(--gold);color:#07090E;font-family:var(--sans);font-size:7.5px;padding:3px 10px;letter-spacing:.15em;text-transform:uppercase;font-weight:500;z-index:2}
-    .room-card-body{background:var(--s1);border:1px solid var(--br2);border-top:none;padding:20px 18px}
+    .room-card-body{background:var(--s1);border:1px solid var(--br2);border-top:none;padding:20px 18px 22px;flex:1;display:flex;flex-direction:column}
     .room-name{font-family:var(--serif);font-size:20px;font-weight:300;color:var(--tx);margin-bottom:6px}
-    .room-desc{font-family:var(--sans);font-size:11.5px;color:var(--tx2);line-height:1.65;margin-bottom:14px;font-weight:300}
-    .room-rate{font-family:var(--sans);font-size:10px;color:var(--gold);letter-spacing:.06em;margin-bottom:10px}
-    .room-rate strong{font-family:var(--serif);font-size:22px;font-weight:300;color:var(--gold)}
-    .room-feats{display:flex;gap:10px;flex-wrap:wrap}
-    .room-feat{font-family:var(--sans);font-size:9px;color:var(--tx3);letter-spacing:.1em;display:flex;align-items:center;gap:4px}
+    .room-desc{font-family:var(--sans);font-size:11.5px;color:var(--tx2);line-height:1.65;margin-bottom:14px;font-weight:300;flex:1}
+    .room-rate-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+    .room-rate{font-family:var(--sans);font-size:9.5px;color:var(--tx3);letter-spacing:.08em}
+    .room-rate strong{font-family:var(--serif);font-size:24px;font-weight:300;color:var(--gold);display:block;line-height:1}
+    .room-book-btn{background:transparent;border:1px solid rgba(200,169,110,.25);color:var(--gold);font-family:var(--sans);font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:300;padding:7px 14px;cursor:pointer;transition:all .2s;white-space:nowrap}
+    .room-book-btn:hover{background:rgba(200,169,110,.08);border-color:var(--gold)}
+    .room-feats{display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--br2);padding-top:12px;margin-top:2px}
+    .room-feat{font-family:var(--sans);font-size:8.5px;color:var(--tx3);letter-spacing:.06em;display:flex;align-items:center;gap:3px}
+    .room-card-wide{grid-column:span 2}
+    .room-card-wide .room-card-img{height:260px}
+    .room-card-wide .room-card-img-inner{font-size:80px}
 
     /* ── AMENITIES ── */
-    .amenities-wrap{background:var(--s1);border-top:1px solid var(--br2);border-bottom:1px solid var(--br2)}
-    .amenities-inner{display:grid;grid-template-columns:1fr 1fr;max-width:1100px;margin:0 auto;gap:0}
+    .amenities-wrap{background:var(--s1);border-top:1px solid var(--br2);border-bottom:1px solid var(--br2);width:100%;display:block}
+    .amenities-inner{display:grid;grid-template-columns:1fr 1fr;max-width:1100px;margin:0 auto}
     .amenities-left{padding:96px 48px}
-    .amenities-right{background:linear-gradient(135deg,var(--s2),#0A1422);min-height:400px;display:flex;align-items:center;justify-content:center;font-size:80px;opacity:.25;position:relative;overflow:hidden}
-    .amenities-right::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(200,169,110,.08),transparent 65%)}
-    .amenities-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:0}
-    .amenity-card{background:rgba(200,169,110,.04);border:1px solid var(--br2);padding:20px;transition:all .2s}
-    .amenity-card:hover{background:rgba(200,169,110,.07);border-color:var(--br)}
+    .amenities-right{background:linear-gradient(135deg,var(--s2),#0A1422);min-height:460px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+    .amenities-right::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(200,169,110,.07),transparent 65%)}
+    .amenities-right-inner{position:relative;z-index:1;text-align:center;opacity:.18;font-size:90px;line-height:1.4;user-select:none}
+    .amenities-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:4px}
+    .amenity-card{background:rgba(200,169,110,.03);border:1px solid var(--br2);padding:22px 18px;transition:all .22s}
+    .amenity-card:hover{background:rgba(200,169,110,.065);border-color:var(--br)}
     .amenity-ico{font-size:22px;margin-bottom:10px;display:block}
-    .amenity-name{font-family:var(--serif);font-size:15px;font-weight:300;color:var(--tx);margin-bottom:4px}
-    .amenity-desc{font-family:var(--sans);font-size:10.5px;color:var(--tx2);line-height:1.6;font-weight:300}
+    .amenity-name{font-family:var(--serif);font-size:16px;font-weight:300;color:var(--tx);margin-bottom:5px}
+    .amenity-desc{font-family:var(--sans);font-size:10.5px;color:var(--tx2);line-height:1.65;font-weight:300}
 
-    /* ── AVAILABILITY / BOOKING ── */
-    .avail-wrap{background:var(--bg);border-top:1px solid var(--br2)}
-    .avail-inner{max-width:1100px;margin:0 auto;padding:96px 48px}
-    .booking-form{background:var(--s1);border:1px solid var(--br);padding:40px 36px;position:relative}
-    .booking-form::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:80px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
-    .form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:16px}
-    .form-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+    /* ── BOOKING ── */
+    .avail-wrap{background:var(--bg);border-top:1px solid var(--br2);width:100%;display:block}
+    .avail-inner{max-width:1100px;margin:0 auto;padding:96px 48px;display:block}
+    .booking-card{background:var(--s1);border:1px solid var(--br);padding:44px 40px;position:relative;margin-top:0}
+    .booking-card::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+    .form-row{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:16px}
+    .form-row-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
     .fg{display:flex;flex-direction:column;gap:6px}
-    .flbl{font-family:var(--sans);font-size:8px;letter-spacing:.2em;color:var(--tx3);text-transform:uppercase;font-weight:200}
+    .flbl{font-family:var(--sans);font-size:7.5px;letter-spacing:.22em;color:var(--tx3);text-transform:uppercase;font-weight:200}
     .finput,.fselect{width:100%;background:rgba(200,169,110,.04);border:1px solid var(--br2);padding:11px 13px;color:var(--tx);font-family:var(--sans);font-size:13px;font-weight:300;outline:none;transition:border-color .18s;appearance:none;color-scheme:dark}
     .finput::placeholder{color:var(--tx3)}
-    .finput:focus,.fselect:focus{border-color:rgba(200,169,110,.4)}
+    .finput:focus,.fselect:focus{border-color:rgba(200,169,110,.35);background:rgba(200,169,110,.06)}
     .fselect{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%234A4538' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-color:rgba(200,169,110,.04);padding-right:32px;cursor:pointer;color-scheme:dark}
     .fselect option{background:#0D1117;color:#EEE9E2}
     input[type='date']{color:var(--tx);color-scheme:dark}
-    .booking-btn{width:100%;background:var(--gold);color:#07090E;font-family:var(--sans);font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;padding:16px;cursor:pointer;border:none;transition:all .22s;display:flex;align-items:center;justify-content:center;gap:10px}
+    .estimate-bar{background:rgba(200,169,110,.06);border:1px solid rgba(200,169,110,.14);padding:12px 16px;margin-bottom:20px;display:none;font-family:var(--sans);font-size:12px;color:var(--tx2)}
+    .estimate-bar.show{display:block}
+    .estimate-bar strong{color:var(--gold);font-family:var(--serif);font-size:18px;font-weight:300}
+    .booking-btn{width:100%;background:var(--gold);color:#07090E;font-family:var(--sans);font-size:10.5px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;padding:17px;cursor:pointer;border:none;transition:all .22s;display:flex;align-items:center;justify-content:center;gap:10px}
     .booking-btn:hover:not(:disabled){background:var(--gold2);transform:translateY(-1px)}
-    .booking-btn:disabled{opacity:.5;cursor:not-allowed}
-    .spinner{display:inline-block;width:14px;height:14px;border:1.5px solid rgba(0,0,0,.2);border-top-color:#07090E;border-radius:50%;animation:spin .7s linear infinite}
+    .booking-btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+    .spinner{display:inline-block;width:13px;height:13px;border:1.5px solid rgba(0,0,0,.2);border-top-color:#07090E;border-radius:50%;animation:spin .7s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
-
-    /* success */
-    .success-box{display:none;background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.25);padding:20px 24px;text-align:center;margin-top:20px}
-    .success-box.show{display:block;animation:fadeIn .4s ease}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-    .success-icon{font-size:32px;margin-bottom:8px}
-    .success-title{font-family:var(--serif);font-size:22px;color:var(--grn);margin-bottom:4px}
-    .success-msg{font-family:var(--sans);font-size:11.5px;color:var(--tx2);font-weight:300;line-height:1.65}
+    .success-box{display:none;background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.22);padding:24px;text-align:center;margin-top:20px}
+    .success-box.show{display:block;animation:fadeUp .4s ease}
+    .success-icon{font-size:32px;margin-bottom:10px}
+    .success-title{font-family:var(--serif);font-size:24px;color:var(--grn);margin-bottom:6px;font-weight:300}
+    .success-msg{font-family:var(--sans);font-size:11.5px;color:var(--tx2);font-weight:300;line-height:1.7}
 
     /* ── CONTACT ── */
-    .contact-wrap{background:var(--s1);border-top:1px solid var(--br2)}
-    .contact-inner{display:grid;grid-template-columns:1fr 1fr;max-width:1100px;margin:0 auto;gap:0}
+    .contact-wrap{background:var(--s1);border-top:1px solid var(--br2);width:100%;display:block}
+    .contact-inner{display:grid;grid-template-columns:1fr 1fr;max-width:1100px;margin:0 auto}
     .contact-left{padding:80px 48px}
     .contact-right{padding:80px 48px;border-left:1px solid var(--br2)}
-    .contact-info-item{margin-bottom:24px}
-    .contact-info-label{font-family:var(--sans);font-size:7.5px;color:var(--tx3);letter-spacing:.22em;text-transform:uppercase;font-weight:200;margin-bottom:5px}
-    .contact-info-val{font-family:var(--sans);font-size:13px;color:var(--tx2);font-weight:300;line-height:1.7}
-
-    /* contact form */
+    .contact-item{margin-bottom:26px}
+    .contact-label{font-family:var(--sans);font-size:7.5px;color:var(--tx3);letter-spacing:.22em;text-transform:uppercase;font-weight:200;margin-bottom:5px}
+    .contact-val{font-family:var(--sans);font-size:13px;color:var(--tx2);font-weight:300;line-height:1.7}
     .cfm-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
     .ctextarea{width:100%;background:rgba(200,169,110,.04);border:1px solid var(--br2);padding:11px 13px;color:var(--tx);font-family:var(--sans);font-size:13px;font-weight:300;outline:none;transition:border-color .18s;resize:vertical;min-height:90px;color-scheme:dark}
     .ctextarea::placeholder{color:var(--tx3)}
-    .ctextarea:focus{border-color:rgba(200,169,110,.4)}
-    .cfm-btn{background:transparent;color:var(--gold);border:1px solid rgba(200,169,110,.35);font-family:var(--sans);font-size:10px;font-weight:300;letter-spacing:.2em;text-transform:uppercase;padding:12px 28px;cursor:pointer;transition:all .2s;margin-top:8px}
-    .cfm-btn:hover{background:rgba(200,169,110,.07);border-color:var(--br)}
+    .ctextarea:focus{border-color:rgba(200,169,110,.35)}
+    .cfm-btn{background:transparent;color:var(--gold);border:1px solid rgba(200,169,110,.3);font-family:var(--sans);font-size:9.5px;font-weight:300;letter-spacing:.2em;text-transform:uppercase;padding:12px 28px;cursor:pointer;transition:all .2s;margin-top:6px}
+    .cfm-btn:hover{background:rgba(200,169,110,.07);border-color:var(--gold)}
 
     /* ── FOOTER ── */
-    .footer{background:var(--bg);border-top:1px solid var(--br2);padding:28px 48px;display:flex;align-items:center;justify-content:space-between}
+    .footer{background:var(--bg);border-top:1px solid var(--br2);padding:28px 48px;display:flex;align-items:center;justify-content:space-between;width:100%}
     .footer-brand{font-family:var(--serif);font-size:18px;color:var(--gold);font-style:italic;font-weight:300}
-    .footer-copy{font-family:var(--sans);font-size:9px;color:var(--tx3);letter-spacing:.16em;font-weight:200}
+    .footer-links{display:flex;gap:28px}
+    .footer-links a{font-family:var(--sans);font-size:9px;color:var(--tx3);letter-spacing:.16em;text-transform:uppercase;font-weight:200;transition:color .2s}
+    .footer-links a:hover{color:var(--gold)}
     .footer-crm{font-family:var(--sans);font-size:9px;color:var(--tx3);letter-spacing:.06em;font-weight:200}
-    .footer-crm a{color:var(--gold);opacity:.7;transition:opacity .2s}
+    .footer-crm a{color:var(--gold);opacity:.65;transition:opacity .2s}
     .footer-crm a:hover{opacity:1}
 
-    /* ── DIVIDER LINE ── */
-    .gold-line{width:48px;height:1px;background:linear-gradient(90deg,var(--gold),transparent);margin-bottom:20px}
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+    @keyframes mIn{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+    .anim{opacity:0}
+    .anim.visible{animation:mIn .7s ease forwards}
 
     /* ── RESPONSIVE ── */
     @media(max-width:900px){
-      .nav{padding:0 24px}
+      .nav{padding:0 20px}
       .nav-links{display:none}
-      .hero-content{padding:0 24px}
+      .hero-content{padding:0 20px;max-width:100%}
       .hero-watermark{display:none}
-      .section{padding:64px 24px}
-      .rooms-grid{grid-template-columns:1fr}
+      .rooms-header{padding:64px 20px 36px}
+      .rooms-grid{grid-template-columns:1fr;padding:0 20px 64px}
+      .room-card-wide{grid-column:span 1}
+      .room-card-wide .room-card-img{height:220px}
       .amenities-inner{grid-template-columns:1fr}
       .amenities-right{display:none}
-      .amenities-left{padding:64px 24px}
-      .avail-inner{padding:64px 24px}
-      .form-grid{grid-template-columns:1fr}
-      .form-grid-4{grid-template-columns:1fr 1fr}
-      .stats-inner{grid-template-columns:1fr 1fr}
+      .amenities-left{padding:64px 20px}
+      .avail-inner{padding:64px 20px}
+      .booking-card{padding:28px 20px}
+      .form-row{grid-template-columns:1fr}
+      .form-row-4{grid-template-columns:1fr 1fr}
+      .stats-inner{grid-template-columns:repeat(2,1fr)}
       .contact-inner{grid-template-columns:1fr}
       .contact-right{border-left:none;border-top:1px solid var(--br2)}
-      .contact-left,.contact-right{padding:48px 24px}
-      .footer{flex-direction:column;gap:12px;text-align:center;padding:24px}
+      .contact-left,.contact-right{padding:48px 20px}
+      .footer{flex-direction:column;gap:14px;text-align:center;padding:24px 20px}
+      .footer-links{flex-wrap:wrap;justify-content:center}
     }
     @media(max-width:600px){
-      .form-grid-4{grid-template-columns:1fr}
-      .stats-inner{grid-template-columns:1fr 1fr}
+      .form-row-4{grid-template-columns:1fr}
       .cfm-grid{grid-template-columns:1fr}
+      .rooms-grid{grid-template-columns:1fr}
+      .amenities-grid{grid-template-columns:1fr}
     }
-
-    /* ── ANIMATIONS ── */
-    @keyframes mIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
-    .anim{opacity:0}
-    .anim.visible{animation:mIn .65s ease forwards}
   </style>
 </head>
 <body>
@@ -198,7 +209,7 @@
     <div class="nav-brand">Hotel <em>Fountain</em></div>
     <div class="nav-links">
       <a href="#rooms">Rooms</a>
-      <a href="#amenities">Amenities</a>
+      <a href="#amenities">Experience</a>
       <a href="#booking">Book Now</a>
       <a href="#contact">Contact</a>
     </div>
@@ -211,9 +222,7 @@
     <div class="hero-grid"></div>
     <div class="hero-glow"></div>
     <div class="hero-glow2"></div>
-
     <div class="hero-watermark"><span>Hotel<br>Fountain</span></div>
-
     <div class="hero-content">
       <div class="hero-eyebrow">
         <div class="hero-eyebrow-line"></div>
@@ -221,10 +230,10 @@
       </div>
       <div class="hero-tag">★ Premier Luxury Hospitality</div>
       <h1 class="hero-title">Hotel<br><em>Fountain</em></h1>
-      <p class="hero-sub">A sanctuary of refined elegance in the heart of Dhaka — where timeless luxury meets modern comfort, and every stay becomes an unforgettable story.</p>
+      <p class="hero-sub">A sanctuary of refined elegance in the heart of Dhaka — where timeless luxury meets modern comfort, and every stay becomes an unforgettable memory.</p>
       <div class="hero-actions">
         <button class="btn-primary" onclick="document.getElementById('booking').scrollIntoView({behavior:'smooth'})">
-          Book Your Stay →
+          Reserve Your Stay →
         </button>
         <button class="btn-secondary" onclick="document.getElementById('rooms').scrollIntoView({behavior:'smooth'})">
           Explore Rooms
@@ -237,7 +246,7 @@
   <div class="stats-bar">
     <div class="stats-inner">
       <div class="stat-item">
-        <div class="stat-num">48</div>
+        <div class="stat-num">28</div>
         <div class="stat-label">Luxury Rooms</div>
       </div>
       <div class="stat-item">
@@ -256,24 +265,28 @@
   </div>
 
   <!-- ── ROOMS ── -->
-  <div id="rooms">
-    <div class="section anim">
+  <div class="rooms-section" id="rooms">
+    <div class="rooms-header anim">
       <div class="sect-eyebrow">Our Accommodations</div>
       <h2 class="sect-title">Our Rooms &amp; <em>Suites</em></h2>
-      <p class="sect-sub">Discover our carefully curated collection of rooms and suites — each space designed to offer the perfect balance of luxury, comfort and refined Bangladeshi hospitality.</p>
+      <p class="sect-sub">Five categories of thoughtfully designed rooms — from our signature Fountain Deluxe to the opulent Royal Suite. Every space crafted to deliver genuine Bangladeshi warmth alongside modern luxury.</p>
     </div>
-    <div style="max-width:1100px;margin:0 auto;padding:0 48px 96px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px" class="anim">
+
+    <div class="rooms-grid anim">
 
       <!-- Fountain Deluxe -->
       <div class="room-card">
-        <div class="room-card-img">
+        <div class="room-card-img" style="background:linear-gradient(135deg,#0D1520,#1A2535)">
           <div class="room-badge">Most Popular</div>
-          <div style="width:100%;height:100%;background:linear-gradient(135deg,#0D1520,#1A2535);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:60px;opacity:.2">🛏</div>
+          <div class="room-card-img-inner" style="color:var(--gold)">🛏</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Fountain Deluxe</div>
           <div class="room-desc">Our signature room — elegantly appointed with modern amenities, warm furnishings and the classic Hotel Fountain comfort experience.</div>
-          <div class="room-rate"><strong>৳4,000</strong> / night</div>
+          <div class="room-rate-row">
+            <div class="room-rate"><strong>৳4,000</strong>per night</div>
+            <button class="room-book-btn" onclick="selectRoom('Fountain Deluxe')">Book →</button>
+          </div>
           <div class="room-feats">
             <span class="room-feat">🛏 King Bed</span>
             <span class="room-feat">📶 Free WiFi</span>
@@ -285,14 +298,17 @@
 
       <!-- Premium Deluxe -->
       <div class="room-card">
-        <div class="room-card-img">
+        <div class="room-card-img" style="background:linear-gradient(135deg,#0D1A2A,#1A2B3E)">
           <div class="room-badge" style="background:var(--sky);color:#07090E">Premium</div>
-          <div style="width:100%;height:100%;background:linear-gradient(135deg,#0D1A2A,#1A2B3E);display:flex;align-items:center;justify-content:center;color:var(--sky);font-size:60px;opacity:.2">🏨</div>
+          <div class="room-card-img-inner" style="color:var(--sky)">🏨</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Premium Deluxe</div>
-          <div class="room-desc">Elevated interiors with extra space, premium textiles and enhanced bathroom amenities. Ideal for guests who enjoy a little more luxury.</div>
-          <div class="room-rate"><strong>৳4,500</strong> / night</div>
+          <div class="room-desc">Extra space, premium textiles and enhanced bathroom amenities. Ideal for guests who appreciate a little more refined comfort.</div>
+          <div class="room-rate-row">
+            <div class="room-rate"><strong>৳4,500</strong>per night</div>
+            <button class="room-book-btn" onclick="selectRoom('Premium Deluxe')">Book →</button>
+          </div>
           <div class="room-feats">
             <span class="room-feat">🛏 King Bed</span>
             <span class="room-feat">🛁 Bathtub</span>
@@ -304,14 +320,17 @@
 
       <!-- Superior Deluxe -->
       <div class="room-card">
-        <div class="room-card-img">
-          <div class="room-badge" style="background:rgba(200,169,110,.25);color:var(--gold)">Superior</div>
-          <div style="width:100%;height:100%;background:linear-gradient(135deg,#141210,#201A10);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:60px;opacity:.22">✨</div>
+        <div class="room-card-img" style="background:linear-gradient(135deg,#141210,#201A12)">
+          <div class="room-badge" style="background:rgba(200,169,110,.22);color:var(--gold);border:1px solid rgba(200,169,110,.3)">Superior</div>
+          <div class="room-card-img-inner" style="color:var(--gold)">✨</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Superior Deluxe</div>
-          <div class="room-desc">Spacious and refined — a step above with curated décor, upgraded amenities and a relaxing atmosphere for the modern traveller.</div>
-          <div class="room-rate"><strong>৳5,000</strong> / night</div>
+          <div class="room-desc">A spacious, refined haven with curated décor, upgraded amenities and a serene atmosphere for the discerning modern traveller.</div>
+          <div class="room-rate-row">
+            <div class="room-rate"><strong>৳5,000</strong>per night</div>
+            <button class="room-book-btn" onclick="selectRoom('Superior Deluxe')">Book →</button>
+          </div>
           <div class="room-feats">
             <span class="room-feat">🛏 King Bed</span>
             <span class="room-feat">📶 Free WiFi</span>
@@ -323,14 +342,17 @@
 
       <!-- Twin Deluxe -->
       <div class="room-card">
-        <div class="room-card-img">
-          <div class="room-badge" style="background:rgba(63,185,80,.2);color:var(--grn)">Twin</div>
-          <div style="width:100%;height:100%;background:linear-gradient(135deg,#0D1A12,#122010);display:flex;align-items:center;justify-content:center;color:var(--grn);font-size:60px;opacity:.18">🛏</div>
+        <div class="room-card-img" style="background:linear-gradient(135deg,#0D1A12,#122010)">
+          <div class="room-badge" style="background:rgba(63,185,80,.18);color:var(--grn);border:1px solid rgba(63,185,80,.28)">Twin</div>
+          <div class="room-card-img-inner" style="color:var(--grn)">🛏</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Twin Deluxe</div>
-          <div class="room-desc">Two plush single beds in one generously sized room — perfect for colleagues, friends or family seeking comfort and style together.</div>
-          <div class="room-rate"><strong>৳6,000</strong> / night</div>
+          <div class="room-desc">Two plush single beds in a generously sized room — perfect for colleagues, friends or family travelling together in style.</div>
+          <div class="room-rate-row">
+            <div class="room-rate"><strong>৳6,000</strong>per night</div>
+            <button class="room-book-btn" onclick="selectRoom('Twin Deluxe')">Book →</button>
+          </div>
           <div class="room-feats">
             <span class="room-feat">🛏 Twin Beds</span>
             <span class="room-feat">📶 Free WiFi</span>
@@ -340,22 +362,26 @@
         </div>
       </div>
 
-      <!-- Royal Suite -->
-      <div class="room-card" style="grid-column:span 2">
-        <div class="room-card-img" style="height:280px">
-          <div class="room-badge" style="background:linear-gradient(90deg,#C8A96E,#E0C585);">Suite</div>
-          <div style="width:100%;height:100%;background:linear-gradient(135deg,#1A1505,#2A2010);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:80px;opacity:.3">👑</div>
+      <!-- Royal Suite — wide -->
+      <div class="room-card room-card-wide">
+        <div class="room-card-img" style="background:linear-gradient(135deg,#1A1505,#2A2010)">
+          <div class="room-badge" style="background:linear-gradient(90deg,#C8A96E,#E0C585);color:#07090E">Royal Suite</div>
+          <div class="room-card-img-inner" style="color:var(--gold)">👑</div>
         </div>
         <div class="room-card-body">
           <div class="room-name">Royal Suite</div>
-          <div class="room-desc">The pinnacle of Hotel Fountain luxury — a sprawling private sanctuary with a separate living area, panoramic city views and dedicated butler service. Reserved for those who accept nothing but the finest.</div>
-          <div class="room-rate"><strong>৳9,000</strong> / night</div>
+          <div class="room-desc">The pinnacle of Hotel Fountain luxury — a sprawling private sanctuary featuring a separate living area, panoramic city views and dedicated butler service. Reserved for those who accept nothing but the absolute finest.</div>
+          <div class="room-rate-row">
+            <div class="room-rate"><strong>৳9,000</strong>per night</div>
+            <button class="room-book-btn" onclick="selectRoom('Royal Suite')">Book Suite →</button>
+          </div>
           <div class="room-feats">
             <span class="room-feat">🛋 Living Room</span>
             <span class="room-feat">🛁 Jacuzzi</span>
             <span class="room-feat">🍽 Dining Area</span>
             <span class="room-feat">🔔 Butler</span>
             <span class="room-feat">🌆 Panoramic View</span>
+            <span class="room-feat">🍾 Welcome Amenity</span>
           </div>
         </div>
       </div>
@@ -367,14 +393,14 @@
   <div class="amenities-wrap" id="amenities">
     <div class="amenities-inner">
       <div class="amenities-left anim">
-        <div class="sect-eyebrow">Our Offerings</div>
+        <div class="sect-eyebrow">The Experience</div>
         <h2 class="sect-title">More Than<br><em>a Stay</em></h2>
-        <p class="sect-sub" style="margin-bottom:32px">Beyond world-class rooms, Hotel Fountain offers an array of curated experiences and services designed to elevate every moment of your visit.</p>
+        <p class="sect-sub" style="margin-bottom:32px">Beyond world-class rooms, Hotel Fountain offers an array of curated services and experiences designed to elevate every moment of your visit.</p>
         <div class="amenities-grid">
           <div class="amenity-card">
             <span class="amenity-ico">🍽</span>
             <div class="amenity-name">Fine Dining</div>
-            <div class="amenity-desc">Savour exquisite Bangladeshi cuisine and international favourites in our rooftop restaurant.</div>
+            <div class="amenity-desc">Savour exquisite Bangladeshi cuisine and international favourites in our signature restaurant.</div>
           </div>
           <div class="amenity-card">
             <span class="amenity-ico">🌐</span>
@@ -383,8 +409,8 @@
           </div>
           <div class="amenity-card">
             <span class="amenity-ico">🧖</span>
-            <div class="amenity-name">Luxury Spa</div>
-            <div class="amenity-desc">Rejuvenate with our premium spa treatments, massages and wellness therapies.</div>
+            <div class="amenity-name">Wellness &amp; Spa</div>
+            <div class="amenity-desc">Rejuvenate with premium spa treatments, massages and tailored wellness therapies.</div>
           </div>
           <div class="amenity-card">
             <span class="amenity-ico">🚗</span>
@@ -394,22 +420,22 @@
         </div>
       </div>
       <div class="amenities-right">
-        <div style="font-size:120px">🏨</div>
+        <div class="amenities-right-inner">🏨<br/>✦<br/>🛎</div>
       </div>
     </div>
   </div>
 
-  <!-- ── BOOKING / AVAILABILITY ── -->
+  <!-- ── BOOKING ── -->
   <div class="avail-wrap" id="booking">
     <div class="avail-inner">
       <div class="anim">
         <div class="sect-eyebrow">Reservations</div>
         <h2 class="sect-title">Check <em>Availability</em></h2>
-        <p class="sect-sub">Enter your details below and our front desk team will receive your request instantly. We will confirm your booking after payment verification.</p>
+        <p class="sect-sub">Submit your request and our front desk team will confirm your reservation. Estimated total shown before submission.</p>
       </div>
 
-      <div class="booking-form anim">
-        <div class="form-grid">
+      <div class="booking-card anim">
+        <div class="form-row">
           <div class="fg">
             <label class="flbl" for="guestName">Full Name *</label>
             <input class="finput" type="text" id="guestName" placeholder="Your full name" required/>
@@ -424,7 +450,7 @@
           </div>
           <div class="fg">
             <label class="flbl" for="roomType">Room Type *</label>
-            <select class="fselect" id="roomType">
+            <select class="fselect" id="roomType" onchange="updateEstimate()">
               <option value="Fountain Deluxe">Fountain Deluxe — ৳4,000/night</option>
               <option value="Premium Deluxe">Premium Deluxe — ৳4,500/night</option>
               <option value="Superior Deluxe">Superior Deluxe — ৳5,000/night</option>
@@ -433,18 +459,18 @@
             </select>
           </div>
         </div>
-        <div class="form-grid-4">
+        <div class="form-row-4">
           <div class="fg">
             <label class="flbl" for="checkIn">Check-In Date *</label>
-            <input class="finput" type="date" id="checkIn" required/>
+            <input class="finput" type="date" id="checkIn" required onchange="updateEstimate()"/>
           </div>
           <div class="fg">
             <label class="flbl" for="checkOut">Check-Out Date *</label>
-            <input class="finput" type="date" id="checkOut" required/>
+            <input class="finput" type="date" id="checkOut" required onchange="updateEstimate()"/>
           </div>
           <div class="fg">
-            <label class="flbl" for="guests">Guests</label>
-            <select class="fselect" id="guests">
+            <label class="flbl" for="guestCount">Guests</label>
+            <select class="fselect" id="guestCount">
               <option value="1">1 Guest</option>
               <option value="2" selected>2 Guests</option>
               <option value="3">3 Guests</option>
@@ -453,20 +479,25 @@
           </div>
           <div class="fg">
             <label class="flbl" for="specialReq">Special Requests</label>
-            <input class="finput" type="text" id="specialReq" placeholder="Early check-in, etc."/>
+            <input class="finput" type="text" id="specialReq" placeholder="Early check-in, extra bed…"/>
           </div>
         </div>
+
+        <div class="estimate-bar" id="estimateBar">
+          <span id="estimateText"></span>
+        </div>
+
         <button class="booking-btn" id="bookBtn" onclick="handleBooking()">
           Check Availability &amp; Request Booking
         </button>
 
         <div class="success-box" id="successBox">
           <div class="success-icon">✅</div>
-          <div class="success-title">Booking Request Sent!</div>
+          <div class="success-title">Booking Request Received</div>
           <div class="success-msg">
-            Thank you! Your booking request has been sent to Hotel Fountain's front desk.<br/>
-            Our team will review your request and confirm your reservation after payment verification.<br/>
-            <span style="color:var(--gold);margin-top:6px;display:block">You will be contacted shortly at the number/email provided.</span>
+            Thank you! Your request has been sent to Hotel Fountain's front desk.<br/>
+            Our team will review availability and confirm your reservation.<br/>
+            <span style="color:var(--gold);margin-top:8px;display:block">We will contact you shortly at the details provided.</span>
           </div>
         </div>
       </div>
@@ -477,32 +508,31 @@
   <div class="contact-wrap" id="contact">
     <div class="contact-inner">
       <div class="contact-left anim">
-        <div class="sect-eyebrow">Get in Touch</div>
-        <h2 class="sect-title" style="font-size:36px">Get in <em>Touch</em></h2>
-        <div class="gold-line" style="margin-top:20px;margin-bottom:28px"></div>
-        <div class="contact-info-item">
-          <div class="contact-info-label">Address</div>
-          <div class="contact-info-val">Hotel Fountain<br>Dhaka, Bangladesh</div>
+        <div class="sect-eyebrow">Contact Us</div>
+        <h2 class="sect-title" style="font-size:clamp(28px,4vw,44px)">Get in <em>Touch</em></h2>
+        <div class="gold-line" style="margin-top:18px;margin-bottom:28px"></div>
+        <div class="contact-item">
+          <div class="contact-label">Address</div>
+          <div class="contact-val">House-02, Road-02, Nikunja-02<br/>Dhaka 1229, Bangladesh</div>
         </div>
-        <div class="contact-info-item">
-          <div class="contact-info-label">Phone</div>
-          <div class="contact-info-val">+880 1XXX XXX XXX</div>
+        <div class="contact-item">
+          <div class="contact-label">Phone</div>
+          <div class="contact-val">+880 1322-840799</div>
         </div>
-        <div class="contact-info-item">
-          <div class="contact-info-label">Email</div>
-          <div class="contact-info-val">fo.hotelfountain799@gmail.com</div>
+        <div class="contact-item">
+          <div class="contact-label">Email</div>
+          <div class="contact-val">fo.hotelfountain799@gmail.com</div>
         </div>
-        <div class="contact-info-item">
-          <div class="contact-info-label">Hours</div>
-          <div class="contact-info-val">
-            Front Desk: 24 / 7<br/>
-            Reservations: 8:00 AM — 10:00 PM<br/>
-            Restaurant: 7:00 AM — 11:30 PM
+        <div class="contact-item">
+          <div class="contact-label">Hours</div>
+          <div class="contact-val">
+            Front Desk: 24/7<br/>
+            Check-In: 12:00 PM &nbsp;·&nbsp; Check-Out: 12:00 PM
           </div>
         </div>
       </div>
       <div class="contact-right anim">
-        <div class="sect-eyebrow" style="margin-bottom:12px">Send a Message</div>
+        <div class="sect-eyebrow" style="margin-bottom:14px">Send a Message</div>
         <div class="cfm-grid">
           <div class="fg">
             <label class="flbl">Your Name</label>
@@ -514,7 +544,11 @@
           </div>
         </div>
         <div class="fg" style="margin-bottom:14px">
-          <label class="flbl">Message</label>
+          <label class="flbl">Phone Number</label>
+          <input class="finput" type="tel" placeholder="+880 1X XX XXX XXX"/>
+        </div>
+        <div class="fg" style="margin-bottom:16px">
+          <label class="flbl">Message or Special Request</label>
           <textarea class="ctextarea" placeholder="How can we help you?"></textarea>
         </div>
         <button class="cfm-btn">Send Message →</button>
@@ -525,73 +559,119 @@
   <!-- ── FOOTER ── -->
   <footer class="footer">
     <div class="footer-brand">Hotel Fountain</div>
-    <div class="footer-copy">© 2026 Hotel Fountain. All rights reserved.</div>
-    <div class="footer-crm">Powered by <a href="hotel-fountain-crm.html" target="_blank">Lumea CRM ↗</a></div>
+    <div class="footer-links">
+      <a href="#rooms">Rooms</a>
+      <a href="#amenities">Experience</a>
+      <a href="#booking">Book Now</a>
+      <a href="#contact">Contact</a>
+      <a href="crm.html" target="_blank">Staff</a>
+    </div>
+    <div class="footer-crm">© 2026 Hotel Fountain · Dhaka, Bangladesh</div>
   </footer>
 
   <!-- ── SCRIPTS ── -->
   <script>
-  // ── Supabase config (same as CRM)
+  // Supabase config
   const SB_URL  = 'https://mynwfkgksqqwlqowlscj.supabase.co'
   const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
   const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
   const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' }
+  const RATE_MAP = { 'Fountain Deluxe': 4000, 'Premium Deluxe': 4500, 'Superior Deluxe': 5000, 'Twin Deluxe': 6000, 'Royal Suite': 9000 }
 
   async function sbPost(table, body) {
-    const res = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: H, body: JSON.stringify(body) })
+    const res = await fetch(`${SB_URL}/rest/v1/${table}`, { method:'POST', headers:H, body:JSON.stringify(body) })
     if (!res.ok) throw new Error(await res.text())
     return res.json()
   }
 
-  async function handleBooking() {
-    const name    = document.getElementById('guestName').value.trim()
-    const phone   = document.getElementById('guestPhone').value.trim()
-    const email   = document.getElementById('guestEmail').value.trim()
-    const room    = document.getElementById('roomType').value
-    const checkIn = document.getElementById('checkIn').value
-    const checkOut = document.getElementById('checkOut').value
-    const special = document.getElementById('specialReq').value.trim()
+  // Navbar scroll effect
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 40)
+  })
 
-    if (!name)    return alert('Please enter your full name.')
-    if (!phone)   return alert('Please enter your contact number.')
-    if (!email)   return alert('Please enter your email address.')
-    if (!checkIn) return alert('Please select a check-in date.')
-    if (!checkOut)return alert('Please select a check-out date.')
-    if (checkOut <= checkIn) return alert('Check-out date must be after check-in date.')
+  // Scroll animations
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible') })
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' })
+  document.querySelectorAll('.anim').forEach(el => io.observe(el))
+
+  // Select room from card Book button
+  function selectRoom(roomName) {
+    const sel = document.getElementById('roomType')
+    sel.value = roomName
+    updateEstimate()
+    document.getElementById('booking').scrollIntoView({ behavior:'smooth' })
+  }
+
+  // Live estimate
+  function updateEstimate() {
+    const ci = document.getElementById('checkIn').value
+    const co = document.getElementById('checkOut').value
+    const room = document.getElementById('roomType').value
+    const bar = document.getElementById('estimateBar')
+    const txt = document.getElementById('estimateText')
+    if (!ci || !co || co <= ci) { bar.classList.remove('show'); return }
+    const nights = Math.max(1, Math.round((new Date(co) - new Date(ci)) / 86400000))
+    const rate = RATE_MAP[room] || 4000
+    const total = rate * nights
+    txt.innerHTML = `<span style="color:var(--tx2)">${nights} night${nights!==1?'s':''} × ৳${rate.toLocaleString()} = </span><strong>৳${total.toLocaleString()}</strong> <span style="color:var(--tx3);font-size:10px">(excl. VAT & service charge)</span>`
+    bar.classList.add('show')
+  }
+
+  // Set min dates
+  document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date().toISOString().split('T')[0]
+    document.getElementById('checkIn').min = today
+    document.getElementById('checkOut').min = today
+    document.getElementById('checkIn').addEventListener('change', function() {
+      const d = new Date(this.value)
+      d.setDate(d.getDate() + 1)
+      document.getElementById('checkOut').min = d.toISOString().split('T')[0]
+    })
+  })
+
+  async function handleBooking() {
+    const name     = document.getElementById('guestName').value.trim()
+    const phone    = document.getElementById('guestPhone').value.trim()
+    const email    = document.getElementById('guestEmail').value.trim()
+    const room     = document.getElementById('roomType').value
+    const checkIn  = document.getElementById('checkIn').value
+    const checkOut = document.getElementById('checkOut').value
+    const special  = document.getElementById('specialReq').value.trim()
+
+    if (!name)     return alert('Please enter your full name.')
+    if (!phone)    return alert('Please enter your contact number.')
+    if (!email)    return alert('Please enter your email address.')
+    if (!checkIn)  return alert('Please select a check-in date.')
+    if (!checkOut) return alert('Please select a check-out date.')
+    if (checkOut <= checkIn) return alert('Check-out must be after check-in.')
 
     const btn = document.getElementById('bookBtn')
     btn.disabled = true
     btn.innerHTML = '<span class="spinner"></span> Sending Request…'
 
     try {
-      // 1. Create or find guest record
+      // Find or create guest
       let guestId = null
       try {
-        // Try to find existing guest by phone
-        const findRes = await fetch(`${SB_URL}/rest/v1/guests?phone=eq.${encodeURIComponent(phone)}&tenant_id=eq.${TENANT}&select=id`, { headers: H })
-        const found = await findRes.json()
-        if (Array.isArray(found) && found.length > 0) {
-          guestId = found[0].id
-        }
+        const fr = await fetch(`${SB_URL}/rest/v1/guests?phone=eq.${encodeURIComponent(phone)}&tenant_id=eq.${TENANT}&select=id`, { headers: H })
+        const found = await fr.json()
+        if (Array.isArray(found) && found.length > 0) guestId = found[0].id
       } catch(e) {}
 
       if (!guestId) {
-        const [guest] = await sbPost('guests', {
-          name, phone, email, tenant_id: TENANT,
-          nationality: 'Bangladeshi', id_type: 'NID'
-        })
-        guestId = guest.id
+        const [g] = await sbPost('guests', { name, phone, email, tenant_id: TENANT, nationality: 'Bangladeshi', id_type: 'NID' })
+        guestId = g.id
       }
 
-      // 2. Create PENDING reservation — triggers CRM notification bell
+      // Create PENDING reservation
       const nights = Math.max(1, Math.round((new Date(checkOut) - new Date(checkIn)) / 86400000))
-      const rateMap = { 'Fountain Deluxe': 4000, 'Premium Deluxe': 4500, 'Superior Deluxe': 5000, 'Twin Deluxe': 6000, 'Royal Suite': 9000 }
-      const rate = rateMap[room] || 4000
-      const total = rate * nights
+      const rate   = RATE_MAP[room] || 4000
+      const total  = rate * nights
 
       await sbPost('reservations', {
         guest_ids: [guestId],
-        room_ids: [],                      // front desk will assign specific room
+        room_ids: [],
         check_in: checkIn,
         check_out: checkOut,
         status: 'PENDING',
@@ -608,14 +688,12 @@
         tenant_id: TENANT
       })
 
-      // 3. Show success
+      // Success state
       document.getElementById('successBox').classList.add('show')
       btn.innerHTML = '✓ Request Sent to Front Desk'
-      btn.style.background = 'rgba(63,185,80,.15)'
-      btn.style.color = 'var(--grn)'
-      btn.style.border = '1px solid rgba(63,185,80,.3)'
+      btn.style.cssText = 'background:rgba(63,185,80,.1);color:var(--grn);border:1px solid rgba(63,185,80,.25)'
 
-      // Reset form after 6 seconds
+      // Reset after 8s
       setTimeout(() => {
         document.getElementById('guestName').value = ''
         document.getElementById('guestPhone').value = ''
@@ -623,50 +701,19 @@
         document.getElementById('checkIn').value = ''
         document.getElementById('checkOut').value = ''
         document.getElementById('specialReq').value = ''
+        document.getElementById('estimateBar').classList.remove('show')
         document.getElementById('successBox').classList.remove('show')
         btn.disabled = false
+        btn.style.cssText = ''
         btn.innerHTML = 'Check Availability &amp; Request Booking'
-        btn.style = ''
       }, 8000)
 
     } catch(err) {
-      console.error(err)
-      // Fallback — still show success (connection issue shouldn't block UX)
-      document.getElementById('successBox').classList.add('show')
-      document.getElementById('successBox').querySelector('.success-msg').innerHTML =
-        `Your request has been noted. Our team will contact you at <strong style="color:var(--gold)">${phone}</strong> to confirm. <br/><span style="font-size:10px;color:var(--tx3)">(Note: Could not reach server — please also call us directly.)</span>`
+      alert('Something went wrong. Please try again or call us directly.')
       btn.disabled = false
       btn.innerHTML = 'Check Availability &amp; Request Booking'
     }
   }
-
-  // ── Navbar scroll
-  window.addEventListener('scroll', () => {
-    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 60)
-  })
-
-  // ── Set min dates
-  const today = new Date().toISOString().split('T')[0]
-  document.getElementById('checkIn').min = today
-  document.getElementById('checkOut').min = today
-  document.getElementById('checkIn').addEventListener('change', e => {
-    document.getElementById('checkOut').min = e.target.value
-    if (document.getElementById('checkOut').value && document.getElementById('checkOut').value <= e.target.value) {
-      document.getElementById('checkOut').value = ''
-    }
-  })
-
-  // ── Scroll animations
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach((entry, i) => {
-      if (entry.isIntersecting) {
-        setTimeout(() => entry.target.classList.add('visible'), i * 100)
-        observer.unobserve(entry.target)
-      }
-    })
-  }, { threshold: 0.12 })
-  document.querySelectorAll('.anim').forEach(el => observer.observe(el))
   </script>
-
 </body>
 </html>
