@@ -658,7 +658,8 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
 
   const roomRate=+room.price||0
   const nights=activeRes?nightsCount(activeRes.check_in,activeRes.check_out):0
-  const roomCharge=roomRate*nights
+  // Use agreed price from reservation; fall back to rate × nights
+  const roomCharge=+(activeRes?.total_amount)||(roomRate*nights)
   const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
   const discount=+(activeRes?.discount||0)
@@ -927,8 +928,11 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
 
   const sc=reservations.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
   const getGN=gids=>{const fid=String((gids||[])[0]||'');const g=guests.find(g=>String(g.id)===fid);return g?g.name:'Unknown'}
+  const dueList=reservations.filter(r=>r.status!=='CANCELLED'&&(+r.total_amount||0)>(+r.paid_amount||0))
 
-  let res=filter==='ALL'?reservations:reservations.filter(r=>r.status===filter)
+  let res=filter==='ALL'?reservations
+    :filter==='DUE'?dueList
+    :reservations.filter(r=>r.status===filter)
   if(search){
     const q=search.toLowerCase()
     res=res.filter(r=>getGN(r.guest_ids).toLowerCase().includes(q)||(r.room_ids||[]).join('').includes(q)||r.on_duty_officer?.toLowerCase().includes(q))
@@ -943,6 +947,10 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
               {s==='ALL'?`All (${reservations.length})`:`${s.replace('_',' ')} (${sc[s]||0})`}
             </button>
           ))}
+          <button className={`tab${filter==='DUE'?' on':''}`} onClick={()=>setFilter('DUE')}
+            style={{color:filter==='DUE'?'#fff':'var(--rose)',borderColor:'rgba(224,92,122,.4)',...(filter==='DUE'?{background:'var(--rose)'}:{})}}>
+            ⚠ Due ({dueList.length})
+          </button>
         </div>
         <div className="flex gap2">
           <div className="srch"><span className="xs muted">⌕</span><input placeholder="Search guest, room…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
@@ -2009,14 +2017,14 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const room=rooms?.find(rm=>(r.room_ids||[r.room_number]).includes(rm.room_number))
     const roomRate=+room?.price||+r.rate_per_night||0
     const nights=nightsCount(r.check_in,r.check_out)||1
-    const roomCharge=roomRate*nights
+    // Use agreed price stored at booking time; fall back to current rate × nights
+    const roomCharge=+r.total_amount||(roomRate*nights)
     const fKey=r.id||r.room_number
     const folios=foliosMap[fKey]||foliosMap[r.room_number]||[]
     const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
     const sub=roomCharge+extras
     const discount=+r.discount||0
-    const computedTotal=sub
-    const total=computedTotal>0?Math.max(0,computedTotal-discount):(Math.max(0,(+r.total_amount||0)-discount))
+    const total=Math.max(0,sub-discount)
     const paid=+r.paid_amount||0
     const due=Math.max(0,total-paid)
     // VAT 15% + Service 5% are INCLUDED in base rates (back-calculated for display only)
@@ -2561,7 +2569,7 @@ ${dueRows}
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            <div className="flex fjb xs muted" style={{marginBottom:3}}><span>Room Charge ({nights} nights × {BDT(roomRate)})</span><span>{BDT(roomCharge)}</span></div>
+            <div className="flex fjb xs muted" style={{marginBottom:3}}><span>Room Charge <span style={{opacity:.6,fontSize:9}}>({nights}n × {BDT(roomRate)}/n)</span></span><span>{BDT(roomCharge)}</span></div>
             {extras>0&&<div className="flex fjb xs muted" style={{marginBottom:3}}><span>Extra Charges</span><span>{BDT(extras)}</span></div>}
             {discount>0&&<div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Discount</span><span>- {BDT(discount)}</span></div>}
             <div className="divider" style={{margin:'6px 0'}}/>
