@@ -2398,23 +2398,23 @@ ${dueRows}
 
                       return (
                         <tr key={r?r.id:(grp.guest_name+'|'+grp.room_number)}>
-                          <td className="xs">{gname}</td>
-                          <td><span className="badge bb">{rno}</span></td>
-                          <td className="xs muted">{chkIn}</td>
-                          <td className="xs muted">{chkOut}</td>
-                          <td className="xs gold">{BDT(tTotal)}</td>
-                          <td className="xs" style={{color:'var(--grn)'}}>{BDT(tPaid)}</td>
-                          <td className="xs" style={{color:tDue>0?'var(--rose)':'var(--grn)',fontWeight:tDue>0?600:400}}>{BDT(tDue)}</td>
-                          <td className="xs" style={{lineHeight:1.8}}>
-                            {Object.keys(byType).length === 0 ? <span className="muted xs" style={{fontSize:10}}>— No Pymt in Period —</span> :
+                          <td className="xs" style={{verticalAlign:'top',paddingTop:6}}>{gname}</td>
+                          <td style={{verticalAlign:'top',paddingTop:6}}><span className="badge bb">{rno}</span></td>
+                          <td className="xs muted" style={{verticalAlign:'top',paddingTop:6}}>{chkIn}</td>
+                          <td className="xs muted" style={{verticalAlign:'top',paddingTop:6}}>{chkOut}</td>
+                          <td className="xs gold" style={{verticalAlign:'top',paddingTop:6}}>{BDT(tTotal)}</td>
+                          <td className="xs" style={{color:'var(--grn)',verticalAlign:'top',paddingTop:6}}>{BDT(tPaid)}</td>
+                          <td className="xs" style={{color:tDue>0?'var(--rose)':'var(--grn)',fontWeight:tDue>0?600:400,verticalAlign:'top',paddingTop:6}}>{BDT(tDue)}</td>
+                          <td className="xs" style={{lineHeight:1.6,verticalAlign:'top',paddingTop:6}}>
+                            {Object.keys(byType).length === 0 ? <span className="muted xs" style={{fontSize:10}}>—</span> :
                               Object.entries(byType).map(([tp,amt])=>(
-                              <div key={tp} style={{display:'flex',justifyContent:'space-between',gap:12,minWidth:140}}>
-                                <span className="badge bgold" style={{fontSize:8}}>{tp}</span>
-                                <span style={{color:'var(--gold)',fontWeight:500}}>{BDT(amt)}</span>
+                              <div key={tp} style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,whiteSpace:'nowrap'}}>
+                                <span className="badge bgold" style={{fontSize:8,flexShrink:0}}>{tp}</span>
+                                <span style={{color:'var(--gold)',fontWeight:600,fontSize:10}}>{BDT(amt)}</span>
                               </div>
                             ))}
                           </td>
-                          <td style={{whiteSpace:'nowrap'}}>
+                          <td style={{whiteSpace:'nowrap',verticalAlign:'top',paddingTop:6}}>
                             {currentUser?.role!=='housekeeping'&&(
                               <button className="btn btn-gold btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
                                 setBillingRes({_fromRow:true,...(r||{}),room_number:rno,guest_name:gname,_resId:r?.id||null,_total:tTotal,_paid:tPaid})
