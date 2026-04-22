@@ -1076,9 +1076,15 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
 
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
   const nights=nightsCount(res.check_in,res.check_out)
-  const totalAmt=+res.total_amount||0
-  const paidNum=+paidAmt||0
-  const balance=totalAmt-paidNum
+  // Compute live total = room_rate × nights (fall back to stored total_amount)
+  const _liveRoom=rooms?.find(rm=>(res.room_ids||[res.room_number]).some(rid=>String(rid)===String(rm.room_number)))
+  const _liveRate=_liveRoom?(+_liveRoom.price||0):0
+  const _liveNights=nightsCount(res.check_in,res.check_out)||1
+  const _liveTotal=_liveRate>0?(_liveRate*_liveNights):(+res.total_amount||0)
+  const totalAmt=_liveTotal
+  // Never let a save reduce paid_amount below what is already in the DB
+  const paidNum=Math.max(+(res.paid_amount||0), +paidAmt||0)
+  const balance=Math.max(0, totalAmt-paidNum)
 
   async function save() {
     setSaving(true)
