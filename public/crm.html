@@ -651,7 +651,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
   const guest=activeRes?guests.find(g=>String(g.id)===String((activeRes.guest_ids||[])[0]||'')):null
 
   useEffect(()=>{
-    db('folios',`?room_number=eq.${room.room_number}&order=created_at`)
+    db('folios',`?tenant_id=eq.${TENANT}&room_number=eq.${room.room_number}&order=created_at`)
       .then(d=>{setFolios(Array.isArray(d)?d:[]);setFLoad(false)})
       .catch(()=>setFLoad(false))
   },[room.room_number])
@@ -689,7 +689,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     if(!a||a<=0) return toast('Enter valid amount','error')
     setCollectSaving(true)
     try {
-      await dbPatch('reservations',activeRes.id,{paid_amount:a})
+      await dbPatch('reservations',activeRes.id,{paid_amount:paid+a})
       await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
@@ -2507,12 +2507,13 @@ ${dueRows}
       })()}
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations} fiscalDay={today}/>}
+      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios',`?tenant_id=eq.${TENANT}&select=*&order=created_at`).then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations} fiscalDay={today}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
         const {roomCharge,extras,total,paid,due,folios,nights,roomRate,discount,vatAmt,svcAmt}=computeBill(detailRes)
-        const relTx=transactions.filter(t=>(detailRes.room_ids||[detailRes.room_number]).includes(t.room_number)&&t.type!=='Balance Carried Forward')
+        const _detailGN=getGN(detailRes)
+        const relTx=transactions.filter(t=>(detailRes.room_ids||[detailRes.room_number]).includes(t.room_number)&&t.type!=='Balance Carried Forward'&&(!t.guest_name||t.guest_name===_detailGN)&&(!t.fiscal_day||(t.fiscal_day>=(detailRes.check_in||'').slice(0,10)&&t.fiscal_day<=(detailRes.check_out||'').slice(0,10))))
         return (
         <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
           <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
