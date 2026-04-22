@@ -1745,8 +1745,7 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, cal
   printPDF(content)
 }
 
-/** LOCK: foliosMap + hSettings required for accurate billing totals. */
-function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests,foliosMap,hSettings:hSettingsProp}) {
+function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests}) {
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
   const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
@@ -1801,24 +1800,24 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const todayRevenue=todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
   const monthRevenue=monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
 
-/* ── computeBill delegates to _computeBillGlobal (single source of truth) ──
- *  LOCK: foliosMap must be passed as a prop to BillingPage.
- *  Never inline a separate calculation here — it causes total divergence. */
+/* ── computeBill: live-first single source of truth ──
+ *  Always computes from room.price × nights when rooms are available.
+ *  Never reads stale total_amount from DB as the bill total. */
 function computeBill(r) {
-  if(typeof _computeBillGlobal === "function") {
-    return _computeBillGlobal(r, rooms, foliosMap || {}, hSettingsProp || {})
+  if (typeof _computeBillGlobal === "function") {
+    return _computeBillGlobal(r, rooms, foliosMap, {})
   }
-  // Fallback: live rate × nights (never use stale total_amount)
-  const _rm=rooms?.find(rm=>(r.room_ids||[r.room_number]).some(id=>String(id)===String(rm.room_number)))
-  const _rate=+(_rm?.price||0)||+r.rate_per_night||0
-  const _nights=nightsCount(r.check_in,r.check_out)||1
-  const _disc=+(r.discount_amount||r.discount||0)
-  const _base=Math.max(0,(_rate*_nights)-_disc)
-  const _paid=+(r.paid_amount||0)
-  const _due=Math.max(0,_base-_paid)
-  return {total:_base,paid:_paid,due:_due,roomCharge:_rate*_nights,
-          extras:0,sub:_base,tax:0,svc:0,discount:_disc,nights:_nights,
-          roomRate:_rate,vatPct:0,svcPct:0,basePrice:_base,grossRate:_rate*_nights}
+  // Inline fallback: live rate × nights
+  const _rm = rooms?.find(rm => (r.room_ids||[r.room_number]).some(id => String(id)===String(rm.room_number)))
+  const _rate = +(_rm?.price||0) || +r.rate_per_night || 0
+  const _nights = nightsCount(r.check_in, r.check_out) || 1
+  const _disc = +(r.discount_amount||r.discount||0)
+  const _base = Math.max(0, (_rate*_nights) - _disc)
+  const _paid = +(r.paid_amount||0)
+  return {total:_base, paid:_paid, due:Math.max(0,_base-_paid),
+          roomCharge:_rate*_nights, extras:0, sub:_base, tax:0, svc:0,
+          discount:_disc, nights:_nights, roomRate:_rate,
+          vatPct:0, svcPct:0, basePrice:_base, grossRate:_rate*_nights}
 }
 
   const outstanding = reservations
