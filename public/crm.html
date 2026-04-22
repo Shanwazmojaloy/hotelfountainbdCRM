@@ -745,7 +745,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
   const sub=roomCharge+extras
   const discount=+(activeRes?.discount_amount||activeRes?.discount||0)
   const dbTotal=+(activeRes?.total_amount||0)
-  const basePrice=dbTotal>0?dbTotal:Math.max(0,sub-discount)
+  const basePrice=Math.max(0,(dbTotal>0?dbTotal:sub)-discount)
   const _taxBase=basePrice/1.20
   const tax=Math.round(_taxBase*0.15)
   const svc=Math.round(_taxBase*0.05)
@@ -1003,7 +1003,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,de
 
   const sc=reservations.reduce((a,r)=>{
     a[r.status]=(a[r.status]||0)+1;
-    if((r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0)){
+    if((r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)>(+r.paid_amount||0)){
       a['DUE']=(a['DUE']||0)+1;
     }
     return a;
@@ -1011,7 +1011,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,de
   const getGN=gids=>{const fid=String((gids||[])[0]||'');const g=guests.find(g=>String(g.id)===fid);return g?g.name:'Unknown'}
 
   let res=filter==='ALL'?reservations:
-          filter==='DUE'?reservations.filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0)):
+          filter==='DUE'?reservations.filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)>(+r.paid_amount||0)):
           reservations.filter(r=>r.status===filter)
   if(search){
     const q=search.toLowerCase()
@@ -1044,7 +1044,9 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,de
               {res.slice(0,80).map(r=>{
                 const gn=getGN(r.guest_ids)
                 const nights=nightsCount(r.check_in,r.check_out)
-                const balance=(+r.total_amount||0)-(+r.paid_amount||0)
+                const disc=(+r.discount_amount||+r.discount||0)
+                const netTotal=Math.max(0,(+r.total_amount||0)-disc)
+                const balance=Math.max(0,netTotal-(+r.paid_amount||0))
                 return (
                   <tr key={r.id}>
                     <td><div className="flex fac gap2"><Av name={gn} size={24}/><span>{gn}</span></div></td>
@@ -1052,7 +1054,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,de
                     <td className="xs muted">{fmtDate(r.check_in)}</td>
                     <td className="xs muted">{fmtDate(r.check_out)}</td>
                     <td className="xs gold">{nights||'—'}</td>
-                    <td className="xs gold">{BDT(r.total_amount)}</td>
+                    <td className="xs gold">{BDT(netTotal)}</td>
                     <td className="xs" style={{color:+r.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(r.paid_amount)}</td>
                     <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
                     <td><SBadge status={r.status}/></td>
@@ -1090,8 +1092,9 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,delete
   const _liveRoom=rooms?.find(rm=>(res.room_ids||[res.room_number]).some(rid=>String(rid)===String(rm.room_number)))
   const _liveRate=_liveRoom?(+_liveRoom.price||0):0
   const _liveNights=nightsCount(res.check_in,res.check_out)||1
+  const _discount=+(res.discount_amount||res.discount||0)
   const _liveTotal=_liveRate>0?(_liveRate*_liveNights):(+res.total_amount||0)
-  const totalAmt=_liveTotal
+  const totalAmt=Math.max(0, _liveTotal-_discount)
   // Never let a save reduce paid_amount below what is already in the DB
   const paidNum=Math.max(+(res.paid_amount||0), +paidAmt||0)
   const balance=Math.max(0, totalAmt-paidNum)
@@ -1842,10 +1845,10 @@ function computeBill(r) {
 
   const outstanding = reservations
     .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
-    .reduce((a, r) => a + Math.max(0, (+r.total_amount||0) - (+r.paid_amount||0)), 0)
+    .reduce((a, r) => a + Math.max(0, (+r.total_amount||0)-(+r.discount_amount||+r.discount||0) - (+r.paid_amount||0)), 0)
   const dueRes = reservations.filter(r => {
     if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false
-    return (+r.total_amount||0) > (+r.paid_amount||0)
+    return (+r.total_amount||0)-(+r.discount_amount||+r.discount||0) > (+r.paid_amount||0)
   })
 
   // Transactions for current filter (for PDF)
@@ -2267,7 +2270,7 @@ ${dueRows}
 
 function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
   const fromRow=prefill?._fromRow===true
-  const dueResList=(reservations||[]).filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0))
+  const dueResList=(reservations||[]).filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)>(+r.paid_amount||0))
 
   // Locked mode (opened from + Pay / row click)
   const lockedRoom  = fromRow?(prefill.room_number||''):null
@@ -2280,7 +2283,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
   const [selRes,setSelRes]=useState(initRes)
   const [resSearch,setResSearch]=useState(initRes?`${initRes.room_number||''} — ${initRes.guest_name||''}`:'')
   const [showResDrop,setShowResDrop]=useState(false)
-  const dropDueAmt=selRes?Math.max(0,(+selRes.total_amount||0)-(+selRes.paid_amount||0)):0
+  const dropDueAmt=selRes?Math.max(0,(+selRes.total_amount||0)-(+selRes.discount_amount||+selRes.discount||0)-(+selRes.paid_amount||0)):0
 
   const [amount,setAmount]=useState(fromRow&&lockedDue>0?String(lockedDue):dropDueAmt>0?String(dropDueAmt):'')
   const [type,setType]=useState('Room Payment (Cash)')
@@ -2290,7 +2293,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
   function pickRes(r){
     setSelRes(r)
     setResSearch(`${r.room_number||''} — ${r.guest_name||''}`)
-    const due=Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0))
+    const due=Math.max(0,(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)-(+r.paid_amount||0))
     if(due>0) setAmount(String(due))
     setShowResDrop(false)
   }
@@ -2376,7 +2379,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
               {dueResList
                 .filter(r=>{const q=resSearch.toLowerCase();return !q||(r.room_number?.toLowerCase().includes(q)||r.guest_name?.toLowerCase().includes(q))})
                 .map(r=>{
-                  const due=Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0))
+                  const due=Math.max(0,(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)-(+r.paid_amount||0))
                   return(
                     <div key={r.id} onClick={()=>pickRes(r)}
                       style={{padding:'9px 14px',cursor:'pointer',borderBottom:'1px solid var(--br2)',display:'flex',justifyContent:'space-between',alignItems:'center'}}
@@ -2396,7 +2399,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
           {/* Selected reservation summary */}
           {selRes&&(
             <div style={{marginTop:6,background:'rgba(200,169,110,.06)',border:'1px solid var(--br)',padding:'8px 12px',fontSize:11,display:'flex',justifyContent:'space-between'}}>
-              <span style={{color:'var(--tx2)'}}>Total: <strong style={{color:'var(--tx)'}}>{BDT(selRes.total_amount||0)}</strong> · Paid: <strong style={{color:'var(--grn)'}}>{BDT(selRes.paid_amount||0)}</strong></span>
+              <span style={{color:'var(--tx2)'}}>Total: <strong style={{color:'var(--tx)'}}>{BDT(Math.max(0,(+selRes.total_amount||0)-(+selRes.discount_amount||+selRes.discount||0)))}</strong> · Paid: <strong style={{color:'var(--grn)'}}>{BDT(selRes.paid_amount||0)}</strong></span>
               <span style={{color:'var(--rose)',fontWeight:600}}>Due: {BDT(dropDueAmt)}</span>
             </div>
           )}
