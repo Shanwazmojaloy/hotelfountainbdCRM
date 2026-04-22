@@ -30,6 +30,7 @@ export default function BillingPage() {
   }, [filter]);
 
   async function fetchBillingData() {
+    setBillingData([]); // immediate cleanup before network round-trip
     setLoading(true);
     try {
       const { data: reservations } = await supabase
