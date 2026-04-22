@@ -1745,7 +1745,8 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, cal
   printPDF(content)
 }
 
-function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests}) {
+/** LOCK: foliosMap + hSettings required for accurate billing totals. */
+function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests,foliosMap,hSettings:hSettingsProp}) {
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
   const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
@@ -1800,28 +1801,25 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const todayRevenue=todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
   const monthRevenue=monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
 
-  function computeBill(r) {
-    const room=rooms?.find(rm=>(r.room_ids||[r.room_number]).includes(rm.room_number))
-    const roomRate=+room?.price||+r.rate_per_night||0
-    const nights=nightsCount(r.check_in,r.check_out)||1
-    const roomCharge=roomRate*nights
-    const fKey=r.id||r.room_number
-    const folios=foliosMap[fKey]||foliosMap[r.room_number]||[]
-    const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
-    const sub=roomCharge+extras
-    // Use rates from hotel settings (loaded from Supabase), fallback 0
-    const vatPct=0 // Removed as requested
-    const svcPct=0 // Removed as requested
-    const tax=0
-    const svc=0
-    const discount=+r.discount||0
-    // Total: use computed value; only fall back to saved total_amount if room not found
-    const computedTotal=sub+tax+svc
-    const total=computedTotal>0?Math.max(0,computedTotal-discount):(Math.max(0,(+r.total_amount||0)-discount))
-    const paid=+r.paid_amount||0
-    const due=Math.max(0,total-paid)
-    return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}
+/* ── computeBill delegates to _computeBillGlobal (single source of truth) ──
+ *  LOCK: foliosMap must be passed as a prop to BillingPage.
+ *  Never inline a separate calculation here — it causes total divergence. */
+function computeBill(r) {
+  if(typeof _computeBillGlobal === "function") {
+    return _computeBillGlobal(r, rooms, foliosMap || {}, hSettingsProp || {})
   }
+  // Fallback: live rate × nights (never use stale total_amount)
+  const _rm=rooms?.find(rm=>(r.room_ids||[r.room_number]).some(id=>String(id)===String(rm.room_number)))
+  const _rate=+(_rm?.price||0)||+r.rate_per_night||0
+  const _nights=nightsCount(r.check_in,r.check_out)||1
+  const _disc=+(r.discount_amount||r.discount||0)
+  const _base=Math.max(0,(_rate*_nights)-_disc)
+  const _paid=+(r.paid_amount||0)
+  const _due=Math.max(0,_base-_paid)
+  return {total:_base,paid:_paid,due:_due,roomCharge:_rate*_nights,
+          extras:0,sub:_base,tax:0,svc:0,discount:_disc,nights:_nights,
+          roomRate:_rate,vatPct:0,svcPct:0,basePrice:_base,grossRate:_rate*_nights}
+}
 
   const outstanding = reservations
     .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
