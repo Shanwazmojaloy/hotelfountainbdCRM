@@ -761,7 +761,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     try {
       await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,reservation_id:activeRes.id,fiscal_day:todayStr(),tenant_id:TENANT})
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -773,7 +773,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     setCollectSaving(true)
     try {
       await dbPatch('reservations',activeRes.id,{paid_amount:a})
-      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,reservation_id:activeRes.id,fiscal_day:todayStr(),tenant_id:TENANT})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -1248,14 +1248,14 @@ function GuestSearchInput({guests, value, onChange}) {
       {open && (
         <div ref={dropRef} style={{position:'absolute',top:'calc(100% + 3px)',left:0,right:0,background:'var(--s1)',border:'1px solid var(--br)',zIndex:600,maxHeight:220,overflowY:'auto',boxShadow:'0 12px 40px rgba(0,0,0,.7)'}}>
           {filtered.length===0
-            ? <div style={{padding:'10px 12px',fontSize:11,color:'var(--tx3)'}}>No guests found</div>
+            ? <div style={{padding:'10px 12px',fontSize:11,color:'var(--tx-inv2)'}}>No guests found</div>
             : filtered.map((g,i)=>(
                 <div key={g.id}
                   onMouseDown={()=>pick(g)}
                   onMouseEnter={()=>setHighlighted(i)}
-                  style={{padding:'9px 12px',cursor:'pointer',fontSize:12,fontWeight:300,color:'var(--tx)',background:i===highlighted?'rgba(200,169,110,.1)':'transparent',borderBottom:'1px solid var(--br2)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  style={{padding:'9px 12px',cursor:'pointer',fontSize:12,fontWeight:300,color:'var(--tx-inv)',background:i===highlighted?'rgba(200,169,110,.15)':'transparent',borderBottom:'1px solid rgba(200,169,110,.15)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <span>{g.name}</span>
-                  {g.phone&&<span style={{fontSize:10,color:'var(--tx3)'}}>{g.phone}</span>}
+                  {g.phone&&<span style={{fontSize:10,color:'var(--tx-inv2)'}}>{g.phone}</span>}
                 </div>
               ))
           }
@@ -1292,14 +1292,14 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
     try {
       const isCheckIn=f.stayType==='CHECK_IN'
       const totalAmt=+f.total||autoTotal
-      await dbPost('reservations',{
+      const [newRes]=await dbPost('reservations',{
         guest_ids:[f.guestId], room_ids:[f.roomNo],
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
         total_amount:totalAmt, paid_amount:+f.paid||0,
         discount_amount:+f.discount||0,
         payment_method:f.method, special_requests:f.notes||null,
-        on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT
+        on_duty_officer:f.officer||null, tenant_id:TENANT
       })
       if(isCheckIn) {
         const room=rooms.find(r=>r.room_number===f.roomNo)
@@ -1308,6 +1308,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
       if((+f.paid||0)>0) {
         await dbPost('transactions',{
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
+          reservation_id:newRes?.id||null,
           type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT
         })
       }
@@ -2306,7 +2307,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
     const resTotal    = fromRow?(prefill._total||0):(+selRes?.total_amount||0)
     const resPaid     = fromRow?(prefill._paid||0):(+selRes?.paid_amount||0)
     try{
-      await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,tenant_id:TENANT})
+      await dbPost('transactions',{room_number,guest_name,reservation_id:resId||null,type,amount:a,fiscal_day,tenant_id:TENANT})
       if(resId) await dbPatch('reservations',resId,{paid_amount:Math.min(resTotal,resPaid+a)})
       toast(`Payment ${BDT(a)} recorded`); reload(); onClose()
     }catch(e){ toast(e.message,'error'); setSaving(false) }
@@ -2383,7 +2384,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
                         <span className="badge bb">{r.room_number||'—'}</span>
-                        <span style={{fontSize:12}}>{r.guest_name||'—'}</span>
+                        <span style={{fontSize:12,color:'var(--tx-inv)'}}>{r.guest_name||'—'}</span>
                       </div>
                       <span style={{fontSize:11,color:'var(--rose)',fontWeight:600}}>{BDT(due)} due</span>
                     </div>
