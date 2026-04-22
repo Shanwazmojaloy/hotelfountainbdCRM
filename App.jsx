@@ -2532,7 +2532,7 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tok
 
 /** @param {{foliosMap: object, hSettings: object}} — REQUIRED for computeBill accuracy.
  *  Never call BillingPage without foliosMap — omitting it causes totals to read stale DB values. */
-function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests,foliosMap,hSettings:hSettingsFromApp}) {
+function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests,foliosMap:propFoliosMap,hSettings:hSettingsFromApp}) {
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
   // Use app-level hSettings as base; local Supabase fetch overrides once loaded
@@ -2582,7 +2582,9 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [billingRes,setBillingRes]=useState(null)
   const [showBillDetail,setShowBillDetail]=useState(false)
   const [detailRes,setDetailRes]=useState(null)
-  const [foliosMap,setFoliosMap]=useState({})
+  // Seed with the prop value so Billing totals are correct immediately
+  // (async Supabase reload overwrites once it completes)
+  const [foliosMap,setFoliosMap]=useState(propFoliosMap||{})
   const [loadingFolios,setLoadingFolios]=useState(false)
   const [tokenAmt,setTokenAmt]=useState('')
   const [savedToken,setSavedToken]=useState(0)
@@ -2618,9 +2620,8 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
   /* ── Billing delegates to global computeBill — single source of truth ──
-   *  LOCK: foliosMap MUST be in scope (passed via props). If undefined here,
-   *  computeBill will return stale DB totals instead of live computed values. */
-  if (!foliosMap) console.error("[BillingPage] foliosMap prop is missing — billing totals will be wrong");
+   *  foliosMap state is seeded from the prop on mount and refreshed via
+   *  Supabase. The local wrapper below always uses the state value. */
   function computeBill(r) {
     return _computeBillGlobal(r, rooms, foliosMap || {}, hSettings)
   }
