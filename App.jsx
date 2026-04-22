@@ -2530,10 +2530,13 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tok
   printPDF(content)
 }
 
-function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests}) {
+/** @param {{foliosMap: object, hSettings: object}} — REQUIRED for computeBill accuracy.
+ *  Never call BillingPage without foliosMap — omitting it causes totals to read stale DB values. */
+function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests,foliosMap,hSettings:hSettingsFromApp}) {
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
-  const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
+  // Use app-level hSettings as base; local Supabase fetch overrides once loaded
+  const [hSettings,setHSettings]=useState(hSettingsFromApp||{vat:'15',svc:'5'})
   const [hSettingsAll,setHSettingsAll]=useState({})
   const [closingStatus, setClosingStatus] = useState(false)
   const [lastClosureDate, setLastClosureDate] = useState('')
@@ -2614,9 +2617,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   }
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
-  /* ── Billing delegates to global computeBill — single source of truth ── */
+  /* ── Billing delegates to global computeBill — single source of truth ──
+   *  LOCK: foliosMap MUST be in scope (passed via props). If undefined here,
+   *  computeBill will return stale DB totals instead of live computed values. */
+  if (!foliosMap) console.error("[BillingPage] foliosMap prop is missing — billing totals will be wrong");
   function computeBill(r) {
-    return _computeBillGlobal(r, rooms, foliosMap, hSettings)
+    return _computeBillGlobal(r, rooms, foliosMap || {}, hSettings)
   }
   // Build corrected transaction amounts using chronological capping.
   // For each reservation, walk ALL transactions in order. Keep amounts as-is until
