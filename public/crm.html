@@ -669,7 +669,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
 }
 
 /* ═══════════════════════ ROOMS ══════════════════════════════ */
-function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
+function RoomsPage({rooms,guests,reservations,toast,currentUser,reload,activeFiscalDay}) {
   const [filter,setFilter]=useState('ALL')
   const [selRoom,setSelRoom]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
@@ -711,6 +711,7 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
       {selRoom&&(
         <RoomModal room={selRoom} guests={guests} reservations={reservations}
           canEdit={canEdit} canHKStatus={canHKStatus} isSA={isSA} toast={toast}
+          activeFiscalDay={activeFiscalDay}
           onClose={()=>setSelRoom(null)}
           reload={()=>{ reload(); setSelRoom(null) }}/>
       )}
@@ -719,7 +720,7 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
   )
 }
 
-function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onClose,reload}) {
+function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onClose,reload,activeFiscalDay}) {
   const [status,setStatus]=useState(room.status)
   const [folios,setFolios]=useState([])
   const [fLoad,setFLoad]=useState(true)
@@ -761,7 +762,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     try {
       await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,reservation_id:activeRes.id,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,reservation_id:activeRes.id,fiscal_day:activeFiscalDay||todayStr(),tenant_id:TENANT})
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -773,7 +774,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     setCollectSaving(true)
     try {
       await dbPatch('reservations',activeRes.id,{paid_amount:a})
-      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,reservation_id:activeRes.id,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,reservation_id:activeRes.id,fiscal_day:activeFiscalDay||todayStr(),tenant_id:TENANT})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -995,7 +996,7 @@ function AddRoomModal({toast,onClose,reload,rooms}) {
 }
 
 /* ═══════════════════════ RESERVATIONS ═══════════════════════ */
-function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,deleteReservation}) {
+function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,deleteReservation,activeFiscalDay}) {
   const [filter,setFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [selRes,setSelRes]=useState(null)
@@ -1072,8 +1073,8 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,de
           onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'} deleteReservation={deleteReservation}/>
       )}
       {showNew&&(
-        <NewReservationModal guests={guests} rooms={rooms} toast={toast}
-          onClose={()=>setShowNew(false)} reload={reload}/>
+        <NewReservationModal guests={guests} rooms={rooms} reservations={reservations} toast={toast}
+          activeFiscalDay={activeFiscalDay} onClose={()=>setShowNew(false)} reload={reload}/>
       )}
     </div>
   )
@@ -1268,19 +1269,37 @@ function GuestSearchInput({guests, value, onChange}) {
   )
 }
 
-function NewReservationModal({guests,rooms,toast,onClose,reload}) {
-  const availRooms=rooms.filter(r=>r.status==='AVAILABLE')
+function NewReservationModal({guests,rooms,reservations=[],toast,onClose,reload,activeFiscalDay}) {
+  // Date-aware availability: status=AVAILABLE AND no overlapping CHECKED_IN/RESERVED reservation
+  const getAvailRooms=(ci,co)=>rooms.filter(r=>{
+    if(r.status!=='AVAILABLE') return false
+    if(!ci||!co) return true
+    return !reservations.some(res=>{
+      if(!['CHECKED_IN','RESERVED'].includes(res.status)) return false
+      if(!(res.room_ids||[res.room_number]).includes(r.room_number)) return false
+      return res.check_in<co && res.check_out>ci
+    })
+  })
+  const initAvail=getAvailRooms(todayStr(),'')
   const [f,setF]=useState({
-    guestId:'', roomNo:availRooms[0]?.room_number||'',
+    guestId:'', roomNo:initAvail[0]?.room_number||'',
     checkIn:todayStr(), checkOut:'',
     total:'', paid:'', discount:'', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
   })
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
 
+  const availRooms=getAvailRooms(f.checkIn,f.checkOut)
   const selectedRoom=rooms.find(r=>r.room_number===f.roomNo)
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
   const autoTotal=selectedRoom&&autoNights?(+selectedRoom.price*autoNights):0
+
+  // Reset roomNo if it's no longer available for the selected dates
+  useEffect(()=>{
+    const avail=getAvailRooms(f.checkIn,f.checkOut)
+    if(f.roomNo&&!avail.find(r=>r.room_number===f.roomNo))
+      setF(p=>({...p,roomNo:avail[0]?.room_number||''}))
+  },[f.checkIn,f.checkOut]) // eslint-disable-line
 
   useEffect(()=>{
     if(autoTotal>0) setF(p=>({...p,total:String(autoTotal)}))
@@ -1312,7 +1331,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         await dbPost('transactions',{
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
           reservation_id:newRes?.id||null,
-          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT
+          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:activeFiscalDay||todayStr(), tenant_id:TENANT
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
@@ -1686,6 +1705,93 @@ function AddTaskModal({rooms,toast,onClose,reload}) {
 }
 
 /* ═══════════════════════ BILLING ════════════════════════════ */
+function printInvoice(grpData, res, tTotal, tPaid, tDue, pInvoiceByType) {
+  const gname   = grpData.guest_name || '—'
+  const rno     = res ? (res.room_ids||[res.room_number]).filter(Boolean).join(', ') : (grpData.room_number||'—')
+  const txs     = (grpData.txs||[]).filter(t=>t.type!=='Balance Carried Forward')
+  const checkIn = res ? String(res.check_in||'').slice(0,10) : '—'
+  const checkOut= res ? String(res.check_out||'').slice(0,10) : '—'
+  const nights  = res ? Math.max(0,Math.round((new Date(res.check_out)-new Date(res.check_in))/86400000)) : 0
+  const method  = res?.payment_method || Object.keys(pInvoiceByType||{})[0] || 'Cash'
+  const officer = res?.on_duty_officer || '—'
+  const discount= +(res?.discount_amount||res?.discount||0)
+  const now     = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
+  const invNo   = 'HF-'+(res?.id?.slice(0,8)?.toUpperCase()||Date.now().toString(36).toUpperCase())
+
+  const txRows = txs.map(t=>`<tr>
+    <td>${t.fiscal_day||'—'}</td>
+    <td>${t.type||'Payment'}</td>
+    <td style="text-align:right;font-weight:600;color:#1a7a3a">৳${Number(t.amount||0).toLocaleString()}</td>
+  </tr>`).join('')
+
+  const pmtRows = Object.entries(pInvoiceByType||{}).map(([tp,amt])=>`<tr>
+    <td>${tp}</td>
+    <td style="text-align:right;font-weight:600;color:#1a7a3a">৳${Number(amt||0).toLocaleString()}</td>
+  </tr>`).join('')
+
+  const content=`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>Hotel Fountain — Invoice — ${gname}</title>
+<style>
+@page{size:A4 portrait;margin:12mm}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;color:#111;font-size:10px;background:#fff}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:10px;border-bottom:3px solid #111}
+.hname{font-size:22px;font-weight:700;letter-spacing:.02em}.hsub{font-size:8px;color:#555;margin-top:3px;letter-spacing:.06em;text-transform:uppercase}
+.inv-title{text-align:right}.inv-title h2{font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.inv-title .meta{font-size:8px;color:#444;margin-top:3px}
+.guest-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;background:#f7f7f7;border:1px solid #ddd;padding:12px 14px;margin-bottom:14px}
+.lbl{font-size:7px;color:#666;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}.val{font-size:11px;font-weight:600}
+table{width:100%;border-collapse:collapse;margin-bottom:12px}
+thead tr{background:#111;color:#fff}thead th{padding:5px 8px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}thead th:last-child{text-align:right}
+tbody tr:nth-child(even){background:#f9f9f9}tbody td{padding:5px 8px;border-bottom:1px solid #eee;font-size:9px}tbody td:last-child{text-align:right}
+.stitle{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#666;margin:12px 0 4px;border-bottom:1px solid #ddd;padding-bottom:3px}
+.totals{margin-top:10px;border:2px solid #111;padding:10px 14px;max-width:280px;margin-left:auto}
+.trow{display:flex;justify-content:space-between;padding:3px 0;font-size:10px}
+.trow.disc{color:#1a7a3a}.trow.paid{color:#1a7a3a}
+.trow.grand{border-top:2px solid #111;margin-top:6px;padding-top:6px;font-size:13px;font-weight:700}
+.trow.due{color:#c0392b;font-weight:700}
+.seals{display:flex;justify-content:space-between;margin-top:32px}
+.seal{width:160px;border-top:1px solid #111;padding-top:5px;text-align:center;font-size:8px;color:#555}
+.footer{margin-top:16px;text-align:center;font-size:8px;color:#888;border-top:1px solid #ddd;padding-top:8px}
+</style></head><body>
+<div class="header">
+  <div><div class="hname">Hotel Fountain</div><div class="hsub">Nikunja 2, Dhaka, Bangladesh</div><div class="hsub">hotellfountainbd@gmail.com</div></div>
+  <div class="inv-title"><h2>Guest Invoice</h2><div class="meta">Invoice #: ${invNo}</div><div class="meta">Printed: ${now}</div></div>
+</div>
+<div class="guest-grid">
+  <div><div class="lbl">Guest</div><div class="val">${gname}</div></div>
+  <div><div class="lbl">Room(s)</div><div class="val">${rno}</div></div>
+  <div><div class="lbl">Check-In</div><div class="val">${checkIn}</div></div>
+  <div><div class="lbl">Check-Out</div><div class="val">${checkOut}</div></div>
+  <div><div class="lbl">Nights</div><div class="val">${nights||'—'}</div></div>
+  <div><div class="lbl">Payment Method</div><div class="val">${method}</div></div>
+  <div><div class="lbl">On-Duty Officer</div><div class="val">${officer}</div></div>
+  <div><div class="lbl">Status</div><div class="val">${(res?.status||'—').replace(/_/g,' ')}</div></div>
+</div>
+${txs.length>0?`<div class="stitle">Payment History</div>
+<table><thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead>
+<tbody>${txRows}</tbody></table>`:''}
+${Object.keys(pInvoiceByType||{}).length>0?`<div class="stitle">Payment Breakdown</div>
+<table><thead><tr><th>Type</th><th>Amount</th></tr></thead>
+<tbody>${pmtRows}</tbody></table>`:''}
+<div class="totals">
+  <div class="trow"><span>Gross Total</span><span>৳${Number((tTotal||0)+(discount||0)).toLocaleString()}</span></div>
+  ${discount>0?`<div class="trow disc"><span>Discount Applied</span><span>− ৳${Number(discount).toLocaleString()}</span></div>`:''}
+  <div class="trow"><span>Net Payable</span><span>৳${Number(tTotal||0).toLocaleString()}</span></div>
+  <div class="trow paid"><span>Total Paid</span><span>৳${Number(tPaid||0).toLocaleString()}</span></div>
+  <div class="trow grand due"><span>Balance Due</span><span>৳${Number(tDue||0).toLocaleString()}</span></div>
+</div>
+<div class="seals">
+  <div class="seal">Guest Signature</div>
+  <div class="seal">Authorized Signature &amp; Stamp</div>
+</div>
+<div class="footer">Thank you for choosing Hotel Fountain · Nikunja 2, Dhaka · Powered by Lumea PMS</div>
+</body></html>`
+
+  printPDF(content)
+}
+
 function printPDF(htmlContent, filename) {
   // Use native browser print — works from file:// URLs without external libs
   const w = window.open('', '_blank', 'width=1100,height=700')
@@ -1768,7 +1874,7 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, cal
   printPDF(content)
 }
 
-function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests}) {
+function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests,activeFiscalDay,onFiscalDayAdvance}) {
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
   const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
@@ -1789,7 +1895,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [tokenAmt,setTokenAmt]=useState('')
   const [savedToken,setSavedToken]=useState(0)
   const [tokenSaving,setTokenSaving]=useState(false)
-  const today=todayStr(), month=today.slice(0,7)
+  const today=activeFiscalDay||todayStr(), month=today.slice(0,7)
 
   const todayT = transactions.filter(t=>t.fiscal_day===today);
   const monthT = transactions.filter(t=>t.fiscal_day?.startsWith(month));
@@ -1974,6 +2080,7 @@ ${dueRows}
           headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
           body:JSON.stringify({key:'active_fiscal_day',value:nextDay,tenant_id:TENANT})
         })
+        onFiscalDayAdvance?.(nextDay)
         toast(`✓ Day closed · Fiscal day → ${nextDay}`,'info')
         reload()
       }catch(e){
@@ -2051,6 +2158,10 @@ ${dueRows}
                 <button className="btn btn-ghost btn-sm" style={{padding:'4px 10px',fontSize:9,marginLeft:6,borderLeft:'1px solid var(--br)',paddingLeft:10}} onClick={downloadPDF} title="Download specific date report">
                   📥 Download Report
                 </button>
+              </div>
+              {/* Fiscal Day Lock Indicator */}
+              <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(200,169,110,.06)',border:'1px solid var(--br)',padding:'4px 10px',fontSize:9,letterSpacing:'.1em',color:'var(--gold)',textTransform:'uppercase',whiteSpace:'nowrap'}}>
+                📅 Fiscal Day: <strong style={{color:'var(--tx)',fontSize:11,fontWeight:700,marginLeft:4}}>{today}</strong>
               </div>
               {/* Closing Complete */}
               <button className="btn btn-gold btn-sm" style={{gap:5,whiteSpace:'nowrap'}} onClick={doClosingComplete}>
@@ -2197,7 +2308,7 @@ ${dueRows}
       })()}
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
+      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations} activeFiscalDay={today}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
@@ -2207,10 +2318,10 @@ ${dueRows}
         <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
           <div className="flex fac fjb" style={{flexWrap:'wrap',gap:8}}>
             <div className="flex fac gap3">
-              <Av name={detailRes.guest_name} size={40}/>
+              <Av name={getGN(detailRes)} size={40}/>
               <div>
-                <div style={{fontWeight:700,fontSize:16}}>{detailRes.guest_name}</div>
-                <div className="xs muted">Room {detailRes.room_number} · {fmtDate(detailRes.check_in)} → {fmtDate(detailRes.check_out)}</div>
+                <div style={{fontWeight:700,fontSize:16}}>{getGN(detailRes)}</div>
+                <div className="xs muted">Room {getRoom(detailRes)} · {fmtDate(detailRes.check_in)} → {fmtDate(detailRes.check_out)}</div>
                 <div className="xs" style={{color:'var(--amb)',marginTop:2}}>{nights} night{nights!==1?'s':''} · {BDT(roomRate)}/night</div>
               </div>
             </div>
@@ -2268,7 +2379,7 @@ ${dueRows}
   )
 }
 
-function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
+function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,activeFiscalDay}) {
   const fromRow=prefill?._fromRow===true
   const dueResList=(reservations||[]).filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)>(+r.paid_amount||0))
 
@@ -2287,7 +2398,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
 
   const [amount,setAmount]=useState(fromRow&&lockedDue>0?String(lockedDue):dropDueAmt>0?String(dropDueAmt):'')
   const [type,setType]=useState('Room Payment (Cash)')
-  const [fiscal_day,setFiscalDay]=useState(todayStr())
+  const [fiscal_day,setFiscalDay]=useState(activeFiscalDay||todayStr())
   const [saving,setSaving]=useState(false)
 
   function pickRes(r){
@@ -3090,12 +3201,21 @@ function App() {
   const [notifOpen,setNotifOpen]=useState(false)
   // Staff list lives here so Settings can mutate it
   const [staffList,setStaffList]=useState(INIT_STAFF)
+  // Fiscal day: loaded from hotel_settings, never auto-advances from system clock
+  const [activeFiscalDay,setActiveFiscalDay]=useState(todayStr())
   // Load staff from Supabase on mount (overrides INIT_STAFF)
   useEffect(()=>{
     db('staff',`?tenant_id=eq.${TENANT}&select=*&order=id`)
       .then(d=>{ if(Array.isArray(d)&&d.length>0) setStaffList(d) })
       .catch(()=>{}) // silently fall back to INIT_STAFF
   },[])
+  // Load locked fiscal day from hotel_settings
+  useEffect(()=>{
+    if(!user) return
+    db('hotel_settings',`?key=eq.active_fiscal_day&tenant_id=eq.${TENANT}&select=value`)
+      .then(d=>{ if(d?.[0]?.value) setActiveFiscalDay(d[0].value) })
+      .catch(()=>{})
+  },[user])
   const toastRef=useRef()
 
   const toast=useCallback((msg,type='success')=>{
@@ -3405,11 +3525,11 @@ function App() {
           {/* Close notif by clicking content area */}
           <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
             {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage}/>}
-            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} deleteReservation={deleteReservation}/>}
+            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} activeFiscalDay={activeFiscalDay}/>}
+            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} deleteReservation={deleteReservation} activeFiscalDay={activeFiscalDay}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user}/>}
+            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} activeFiscalDay={activeFiscalDay} onFiscalDayAdvance={setActiveFiscalDay}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
           </div>
