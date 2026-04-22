@@ -658,16 +658,13 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
 
   const roomRate=+room.price||0
   const nights=activeRes?nightsCount(activeRes.check_in,activeRes.check_out):0
-  let roomCharge=roomRate*nights
+  const roomCharge=roomRate*nights
   const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
   const discount=+(activeRes?.discount||0)
-  const dbTotal=+(activeRes?.total_amount||0)
-  const basePrice=dbTotal>0?Math.max(0,dbTotal-discount):Math.max(0,sub-discount)
-  const _taxBase=basePrice/1.20
-  const tax=Math.round(_taxBase*0.15)
-  const svc=Math.round(_taxBase*0.05)
-  const total=basePrice+extras
+  const total=Math.max(0,sub-discount)
+  const paid=+(activeRes?.paid_amount||0)
+  const due=Math.max(0,total-paid)
 
   async function saveStatus() {
     setSaving(true)
@@ -732,8 +729,10 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
               </div>
             </div>
             <div style={{textAlign:'right'}}>
-              <div className="xs muted">Total Due</div>
-              <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(total)}</div>
+              <div className="xs muted">Bill Total</div>
+              <div style={{fontWeight:700,fontSize:20,color:'var(--gold)'}}>{BDT(total)}</div>
+              {paid>0&&<div className="xs" style={{color:'var(--grn)',marginTop:2}}>Paid: {BDT(paid)}</div>}
+              <div className="xs" style={{color:due>0?'var(--rose)':'var(--grn)',fontWeight:due>0?700:400,marginTop:1}}>{due>0?`Balance: ${BDT(due)}`:'Fully Paid ✓'}</div>
             </div>
           </div>
         </div>
@@ -766,15 +765,15 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            {[['Subtotal',sub]].map(([l,v])=>(
-              <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-            ))}
+            {extras>0&&<div className="flex fjb xs muted" style={{marginBottom:3}}><span>Room Charge</span><span>{BDT(roomCharge)}</span></div>}
+            {extras>0&&<div className="flex fjb xs muted" style={{marginBottom:3}}><span>Extra Charges</span><span>{BDT(extras)}</span></div>}
             {discount>0&&<div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Discount</span><span>- {BDT(discount)}</span></div>}
-            {[['VAT 15%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
-              <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-            ))}
             <div className="divider" style={{margin:'6px 0'}}/>
-            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total Due</span><span>{BDT(total)}</span></div>
+            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total Bill</span><span>{BDT(total)}</span></div>
+            <div className="flex fjb xs" style={{marginTop:4}}>
+              <span style={{color:'var(--grn)'}}>Paid: {BDT(paid)}</span>
+              {due>0?<span style={{color:'var(--rose)',fontWeight:700}}>Balance Due: {BDT(due)}</span>:<span style={{color:'var(--grn)'}}>Fully Paid ✓</span>}
+            </div>
           </div>
         </div>
       )}
@@ -786,14 +785,14 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <input type="number" className="finput" value={collectAmt}
               onChange={e=>setCollectAmt(e.target.value)}
-              placeholder={`Due: ${BDT(Math.max(0,total-(+activeRes.paid_amount||0)))}`}
+              placeholder={`Balance Due: ${BDT(due)}`}
               style={{flex:1}}/>
             <button className="btn btn-gold" disabled={collectSaving} onClick={saveCollectAmount} style={{whiteSpace:'nowrap'}}>
               {collectSaving?'Saving…':'Save Payment'}
             </button>
           </div>
           {(+activeRes.paid_amount||0)>0&&(
-            <div className="xs muted" style={{marginTop:6}}>Already paid: {BDT(activeRes.paid_amount)} · Balance: {BDT(Math.max(0,total-(+activeRes.paid_amount||0)))}</div>
+            <div className="xs muted" style={{marginTop:6}}>Already paid: {BDT(paid)} · Balance: {BDT(due)}</div>
           )}
         </div>
       )}
@@ -1631,6 +1630,163 @@ function printPDF(htmlContent, filename) {
   })
 }
 
+function printInvoice(grp, r, tTotal, tPaid, tDue, byType, guestsList, roomsList, foliosMap) {
+  const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
+  const dateTag = new Date().toISOString().slice(0,10).replace(/-/g,'')
+  const invoiceNo = `INV-${(r?.id||grp.room_number||'').toString().slice(-6).toUpperCase()}-${dateTag}`
+  const BDTf = n => `৳${Number(n||0).toLocaleString()}`
+
+  const guestId = String((r?.guest_ids||[]).filter(Boolean)[0]||'')
+  const guestObj = guestsList?.find(g=>String(g.id)===guestId)
+  const guestName = grp.guest_name || guestObj?.name || '—'
+  const guestPhone = guestObj?.phone || '—'
+  const guestEmail = guestObj?.email || '—'
+  const guestAddress = guestObj?.address || '—'
+
+  const roomNo = grp.room_number || (r?.room_ids||[])[0] || '—'
+  const roomObj = roomsList?.find(rm=>rm.room_number===roomNo)
+  const roomCat = roomObj?.category || '—'
+  const roomRate = +roomObj?.price || +r?.rate_per_night || 0
+  const checkIn = r?.check_in ? fmtDate(r.check_in) : '—'
+  const checkOut = r?.check_out ? fmtDate(r.check_out) : '—'
+  const nights = r?.check_in && r?.check_out ? nightsCount(r.check_in, r.check_out) : 0
+  const roomCharge = roomRate * nights
+  const discount = +r?.discount || 0
+
+  const fKey = r?.id || roomNo
+  const folios = foliosMap ? (foliosMap[fKey] || foliosMap[roomNo] || []) : []
+  const extras = folios.reduce((a,f)=>a+(+f.amount||0), 0)
+
+  const extraRows = folios.map(f=>`<tr>
+    <td style="padding:5px 8px;border-bottom:1px solid #eee">${f.description||f.category}</td>
+    <td style="padding:5px 8px;border-bottom:1px solid #eee;color:#777">${f.category}</td>
+    <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${BDTf(f.amount)}</td>
+  </tr>`).join('')
+
+  const pmtRows = Object.entries(byType||{}).map(([tp,amt])=>`<tr>
+    <td style="padding:4px 8px;border-bottom:1px solid #eee">${tp}</td>
+    <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right;color:#1a7a3a;font-weight:600">${BDTf(amt)}</td>
+  </tr>`).join('')
+
+  const txRows = (grp.txs||[]).map(t=>`<tr>
+    <td style="padding:3px 8px;border-bottom:1px solid #f0f0f0;font-size:9px">${t.fiscal_day||'—'}</td>
+    <td style="padding:3px 8px;border-bottom:1px solid #f0f0f0;font-size:9px">${t.type||'Payment'}</td>
+    <td style="padding:3px 8px;border-bottom:1px solid #f0f0f0;text-align:right;font-size:9px;font-weight:600">${BDTf(t.amount)}</td>
+  </tr>`).join('')
+
+  const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice ${invoiceNo}</title>
+  <style>
+    @page{size:A4 portrait;margin:12mm}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:12px;border-bottom:3px solid #000}
+    .hotel-name{font-size:22px;font-weight:800;letter-spacing:-.02em}
+    .hotel-sub{font-size:8px;color:#555;margin-top:3px;letter-spacing:.1em;text-transform:uppercase}
+    .hotel-contact{font-size:8.5px;color:#444;margin-top:6px;line-height:1.6}
+    .inv-meta{text-align:right}
+    .inv-meta .lbl{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#777;margin-bottom:4px}
+    .inv-meta .inv-no{font-size:14px;font-weight:700}
+    .inv-meta .detail{font-size:8.5px;color:#444;margin-top:4px;line-height:1.8}
+    .bill-to{background:#f8f8f8;border:1px solid #e0e0e0;padding:10px 14px;margin-bottom:14px}
+    .bill-to .lbl{font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#777;margin-bottom:5px}
+    .bill-to .name{font-size:13px;font-weight:700}
+    .bill-to .info{font-size:9px;color:#444;line-height:1.7;margin-top:3px}
+    .stay-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:14px}
+    .stay-box{background:#f8f8f8;border:1px solid #e0e0e0;padding:5px 8px}
+    .stay-box .lbl{font-size:6.5px;letter-spacing:.1em;text-transform:uppercase;color:#777;margin-bottom:2px}
+    .stay-box .val{font-size:10.5px;font-weight:700}
+    .sect{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#000;margin:12px 0 5px;padding-bottom:3px;border-bottom:2px solid #000}
+    table{width:100%;border-collapse:collapse}
+    thead tr{background:#000;color:#fff}
+    thead th{padding:4px 8px;text-align:left;font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+    thead th.r{text-align:right}
+    .sum-wrap{display:flex;justify-content:flex-end;margin-top:14px}
+    .sum-box{min-width:260px;border:2px solid #000;padding:10px 14px}
+    .sum-row{display:flex;justify-content:space-between;gap:28px;padding:3px 0;font-size:10px}
+    .sum-row.bold{font-weight:700;border-top:1px solid #ccc;margin-top:3px;padding-top:4px}
+    .sum-row.final{font-weight:800;font-size:14px;border-top:2px solid #000;margin-top:6px;padding-top:6px}
+    .sum-row.due{color:#c0392b}
+    .sum-row.paid{color:#1a7a3a}
+    .footer{margin-top:18px;padding-top:8px;border-top:1px solid #ccc;text-align:center;font-size:8px;color:#777;line-height:1.8}
+  </style></head><body>
+
+  <div class="hdr">
+    <div>
+      <div class="hotel-name">Hotel Fountain</div>
+      <div class="hotel-sub">Luxury Hospitality · Bangladesh</div>
+      <div class="hotel-contact">Khagrachari, Chittagong Hill Tracts, Bangladesh</div>
+    </div>
+    <div class="inv-meta">
+      <div class="lbl">Invoice</div>
+      <div class="inv-no">${invoiceNo}</div>
+      <div class="detail">Date: ${now}<br/>Room: ${roomNo}<br/>Officer: ${r?.on_duty_officer||'—'}</div>
+    </div>
+  </div>
+
+  <div class="bill-to">
+    <div class="lbl">Bill To</div>
+    <div class="name">${guestName}</div>
+    <div class="info">
+      ${guestPhone!=='—'?`Phone: ${guestPhone}<br/>`:''}
+      ${guestEmail!=='—'?`Email: ${guestEmail}<br/>`:''}
+      ${guestAddress!=='—'?`Address: ${guestAddress}`:''}
+    </div>
+  </div>
+
+  <div class="stay-grid">
+    <div class="stay-box"><div class="lbl">Room</div><div class="val">${roomNo}</div></div>
+    <div class="stay-box"><div class="lbl">Type</div><div class="val">${roomCat}</div></div>
+    <div class="stay-box"><div class="lbl">Check-In</div><div class="val">${checkIn}</div></div>
+    <div class="stay-box"><div class="lbl">Check-Out</div><div class="val">${checkOut}</div></div>
+    <div class="stay-box"><div class="lbl">Nights</div><div class="val">${nights||'—'}</div></div>
+    <div class="stay-box"><div class="lbl">Rate / Night</div><div class="val">${BDTf(roomRate)}</div></div>
+    <div class="stay-box"><div class="lbl">Payment Method</div><div class="val">${r?.payment_method||'—'}</div></div>
+    <div class="stay-box"><div class="lbl">Status</div><div class="val">${(r?.status||'—').replace(/_/g,' ')}</div></div>
+  </div>
+
+  <div class="sect">Charges</div>
+  <table>
+    <thead><tr><th>Description</th><th>Category</th><th class="r">Amount (BDT)</th></tr></thead>
+    <tbody>
+      <tr><td style="padding:5px 8px;border-bottom:1px solid #eee;font-weight:600">Room Charge (${nights} nights × ${BDTf(roomRate)})</td><td style="padding:5px 8px;border-bottom:1px solid #eee;color:#777">Accommodation</td><td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:600">${BDTf(roomCharge)}</td></tr>
+      ${extraRows}
+      ${discount>0?`<tr><td style="padding:5px 8px;border-bottom:1px solid #eee;color:#1a7a3a">Discount</td><td style="padding:5px 8px;border-bottom:1px solid #eee"></td><td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;color:#1a7a3a">− ${BDTf(discount)}</td></tr>`:''}
+    </tbody>
+  </table>
+
+  ${pmtRows?`<div class="sect">Payments Received</div>
+  <table>
+    <thead><tr><th>Payment Method</th><th class="r">Amount (BDT)</th></tr></thead>
+    <tbody>${pmtRows}</tbody>
+  </table>`:''}
+
+  ${txRows?`<div class="sect">Transaction History</div>
+  <table>
+    <thead><tr><th>Date</th><th>Type</th><th class="r">Amount (BDT)</th></tr></thead>
+    <tbody>${txRows}</tbody>
+  </table>`:''}
+
+  <div class="sum-wrap">
+    <div class="sum-box">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Billing Summary</div>
+      ${roomCharge>0?`<div class="sum-row"><span>Room Charge</span><span>${BDTf(roomCharge)}</span></div>`:''}
+      ${extras>0?`<div class="sum-row"><span>Extra Charges</span><span>${BDTf(extras)}</span></div>`:''}
+      ${discount>0?`<div class="sum-row paid"><span>Discount</span><span>− ${BDTf(discount)}</span></div>`:''}
+      <div class="sum-row bold"><span>Total Bill</span><span>${BDTf(tTotal)}</span></div>
+      <div class="sum-row paid"><span>Total Paid</span><span>${BDTf(tPaid)}</span></div>
+      <div class="sum-row final ${tDue>0?'due':'paid'}"><span>Balance Due</span><span>${BDTf(tDue)}</span></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Thank you for choosing Hotel Fountain &nbsp;·&nbsp; Computer-generated invoice — no signature required<br/>
+    ${invoiceNo} · ${now}
+  </div>
+  </body></html>`
+  printPDF(content)
+}
+
 function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, calDate, tokenAmount, displayRows, dueRows) {
   let filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
   if (filter === 'DATE' && calDate) {
@@ -2245,7 +2401,7 @@ ${dueRows}
                                 if(r && Object.keys(pInvoiceByType).length===0 && tPaid>0) pInvoiceByType[r.payment_method||'Cash'] = tPaid;
                                 printInvoice(
                                   {guest_name:gname,room_number:rno,txs:grp.txs},
-                                  r,tTotal,tPaid,tDue,pInvoiceByType
+                                  r,tTotal,tPaid,tDue,pInvoiceByType,guests,rooms,foliosMap
                                 )
                               }}>🖨 Print</button>
                             )}
@@ -2337,7 +2493,7 @@ ${dueRows}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
-        const {roomCharge,sub,tax,svc,total,paid,due,folios,nights,roomRate,vatPct,svcPct}=computeBill(detailRes)
+        const {roomCharge,extras,sub,total,paid,due,folios,nights,roomRate,discount}=computeBill(detailRes)
         const relTx=transactions.filter(t=>(detailRes.room_ids||[detailRes.room_number]).includes(t.room_number)&&t.type!=='Balance Carried Forward')
         return (
         <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
@@ -2376,25 +2532,24 @@ ${dueRows}
               </div>
             ))}
             {relTx.map(t=>(
-              <div key={t.id} className="folio-row" style={{opacity:.75}}>
-                <div><span style={{color:'var(--tx2)'}}>{t.type||'Charge'}</span><span className="badge bb" style={{marginLeft:6,fontSize:8}}>{t.fiscal_day}</span></div>
-                <span className="xs" style={{color:'var(--sky)'}}>{BDT(t.amount)}</span>
+              <div key={t.id} className="folio-row" style={{opacity:.85}}>
+                <div>
+                  <span style={{color:'var(--sky)',fontWeight:500}}>{t.type||'Payment'}</span>
+                  <span className="badge bb" style={{marginLeft:6,fontSize:8}}>{t.fiscal_day||'—'}</span>
+                </div>
+                <span className="xs" style={{color:'var(--sky)',fontWeight:600}}>{BDT(t.amount)}</span>
               </div>
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            {[['Subtotal',sub]].map(([l,v])=>(
-              <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-            ))}
+            <div className="flex fjb xs muted" style={{marginBottom:3}}><span>Room Charge ({nights} nights × {BDT(roomRate)})</span><span>{BDT(roomCharge)}</span></div>
+            {extras>0&&<div className="flex fjb xs muted" style={{marginBottom:3}}><span>Extra Charges</span><span>{BDT(extras)}</span></div>}
             {discount>0&&<div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Discount</span><span>- {BDT(discount)}</span></div>}
-            {[[`VAT ${vatPct||15}%`,tax],[`Service Charge ${svcPct||5}%`,svc]].map(([l,v])=>(
-              <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-            ))}
             <div className="divider" style={{margin:'6px 0'}}/>
-            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total</span><span>{BDT(total)}</span></div>
+            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total Bill</span><span>{BDT(total)}</span></div>
             <div className="flex fjb xs" style={{marginTop:4}}>
               <span style={{color:'var(--grn)'}}>Paid: {BDT(paid)}</span>
-              {due>0&&<span style={{color:'var(--rose)',fontWeight:700}}>Due: {BDT(due)}</span>}
+              {due>0?<span style={{color:'var(--rose)',fontWeight:700}}>Balance Due: {BDT(due)}</span>:<span style={{color:'var(--grn)'}}>Fully Paid ✓</span>}
             </div>
           </div>
         </div>
