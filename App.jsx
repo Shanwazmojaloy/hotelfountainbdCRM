@@ -3282,8 +3282,11 @@ const collectionTodaySum = (guest.payments || []).filter(p => p.date === selecte
                     const comp = invoice ? computeBill(invoice) : null;
                     const { total:resTotal, paid:resPaid, due:resDue } = comp || { total:0, paid:0, due:0 }
                     
+                    // Only show transactions from the selected period, not all-time
+                    const _listIds=new Set(list.map(t=>t.id))
                     const byType={}
                     grp.txs.forEach(t=>{
+                      if(!_listIds.has(t.id)) return  // skip outside-period transactions
                       if(t.type==='Balance Carried Forward') return
                       const tp=t.type||'Payment'
                       if(!byType[tp]) byType[tp]=0

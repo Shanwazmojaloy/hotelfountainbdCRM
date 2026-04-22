@@ -990,10 +990,18 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
   const [selRes,setSelRes]=useState(null)
   const [showNew,setShowNew]=useState(false)
 
-  const sc=reservations.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
+  const sc=reservations.reduce((a,r)=>{
+    a[r.status]=(a[r.status]||0)+1;
+    if((r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0)){
+      a['DUE']=(a['DUE']||0)+1;
+    }
+    return a;
+  },{DUE:0})
   const getGN=gids=>{const fid=String((gids||[])[0]||'');const g=guests.find(g=>String(g.id)===fid);return g?g.name:'Unknown'}
 
-  let res=filter==='ALL'?reservations:reservations.filter(r=>r.status===filter)
+  let res=filter==='ALL'?reservations:
+          filter==='DUE'?reservations.filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0)):
+          reservations.filter(r=>r.status===filter)
   if(search){
     const q=search.toLowerCase()
     res=res.filter(r=>getGN(r.guest_ids).toLowerCase().includes(q)||(r.room_ids||[]).join('').includes(q)||r.on_duty_officer?.toLowerCase().includes(q))
@@ -1003,9 +1011,9 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
     <div>
       <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
         <div className="tabs" style={{marginBottom:0}}>
-          {['ALL','CHECKED_IN','RESERVED','PENDING','CHECKED_OUT','CANCELLED'].map(s=>(
+          {['ALL','DUE','CHECKED_IN','RESERVED','PENDING','CHECKED_OUT','CANCELLED'].map(s=>(
             <button key={s} className={`tab${filter===s?' on':''}`} onClick={()=>setFilter(s)}>
-              {s==='ALL'?`All (${reservations.length})`:`${s.replace('_',' ')} (${sc[s]||0})`}
+              {s==='ALL'?`All (${reservations.length})`:s==='DUE'?`Due (${sc['DUE']||0})`:`${s.replace('_',' ')} (${sc[s]||0})`}
             </button>
           ))}
         </div>
@@ -2064,8 +2072,12 @@ ${dueRows}
                     
                     const { total:resTotal, paid:resPaid, due:resDue } = r ? computeBill(r) : { total:0, paid:0, due:0 }
                     
+                    // Only show transactions from the selected period (list), not all-time
+                    const _listIds=new Set(list.map(t=>t.id))
                     const byType={}
                     grp.txs.forEach(t=>{
+                      if(!_listIds.has(t.id)) return  // skip transactions outside period
+                      if(t.type==='Balance Carried Forward') return
                       const tp=t.type||'Payment'
                       if(!byType[tp]) byType[tp]=0
                       byType[tp]+=(+t.amount||0)
