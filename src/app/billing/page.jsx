@@ -13,10 +13,33 @@ const supabase = createClient(
 const TENANT_ID = "46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8";
 
 function computeBill(invoice) {
-  // Extracted from original App.jsx logic
   const total = Number(invoice?.total_amount || 0);
   const paid = (invoice?.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
   return { total, paid, balance: total - paid };
+}
+
+const getDhakaDate = () =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dhaka',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+
+function isWithinPeriod(dateStr, filter, todayDhaka) {
+  if (!dateStr) return false;
+  if (filter === 'TODAY') return dateStr === todayDhaka;
+  const d = new Date(dateStr);
+  const today = new Date(todayDhaka);
+  if (filter === 'WEEK') {
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 6);
+    return d >= weekAgo && d <= today;
+  }
+  if (filter === 'MONTH') {
+    const monthAgo = new Date(today);
+    monthAgo.setDate(today.getDate() - 29);
+    return d >= monthAgo && d <= today;
+  }
+  return false;
 }
 
 export default function BillingPage() {
@@ -36,7 +59,7 @@ export default function BillingPage() {
         .from("reservations")
         .select("*")
         .eq("tenant_id", TENANT_ID)
-        .order("check_in", { ascending: false });
+        .order("created_at", { ascending: false });
 
       const { data: transactions } = await supabase
         .from("transactions")
@@ -48,68 +71,42 @@ export default function BillingPage() {
         .select("id, room_number, status")
         .eq("tenant_id", TENANT_ID);
 
-      // Group by guest/room (from original App.jsx logic)
+      // Group by reservation id for precise matching
       const unifiedGroups = {};
-      
-      reservations.forEach((res) => {
-        const key = `${res.guest_name}-${res.room_ids || res.room_number}`;
-        if (!unifiedGroups[key]) {
-          unifiedGroups[key] = { res, txs: [] };
+
+      (reservations || []).forEach((res) => {
+        unifiedGroups[res.id] = { res, txs: [] };
+      });
+
+      (transactions || []).forEach((tx) => {
+        if (tx.reservation_id && unifiedGroups[tx.reservation_id]) {
+          unifiedGroups[tx.reservation_id].txs.push(tx);
         }
       });
 
-      transactions.forEach((tx) => {
-        // Find matching reservation/guest
-        const matchingRes = reservations.find(
-          (r) => r.guest_name === tx.guest_name || r.id === tx.reservation_id
+      const todayDhaka = getDhakaDate();
+
+      const displayList = Object.values(unifiedGroups)
+        .map(grp => {
+          const invoice = grp.res;
+          const comp = invoice ? computeBill(invoice) : null;
+
+          const collectionInPeriod = grp.txs
+            .filter(t => isWithinPeriod(t.date, filter, todayDhaka))
+            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+          const totalPaidEver = (invoice?.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+          const balanceDue = comp ? comp.total - totalPaidEver : 0;
+
+          return { ...grp, collectionInPeriod, balanceDue, status: invoice?.status };
+        })
+        .filter(grp =>
+          grp.status === 'CHECKED_IN' || grp.collectionInPeriod > 0 || grp.balanceDue > 0
         );
-        if (matchingRes) {
-          const key = `${matchingRes.guest_name}-${matchingRes.room_ids || matchingRes.room_number}`;
-          if (unifiedGroups[key]) {
-            unifiedGroups[key].txs.push(tx);
-          }
-        }
-      });
 
-      // Process displayList (exact logic from App.jsx)
-  // 🔥 THE DHAKA ANCHOR (Bypasses the 20-Apr jump)
-  const getDhakaDate = () => {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Dhaka',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(new Date()); 
-  };
-
-  const todayDhaka = getDhakaDate(); // Forces "2026-04-19"
-
-  // --- UPDATED LEDGER FILTER ---
-  const displayList = Object.values(unifiedGroups)
-    .map(grp => {
-      const invoice = grp.res;
-      const comp = invoice ? computeBill(invoice) : null;
-      const activeDate = filter === 'TODAY' ? todayDhaka : calDate;
-      
-      // STRICT: Only count payments collected ON the activeDate
-      const collectionToday = grp.txs
-        .filter(t => t.date === activeDate)
-        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-      const totalPaidEver = (invoice?.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-      const balanceDue = comp ? comp.total - totalPaidEver : 0;
-      
-      return { ...grp, collectionToday, balanceDue, status: invoice?.status };
-    })
-    .filter(grp => {
-      // Show only active guests, today's cash, or unpaid dues
-      return grp.status === 'CHECKED_IN' || grp.collectionToday > 0 || grp.balanceDue > 0;
-    });
-
-      // Compute stats
-      const revenue = displayList.reduce((sum, item) => sum + item.paidInReportPeriod, 0);
-      const occupiedRooms = rooms.filter((r) => r.status === "OCCUPIED").length;
-      const occupancy = rooms.length > 0 ? Math.round((occupiedRooms / rooms.length) * 100) : 0;
+      const revenue = displayList.reduce((sum, item) => sum + (item.collectionInPeriod || 0), 0);
+      const occupiedRooms = (rooms || []).filter((r) => r.status === "OCCUPIED").length;
+      const occupancy = rooms?.length > 0 ? Math.round((occupiedRooms / rooms.length) * 100) : 0;
 
       setBillingData(displayList);
       setStats({ revenue, occupancy });
@@ -134,19 +131,19 @@ export default function BillingPage() {
       <div className="stats-scroll mb-8">
         <div className="glass-card min-w-64 flex flex-col items-center p-6 snap-center shrink-0">
           <div className="text-teal-400 text-xs uppercase tracking-wider mb-2">Today Revenue</div>
-          <ProgressRing 
-            progress={75} 
-            size={72} 
-            className="text-neon-cyan mb-2" 
+          <ProgressRing
+            progress={75}
+            size={72}
+            className="text-neon-cyan mb-2"
           />
           <div className="text-2xl font-bold text-neon-cyan">৳{stats.revenue.toLocaleString()}</div>
         </div>
         <div className="glass-card min-w-64 flex flex-col items-center p-6 snap-center shrink-0">
           <div className="text-teal-400 text-xs uppercase tracking-wider mb-2">Occupancy Rate</div>
-          <ProgressRing 
-            progress={stats.occupancy} 
-            size={72} 
-            className="text-emerald-400 mb-2" 
+          <ProgressRing
+            progress={stats.occupancy}
+            size={72}
+            className="text-emerald-400 mb-2"
           />
           <div className="text-2xl font-bold text-emerald-400">{stats.occupancy}%</div>
         </div>
@@ -177,13 +174,13 @@ export default function BillingPage() {
       <div className="space-y-4">
         {billingData.map((item, index) => (
           <BillingCard
-            key={index}
+            key={item.res?.id || index}
             guestName={item.res?.guest_name || "Guest"}
             room={item.res?.room_ids || item.res?.room_number || "N/A"}
             status={item.status}
             stayDates={`${item.res?.check_in || ""} → ${item.res?.check_out || ""}`}
-            folioDues={item.comp?.total?.toLocaleString() || 0}
-            todayPaid={item.paidInReportPeriod?.toLocaleString() || 0}
+            folioDues={item.res ? computeBill(item.res).total.toLocaleString() : 0}
+            todayPaid={item.collectionInPeriod?.toLocaleString() || 0}
             balanceDue={item.balanceDue?.toLocaleString() || 0}
             detailData={item}
           />

@@ -213,7 +213,7 @@ function printTransactionInvoice(tx, reservations = []) {
 
 const H  = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' }
 const H2 = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
-const db = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,{headers:H}); if(!r.ok) throw new Error(await r.text()); return r.json() }
+const db = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,{headers:H,cache:'no-store'}); if(!r.ok) throw new Error(await r.text()); return r.json() }
 const dbPost = async (t,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:H,body:JSON.stringify(b)}); if(!r.ok){ const txt=await r.text(); throw new Error(`POST ${t} ${r.status}: ${txt}`) } return r.json() }
 const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:H2,body:JSON.stringify(b)}); if(!r.ok){ const txt=await r.text(); throw new Error(`PATCH ${t} ${r.status}: ${txt}`) } }
 const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
@@ -1307,7 +1307,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hS
               <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Base Rate</th><th>Discount</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
-              {res.slice(0,80).map(invoice=>{
+              {[...res].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,80).map(invoice=>{
                 const gn=getGN(invoice.guest_ids)
                 const comp = computeBill(invoice, rooms, foliosMap, hSettings)
                 return (
@@ -1562,31 +1562,22 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
           {(res.status==='RESERVED'||res.status==='PENDING')&&(
             <button className="btn btn-success" disabled={saving} onClick={doCheckIn}>✓ Check In Now</button>
           )}
-	          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{
-	            if(!window.confirm('Delete this reservation?'))return
-	            try{
-	              const directTx=await db('transactions',`?select=id&tenant_id=eq.${TENANT}&reservation_id=eq.${res.id}`)
-	              if(Array.isArray(directTx)&&directTx.length){
-	                for(const tx of directTx){ await dbDelete('transactions',tx.id) }
-	              } else {
-	                const roomFilter=(res.room_ids||[]).map(rn=>`room_number.eq.${encodeURIComponent(rn)}`).join(',')
-	                if(roomFilter){
-	                  const fallbackTx=await db('transactions',`?select=id,guest_name&tenant_id=eq.${TENANT}&or=(${roomFilter})`)
-	                  const guestName=(guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'').toLowerCase()
-	                  for(const tx of (fallbackTx||[])){
-	                    if(!guestName || String(tx.guest_name||'').toLowerCase()===guestName){ await dbDelete('transactions',tx.id) }
-	                  }
-	                }
-	              }
-	              for(const rn of (res.room_ids||[])) {
-	                const room=rooms.find(r=>r.room_number===rn)
-	                if(room) await dbPatch('rooms',room.id,{status:'AVAILABLE'})
-	              }
-	              await dbDelete('reservations',res.id)
-	              toast('Reservation & linked transactions deleted · room set to AVAILABLE')
-	              reload()
-	            }catch(e){toast(e.message,'error')}
-	          }}>🗑 Delete</button>}
+          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{
+            if(!window.confirm('Delete this reservation?'))return
+            try{
+              const linkedTx=await db('transactions',`?select=id&tenant_id=eq.${TENANT}&reservation_id=eq.${res.id}`)
+              if(Array.isArray(linkedTx)){
+                for(const tx of linkedTx){ await dbDelete('transactions',tx.id) }
+              }
+              for(const rn of (res.room_ids||[])) {
+                const room=rooms.find(r=>r.room_number===rn)
+                if(room) await dbPatch('rooms',room.id,{status:'AVAILABLE'})
+              }
+              await dbDelete('reservations',res.id)
+              toast('Reservation & linked transactions deleted · room set to AVAILABLE')
+              reload()
+            }catch(e){toast(e.message,'error')}
+          }}>🗑 Delete</button>}
           <div style={{flex:1}}/>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
