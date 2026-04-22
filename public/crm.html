@@ -2065,8 +2065,15 @@ ${dueRows}
 
         // 1. Process filtered transactions
         list.forEach(t=>{
-          const res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guests?.find(g=>g.name===t.guest_name)?.id)) || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
-          const key = res ? res.id : `tx|${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
+          // Stage 1: exact UUID anchor — safest, prevents any room-based bleed
+          let res = t.reservation_id ? reservations?.find(r=>r.id===t.reservation_id) : null
+          // Stage 2: guest-name + room match — still safe (two-field constraint)
+          if (!res && t.room_number && t.guest_name) {
+            const guestId = guests?.find(g=>g.name===t.guest_name)?.id
+            if (guestId) res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guestId))
+          }
+          // Stage 3: no match → orphan bucket; NEVER falls back to room-number alone
+          const key = res ? res.id : `orphan|${t.guest_name||''}|${t.room_number||''}`
           if(!unifiedGroups[key]) unifiedGroups[key] = { txs:[], res, guest_name:t.guest_name, room_number:t.room_number, isDue: false }
           unifiedGroups[key].txs.push(t)
         })
