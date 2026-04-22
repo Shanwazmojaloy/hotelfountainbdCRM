@@ -18,43 +18,52 @@ const todayStr = () => { const d=todayDhaka(); return `${d.getFullYear()}-${Stri
 const nightsCount = (ci,co) => { if(!ci||!co) return 0; return Math.max(0, Math.round((new Date(co)-new Date(ci))/86400000)) }
 
 function computeBill(r, rooms, foliosMap, settings) {
-  const rids=r.room_ids||[r.room_number]
+  const rids = r.room_ids || [r.room_number]
   const selectedRooms = rooms?.filter(rm => rids.some(rid => String(rid) === String(rm.room_number))) || []
   const computedRoomRate = selectedRooms.reduce((sum, rm) => sum + (+rm.price || 0), 0) || +r.rate_per_night || 0
-  
+
   const nights = nightsCount(r.check_in, r.check_out) || 1
-  let roomCharge = computedRoomRate * nights
-  
-  const fKey=r.id||r.room_number
-  const folios=(foliosMap[fKey]||foliosMap[r.room_number]||[]).filter(f=>f.category!=="Receivable")
-  const extras=folios.filter(f=>f.category!=='Payment').reduce((a,f)=>a+(+f.amount||0),0)
-  
-  // Use rates from hotel settings (loaded from Supabase), fallback 0
-  const vatPct=0;
-  const svcPct=0;
-  const tax=0;
-  const svc=0;
-  const discount= +(r.discount_amount || r.discount || 0);
-  /* ── Single Source of Truth ──
-     Hierarchy: Base Room Charge = rate × nights + Add Charges (folios)
-     If total_amount was explicitly set in DB (agreed invoice), trust it.
-     Otherwise fall back to computed rate × nights + extras.
-     "due" is ALWAYS computed live: total − paid.                           */
-  const invoice = r;
-  /* Folio extras (minibar, laundry, etc.) are ALWAYS added on top. */
-  const dbTotal = +(r.total_amount || 0)
-  const basePrice = dbTotal > 0 ? dbTotal : Math.max(0, roomCharge - discount);
-  const grossRate = dbTotal > 0 ? dbTotal + discount : roomCharge;
-  
-  // Override roomCharge to match the custom basePrice if dbTotal is set
-  if (dbTotal > 0) roomCharge = grossRate;
-  const roomRate = nights > 0 ? roomCharge / nights : roomCharge;
-  const sub = roomCharge + extras;
-  
-  const total = basePrice + extras;
-  const paid = +(invoice.paid_amount || 0);
-  const due = Math.max(0, total - paid);
-  return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct,basePrice,grossRate}
+  const roomCharge = computedRoomRate * nights
+
+  const fKey = r.id || r.room_number
+  const foliosArr = foliosMap ? (foliosMap[fKey] || foliosMap[r.room_number] || []) : []
+  const folios = foliosArr.filter(f => f.category !== "Receivable")
+  const extras = folios.filter(f => f.category !== 'Payment').reduce((a, f) => a + (+f.amount || 0), 0)
+
+  const discount = +(r.discount_amount || r.discount || 0)
+  const dbTotal  = +(r.total_amount || 0)
+
+  /* ── Live-first single source of truth ────────────────────────────────
+     When room data is available (computedRoomRate > 0), always compute
+     the total from room.price × nights. This ensures Reservations,
+     Billing, and RoomModal always agree regardless of the stale
+     total_amount stored in the database.
+     Fall back to dbTotal only when room data is absent (deleted room).
+  ────────────────────────────────────────────────────────────────────── */
+  const basePrice = computedRoomRate > 0
+    ? Math.max(0, roomCharge - discount)
+    : (dbTotal > 0 ? dbTotal : Math.max(0, roomCharge - discount))
+
+  const grossRate = computedRoomRate > 0
+    ? roomCharge
+    : (dbTotal > 0 ? dbTotal + discount : roomCharge)
+
+  const liveCharge = computedRoomRate > 0 ? grossRate : (dbTotal > 0 ? grossRate : roomCharge)
+  const roomRate   = nights > 0 ? liveCharge / nights : liveCharge
+  const sub        = liveCharge + extras
+
+  const vatPct  = 15
+  const svcPct  = 5
+  const taxBase = Math.round(basePrice / 1.20)
+  const tax     = Math.round(taxBase * 0.15)
+  const svc     = Math.round(taxBase * 0.05)
+
+  const total = basePrice + extras
+  const paid  = +(r.paid_amount || 0)
+  const due   = Math.max(0, total - paid)
+
+  return { roomCharge:liveCharge, extras, sub, tax, svc, discount, total, paid, due,
+           folios, nights, roomRate, vatPct, svcPct, basePrice, grossRate, taxBase }
 }
 const AVC = ['#C8A96E','#2EC4B6','#E05C7A','#58A6FF','#3FB950','#9B72CF','#F0A500']
 const avColor = n => AVC[n ? n.charCodeAt(0)%AVC.length : 0]
@@ -2530,13 +2539,10 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tok
   printPDF(content)
 }
 
-/** @param {{foliosMap: object, hSettings: object}} — REQUIRED for computeBill accuracy.
- *  Never call BillingPage without foliosMap — omitting it causes totals to read stale DB values. */
-function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests,foliosMap:propFoliosMap,hSettings:hSettingsFromApp}) {
+function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests}) {
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
-  // Use app-level hSettings as base; local Supabase fetch overrides once loaded
-  const [hSettings,setHSettings]=useState(hSettingsFromApp||{vat:'15',svc:'5'})
+  const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
   const [hSettingsAll,setHSettingsAll]=useState({})
   const [closingStatus, setClosingStatus] = useState(false)
   const [lastClosureDate, setLastClosureDate] = useState('')
@@ -2582,9 +2588,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [billingRes,setBillingRes]=useState(null)
   const [showBillDetail,setShowBillDetail]=useState(false)
   const [detailRes,setDetailRes]=useState(null)
-  // Seed with the prop value so Billing totals are correct immediately
-  // (async Supabase reload overwrites once it completes)
-  const [foliosMap,setFoliosMap]=useState(propFoliosMap||{})
+  const [foliosMap,setFoliosMap]=useState({})
   const [loadingFolios,setLoadingFolios]=useState(false)
   const [tokenAmt,setTokenAmt]=useState('')
   const [savedToken,setSavedToken]=useState(0)
@@ -2619,9 +2623,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   }
   const getRoom=r=>(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
 
-  /* ── Billing delegates to global computeBill — single source of truth ──
-   *  foliosMap state is seeded from the prop on mount and refreshed via
-   *  Supabase. The local wrapper below always uses the state value. */
+  /* ── Billing delegates to global computeBill — single source of truth ── */
   function computeBill(r) {
     return _computeBillGlobal(r, rooms, foliosMap || {}, hSettings)
   }
