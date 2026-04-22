@@ -1631,66 +1631,142 @@ function printPDF(htmlContent, filename) {
   })
 }
 
-function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, calDate, tokenAmount) {
+function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, calDate, tokenAmount, displayRows, dueRows) {
   let filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
   if (filter === 'DATE' && calDate) {
     const [y,m,d] = calDate.split('-'); const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     filterLabel = `${+d}-${mo[+m-1]}-${y}`
   }
-  const realList = list.filter(t => t.type !== 'Balance Carried Forward')
-  const total = realList.reduce((a,t)=>a+(+t.amount||0),0)
   const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-  const rows = realList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-  const todayTotal = todayT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const monthTotal = monthT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const allTotal   = allT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const todayTotal = todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const monthTotal = monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const allTotal   = allT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
   const tkn = +(tokenAmount||0)
   const closingBalance = todayTotal - tkn
+  const BDTf = n => `৳${Number(n||0).toLocaleString()}`
+
+  // Main ledger rows
+  const ledgerRows = (displayRows||[]).map((row,i)=>{
+    const pmtCells = Object.entries(row.byType||{}).map(([tp,amt])=>`<span style="display:inline-flex;gap:5px;margin-right:6px"><b>${tp}:</b> ${BDTf(amt)}</span>`).join('')
+    return `<tr style="${i%2?'background:#f7f7f7':''}">
+      <td>${row.gname}</td>
+      <td style="font-weight:600">${row.rno}</td>
+      <td>${row.chkIn||'—'}</td>
+      <td>${row.chkOut||'—'}</td>
+      <td style="text-align:right">${BDTf(row.tTotal)}</td>
+      <td style="text-align:right;color:#1a7a3a">${BDTf(row.tPaid)}</td>
+      <td style="text-align:right;font-weight:700;color:${row.tDue>0?'#c0392b':'#1a7a3a'}">${BDTf(row.tDue)}</td>
+      <td style="font-size:8.5px">${pmtCells||'<span style="color:#aaa">—</span>'}</td>
+      <td style="text-align:right;font-weight:700">${BDTf(row.txAmount)}</td>
+    </tr>`
+  }).join('')
+
+  // Outstanding dues rows
+  const dueTableRows = (dueRows||[]).map((g,i)=>`<tr style="${i%2?'background:#fff5f5':'background:#fff'}">
+    <td style="font-weight:600">${g.gname}</td>
+    <td style="font-weight:600">${g.rooms}</td>
+    <td>${g.earliest||'—'}</td>
+    <td>${g.latest||'—'}</td>
+    <td style="text-align:right">${BDTf(g.totalBill)}</td>
+    <td style="text-align:right;color:#1a7a3a">${BDTf(g.totalPaid)}</td>
+    <td style="text-align:right;font-weight:800;color:#c0392b">${BDTf(g.totalDue)}</td>
+    <td>${(g.statuses||[]).map(s=>`<span style="background:${s==='CHECKED_IN'?'#1a7a3a':'#555'};color:#fff;padding:1px 5px;font-size:7px;margin-right:3px">${s.replace('_',' ')}</span>`).join('')}</td>
+  </tr>`).join('')
+
+  const totalDue = (dueRows||[]).reduce((a,g)=>a+g.totalDue,0)
+  const totalLedgerBill = (displayRows||[]).reduce((a,r)=>a+r.tTotal,0)
+  const totalLedgerTx   = (displayRows||[]).reduce((a,r)=>a+r.txAmount,0)
+
   const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
-    @page{size:A4 portrait;margin:5.08mm}
+    @page{size:A4 landscape;margin:5.08mm}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}
-    .hotel-name{font-size:18px;font-weight:700;color:#000}.hotel-sub{font-size:9px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
-    .report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
-    .stat-box{background:#f2f2f2;border:1px solid #ccc;padding:6px 8px}
-    .stat-box .lbl{font-size:7px;letter-spacing:.1em;color:#555;text-transform:uppercase;margin-bottom:2px}
-    .stat-box .val{font-size:13px;font-weight:700;color:#000}
-    .stat-box.hi{background:#eee;border-color:#000}.stat-box.hi .val{color:#000}
-    .stat-box.out .val{color:#000;font-style:italic}
-    table{width:100%;border-collapse:collapse}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:9.5px;background:#fff}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;padding-bottom:7px;border-bottom:2px solid #000}
+    .hotel-name{font-size:17px;font-weight:700}.hotel-sub{font-size:8px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
+    .report-title{text-align:right}.report-title h2{font-size:12px;font-weight:700}.report-title .meta{font-size:7.5px;color:#444;margin-top:2px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
+    .stat-box{background:#f2f2f2;border:1px solid #ccc;padding:5px 7px}
+    .stat-box .lbl{font-size:6.5px;letter-spacing:.1em;color:#555;text-transform:uppercase;margin-bottom:2px}
+    .stat-box .val{font-size:12px;font-weight:700}
+    .stat-box.out .val{color:#c0392b}
+    .sect-title{font-size:11px;font-weight:700;margin:14px 0 5px;padding-bottom:3px;border-bottom:2px solid #000;text-transform:uppercase;letter-spacing:.06em}
+    .sect-title.due{border-color:#c0392b;color:#c0392b}
+    table{width:100%;border-collapse:collapse;margin-bottom:6px}
     thead tr{background:#000;color:#fff}
-    thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
-    thead th:last-child{text-align:right}
-    tbody tr:nth-child(even){background:#f2f2f2}
-    tbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}
-    tbody td:last-child{text-align:right;font-weight:600}
-    .closing-box{margin-top:16px;border:2px solid #000;padding:12px 16px;background:#f8f8f8}
-    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#000}
-    .closing-row.total{border-top:1px solid #ccc;margin-top:4px;padding-top:6px;font-weight:700}
-    .closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}
-    .footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between}
-    .total-row{font-size:12px;font-weight:700;color:#000}
-    .footer-note{font-size:8px;color:#555}
+    thead.due-head tr{background:#c0392b}
+    thead th{padding:4px 6px;text-align:left;font-size:7.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;white-space:nowrap}
+    th.r,td.r{text-align:right}
+    tbody td{padding:3.5px 6px;border-bottom:1px solid #e0e0e0;font-size:8.5px;vertical-align:middle}
+    .summary-row{background:#eee;font-weight:700;border-top:2px solid #000}
+    .closing-box{margin-top:12px;border:2px solid #000;padding:10px 14px;background:#f8f8f8;display:inline-block;min-width:280px}
+    .closing-row{display:flex;justify-content:space-between;gap:40px;padding:3px 0;font-size:10px}
+    .closing-row.bold{font-weight:700;border-top:1px solid #ccc;margin-top:3px;padding-top:4px}
+    .closing-row.final{font-weight:800;font-size:13px;border-top:2px solid #000;margin-top:5px;padding-top:5px}
+    .footer{margin-top:10px;padding-top:5px;border-top:1px solid #ccc;display:flex;justify-content:space-between;font-size:7.5px;color:#555}
   </style></head><body>
-  <div class="header"><div><div class="hotel-name">Hotel Fountain</div><div class="hotel-sub">Billing & Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
+  <div class="header">
+    <div><div class="hotel-name">Hotel Fountain</div><div class="hotel-sub">Billing &amp; Invoices Report — ${filterLabel}</div></div>
+    <div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div>
+  </div>
   <div class="stats">
-    <div class="stat-box hi"><div class="lbl">Today</div><div class="val">৳${todayTotal.toLocaleString()}</div></div>
-    <div class="stat-box"><div class="lbl">This Month</div><div class="val">৳${monthTotal.toLocaleString()}</div></div>
-    <div class="stat-box"><div class="lbl">All Time</div><div class="val">৳${allTotal.toLocaleString()}</div></div>
-    <div class="stat-box out"><div class="lbl">Outstanding</div><div class="val">৳${Number(outstanding||0).toLocaleString()}</div></div>
+    <div class="stat-box"><div class="lbl">Today's Collection</div><div class="val">${BDTf(todayTotal)}</div></div>
+    <div class="stat-box"><div class="lbl">This Month</div><div class="val">${BDTf(monthTotal)}</div></div>
+    <div class="stat-box"><div class="lbl">All Time</div><div class="val">${BDTf(allTotal)}</div></div>
+    <div class="stat-box out"><div class="lbl">Outstanding Dues</div><div class="val">${BDTf(outstanding)}</div></div>
   </div>
-  <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
-  <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
-  <div class="closing-box">
-    <div class="closing-row total"><span>Today's Total Collection</span><span>৳${todayTotal.toLocaleString()}</span></div>
-    <div class="closing-row"><span>Token Amount</span><span>− ৳${tkn.toLocaleString()}</span></div>
-    <div class="closing-row final"><span>Closing Balance</span><span>৳${closingBalance.toLocaleString()}</span></div>
+
+  <div class="sect-title">Active Billing Ledger — ${filterLabel}</div>
+  <table>
+    <thead><tr>
+      <th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th>
+      <th class="r">Bill Total</th><th class="r">Paid</th><th class="r">Balance Due</th>
+      <th>Payments (Filtered)</th><th class="r">Transaction Amt</th>
+    </tr></thead>
+    <tbody>
+      ${ledgerRows||'<tr><td colspan="9" style="text-align:center;padding:14px;color:#aaa">No billing activity for this period</td></tr>'}
+      ${(displayRows||[]).length>0?`<tr class="summary-row">
+        <td colspan="4">TOTAL — ${(displayRows||[]).length} record${(displayRows||[]).length!==1?'s':''}</td>
+        <td class="r">${BDTf(totalLedgerBill)}</td>
+        <td class="r"></td><td class="r"></td><td></td>
+        <td class="r">${BDTf(totalLedgerTx)}</td>
+      </tr>`:''}
+    </tbody>
+  </table>
+
+  ${(dueRows||[]).length>0?`
+  <div class="sect-title due">⚠ Outstanding Dues — All Guests with Pending Balance</div>
+  <table>
+    <thead class="due-head"><tr>
+      <th>Guest</th><th>Room(s)</th><th>Check-In</th><th>Check-Out</th>
+      <th class="r">Total Billed</th><th class="r">Total Paid</th><th class="r">Total Due</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+      ${dueTableRows}
+      <tr class="summary-row" style="background:#ffe5e5">
+        <td colspan="4" style="color:#c0392b">TOTAL OUTSTANDING — ${(dueRows||[]).length} guest${(dueRows||[]).length!==1?'s':''}</td>
+        <td class="r"></td><td class="r"></td>
+        <td class="r" style="color:#c0392b;font-size:11px">${BDTf(totalDue)}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>`:''}
+
+  <div style="display:flex;gap:20px;align-items:flex-start;margin-top:14px">
+    <div class="closing-box">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Daily Closing Summary</div>
+      <div class="closing-row bold"><span>Today's Total Collection</span><span>${BDTf(todayTotal)}</span></div>
+      <div class="closing-row"><span>Token Amount</span><span>− ${BDTf(tkn)}</span></div>
+      <div class="closing-row final"><span>Closing Balance</span><span>${BDTf(closingBalance)}</span></div>
+    </div>
+    ${totalDue>0?`<div class="closing-box" style="border-color:#c0392b;background:#fff5f5">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;color:#c0392b">Outstanding Summary</div>
+      <div class="closing-row"><span>Guests with Balance</span><span>${(dueRows||[]).length}</span></div>
+      <div class="closing-row final" style="color:#c0392b"><span>Total Outstanding</span><span>${BDTf(totalDue)}</span></div>
+    </div>`:''}
   </div>
-  <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${realList.length} transaction${realList.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
+  <div class="footer"><span>Hotel Fountain CRM · Lumea PMS · Confidential</span><span>Billing Report: ${filterLabel} · Generated ${now}</span></div>
   </body></html>`
   printPDF(content)
 }
@@ -1917,7 +1993,69 @@ ${dueRows}
   }
 
   function downloadPDF() {
-    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, calDate, savedToken)
+    // Build unified ledger groups (same logic as the IIFE render)
+    let list = filteredTx
+    const unifiedGroups = {}
+    list.forEach(t => {
+      const res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guests?.find(g=>g.name===t.guest_name)?.id))
+               || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
+      const key = res ? res.id : `tx|${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
+      if(!unifiedGroups[key]) unifiedGroups[key] = { txs:[], res, guest_name:t.guest_name, room_number:t.room_number }
+      unifiedGroups[key].txs.push(t)
+    })
+    dueRes.forEach(r => {
+      const key = r.id
+      if(unifiedGroups[key]) { unifiedGroups[key].isDue = true; unifiedGroups[key].res = r }
+    })
+    const displayList = Object.values(unifiedGroups)
+
+    // Map to displayRows
+    const displayRows = displayList.map(grp => {
+      const r = grp.res
+      const { total:resTotal, paid:resPaid, due:resDue } = r ? computeBill(r) : { total:0, paid:0, due:0 }
+      const byType = {}
+      grp.txs.forEach(t => { const tp=t.type||'Payment'; if(!byType[tp]) byType[tp]=0; byType[tp]+=(+t.amount||0) })
+      const txAmount = grp.txs.reduce((a,t)=>a+(+t.amount||0),0)
+      return {
+        gname:  r ? getGN(r)   : (grp.guest_name||'—'),
+        rno:    r ? getRoom(r)  : (grp.room_number||'—'),
+        chkIn:  r ? fmtDate(r.check_in)  : (grp.txs[0]?.check_in ? fmtDate(grp.txs[0].check_in):'—'),
+        chkOut: r ? fmtDate(r.check_out) : (grp.txs[0]?.check_out? fmtDate(grp.txs[0].check_out):'—'),
+        tTotal: r ? resTotal : (grp.txs[0]?.bill_total ? (+grp.txs[0].bill_total) : 0),
+        tPaid:  r ? resPaid  : 0,
+        tDue:   r ? resDue   : 0,
+        byType,
+        txAmount
+      }
+    })
+
+    // Map mergedDues to dueRows
+    const byGuest = {}
+    dueRes.forEach(r => {
+      const gname = getGN(r)
+      const gid = String((r.guest_ids||[]).filter(Boolean)[0]||gname)
+      if(!byGuest[gid]) byGuest[gid] = { gname, rooms:[], checkIns:[], checkOuts:[], totalBill:0, totalPaid:0, totalDue:0, statuses:[] }
+      const bill = computeBill(r)
+      ;(r.room_ids||[r.room_number]).filter(Boolean).forEach(rm => { if(!byGuest[gid].rooms.includes(String(rm))) byGuest[gid].rooms.push(String(rm)) })
+      if(r.check_in) byGuest[gid].checkIns.push(r.check_in)
+      if(r.check_out) byGuest[gid].checkOuts.push(r.check_out)
+      byGuest[gid].totalBill += bill.total
+      byGuest[gid].totalPaid += bill.paid
+      byGuest[gid].totalDue  += bill.due
+      if(r.status && !byGuest[gid].statuses.includes(r.status)) byGuest[gid].statuses.push(r.status)
+    })
+    const dueRowsData = Object.values(byGuest).filter(g=>g.totalDue>0).map(g => ({
+      gname:     g.gname,
+      rooms:     g.rooms.join(', ')||'—',
+      earliest:  g.checkIns.length  ? fmtDate(g.checkIns.sort()[0])           : '—',
+      latest:    g.checkOuts.length ? fmtDate(g.checkOuts.sort().slice(-1)[0]) : '—',
+      totalBill: g.totalBill,
+      totalPaid: g.totalPaid,
+      totalDue:  g.totalDue,
+      statuses:  g.statuses
+    }))
+
+    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, calDate, savedToken, displayRows, dueRowsData)
   }
 
   function openDetail(r) {
