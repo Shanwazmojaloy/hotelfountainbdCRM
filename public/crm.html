@@ -294,6 +294,82 @@ html,body,#root{
 /* ── NOTIFICATION PANEL ── */
 .notif-panel{position:absolute;top:58px;right:12px;width:320px;background:var(--s2);border:1px solid var(--br);border-top:3px solid var(--s1);box-shadow:0 16px 48px rgba(28,21,16,.15);z-index:200;animation:mIn .2s ease}
 
+
+/* ── ROOMS GRID ─────────────────────────────────────────────────── */
+.rooms-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+  gap:10px;
+}
+.room-card{
+  padding:14px 13px;
+  cursor:pointer;
+  transition:box-shadow .18s,transform .18s;
+  border:1px solid var(--br);
+  border-top:4px solid var(--rc,var(--br));
+  position:relative;
+  user-select:none;
+  background:var(--s2);
+}
+.room-card:hover{
+  box-shadow:0 4px 18px rgba(28,21,16,.12);
+  transform:translateY(-2px);
+}
+/* Status top-border accent colours */
+.room-card.AVAILABLE  { --rc:var(--grn);  background:#F0FBF3 }
+.room-card.OCCUPIED   { --rc:var(--sky);  background:#EFF4FF }
+.room-card.DIRTY      { --rc:var(--amb);  background:#FEF9EE }
+.room-card.OUT_OF_ORDER{ --rc:var(--rose); background:#FEF0F0 }
+.room-card.RESERVED   { --rc:var(--pur);  background:#F5F1FE }
+
+/* Room number — big, bold, status-coloured */
+.room-no{
+  font-family:var(--serif);
+  font-size:32px;font-weight:700;
+  line-height:1;margin-bottom:6px;
+}
+.room-card.AVAILABLE  .room-no{ color:var(--grn)  }
+.room-card.OCCUPIED   .room-no{ color:var(--sky)  }
+.room-card.DIRTY      .room-no{ color:var(--amb)  }
+.room-card.OUT_OF_ORDER .room-no{ color:var(--rose) }
+.room-card.RESERVED   .room-no{ color:var(--pur)  }
+
+/* Category & price labels */
+.room-cat{
+  font-family:var(--sans);font-size:9px;
+  color:var(--tx3);text-transform:uppercase;
+  letter-spacing:.1em;font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.room-price{
+  font-family:var(--mono);font-size:10px;
+  color:var(--gold);margin-top:5px;
+  font-weight:500;
+}
+
+/* Status dot */
+.rdot{
+  width:7px;height:7px;border-radius:50%;
+  flex-shrink:0;display:inline-block;
+  margin-right:5px;vertical-align:middle;
+}
+.rdot.AVAILABLE  { background:var(--grn); box-shadow:0 0 5px rgba(21,128,61,.4) }
+.rdot.OCCUPIED   { background:var(--sky); box-shadow:0 0 5px rgba(29,78,216,.4) }
+.rdot.DIRTY      { background:var(--amb); box-shadow:0 0 5px rgba(180,83,9,.4)  }
+.rdot.OUT_OF_ORDER{ background:var(--rose);box-shadow:0 0 5px rgba(185,28,28,.4) }
+.rdot.RESERVED   { background:var(--pur); box-shadow:0 0 5px rgba(109,40,217,.4)}
+
+/* FOLIO badge on occupied rooms */
+.room-folio-tag{
+  position:absolute;top:6px;right:6px;
+  font-size:7px;font-weight:700;
+  background:rgba(29,78,216,.12);
+  color:var(--sky);
+  padding:2px 6px;
+  border:1px solid rgba(29,78,216,.25);
+  letter-spacing:.08em;text-transform:uppercase;
+}
+
 `
 
 /* ═══════════════════════ SMALL COMPONENTS ══════════════════ */
@@ -599,7 +675,7 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
   const canHKStatus=currentUser?.role==='housekeeping'  // HK can only change dirty→available
   const isSA=currentUser?.role==='owner'
   const sc=rooms.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
-  const filtered=filter==='ALL'?rooms:rooms.filter(r=>r.status===filter)
+  const filtered=[...(filter==='ALL'?rooms:rooms.filter(r=>r.status===filter))].sort((a,b)=>String(a.room_number).localeCompare(String(b.room_number),undefined,{numeric:true}))
 
   return (
     <div>
