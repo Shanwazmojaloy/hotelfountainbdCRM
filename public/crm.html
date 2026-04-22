@@ -980,7 +980,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
           onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'}/>
       )}
       {showNew&&(
-        <NewReservationModal guests={guests} rooms={rooms} toast={toast}
+        <NewReservationModal guests={guests} rooms={rooms} reservations={reservations} toast={toast}
           onClose={()=>setShowNew(false)} reload={reload}/>
       )}
     </div>
@@ -1160,7 +1160,7 @@ function GuestSearchInput({guests, value, onChange}) {
   )
 }
 
-function NewReservationModal({guests,rooms,toast,onClose,reload}) {
+function NewReservationModal({guests,rooms,reservations,toast,onClose,reload}) {
   const availRooms=rooms.filter(r=>r.status==='AVAILABLE')
   const [f,setF]=useState({
     guestId:'', roomNo:availRooms[0]?.room_number||'',
@@ -1174,6 +1174,15 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
   const autoTotal=selectedRoom&&autoNights?(+selectedRoom.price*autoNights):0
 
+  // Detect date-range conflicts: any active reservation for this room that overlaps
+  const conflictRes = (f.roomNo && f.checkIn && f.checkOut && autoNights>0)
+    ? (reservations||[]).filter(r=>{
+        if(r.status==='CANCELLED'||r.status==='CHECKED_OUT') return false
+        if(!(r.room_ids||[r.room_number]).includes(f.roomNo)) return false
+        return r.check_in < f.checkOut && r.check_out > f.checkIn
+      })
+    : []
+
   useEffect(()=>{
     if(autoTotal>0) setF(p=>({...p,total:String(autoTotal)}))
   },[f.roomNo,f.checkIn,f.checkOut])
@@ -1183,6 +1192,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
     if(!f.roomNo) return toast('Select a room','error')
     if(!f.checkIn||!f.checkOut) return toast('Set check-in and check-out dates','error')
     if(autoNights<=0) return toast('Check-out must be after check-in','error')
+    if(conflictRes.length>0) return toast(`Room ${f.roomNo} is already reserved for these dates — choose different dates or another room`,'error')
     setSaving(true)
     try {
       const isCheckIn=f.stayType==='CHECK_IN'
@@ -1216,7 +1226,8 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
     <Modal title="New Reservation / Check-In" onClose={onClose} wide
       footer={
         <><button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-gold" disabled={saving} onClick={save}>
+        <button className="btn btn-gold" disabled={saving||conflictRes.length>0} onClick={save}
+          title={conflictRes.length>0?`Room ${f.roomNo} is already booked for these dates`:''}>
           {saving?<><span className="spinner" style={{width:12,height:12}}/> Saving…</>:f.stayType==='CHECK_IN'?'✓ Check In Now':'Create Reservation'}
         </button></>
       }>
@@ -1241,6 +1252,31 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         <div className="fg"><label className="flbl">Check-In Date *</label><input type="date" className="finput" value={f.checkIn} onChange={F('checkIn')}/></div>
         <div className="fg"><label className="flbl">Check-Out Date *</label><input type="date" className="finput" value={f.checkOut} onChange={F('checkOut')}/></div>
       </div>
+
+      {/* ── Date-conflict alert ── */}
+      {conflictRes.length>0&&(
+        <div style={{background:'rgba(224,92,122,.1)',border:'2px solid rgba(224,92,122,.55)',borderRadius:2,padding:'11px 14px',marginBottom:10}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+            <span style={{fontSize:16}}>⚠</span>
+            <span style={{fontFamily:'var(--sans)',fontSize:12,fontWeight:600,color:'var(--rose)',letterSpacing:'.04em'}}>Room {f.roomNo} is already reserved for these dates</span>
+          </div>
+          {conflictRes.map(r=>{
+            const gn=guests.find(g=>String(g.id)===String((r.guest_ids||[])[0]||''))?.name||'Unknown guest'
+            return (
+              <div key={r.id} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 8px',background:'rgba(224,92,122,.08)',borderLeft:'2px solid var(--rose)',marginBottom:3}}>
+                <span style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--tx)',fontWeight:400}}>{gn}</span>
+                <span style={{fontFamily:'var(--sans)',fontSize:10,color:'var(--tx3)'}}>·</span>
+                <span className={`badge ${r.status==='CHECKED_IN'?'bb':'bteal'}`} style={{fontSize:8}}>{r.status.replace('_',' ')}</span>
+                <span style={{fontFamily:'var(--sans)',fontSize:10,color:'var(--tx3)',marginLeft:'auto'}}>{fmtDate(r.check_in)} → {fmtDate(r.check_out)}</span>
+              </div>
+            )
+          })}
+          <div style={{fontFamily:'var(--sans)',fontSize:10,color:'var(--rose)',marginTop:6,opacity:.8}}>
+            Please select different dates or choose another room.
+          </div>
+        </div>
+      )}
+
       {autoNights>0&&(
         <div style={{background:'rgba(200,169,110,.07)',border:'1px solid rgba(200,169,110,.18)',padding:'9px 12px',marginBottom:10,fontSize:12,color:'var(--tx)'}}>
           {autoNights} night{autoNights!==1?'s':''} × {BDT(selectedRoom?.price||0)} = <strong style={{color:'var(--gold)'}}>{BDT(autoTotal)}</strong>
