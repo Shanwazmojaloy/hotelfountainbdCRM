@@ -993,7 +993,7 @@ function AddRoomModal({toast,onClose,reload,rooms}) {
 }
 
 /* ═══════════════════════ RESERVATIONS ═══════════════════════ */
-function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) {
+function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,deleteReservation}) {
   const [filter,setFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [selRes,setSelRes]=useState(null)
@@ -1065,7 +1065,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
 
       {selRes&&(
         <ReservationDetail res={selRes} guests={guests} rooms={rooms} toast={toast}
-          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'}/>
+          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'} deleteReservation={deleteReservation}/>
       )}
       {showNew&&(
         <NewReservationModal guests={guests} rooms={rooms} toast={toast}
@@ -1075,7 +1075,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
   )
 }
 
-function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
+function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,deleteReservation}) {
   const [status,setStatus]=useState(res.status)
   const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
   const [discountAmt,setDiscountAmt]=useState(String(res.discount_amount||res.discount||''))
@@ -1130,6 +1130,15 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
 
+  async function handleDelete() {
+    if (!window.confirm('Delete this reservation?')) return
+    try {
+      await deleteReservation(res.id)
+      toast('Reservation deleted')
+      onClose()
+    } catch(e) { toast(e.message,'error') }
+  }
+
   return (
     <Modal title={`Reservation — ${gn}`} onClose={onClose} wide
       footer={
@@ -1137,7 +1146,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           {(res.status==='RESERVED'||res.status==='PENDING')&&(
             <button className="btn btn-success" disabled={saving} onClick={checkIn}>✓ Check In Now</button>
           )}
-          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
+          {isOwner&&<button className="btn btn-danger btn-sm" onClick={handleDelete}>🗑 Delete</button>}
           <div style={{flex:1}}/>
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
@@ -3088,7 +3097,7 @@ function App() {
       const [rooms,guests,reservations,transactions,tasks]=await Promise.all([
         db('rooms',`?tenant_id=eq.${TENANT}&select=*&order=room_number`),
         db('guests',`?tenant_id=eq.${TENANT}&select=*&order=name`),
-        db('reservations',`?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=500`),
+        db('reservations',`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=500`),
         db('transactions',`?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=400`),
         db('housekeeping_tasks',`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),
       ])
@@ -3104,6 +3113,18 @@ function App() {
       toast('Failed to refresh data — check connection','error')
     }
   },[toast])
+
+  const deleteReservation=useCallback(async(id)=>{
+    // State-first: remove by UUID before the network round-trip
+    setData(prev=>({...prev,reservations:prev.reservations.filter(r=>r.id!==id)}))
+    try {
+      await dbDelete('reservations',id)
+      loadAll()
+    } catch(e) {
+      loadAll() // revert optimistic update on failure
+      throw e
+    }
+  },[loadAll])
 
   useEffect(()=>{
     if(!user){ setData({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]}); return }
@@ -3365,7 +3386,7 @@ function App() {
           <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
             {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage}/>}
             {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} deleteReservation={deleteReservation}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user}/>}
