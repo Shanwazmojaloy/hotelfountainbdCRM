@@ -47,8 +47,8 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms))
 const H  = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' }
 const H2 = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
 const db = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,{headers:H}); if(!r.ok) throw new Error(await r.text()); return r.json() }
-const dbPost = async (t,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:H,body:JSON.stringify(b)}); if(!r.ok) throw new Error(await r.text()); return r.json() }
-const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:H2,body:JSON.stringify(b)}); if(!r.ok){ const txt=await r.text(); throw new Error(`PATCH ${t} ${r.status}: ${txt}`) } }
+const dbPost = async (t,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:H,body:JSON.stringify(b)}); if(!r.ok){ let msg=`POST ${t} ${r.status}`; try{const j=await r.json();msg=j.message||(j.error||msg);if(j.hint)msg+=` · ${j.hint}`}catch{}; throw new Error(msg) }; return r.json() }
+const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:H2,body:JSON.stringify(b)}); if(!r.ok){ let msg=`PATCH ${t} ${r.status}`; try{const j=await r.json();msg=j.message||(j.error||msg);if(j.hint)msg+=` · ${j.hint}`}catch{const txt=await r.text().catch(()=>'');msg+=txt?`: ${txt}`:''}; throw new Error(msg) } }
 const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
 const dbDeleteWhere = async (t,col,val) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?${col}=eq.${val}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
 
