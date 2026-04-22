@@ -1392,7 +1392,10 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
   const baseNetAmt = grossAmt!=='' ? Math.max(0,+grossAmt||0) : autoGross
   const displayTotalAmt = baseNetAmt + comp.extras
   const paidNum=Math.max(0,+paidAmt||0)
-  const safePaid=Math.min(displayTotalAmt,paidNum)
+  // Never cap paid — if guest overpaid or folios increased total, preserve real amount
+  // Also never allow a save to REDUCE paid_amount below what is already in the DB
+  const existingPaid=+(res.paid_amount||0)
+  const safePaid=Math.max(existingPaid, paidNum)
   const balance=Math.max(0,displayTotalAmt-safePaid)
   const paymentStatus=balance<=0?'Paid':safePaid>0?'Partial':'Unpaid'
 
@@ -1517,7 +1520,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,hSetti
         room_ids:roomIds,
         check_in:checkIn,
         check_out:checkOut,
-        total_amount:baseNetAmt,
+        total_amount:displayTotalAmt,
         discount:totalDbDiscount,
         paid_amount:safePaid,
         payment_method:method,
