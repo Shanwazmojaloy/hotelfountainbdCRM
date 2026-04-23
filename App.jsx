@@ -1319,7 +1319,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hS
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
-              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Base Rate</th><th>Discount</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
+              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Discount</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
               {res.slice(0,80).map(invoice=>{
@@ -1332,9 +1332,8 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,hS
                     <td className="xs muted">{fmtDate(invoice.check_in)}</td>
                     <td className="xs muted">{fmtDate(invoice.check_out)}</td>
                     <td className="xs gold">{comp.nights||'—'}</td>
-                    <td className="xs" style={{color:'var(--tx2)'}}>{BDT(comp.grossRate)}</td>
-                    <td className="xs" style={{color:comp.discount>0?'var(--teal)':'var(--tx2)'}}>{comp.discount>0?BDT(comp.discount):'—'}</td>
                     <td className="xs gold">{BDT(comp.total)}</td>
+                    <td className="xs" style={{color:'var(--amb)'}}>{comp.discount>0?'− '+BDT(comp.discount):'—'}</td>
                     <td className="xs" style={{color:+comp.paid>0?'var(--grn)':'var(--tx2)'}}>{BDT(comp.paid)}</td>
                     <td className="xs" style={{color:comp.due>0?'var(--rose)':'var(--grn)'}}>{BDT(comp.due)}</td>
                     <td><SBadge status={invoice.status}/></td>
@@ -2461,90 +2460,133 @@ function printPDF(htmlContent, filename) {
   })
 }
 
-function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, tokenAmount, dueRes, computeBill, getGN, getRoom, reservations, corrected) {
-  const filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
-  const realList = list.filter(t => t.type !== 'Balance Carried Forward')
-  // Use the pre-built corrected amounts map from the component (same source as the KPI)
-  const normalizedList = realList.map(t => ({ ...t, amount: corrected[t.id] ?? (+t.amount || 0) }))
-  const total = normalizedList.reduce((a,t)=>a+(+t.amount||0),0)
-  const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-  const rows = normalizedList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-  // Normalize stat totals using the same corrected amounts map as the KPI
-  function normTotal(txArr) {
-    return txArr.filter(t => t.type !== 'Balance Carried Forward')
-      .reduce((a, t) => a + (corrected[t.id] ?? (+t.amount || 0)), 0)
+function downloadBillingPDF(displayGroups, filter, todayRevenue, outstanding, calDate, tokenAmount, computeBillFn, getGNFn, getRoomFn) {
+  let filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':filter==='ALL'?'All Time':'Custom Date'
+  if (filter === 'DATE' && calDate) {
+    const [y,m,d] = calDate.split('-')
+    const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    filterLabel = `${+d}-${mo[+m-1]}-${y}`
   }
-  const todayTotal = normTotal(todayT)
-  const monthTotal = normTotal(monthT)
-  const allTotal = normTotal(allT)
+  const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
   const tkn = +(tokenAmount||0)
-  const closingBalance = todayTotal - tkn
-  // Due Details
-  const dueRows = (dueRes||[]).map(r => {
-    const bill = computeBill ? computeBill(r) : {total:0,paid:0,due:0}
-    const gn = getGN ? getGN(r) : (r.guest_name||'—')
-    const rm = getRoom ? getRoom(r) : ((r.room_ids||[]).join(', ')||'—')
-    return `<tr><td>${gn}</td><td>${rm}</td><td style="text-align:right">৳${Number(bill.total||0).toLocaleString()}</td><td style="text-align:right">৳${Number(bill.paid||0).toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#c00">৳${Number(bill.due||0).toLocaleString()}</td><td>${r.status||'—'}</td></tr>`
+  const closingBalance = todayRevenue - tkn
+  const fmtD = s => { if(!s||s==='—') return '—'; const p=s.slice(0,10).split('-'); const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${+p[2]}-${mo[+p[1]-1]}-${p[0]}` }
+
+  let totBillTotal=0, totDiscount=0, totPaid=0, totDue=0
+
+  const rows = (displayGroups||[]).map(grp => {
+    const r = grp.res
+    const bill = r && computeBillFn ? computeBillFn(r) : {total:+(r?.total_amount||0), paid:+(r?.paid_amount||0), due:Math.max(0,+(r?.total_amount||0)-+(r?.paid_amount||0))}
+    const tTotal    = r ? bill.total : 0
+    const tDiscount = r ? (+r.discount_amount||+r.discount||0) : 0
+    const tPaid     = r ? bill.paid  : 0
+    const tDue      = r ? bill.due   : 0
+    const gname     = r && getGNFn   ? getGNFn(r)   : (grp.guest_name||'—')
+    const rno       = r && getRoomFn ? getRoomFn(r)  : (grp.room_number||'—')
+    const chkIn     = fmtD(r?.check_in?.slice(0,10)||'')
+    const chkOut    = fmtD(r?.check_out?.slice(0,10)||'')
+    const byType = {}
+    ;(grp.txs||[]).forEach(t => { const tp=t.type||'Payment'; byType[tp]=(byType[tp]||0)+(+t.amount||0) })
+    const pymtStr = Object.entries(byType).length ? Object.entries(byType).map(([tp,amt])=>`${tp}: ৳${Number(amt).toLocaleString()}`).join(' · ') : '—'
+    totBillTotal+=tTotal+tDiscount; totDiscount+=tDiscount; totPaid+=tPaid; totDue+=tDue
+    return `<tr>
+      <td>${gname}</td><td>${rno}</td><td>${chkIn}</td><td>${chkOut}</td>
+      <td style="text-align:right">৳${Number(tTotal+tDiscount).toLocaleString()}</td>
+      <td style="text-align:right;color:#1d7a1d">${tDiscount>0?'− ৳'+Number(tDiscount).toLocaleString():'—'}</td>
+      <td style="text-align:right;color:#1d7a1d">৳${Number(tPaid).toLocaleString()}</td>
+      <td style="text-align:right;font-weight:600;color:${tDue>0?'#c0392b':'#1d7a1d'}">৳${Number(tDue).toLocaleString()}</td>
+      <td style="font-size:8px">${pymtStr}</td>
+    </tr>`
   }).join('')
-  const totalDue = (dueRes||[]).reduce((a,r) => {
-    const bill = computeBill ? computeBill(r) : {due:0}
-    return a + (bill.due||0)
-  }, 0)
-  const dueSection = dueRows ? `
-  <div style="margin-top:18px;page-break-inside:avoid">
-    <div style="font-size:13px;font-weight:700;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #000">Outstanding Dues — Guest Details</div>
-    <table><thead><tr style="background:#8B0000;color:#fff"><th>Guest</th><th>Room</th><th style="text-align:right">Bill Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance Due</th><th>Status</th></tr></thead>
-    <tbody>${dueRows}</tbody>
-    <tfoot><tr style="background:#f2f2f2;font-weight:700"><td colspan="4" style="text-align:right;padding:5px 7px;font-size:10px">Total Outstanding:</td><td style="text-align:right;padding:5px 7px;font-size:12px;color:#c00">৳${totalDue.toLocaleString()}</td><td></td></tr></tfoot>
-    </table>
-  </div>` : ''
-  const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
-  <style>
-    @page{size:A4 portrait;margin:5.08mm}
-    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}
-    .hotel-name{font-size:18px;font-weight:700;color:#000}.hotel-sub{font-size:9px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
-    .report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
-    .stat-box{background:#f2f2f2;border:1px solid #ccc;padding:6px 8px}
-    .stat-box .lbl{font-size:7px;letter-spacing:.1em;color:#555;text-transform:uppercase;margin-bottom:2px}
-    .stat-box .val{font-size:13px;font-weight:700;color:#000}
-    .stat-box.hi{background:#eee;border-color:#000}.stat-box.hi .val{color:#000}
-    .stat-box.out .val{color:#000;font-style:italic}
-    table{width:100%;border-collapse:collapse}
-    thead tr{background:#000;color:#fff}
-    thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
-    thead th:last-child{text-align:right}
-    tbody tr:nth-child(even){background:#f2f2f2}
-    tbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}
-    tbody td:last-child{text-align:right;font-weight:600}
-    .closing-box{margin-top:16px;border:2px solid #000;padding:12px 16px;background:#f8f8f8}
-    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#000}
-    .closing-row.total{border-top:1px solid #ccc;margin-top:4px;padding-top:6px;font-weight:700}
-    .closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}
-    .footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between}
-    .total-row{font-size:12px;font-weight:700;color:#000}
-    .footer-note{font-size:8px;color:#555}
-  </style></head><body>
-  <div class="header"><div><div class="hotel-name">Hotel Fountain</div><div class="hotel-sub">Billing & Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
-  <div class="stats">
-    <div class="stat-box hi"><div class="lbl">Today</div><div class="val">৳${todayTotal.toLocaleString()}</div></div>
-    <div class="stat-box"><div class="lbl">This Month</div><div class="val">৳${monthTotal.toLocaleString()}</div></div>
-    <div class="stat-box"><div class="lbl">All Time</div><div class="val">৳${allTotal.toLocaleString()}</div></div>
-    <div class="stat-box out"><div class="lbl">Outstanding</div><div class="val">৳${Number(outstanding||0).toLocaleString()}</div></div>
+
+  const content = `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
+<style>
+@page { size: A4 portrait; margin: 25.4mm; }
+@media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 9pt; color: #1a1a1a; background: #fff; }
+.hdr { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 10pt; border-bottom: 2pt solid #8B6914; margin-bottom: 12pt; }
+.brand-name { font-family: 'Georgia', serif; font-size: 22pt; font-weight: 700; }
+.brand-name em { font-style: italic; font-weight: 400; color: #8B6914; }
+.brand-sub  { font-size: 7pt; letter-spacing: .14em; text-transform: uppercase; color: #888; margin-top: 2pt; }
+.brand-addr { font-size: 7.5pt; color: #555; margin-top: 4pt; line-height: 1.7; }
+.rpt-right  { text-align: right; }
+.rpt-right h2 { font-size: 13pt; font-weight: 700; }
+.rpt-right .meta { font-size: 8pt; color: #666; margin-top: 3pt; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8pt; margin-bottom: 12pt; }
+.sbox { border: 1px solid #ccc; padding: 7pt 10pt; background: #f9f9f7; }
+.sbox .lbl { font-size: 7pt; letter-spacing: .1em; text-transform: uppercase; color: #888; margin-bottom: 2pt; }
+.sbox .val { font-size: 15pt; font-weight: 700; }
+.sbox.hi { background: #f5edd5; border-color: #8B6914; }
+.sbox.hi .val { color: #8B6914; }
+table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+thead tr { background: #1a1a1a; color: #fff; }
+thead th { padding: 5pt 5pt; font-size: 7pt; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; text-align: left; }
+tbody tr:nth-child(even) { background: #f9f9f7; }
+tbody td { padding: 4pt 5pt; border-bottom: 1px solid #e5e5e5; vertical-align: middle; }
+tfoot tr { background: #333; color: #fff; font-weight: 700; font-size: 8.5pt; }
+tfoot td { padding: 5pt 5pt; }
+.cbox { margin-top: 12pt; border: 1pt solid #ccc; padding: 10pt 14pt; background: #f9f9f7; }
+.crow { display: flex; justify-content: space-between; padding: 4pt 0; font-size: 10pt; border-bottom: 1px solid #ebebeb; }
+.crow:last-child { border-bottom: none; }
+.crow.fin { border-top: 2pt solid #1a1a1a; margin-top: 5pt; padding-top: 7pt; font-size: 14pt; font-weight: 800; }
+.foot { margin-top: 10pt; padding-top: 7pt; border-top: 1pt solid #ccc; display: flex; justify-content: space-between; font-size: 7.5pt; color: #888; }
+</style>
+</head><body>
+
+<div class="hdr">
+  <div>
+    <div class="brand-name">Hotel <em>Fountain</em></div>
+    <div class="brand-sub">Billing &amp; Invoices Report</div>
+    <div class="brand-addr">
+      House #05, Road #02, Nikunja #02, Dhaka 1229, Bangladesh<br/>
+      Contact/WhatsApp: +880 1322-840799 &nbsp;·&nbsp; Email: hotellfountainbd@gmail.com
+    </div>
   </div>
-  <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
-  <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
-  <div class="closing-box">
-    <div class="closing-row total"><span>Today's Total Collection</span><span>৳${todayTotal.toLocaleString()}</span></div>
-    <div class="closing-row"><span>Token Amount</span><span>− ৳${tkn.toLocaleString()}</span></div>
-    <div class="closing-row final"><span>Closing Balance</span><span>৳${closingBalance.toLocaleString()}</span></div>
+  <div class="rpt-right">
+    <h2>Period: ${filterLabel}</h2>
+    <div class="meta">Generated: ${now}</div>
   </div>
-  ${dueSection}
-  <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${realList.length} transaction${realList.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
-  </body></html>`
+</div>
+
+<div class="stats">
+  <div class="sbox hi"><div class="lbl">Today's Collection</div><div class="val">৳${Number(todayRevenue).toLocaleString()}</div></div>
+  <div class="sbox"><div class="lbl">Outstanding Due</div><div class="val">৳${Number(outstanding||0).toLocaleString()}</div></div>
+</div>
+
+<table>
+  <thead><tr>
+    <th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th>
+    <th style="text-align:right">Bill Total</th>
+    <th style="text-align:right">Discount</th>
+    <th style="text-align:right">Paid</th>
+    <th style="text-align:right">Balance Due</th>
+    <th>Payments (Filtered)</th>
+  </tr></thead>
+  <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:16pt;color:#aaa">No records for this period</td></tr>'}</tbody>
+  <tfoot><tr>
+    <td colspan="4">Totals — ${displayGroups?.length||0} record${(displayGroups?.length||0)!==1?'s':''}</td>
+    <td style="text-align:right">৳${Number(totBillTotal).toLocaleString()}</td>
+    <td style="text-align:right">− ৳${Number(totDiscount).toLocaleString()}</td>
+    <td style="text-align:right">৳${Number(totPaid).toLocaleString()}</td>
+    <td style="text-align:right">৳${Number(totDue).toLocaleString()}</td>
+    <td></td>
+  </tr></tfoot>
+</table>
+
+<div class="cbox">
+  <div class="crow"><span>Today's Total Collection</span><span>৳${Number(todayRevenue).toLocaleString()}</span></div>
+  <div class="crow"><span>Token Amount (Deducted)</span><span>− ৳${Number(tkn).toLocaleString()}</span></div>
+  <div class="crow fin"><span>Closing Balance</span><span>৳${Number(closingBalance).toLocaleString()}</span></div>
+</div>
+
+<div class="foot">
+  <span>Hotel Fountain CRM &nbsp;·&nbsp; Lumea PMS &nbsp;·&nbsp; Confidential</span>
+  <span>${filterLabel} Report &nbsp;·&nbsp; ${now}</span>
+</div>
+
+</body></html>`
   printPDF(content)
 }
 
@@ -2826,7 +2868,10 @@ ${dueRows}
   }
 
   function downloadPDF() {
-    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, savedToken, dueRes, computeBill, getGN, getRoom, reservations, _corrected)
+    const ug = {}
+    reservations.forEach(r => { ug[r.id] = { res: r, txs: [] } })
+    ;(transactions||[]).forEach(t => { if(t.reservation_id && ug[t.reservation_id]) ug[t.reservation_id].txs.push(t) })
+    downloadBillingPDF(Object.values(ug), filter, todayRevenue, outstanding, calDate, savedToken, computeBill, getGN, getRoom)
   }
 
   function openDetail(r) {
@@ -2835,206 +2880,211 @@ ${dueRows}
   }
 
   function printInvoice(grp, res, resTotal, resPaid, resDue, byType, comp) {
-    const dObj = new Date();
-    const dateStr = String(dObj.getDate()).padStart(2, '0') + '/' + String(dObj.getMonth() + 1).padStart(2, '0') + '/' + dObj.getFullYear();
-    
-    const checkIn = res ? fmtDate(res.check_in) : (grp.txs[0]?.check_in ? fmtDate(grp.txs[0].check_in) : '—')
-    const checkOut = res ? fmtDate(res.check_out) : (grp.txs[0]?.check_out ? fmtDate(grp.txs[0].check_out) : '—')
-    const guestName = grp.guest_name || 'Guest';
-    
-    let tableRows = '';
-    let sub = 0; let tax = 0; let svc = 0; let discount = 0; let roomCharge = 0; let extras = 0; let basePrice = 0;
-    if (comp) {
-      sub = comp.sub; tax = comp.tax; svc = comp.svc; discount = comp.discount; roomCharge=comp.roomCharge; extras=comp.extras; basePrice=comp.basePrice;
-      let counter = 1;
-      const nights = comp.nights || 1;
-      
-      if (res && res.room_details && Object.keys(res.room_details).length > 0) {
-        Object.keys(res.room_details).forEach(roomNo => {
-          const rd = res.room_details[roomNo];
-          tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room ${roomNo} (${nights} Night${nights !== 1 ? 's' : ''})</td><td>৳${Number(rd.base_rate || 0).toLocaleString('en-BD')}</td><td>${nights}</td><td>৳${Number((rd.base_rate || 0) * nights).toLocaleString('en-BD')}</td></tr>`;
-          if (rd.discount_applied > 0) {
-            tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Discount (Room ${roomNo})</td><td>—</td><td>—</td><td style="color:#e74c3c">-৳${Number(rd.discount_applied * nights).toLocaleString('en-BD')}</td></tr>`;
-          }
-        });
-      } else {
-        // Room Charge line
-        if (roomCharge > 0) {
-          const discountedCharge = Math.max(0, roomCharge - discount);
-          const discountedRate = nights > 0 ? discountedCharge / nights : discountedCharge;
-          const discountMsg = discount > 0 ? `<br/><span style="font-size:10px;color:#777">Original: ৳${Number(comp.roomRate||0).toLocaleString('en-BD')}/night | Discount Applied: ৳${Number(discount).toLocaleString('en-BD')}</span>` : '';
-          tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Room Charge (${nights} Night${nights!==1?'s':''})${discountMsg}</td><td>৳${Number(discountedRate).toLocaleString('en-BD')}</td><td>${nights}</td><td>৳${Number(discountedCharge).toLocaleString('en-BD')}</td></tr>`;
-        }
-      }
+    const invNo = 'INV-' + Math.floor(Math.random() * 90000000 + 10000000)
+    const now = new Date().toLocaleString('en-BD', {timeZone:'Asia/Dhaka', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'})
+    const gname   = grp.guest_name || '—'
+    const rno     = grp.room_number || '—'
+    const checkIn  = res?.check_in  ? res.check_in.slice(0,10)  : '—'
+    const checkOut = res?.check_out ? res.check_out.slice(0,10) : '—'
+    const nights   = res ? (nightsCount(res.check_in, res.check_out) || 1) : 1
+    const fmtD = s => { if(!s||s==='—') return '—'; const [y,m,d]=s.split('-'); const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${+d} ${mo[+m-1]} ${y}` }
+    const discount  = comp ? comp.discount : (+res?.discount_amount||+res?.discount||0)
+    const roomRate  = comp ? comp.roomRate : (nights > 0 ? Math.round((resTotal + discount) / nights) : 0)
+    const payRows = Object.entries(byType || {}).length
+      ? Object.entries(byType).map(([tp,amt]) => `<tr><td>${tp}</td><td class="ra">৳${Number(amt).toLocaleString()}</td></tr>`).join('')
+      : `<tr><td colspan="2" style="color:#999;text-align:center;padding:6pt">No payments recorded in this period</td></tr>`
 
-      // Itemized individual folio charges instead of lump sum
-      if (comp.folios && comp.folios.length > 0) {
-        comp.folios.forEach(f => {
-          if (+f.amount === 0) return;
-          const isPayment = f.category === 'Payment';
-          if (isPayment) return; // skip payment folios in charges section
-          tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>${f.room_number ? 'Rm ' + f.room_number + ' - ' : ''}${f.description || f.category || 'Additional Charge'}</td><td>—</td><td>—</td><td>${+f.amount < 0 ? '<span style="color:#e74c3c">' : ''}৳${Number(Math.abs(+f.amount)||0).toLocaleString('en-BD')}${+f.amount < 0 ? '</span>' : ''}</td></tr>`;
-        });
-      } else if (extras > 0) {
-        // Fallback: show lump sum if no individual folios available
-        tableRows += `<tr class="item-row"><td class="sl">${counter++}</td><td>Additional Charges</td><td>—</td><td>—</td><td>৳${Number(extras).toLocaleString('en-BD')}</td></tr>`;
-      }
-      
-      // Calculate Sub Total as matched up with table contents
-      sub = basePrice + extras;
-    } else {
-       tableRows += `<tr class="item-row"><td class="sl">1</td><td>General Billing</td><td>—</td><td>—</td><td>৳${Number(resTotal).toLocaleString('en-BD')}</td></tr>`;
-    }
+    const content = `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/>
+<title>Invoice — ${gname} — ${invNo}</title>
+<style>
+@page { size: A4 portrait; margin: 25.4mm; }
+@media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Georgia', 'Times New Roman', serif; font-size: 10pt; color: #1a1a1a; background: #fff; line-height: 1.4; }
+.hdr { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14pt; border-bottom: 2pt solid #8B6914; margin-bottom: 16pt; }
+.brand-name { font-size: 26pt; font-weight: 700; letter-spacing: -1px; color: #1a1a1a; }
+.brand-name em { font-style: italic; font-weight: 400; color: #8B6914; }
+.brand-tag  { font-size: 7pt; letter-spacing: .18em; text-transform: uppercase; color: #888; margin-top: 2pt; }
+.brand-addr { font-size: 8pt; color: #555; margin-top: 6pt; line-height: 1.7; }
+.inv-block  { text-align: right; }
+.inv-lbl    { font-size: 7pt; letter-spacing: .12em; text-transform: uppercase; color: #999; margin-bottom: 1pt; }
+.inv-val    { font-size: 10pt; font-weight: 700; color: #1a1a1a; }
+.inv-amount { font-size: 22pt; font-weight: 700; color: #8B6914; margin-top: 3pt; }
+.two-col   { display: flex; gap: 24pt; margin-bottom: 16pt; }
+.col       { flex: 1; }
+.sec-lbl   { font-size: 7pt; letter-spacing: .14em; text-transform: uppercase; color: #999; border-bottom: 1px solid #e0d5b8; padding-bottom: 4pt; margin-bottom: 8pt; font-weight: 700; }
+.guest-name{ font-size: 14pt; font-weight: 700; margin-bottom: 3pt; }
+.guest-det { font-size: 9pt; color: #555; }
+.stay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7pt 14pt; }
+.sg-lbl    { font-size: 7.5pt; color: #999; }
+.sg-val    { font-size: 9.5pt; font-weight: 600; }
+table  { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 0; }
+.ra    { text-align: right; }
+.ca    { text-align: center; }
+thead tr  { background: #1a1a1a; color: #fff; }
+thead th  { padding: 5pt 7pt; font-size: 7.5pt; letter-spacing: .09em; text-transform: uppercase; font-weight: 700; }
+thead th.ra { text-align: right; }
+tbody tr:nth-child(even) { background: #faf8f2; }
+tbody td   { padding: 5pt 7pt; border-bottom: 1px solid #ede8d8; vertical-align: top; }
+.tot-box  { border: 1px solid #ddd; background: #faf8f2; margin-top: 10pt; }
+.tot-row  { display: flex; justify-content: space-between; align-items: center; padding: 5pt 10pt; border-bottom: 1px solid #ede8d8; font-size: 9.5pt; }
+.tot-row:last-child { border-bottom: none; }
+.tot-sub  { color: #666; font-size: 9pt; }
+.tot-disc { color: #1d7a1d; }
+.tot-bold { font-weight: 700; background: #ede8d8; }
+.tot-paid { font-size: 9pt; color: #1d7a1d; }
+.tot-final{ background: #8B6914; color: #fff; font-size: 14pt; font-weight: 700; padding: 9pt 10pt; }
+.rates-section { margin-top: 16pt; page-break-inside: avoid; }
+.rates-section thead tr { background: #444; }
+.policy-row { display: flex; gap: 18pt; margin-top: 16pt; }
+.policy-box { flex: 1; font-size: 8pt; color: #444; }
+.policy-box .sec-lbl { margin-bottom: 6pt; }
+.policy-box p { margin-bottom: 3pt; line-height: 1.6; }
+.page-footer { margin-top: 16pt; padding-top: 10pt; border-top: 2pt solid #8B6914; display: flex; justify-content: space-between; align-items: center; }
+.thank-you  { font-style: italic; font-size: 13pt; color: #8B6914; }
+.footer-note{ font-size: 7.5pt; color: #999; text-align: right; line-height: 1.6; }
+</style>
+</head><body>
 
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8"/>
-  <title>Invoice - ${guestName}</title>
-  <style>
-    @page { size: A4 portrait; margin: 0; }
-    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
-    body { font-family: 'Inter', Arial, sans-serif; margin: 0; color: #333; }
-    .invoice-wrapper { width: 100%; max-width: 800px; margin: 0 auto; background: #fff; min-height: 100vh; position: relative; }
-    
-    /* Header */
-    .hdr { background-color: #1a2233; color: #fff; padding: 40px 50px; display: flex; justify-content: space-between; align-items: center; }
-    .brand-left { display: flex; align-items: center; gap: 15px; }
-    .brand-left h1 { margin: 0; font-size: 26px; font-weight: 700; color: #ced4db; display: flex; align-items: center; gap: 8px;}
-    .brand-left h1 span { color:#f39c12; }
-    .tagline { font-size: 11px; color: #8f9ea8; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
-    .hdr-right h2 { margin: 0; color: #f39c12; font-size: 34px; letter-spacing: 2px; text-transform: uppercase; }
-
-    /* Meta Strip */
-    .meta-strip { display: flex; width: 100%; font-size: 13px; font-weight: 600; margin-bottom: 30px; }
-    .meta-inv { background-color: #f39c12; color: #000; padding: 12px 50px; width: 50%; display: flex; align-items: center; }
-    .meta-date { background-color: #e2e8ec; color: #333; padding: 12px 50px; width: 50%; display: flex; align-items: center; justify-content: flex-end; }
-    
-    /* Bill To */
-    .bill-to { padding: 0 50px; margin-bottom: 30px; }
-    .bill-to h3 { margin: 0 0 5px 0; font-size: 15px; color: #1a2233; font-weight: 700; }
-    .bill-to p { margin: 0; font-size: 13px; color: #555; line-height: 1.5; }
-
-    /* Table */
-    .table-container { padding: 0 50px; margin-bottom: 40px; }
-    table { width: 100%; border-collapse: collapse; text-align: left; }
-    th { padding: 12px; font-size: 13px; font-weight: 700; color: #fff; text-transform: uppercase; border: none; }
-    th.sl { width: 5%; background-color: #f39c12; }
-    th.desc { width: 45%; background-color: #f39c12; }
-    th.bg-gray { background-color: #95a5a6; }
-    
-    td { padding: 15px 12px; font-size: 13px; border-bottom: 1px solid #eaeaea; color: #333; font-weight: 500;}
-    td.sl { text-align: center; }
-    .item-row:nth-child(even) { background-color: #fcfcfc; }
-
-    /* Bottom Section */
-    .bottom-section { padding: 0 50px; display: flex; justify-content: space-between; margin-bottom: 40px;}
-    .left-col { width: 50%; }
-    .ty-msg { font-weight: 600; font-size: 14px; margin-bottom: 25px; color: #1a2233; }
-    .pay-info { margin-bottom: 25px; }
-    .pay-info h4 { margin: 0 0 8px 0; font-size: 14px; color: #1a2233; }
-    .pay-row { display: flex; font-size: 12px; color: #555; margin-bottom: 4px; }
-    .pay-lbl { width: 110px; font-weight: 600;}
-    
-    .right-col { width: 40%; display: flex; flex-direction: column; }
-    .sum-row { display: flex; justify-content: space-between; padding: 6px 15px; font-size: 13px; color: #555; font-weight: 600; }
-    .total-box { background-color: #1a2233; color: #fff; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 700; margin-top: 10px; }
-    
-    /* Footer */
-    .footer-strip { padding: 0 50px; justify-content: space-between; display: flex; align-items: flex-end; margin-top: 50px;}
-    .terms { font-size: 10px; color: #777; width: 50%; line-height: 1.4; }
-    .terms h4 { margin: 0 0 4px 0; font-size: 12px; color: #333; }
-    .sign { width: 30%; text-align: center; border-top: 2px solid #ccc; font-size: 12px; font-weight: 600; padding-top: 8px; color: #333; margin-bottom: 20px;}
-    
-    /* Orange thick bottom border */
-    .bottom-bar { position: relative; bottom: 0; width: 100%; height: 25px; background: #1a2233; display: flex; }
-    .bottom-bar .orange { width: 30%; background: #f39c12; height: 100%;}
-    .bottom-bar .gray { width: 70%; background: #95a5a6; height: 100%;}
-  </style>
-</head>
-<body>
-  <div class="invoice-wrapper">
-    <div class="hdr">
-      <div class="brand-left">
-        <div>
-          <h1>HOTEL <span>FOUNTAIN</span></h1>
-          <div class="tagline">The Pulse Of Modern Hospitality</div>
-        </div>
-      </div>
-      <div class="hdr-right">
-        <h2>INVOICE</h2>
-      </div>
-    </div>
-    
-    <div class="meta-strip">
-      <div class="meta-inv">Invoice# ${res ? res.id : 'N/A'}</div>
-      <div class="meta-date">Date &nbsp;&nbsp; ${dateStr}</div>
-    </div>
-    
-    <div class="bill-to">
-      <h3>Invoice to: ${guestName}</h3>
-      <p>Room: ${grp.room_number || '—'}<br/>
-      Check-In: ${checkIn}<br/>
-      Check-Out: ${checkOut}</p>
-    </div>
-    
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th class="sl">SL.</th>
-            <th class="desc">Item Description</th>
-            <th class="bg-gray">Price</th>
-            <th class="bg-gray">Qty.</th>
-            <th class="bg-gray">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-    </div>
-    
-    <div class="bottom-section">
-      <div class="left-col">
-        <div class="ty-msg">Thank you for your business</div>
-        <div class="pay-info">
-          <h4>Payment Info:</h4>
-          ${Object.entries(byType).map(([tp, amt]) => `<div class="pay-row"><div class="pay-lbl">${tp}:</div><div>৳${Number(amt||0).toLocaleString('en-BD')}</div></div>`).join('')}
-          ${Object.keys(byType).length===0 ? '<div class="pay-row"><div class="pay-lbl">Status:</div><div style="color:#e74c3c;font-weight:700">None Collected</div></div>' : ''}
-          <div class="pay-row" style="margin-top:4px"><div class="pay-lbl">Balance Due:</div><div style="color:${resDue>0?'#e74c3c':'#27ae60'};font-weight:700">৳${Number(resDue||0).toLocaleString('en-BD')}</div></div>
-        </div>
-      </div>
-      <div class="right-col">
-        <div class="sum-row"><span>Sub Total:</span> <span>৳${Number(sub || resTotal).toLocaleString('en-BD')}</span></div>
-        <div class="total-box">
-          <span>Total:</span>
-          <span>৳${Number(resTotal).toLocaleString('en-BD')}</span>
-        </div>
-        <div class="sum-row" style="margin-top:6px;color:#27ae60"><span>Paid:</span> <span>৳${Number(resPaid||0).toLocaleString('en-BD')}</span></div>
-        ${resDue > 0 ? `<div class="sum-row" style="color:#e74c3c;font-weight:700"><span>Balance Due:</span> <span>৳${Number(resDue).toLocaleString('en-BD')}</span></div>` : `<div class="sum-row" style="color:#27ae60;font-weight:700"><span>Status:</span> <span>PAID IN FULL</span></div>`}
-      </div>
-    </div>
-    
-    <div class="footer-strip">
-      <div class="terms">
-        <h4>Terms & Conditions</h4>
-        All dues must be cleared upon checkout. Late checkouts may incur additional charges. Subject to Dhaka jurisdiction.
-      </div>
-      <div class="sign">Authorised Sign</div>
-    </div>
-    
-    <div style="height:40px;"></div>
-    <div class="bottom-bar">
-      <div class="orange"></div>
-      <div class="gray"></div>
+<div class="hdr">
+  <div>
+    <div class="brand-name">Hotel <em>Fountain</em></div>
+    <div class="brand-tag">Luxury in Comfort</div>
+    <div class="brand-addr">
+      House #05, Road #02, Nikunja #02, Dhaka 1229, Bangladesh<br/>
+      Contact/WhatsApp: +880 1322-840799<br/>
+      Email: hotellfountainbd@gmail.com &nbsp;·&nbsp; hotelfountainbd.vercel.com
     </div>
   </div>
-  <script>window.onload=()=>window.print();<\/script>
-</body>
-</html>`
-    printPDF(html)
+  <div class="inv-block">
+    <div class="inv-lbl">Invoice Number</div>
+    <div class="inv-val">${invNo}</div>
+    <div style="margin-top:9pt">
+      <div class="inv-lbl">Date Issued</div>
+      <div style="font-size:9pt;font-weight:400;color:#555">${now}</div>
+    </div>
+    <div style="margin-top:9pt">
+      <div class="inv-lbl">Amount Due</div>
+      <div class="inv-amount">৳${Number(resDue).toLocaleString()}</div>
+    </div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="col">
+    <div class="sec-lbl">Billed To</div>
+    <div class="guest-name">${gname}</div>
+    <div class="guest-det">Room ${rno}</div>
+    <div class="guest-det">Check-in: ${fmtD(checkIn)} &nbsp;·&nbsp; Check-out: ${fmtD(checkOut)}</div>
+    <div class="guest-det">${nights} night${nights!==1?'s':''}</div>
+  </div>
+  <div class="col">
+    <div class="sec-lbl">Stay Details</div>
+    <div class="stay-grid">
+      <div><div class="sg-lbl">Room No.</div><div class="sg-val">${rno}</div></div>
+      <div><div class="sg-lbl">Category</div><div class="sg-val">${res?.category||res?.room_category||'Fountain Deluxe'}</div></div>
+      <div><div class="sg-lbl">Check-In</div><div class="sg-val">${fmtD(checkIn)}</div></div>
+      <div><div class="sg-lbl">Check-Out</div><div class="sg-val">${fmtD(checkOut)}</div></div>
+      <div><div class="sg-lbl">Nights</div><div class="sg-val">${nights}</div></div>
+      <div><div class="sg-lbl">Payment</div><div class="sg-val">${res?.payment_method||'—'}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="sec-lbl">Charges</div>
+<table>
+  <thead><tr>
+    <th>Description</th>
+    <th class="ca">Qty / Nights</th>
+    <th class="ra">Unit Rate (BDT)</th>
+    <th class="ra">Amount (BDT)</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td>Room Accommodation — Room ${rno} (${res?.category||'Fountain Deluxe'})</td>
+      <td class="ca">${nights}</td>
+      <td class="ra">৳${Number(roomRate).toLocaleString()}</td>
+      <td class="ra">৳${Number(roomRate * nights).toLocaleString()}</td>
+    </tr>
+    ${(grp.txs||[]).filter(t=>t.type!=='Advance Payment'&&t.type!=='Final Settlement'&&t.type!=='Balance Carried Forward').map(t=>`
+    <tr>
+      <td>${t.description||t.type||'Additional Charge'}</td>
+      <td class="ca">1</td>
+      <td class="ra">৳${Number(t.amount||0).toLocaleString()}</td>
+      <td class="ra">৳${Number(t.amount||0).toLocaleString()}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>
+
+<div class="tot-box">
+  <div class="tot-row tot-sub"><span>Subtotal</span><span>৳${Number(resTotal + discount).toLocaleString()}</span></div>
+  ${discount > 0 ? `<div class="tot-row tot-disc"><span>Discount Applied</span><span>− ৳${Number(discount).toLocaleString()}</span></div>` : ''}
+  <div class="tot-row tot-bold"><span>Total Amount</span><span>৳${Number(resTotal).toLocaleString()}</span></div>
+  <div class="tot-row tot-paid"><span>Amount Paid</span><span>৳${Number(resPaid).toLocaleString()}</span></div>
+  <div class="tot-row tot-final"><span>Amount Due</span><span>৳${Number(resDue).toLocaleString()}</span></div>
+</div>
+
+<div style="margin-top:14pt">
+  <div class="sec-lbl">Payments Received</div>
+  <table>
+    <thead><tr><th>Payment Method</th><th class="ra">Amount (BDT)</th></tr></thead>
+    <tbody>${payRows}</tbody>
+  </table>
+</div>
+
+<div class="rates-section">
+  <div class="sec-lbl">Room Tariff — Including VAT 15% &amp; Service Charge 5%</div>
+  <table>
+    <thead><tr>
+      <th>Room Category</th>
+      <th class="ra">Base Rate / Night</th>
+      <th class="ra">VAT (15%)</th>
+      <th class="ra">Service Charge (5%)</th>
+      <th class="ra">Total / Night</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>Fountain Deluxe</td><td class="ra">৳4,000</td><td class="ra">৳600</td><td class="ra">৳200</td><td class="ra">৳4,800</td></tr>
+      <tr><td>Premium Deluxe</td><td class="ra">৳4,500</td><td class="ra">৳675</td><td class="ra">৳225</td><td class="ra">৳5,400</td></tr>
+      <tr><td>Superior Deluxe</td><td class="ra">৳5,000</td><td class="ra">৳750</td><td class="ra">৳250</td><td class="ra">৳6,000</td></tr>
+      <tr><td>Twin Deluxe</td><td class="ra">৳5,500</td><td class="ra">৳825</td><td class="ra">৳275</td><td class="ra">৳6,600</td></tr>
+      <tr><td>Royal Suite</td><td class="ra">৳8,000</td><td class="ra">৳1,200</td><td class="ra">৳400</td><td class="ra">৳9,600</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="policy-row">
+  <div class="policy-box">
+    <div class="sec-lbl">Check-In &amp; Check-Out Policy</div>
+    <p><strong>Check-In Time:</strong> 12:00 PM (Noon)</p>
+    <p><strong>Check-Out Time:</strong> 11:00 AM</p>
+    <p>Early check-in and late check-out are subject to room availability and may attract additional charges at the prevailing rate. A valid government-issued photo ID must be presented at check-in.</p>
+  </div>
+  <div class="policy-box">
+    <div class="sec-lbl">Terms &amp; Conditions</div>
+    <p>1. All rates are inclusive of 15% VAT and 5% Service Charge as mandated by the Government of Bangladesh.</p>
+    <p>2. Hotel Fountain accepts payments in BDT via Cash, bKash, Nagad, and Bank Transfer.</p>
+    <p>3. Any disputes regarding this invoice must be raised within 24 hours of check-out.</p>
+    <p>4. Hotel Fountain reserves the right to charge for any damage to property, loss of room keys, or excessive cleaning.</p>
+    <p>5. Smoking is strictly prohibited in all rooms and common areas. Violation attracts a minimum charge of ৳5,000.</p>
+    <p>6. Mini-bar and in-room amenities are billed separately based on consumption at the time of check-out.</p>
+  </div>
+</div>
+
+<div class="page-footer">
+  <div class="thank-you">Thank you for choosing Hotel Fountain!</div>
+  <div class="footer-note">
+    Hotel Fountain &nbsp;·&nbsp; Lumea PMS &nbsp;·&nbsp; Dhaka, Bangladesh<br/>
+    Computer generated invoice — no signature or seal required.<br/>
+    This is a valid invoice under the laws of Bangladesh.
+  </div>
+</div>
+
+</body></html>`
+    printPDF(content)
   }
+
+
 
   return (
     <div>
@@ -3182,10 +3232,10 @@ const collectionTodaySum = (guest.payments || []).filter(p => p.date === selecte
             </div>
             <div className="tbl-wrap">
               <table className="tbl">
-                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Base Rate</th><th>Discount</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
+                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Discount</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
                 <tbody>
 {displayList.length===0?(
-                    <tr><td colSpan={11} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
+                    <tr><td colSpan={10} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
                   ):displayList.map((guest, guestIndex) => {
                     // Find associated reservation(s) for this guest
                     const guestRes = reservations.filter(r => 
@@ -3206,7 +3256,6 @@ const collectionTodaySum = (guest.payments || []).filter(p => p.date === selecte
                     const rno = primaryRes ? getRoom(primaryRes) : '—';
                     const chkIn = fmtDate(primaryRes.check_in);
                     const chkOut = fmtDate(primaryRes.check_out);
-                    const billingBaseRate = comp ? comp.grossRate : 0;
                     const billingDisc = primaryRes ? (Number(primaryRes.discount) || 0) : 0;
 
                     return (
@@ -3215,9 +3264,8 @@ const collectionTodaySum = (guest.payments || []).filter(p => p.date === selecte
                         <td><span className="badge bb">{rno}</span></td>
                         <td className="xs muted">{chkIn}</td>
                         <td className="xs muted">{chkOut}</td>
-                        <td className="xs" style={{color:'var(--tx2)'}}>{BDT(billingBaseRate)}</td>
-                        <td className="xs" style={{color:billingDisc>0?'var(--teal)':'var(--tx2)'}}>{billingDisc>0?BDT(billingDisc):'—'}</td>
                         <td className="xs gold">{BDT(resTotal)}</td>
+                        <td className="xs" style={{color:'var(--amb)'}}>{billingDisc>0?'− '+BDT(billingDisc):'—'}</td>
                         <td className="xs" style={{color:'var(--grn)'}}>{BDT(guest.paidToday)}</td>
                         <td className="xs" style={{color:guest.isOutstanding?'var(--rose)':'var(--grn)', fontWeight: guest.isOutstanding ? 600 : 400}}>
                           {BDT(guest.billTotal - guest.totalPaidAllTime)}
@@ -3282,7 +3330,6 @@ const collectionTodaySum = (guest.payments || []).filter(p => p.date === selecte
                     const tDue = invoice ? resDue : 0
                     const billingRoom = invoice ? rooms.find(rm=>(invoice.room_ids||[]).includes(rm.room_number)) : null
                     const billingNights = invoice ? nightsCount(invoice.check_in,invoice.check_out)||1 : 1
-                    const billingBaseRate = invoice ? comp.basePrice : tTotal
                     const billingDisc = invoice ? (Number(invoice.discount)||0) : 0
 
                     return (
@@ -3291,9 +3338,8 @@ const collectionTodaySum = (guest.payments || []).filter(p => p.date === selecte
                         <td><span className="badge bb">{rno}</span></td>
                         <td className="xs muted">{chkIn}</td>
                         <td className="xs muted">{chkOut}</td>
-                        <td className="xs" style={{color:'var(--tx2)'}}>{BDT(billingBaseRate)}</td>
-                        <td className="xs" style={{color:billingDisc>0?'var(--teal)':'var(--tx2)'}}>{billingDisc>0?BDT(billingDisc):'—'}</td>
                         <td className="xs gold">{BDT(tTotal)}</td>
+                        <td className="xs" style={{color:'var(--amb)'}}>{billingDisc>0?'− '+BDT(billingDisc):'—'}</td>
                         <td className="xs" style={{color:'var(--grn)'}}>{BDT(tPaid)}</td>
                         <td className="xs" style={{color:tDue>0?'var(--rose)':'var(--grn)',fontWeight:tDue>0?600:400}}>{BDT(tDue)}</td>
                         <td className="xs" style={{lineHeight:1.8}}>
