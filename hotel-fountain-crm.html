@@ -754,7 +754,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     try {
       await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{reservation_id:activeRes.id,type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -1764,11 +1764,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     db('folios',`?tenant_id=eq.${TENANT}&select=*&order=created_at`)
       .then(d=>{
         const map={}
-        ;(Array.isArray(d)?d:[]).forEach(f=>{
-          const key=f.reservation_id||f.room_number
-          if(!map[key])map[key]=[]
-          map[key].push(f)
-        })
+        ;// B2:ANCHORED foliosMap — reservation_id only
+          ;(Array.isArray(d) ? d : []).forEach(f => {
+            if (!f.reservation_id) return
+            if (!map[f.reservation_id]) map[f.reservation_id] = []
+            map[f.reservation_id].push(f)
+          })
         setFoliosMap(map)
       })
       .catch(()=>{})
