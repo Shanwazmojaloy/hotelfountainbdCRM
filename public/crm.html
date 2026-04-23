@@ -3296,6 +3296,8 @@ function App() {
   useEffect(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; },[])
   const [clock,setClock]=useState(new Date())
   const [notifOpen,setNotifOpen]=useState(false)
+  const [notifRoomSels,setNotifRoomSels]=useState({})
+  const [confirmingIds,setConfirmingIds]=useState(new Set())
   // Staff list lives here so Settings can mutate it
   const [staffList,setStaffList]=useState(INIT_STAFF)
   const [businessDate,setBusinessDate]=useState(todayStr())
@@ -3553,25 +3555,84 @@ function App() {
                               </div>
 
                               {/* Actions */}
-                              <div style={{display:'flex',gap:6}}>
-                                <button
-                                  className="btn btn-success btn-sm"
-                                  style={{flex:1,justifyContent:'center',fontSize:9.5,letterSpacing:'.12em'}}
-                                  onClick={async()=>{
-                                    try{
-                                      await dbPatch('reservations',res.id,{status:'RESERVED'})
-                                      toast(`✓ Booking confirmed for ${info.name}`,'success')
-                                      loadAll()
-                                      setNotifOpen(false)
-                                    }catch(e){toast(e.message,'error')}
-                                  }}
-                                >✓ Confirm Booking</button>
-                                <button
-                                  className="btn btn-ghost btn-sm"
-                                  style={{fontSize:9.5,letterSpacing:'.1em'}}
-                                  onClick={()=>{ setPage('reservations'); setNotifOpen(false) }}
-                                >View</button>
-                              </div>
+                              {(()=>{
+                                // Available rooms — prefer matching type, fallback all AVAILABLE
+                                const availRooms=data.rooms.filter(r=>r.status==='AVAILABLE')
+                                const preferred=availRooms.filter(r=>r.room_type===info.roomType||r.name===info.roomType)
+                                const roomList=preferred.length>0?preferred:availRooms
+                                const selRoom=notifRoomSels[res.id]||(roomList[0]?.room_number||'')
+                                const isConfirming=confirmingIds.has(res.id)
+                                return (
+                                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                                    {/* Room selector */}
+                                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                                      <div style={{fontSize:7,letterSpacing:'.14em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',fontWeight:200,whiteSpace:'nowrap'}}>Assign Room</div>
+                                      <select
+                                        className="fselect"
+                                        style={{flex:1,fontSize:11,padding:'4px 8px',background:'#1C1510',color:'var(--tx)',border:'1px solid rgba(200,169,110,.25)'}}
+                                        value={selRoom}
+                                        onChange={e=>setNotifRoomSels(p=>({...p,[res.id]:e.target.value}))}
+                                      >
+                                        {roomList.length===0&&<option value="">— No AVAILABLE rooms —</option>}
+                                        {roomList.map(r=>(
+                                          <option key={r.id} value={r.room_number}>{r.room_number} · {r.room_type||r.name||''} · ৳{(+r.price||0).toLocaleString()}/night</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    {/* Confirm + Cancel */}
+                                    <div style={{display:'flex',gap:6}}>
+                                      <button
+                                        className="btn btn-success btn-sm"
+                                        style={{flex:1,justifyContent:'center',fontSize:9.5,letterSpacing:'.1em',opacity:isConfirming?0.6:1}}
+                                        disabled={isConfirming||!selRoom||roomList.length===0}
+                                        onClick={async()=>{
+                                          if(isConfirming) return
+                                          setConfirmingIds(p=>{const s=new Set(p);s.add(res.id);return s})
+                                          try{
+                                            // Lock check — verify room still AVAILABLE
+                                            const fresh=await db('rooms',`?tenant_id=eq.${TENANT}&room_number=eq.${selRoom}&status=eq.AVAILABLE&select=id,room_number`)
+                                            if(!fresh||fresh.length===0){toast('Room no longer available — pick another','error');setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s});loadAll();return}
+                                            const roomRec=data.rooms.find(r=>String(r.room_number)===String(selRoom))
+                                            // Assign room + confirm reservation
+                                            await dbPatch('reservations',res.id,{status:'RESERVED',room_ids:[selRoom],room_number:selRoom})
+                                            await dbPatch('rooms',roomRec.id,{status:'RESERVED'})
+                                            // Send confirmation email
+                                            try{
+                                              await fetch(`${SB_URL}/functions/v1/send-booking-email`,{
+                                                method:'POST',
+                                                headers:{'Content-Type':'application/json','Authorization':`Bearer ${SB_KEY}`},
+                                                body:JSON.stringify({
+                                                  to:info.email,guestName:info.name,
+                                                  roomNo:selRoom,roomType:info.roomType,
+                                                  checkIn:info.checkIn,checkOut:info.checkOut,
+                                                  total:res.total_amount||0,phone:info.phone
+                                                })
+                                              })
+                                            }catch(emailErr){console.warn('Email send failed:',emailErr)}
+                                            toast(`✓ Room ${selRoom} assigned & confirmation sent to ${info.email}`,'success')
+                                            setNotifRoomSels(p=>{const n={...p};delete n[res.id];return n})
+                                            loadAll()
+                                          }catch(e){toast(e.message,'error')}
+                                          finally{setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s})}
+                                        }}
+                                      >{isConfirming?'Confirming…':'✓ Confirm & Send Email'}</button>
+                                      <button
+                                        className="btn btn-ghost btn-sm"
+                                        style={{fontSize:9.5,letterSpacing:'.1em',borderColor:'rgba(220,50,50,.3)',color:'var(--rose)'}}
+                                        disabled={isConfirming}
+                                        onClick={async()=>{
+                                          if(!confirm(`Cancel booking for ${info.name}?`)) return
+                                          try{
+                                            await dbPatch('reservations',res.id,{status:'CANCELLED'})
+                                            toast(`Booking for ${info.name} cancelled`,'info')
+                                            loadAll()
+                                          }catch(e){toast(e.message,'error')}
+                                        }}
+                                      >✕ Cancel</button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
                             </div>
                           )
                         })}
