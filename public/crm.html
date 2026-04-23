@@ -3560,7 +3560,7 @@ function App() {
                               {(()=>{
                                 // Available rooms — prefer matching type, fallback all AVAILABLE
                                 const availRooms=data.rooms.filter(r=>r.status==='AVAILABLE')
-                                const preferred=availRooms.filter(r=>r.room_type===info.roomType||r.name===info.roomType)
+                                const preferred=availRooms.filter(r=>r.category===info.roomType)
                                 const roomList=preferred.length>0?preferred:availRooms
                                 const selRoom=notifRoomSels[res.id]||(roomList[0]?.room_number||'')
                                 const isConfirming=confirmingIds.has(res.id)
@@ -3577,7 +3577,7 @@ function App() {
                                       >
                                         {roomList.length===0&&<option value="">— No AVAILABLE rooms —</option>}
                                         {roomList.map(r=>(
-                                          <option key={r.id} value={r.room_number}>{r.room_number} · {r.room_type||r.name||''} · ৳{(+r.price||0).toLocaleString()}/night</option>
+                                          <option key={r.id} value={r.room_number}>{r.room_number} · {r.category||''} · ৳{(+r.price||0).toLocaleString()}/night</option>
                                         ))}
                                       </select>
                                     </div>
@@ -3596,7 +3596,14 @@ function App() {
                                             if(!fresh||fresh.length===0){toast('Room no longer available — pick another','error');setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s});loadAll();return}
                                             const roomRec=data.rooms.find(r=>String(r.room_number)===String(selRoom))
                                             // Assign room + confirm reservation
-                                            await dbPatch('reservations',res.id,{status:'RESERVED',room_ids:[roomRec.id],room_id:roomRec.id,room_type:info.roomType||''})
+                                            (()=>{
+                                              const ciDate=new Date((res.check_in||'').replace(' ','T').split('+')[0])
+                                              const coDate=new Date((res.check_out||'').replace(' ','T').split('+')[0])
+                                              const nights=(!isNaN(ciDate)&&!isNaN(coDate))?Math.max(1,Math.round((coDate-ciDate)/86400000)):1
+                                              const roomPrice=+(roomRec?.price||0)
+                                              const computedTotal=roomPrice*nights||(+(res.total_amount||0))
+                                              return dbPatch('reservations',res.id,{status:'RESERVED',room_ids:[String(selRoom)],room_id:roomRec.id,room_type:roomRec.category||info.roomType||'',total_amount:computedTotal})
+                                            })()
                                             await dbPatch('rooms',roomRec.id,{status:'RESERVED'})
                                             // Send confirmation email
                                             try{
