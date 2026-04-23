@@ -3251,6 +3251,7 @@ function App() {
         db('hotel_settings',`?tenant_id=eq.${TENANT}&key=eq.active_fiscal_day&select=value`).catch(()=>[]),
       ])
       if(Array.isArray(bdRows)&&bdRows[0]?.value) setBusinessDate(bdRows[0].value)
+      setData({
         rooms:Array.isArray(rooms)?rooms:[],
         guests:Array.isArray(guests)?guests:[],
         reservations:Array.isArray(reservations)?reservations:[],
