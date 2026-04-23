@@ -1149,10 +1149,10 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
   const [saving,setSaving]=useState(false)
 
   const [checkOut,setCheckOut]=useState(res.check_out?String(res.check_out).slice(0,10):'')
-  const [checkIn,setCheckIn]=useState(res.check_in?String(res.check_in).slice(0,10):'')
+  const [checkInDate,setCheckInDate]=useState(res.check_in?String(res.check_in).slice(0,10):'')
   const [roomNos,setRoomNos]=useState((res.room_ids||[]).join(', '))
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
-  const nights=nightsCount(checkIn||res.check_in,checkOut||res.check_out)
+  const nights=nightsCount(checkInDate||res.check_in,checkOut||res.check_out)
   const origNights=nightsCount(res.check_in,res.check_out)
   const extNights=Math.max(0,nights-origNights)
   const roomRate=rooms.find(r=>(res.room_ids||[]).some(rn=>String(r.room_number)===String(rn)))?.price||0
@@ -1178,7 +1178,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
           if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
         }
       }
-      const updates={status,paid_amount:paidNum,discount_amount:+discountAmt||0,notes,check_in:checkIn,check_out:checkOut,room_ids:roomNos.split(',').map(s=>s.trim()).filter(Boolean)}
+      const updates={status,paid_amount:paidNum,discount_amount:+discountAmt||0,notes,check_in:checkInDate,check_out:checkOut,room_ids:roomNos.split(',').map(s=>s.trim()).filter(Boolean)}
       if(checkOut&&checkOut!==String(res.check_out||'').slice(0,10)){
         updates.check_out=checkOut
         if(nights>0) updates.total_amount=nights*roomRate
@@ -1252,13 +1252,13 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
         </div>
         <div className="info-box">
           <div className="info-lbl">Check-In</div>
-          <input type="date" className="finput" style={{marginTop:4,fontSize:12,padding:'4px 8px'}} value={checkIn}
-            onChange={e=>setCheckIn(e.target.value)}/>
+          <input type="date" className="finput" style={{marginTop:4,fontSize:12,padding:'4px 8px'}} value={checkInDate}
+            onChange={e=>setCheckInDate(e.target.value)}/>
         </div>
         <div className="info-box">
           <div className="info-lbl">Check-Out</div>
           <input type="date" className="finput" style={{marginTop:4,fontSize:12,padding:'4px 8px'}} value={checkOut}
-            onChange={e=>setCheckOut(e.target.value)} min={checkIn}/>
+            onChange={e=>setCheckOut(e.target.value)} min={checkInDate}/>
         </div>
         <div className="info-box"><div className="info-lbl">Nights</div><div className="info-val">{nights||'—'}</div></div>
         <div className="info-box"><div className="info-lbl">Total Amount</div><div className="info-val">{BDT(totalAmt)}</div></div>
