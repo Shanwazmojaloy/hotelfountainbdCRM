@@ -587,9 +587,9 @@ function LoginPage({onLogin, staffList}) {
 }
 
 /* ═══════════════════════ DASHBOARD ══════════════════════════ */
-function Dashboard({rooms,guests,reservations,transactions,setPage}) {
+function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}) {
   const [chartActive,setChartActive]=useState(13)
-  const today=todayStr()
+  const today=businessDate||todayStr()
   const occ=rooms.filter(r=>r.status==='OCCUPIED').length
   const occPct=rooms.length?Math.round((occ/rooms.length)*100):0
   // Group transactions by guest_name and fiscal_day
@@ -727,7 +727,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage}) {
 }
 
 /* ═══════════════════════ ROOMS ══════════════════════════════ */
-function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
+function RoomsPage({rooms,guests,reservations,toast,currentUser,reload,businessDate}) {
   const [filter,setFilter]=useState('ALL')
   const [selRoom,setSelRoom]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
@@ -769,6 +769,7 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
       {selRoom&&(
         <RoomModal room={selRoom} guests={guests} reservations={reservations}
           canEdit={canEdit} canHKStatus={canHKStatus} isSA={isSA} toast={toast}
+          businessDate={businessDate}
           onClose={()=>setSelRoom(null)}
           reload={()=>{ reload(); setSelRoom(null) }}/>
       )}
@@ -777,7 +778,7 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
   )
 }
 
-function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onClose,reload}) {
+function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onClose,reload,businessDate}) {
   const [status,setStatus]=useState(room.status)
   const [folios,setFolios]=useState([])
   const [fLoad,setFLoad]=useState(true)
@@ -1343,7 +1344,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
       if((+f.paid||0)>0) {
         await dbPost('transactions',{
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT
+          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:businessDate||todayStr(), tenant_id:TENANT
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
@@ -1892,7 +1893,7 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType) {
   printPDF(content)
 }
 
-function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests}) {
+function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,guests,businessDate}) {
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
   const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
@@ -1913,9 +1914,19 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [tokenAmt,setTokenAmt]=useState('')
   const [savedToken,setSavedToken]=useState(0)
   const [tokenSaving,setTokenSaving]=useState(false)
-  const today=todayStr(), month=today.slice(0,7)
+  const today=businessDate||todayStr(), month=today.slice(0,7)
 
   const todayT = transactions.filter(t=>t.fiscal_day===today);
+  // GHOST FILTER: exclude checked-out zero-balance guests from active ledger
+  const activeLedgerTx = todayT.filter(t=>{
+    if(t.type==='Balance Carried Forward') return true
+    const res=reservations.find(r=>(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number))
+    if(res?.status==='CHECKED_OUT'){
+      const due=(+(res.total_amount||0))-(+(res.paid_amount||0))
+      if(due<=0) return false // ghost — zero balance checked-out
+    }
+    return true
+  })
   const monthT = transactions.filter(t=>t.fiscal_day?.startsWith(month));
   const calT = calDate ? transactions.filter(t=>t.fiscal_day===calDate) : [];
 
@@ -2009,6 +2020,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
         setSavedToken(a);
       } catch(e) {}
     }
+    // Use business date (today = businessDate in BillingPage scope)
     const todayList=transactions.filter(t=>t.fiscal_day===today && t.type!=='Balance Carried Forward')
     const totalAmt=todayList.reduce((acc,t)=>acc+(+t.amount||0),0)
     const tokenAmount=a||savedToken||0
@@ -2122,7 +2134,7 @@ ${dueRows}
     <div>
       {/* Stats */}
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`}</div><div className="stat-val">{BDT(filter==='DATE'?calT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{(filter==='DATE'?calT:todayT).filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():(()=>{const[y,m,d]=(today||todayStr()).split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()} <span style={{fontSize:9,color:'var(--gold-light)',marginLeft:4,fontFamily:'var(--mono)'}}>BIZ DAY</span></div><div className="stat-val">{BDT(filter==='DATE'?calT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{(filter==='DATE'?calT:todayT).filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
       </div>
@@ -2131,7 +2143,7 @@ ${dueRows}
       <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
         <div style={{display:'flex',alignItems:'center',gap:0}}>
           <div className="tabs" style={{marginBottom:0}}>
-            {[['TODAY',`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`],['MONTH','MONTH'],['ALL','ALL']].map(([f,lbl])=>(
+            {(()=>{const[y,m,d]=(today||todayStr()).split('-');const lbl=`${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`;return[['TODAY',lbl],['MONTH','MONTH'],['ALL','ALL']]})().map(([f,lbl])=>(
               <button key={f} className={`tab${filter===f?' on':''}`} onClick={()=>{setFilter(f);setCalDate('')}}>{lbl}</button>
             ))}
           </div>
@@ -2188,7 +2200,7 @@ ${dueRows}
 
       {/* Unified Active Ledger Table */}
       {(()=>{
-        let list = filter==='TODAY'?todayT : filter==='DATE'?calT : filter==='MONTH'?monthT : transactions
+        let list = filter==='TODAY'?activeLedgerTx : filter==='DATE'?calT : filter==='MONTH'?monthT : transactions
         if(search){const q=search.toLowerCase();list=list.filter(t=>t.guest_name?.toLowerCase().includes(q)||t.room_number?.includes(q)||t.type?.toLowerCase().includes(q))}
         const fmtDLabel=d=>{if(!d)return'Today';const[y,m,dy]=d.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+dy}-${mo[+m-1]}-${y}`}
         const label = filter==='TODAY'?fmtDLabel(''):filter==='DATE'?fmtDLabel(calDate):filter==='MONTH'?'This Month':'All Time'
@@ -2198,7 +2210,13 @@ ${dueRows}
 
         // 1. Process filtered transactions
         list.forEach(t=>{
-          const res = reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number)&&(r.guest_ids||[]).includes(guests?.find(g=>g.name===t.guest_name)?.id)) || reservations?.find(r=>(r.room_ids||[r.room_number]).includes(t.room_number))
+          // Robust res lookup: match by room_number (string-safe) + optional guest match
+          const guestId = guests?.find(g=>g.name===t.guest_name)?.id
+          const res = reservations?.find(r=>{
+            const roomMatch=(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number)
+            const nameMatch=!guestId||(r.guest_ids||[]).includes(guestId)||r.guest_name===t.guest_name
+            return roomMatch&&nameMatch
+          }) || reservations?.find(r=>(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number))
           const key = res ? res.id : `tx|${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
           if(!unifiedGroups[key]) unifiedGroups[key] = { txs:[], res, guest_name:t.guest_name, room_number:t.room_number, isDue: false }
           unifiedGroups[key].txs.push(t)
@@ -2311,7 +2329,7 @@ ${dueRows}
       })()}
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations}/>}
+      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations} businessDate={businessDate}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
@@ -2382,7 +2400,7 @@ ${dueRows}
   )
 }
 
-function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
+function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,businessDate}) {
   const fromRow=prefill?._fromRow===true
   const dueResList=(reservations||[]).filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0))
 
@@ -2401,7 +2419,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests}) {
 
   const [amount,setAmount]=useState(fromRow&&lockedDue>0?String(lockedDue):dropDueAmt>0?String(dropDueAmt):'')
   const [type,setType]=useState('Room Payment (Cash)')
-  const [fiscal_day,setFiscalDay]=useState(todayStr())
+  const [fiscal_day,setFiscalDay]=useState(businessDate||todayStr())
   const [saving,setSaving]=useState(false)
 
   function pickRes(r){
@@ -3204,6 +3222,7 @@ function App() {
   const [notifOpen,setNotifOpen]=useState(false)
   // Staff list lives here so Settings can mutate it
   const [staffList,setStaffList]=useState(INIT_STAFF)
+  const [businessDate,setBusinessDate]=useState(todayStr())
   // Load staff from Supabase on mount (overrides INIT_STAFF)
   useEffect(()=>{
     db('staff',`?tenant_id=eq.${TENANT}&select=*&order=id`)
@@ -3223,14 +3242,15 @@ function App() {
   // loadAll returns a promise so callers can await it
   const loadAll=useCallback(async()=>{
     try {
-      const [rooms,guests,reservations,transactions,tasks]=await Promise.all([
+      const [rooms,guests,reservations,transactions,tasks,bdRows]=await Promise.all([
         db('rooms',`?tenant_id=eq.${TENANT}&select=*&order=room_number`),
         db('guests',`?tenant_id=eq.${TENANT}&select=*&order=name`),
         db('reservations',`?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=500`),
         db('transactions',`?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=400`),
         db('housekeeping_tasks',`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),
+        db('hotel_settings',`?tenant_id=eq.${TENANT}&key=eq.active_fiscal_day&select=value`).catch(()=>[]),
       ])
-      setData({
+      if(Array.isArray(bdRows)&&bdRows[0]?.value) setBusinessDate(bdRows[0].value)
         rooms:Array.isArray(rooms)?rooms:[],
         guests:Array.isArray(guests)?guests:[],
         reservations:Array.isArray(reservations)?reservations:[],
@@ -3496,17 +3516,18 @@ function App() {
               )}
             </div>
 
-            <button className="btn btn-ghost btn-sm" onClick={()=>{ loadAll(); toast('Data refreshed','info') }} title="Refresh data">↻</button>
+            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--gold-light)',letterSpacing:'.1em',border:'1px solid rgba(200,169,110,.3)',padding:'3px 8px',marginRight:4}} title="Current Business Date">{(()=>{if(!businessDate)return'—';const[y,m,d]=businessDate.split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()}</span>
+          <button className="btn btn-ghost btn-sm" onClick={()=>{ loadAll(); toast('Data refreshed','info') }} title="Refresh data">↻</button>
           </div>
 
           {/* Close notif by clicking content area */}
           <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
-            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage}/>}
-            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} businessDate={businessDate}/>}
+            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
             {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user}/>}
+            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
           </div>
