@@ -146,6 +146,18 @@ html,body,#root{
 
 /* ── CARDS ── */
 .card{background:var(--s2);border:1px solid var(--br);border-top:3px solid var(--gold-light);transition:transform .2s,box-shadow .2s;overflow:hidden;margin-bottom:16px}
+.rooms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.room-card{background:var(--s2);border:1px solid var(--br);padding:14px 12px 12px;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.room-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;transition:opacity .2s}
+.room-card.AVAILABLE::before{background:var(--grn)}
+.room-card.OCCUPIED::before{background:var(--sky)}
+.room-card.DIRTY::before{background:var(--amb)}
+.room-card.OUT_OF_ORDER::before{background:var(--rose)}
+.room-card.RESERVED::before{background:var(--pur)}
+.room-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4);border-color:rgba(200,169,110,.4)}
+.room-no{font-family:var(--serif);font-size:24px;font-weight:700;color:var(--gold-light);margin-bottom:6px;line-height:1}
+.room-cat{font-family:var(--sans);font-size:10px;color:var(--tx3);margin-bottom:2px;letter-spacing:.02em}
+.room-price{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--tx2);margin-top:6px;border-top:1px solid var(--br2);padding-top:6px}
 .card:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,0,0,.35)}.card-hd{padding:14px 18px;border-bottom:1px solid var(--br2);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:48px;background:var(--s4)}
 .card-title{font-family:var(--serif);font-size:16px;font-weight:700;color:var(--tx);letter-spacing:.01em}
 .card-title em{font-style:italic;color:var(--gold);font-weight:400}
@@ -196,24 +208,24 @@ html,body,#root{
 .finput:focus{border-color:var(--gold-light);box-shadow:0 0 0 3px rgba(200,169,110,.12)}
 .finput::placeholder{color:var(--tx3);font-weight:300}
 .finput:disabled{background:rgba(0,0,0,.4);color:var(--tx3);cursor:not-allowed}
-.fselect{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(200,169,110,.25);color:var(--tx);font-family:var(--sans);font-size:13px;font-weight:400;padding:9px 12px;outline:none;cursor:pointer;transition:border-color .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C8A96E' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
-.fselect:focus{border-color:var(--s1)}
+.fselect{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(200,169,110,.25);color-scheme:dark;color:var(--tx);font-family:var(--sans);font-size:13px;font-weight:400;padding:9px 12px;outline:none;cursor:pointer;transition:border-color .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C8A96E' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+.fselect:focus{border-color:var(--gold-light)}.fselect option{background:#1C1510;color:#EEE8DC}
 .flbl{display:block;font-family:var(--sans);font-size:9px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase;font-weight:600;margin-bottom:5px}
 .fg{flex:1;min-width:0;margin-bottom:12px}
 .frow{display:flex;gap:12px;flex-wrap:wrap}
 .frow>.fg{flex:1;min-width:140px}
 
 /* ── MODALS ── */
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(2px)}
-.modal{background:var(--s2);border:1px solid var(--br);border-top:4px solid var(--gold-light);width:100%;max-width:540px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 80px rgba(28,21,16,.25);animation:mIn .2s ease}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(2px)}
+.modal{background:var(--s2);border:1px solid var(--br);border-top:4px solid var(--gold-light);width:100%;max-width:540px;max-height:92vh;overflow-y:auto;background:#1C1510;box-shadow:0 24px 80px rgba(28,21,16,.25);animation:mIn .2s ease}
 .modal-w{max-width:820px}
 @keyframes mIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--br2);background:var(--s4);flex-shrink:0}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(200,169,110,.18);background:rgba(200,169,110,.07);flex-shrink:0}
 .modal-title{font-family:var(--serif);font-size:18px;font-weight:700;color:var(--tx)}
 .modal-x{background:none;border:none;cursor:pointer;color:var(--tx3);font-size:20px;line-height:1;padding:2px 6px;transition:color .15s}
 .modal-x:hover{color:var(--rose)}
 .modal-body{padding:20px}
-.modal-ft{padding:14px 20px;border-top:1px solid var(--br2);display:flex;justify-content:flex-end;gap:8px;background:var(--s4)}
+.modal-ft{padding:14px 20px;border-top:1px solid rgba(200,169,110,.18);display:flex;justify-content:flex-end;gap:8px;background:rgba(200,169,110,.05)}
 
 /* ── TABS ── */
 .tabs{display:flex;gap:0;border-bottom:2px solid var(--s1);margin-bottom:16px;overflow-x:auto}
@@ -304,23 +316,23 @@ html,body,#root{
 .lp-vdivide{position:absolute;left:0;top:40px;bottom:40px;width:1px;background:linear-gradient(to bottom,transparent,rgba(197,160,89,.35) 20%,rgba(197,160,89,.35) 80%,transparent)}
 /* CARD */
 .login-card{background:#262626;border-radius:4px;border-top:5px solid #C5A059;box-shadow:0 24px 80px rgba(0,0,0,.55),0 4px 12px rgba(40,34,28,.08);padding:48px 48px 40px;width:100%;max-width:500px;position:relative;z-index:1;animation:mIn .35s ease}
-.lc-inner-top{height:1px;background:#D8D0C2;margin-bottom:30px}
+.lc-inner-top{height:1px;background:rgba(200,169,110,.25);margin-bottom:30px}
 .lc-signin-label{font-family:var(--mono);font-size:10px;letter-spacing:.28em;color:rgba(197,160,89,.8);text-transform:uppercase;text-align:center;margin-bottom:6px}
 .lc-ornament{text-align:center;color:rgba(197,160,89,.4);font-size:10px;margin-bottom:22px}
 /* ROLE GRID */
 .role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:28px}
-.rpill{padding:14px 8px 12px;border:1px solid #D5CCBC;background:#F4F1EA;cursor:pointer;transition:all .18s cubic-bezier(.4,0,.2,1);text-align:center;color:var(--tx);font-family:var(--sans);border-radius:3px;position:relative;overflow:hidden}
+.rpill{padding:14px 8px 12px;border:1px solid rgba(200,169,110,.2);background:#2A2420;cursor:pointer;transition:all .18s cubic-bezier(.4,0,.2,1);text-align:center;color:var(--tx-inv);font-family:var(--sans);border-radius:3px;position:relative;overflow:hidden}
 .rpill::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:#C5A059;transform:scaleX(0);transition:transform .18s cubic-bezier(.4,0,.2,1)}
-.rpill:hover{border-color:#2D2A26;background:#EDEAE2}
-.rpill.sel{border-color:#2D2A26;background:#2D2A26;color:#F9F7F2}
+.rpill:hover{border-color:rgba(200,169,110,.5);background:#333028}
+.rpill.sel{border-color:var(--gold-light);background:#1C1510;color:#F9F7F2}
 .rpill.sel::before{transform:scaleX(1)}
 .rpill .ri{font-size:20px;margin-bottom:6px;display:block}
 .rpill .rl{font-size:9.5px;letter-spacing:.06em;font-weight:600;text-transform:uppercase;color:inherit}
 .rpill.sel .rl{color:rgba(197,160,89,.9)}
 /* EMAIL DISPLAY */
 .lc-email-display{margin-bottom:22px}
-.lc-email-lbl{font-family:var(--sans);font-size:8.5px;font-weight:700;letter-spacing:.16em;color:rgba(100,88,70,.8);text-transform:uppercase;margin-bottom:6px}
-.lc-email-val{font-family:var(--sans);font-size:15.5px;color:#2D2A26;font-weight:400;padding-bottom:8px;border-bottom:1.5px solid #C5A059;display:flex;justify-content:space-between;align-items:baseline}
+.lc-email-lbl{font-family:var(--sans);font-size:8.5px;font-weight:700;letter-spacing:.16em;color:rgba(200,169,110,.65);text-transform:uppercase;margin-bottom:6px}
+.lc-email-val{font-family:var(--sans);font-size:15.5px;color:#EEE8DC;font-weight:400;padding-bottom:8px;border-bottom:1.5px solid #C8A96E;display:flex;justify-content:space-between;align-items:baseline}
 .lc-change{font-family:var(--serif);font-size:11px;font-style:italic;color:rgba(197,160,89,.7);cursor:pointer}
 /* override finput focus */
 .login-card .finput:focus{border-color:var(--gold);outline:none;box-shadow:none}
@@ -331,13 +343,13 @@ html,body,#root{
 
 /* ── GUEST SEARCH ── */
 .gsearch-wrap{position:relative}
-.gsearch-list{position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--s2);border:1px solid var(--br);border-top:2px solid var(--s1);z-index:500;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(28,21,16,.1)}
+.gsearch-list{position:absolute;top:calc(100% + 2px);left:0;right:0;background:#1C1510;border:1px solid rgba(200,169,110,.25);border-top:2px solid var(--gold-light);z-index:500;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .gsearch-item{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:12.5px;transition:background .12s;border-bottom:1px solid var(--br2)}
 .gsearch-item:last-child{border-bottom:none}
 .gsearch-item:hover{background:var(--s3)}
 
 /* ── NOTIFICATION PANEL ── */
-.notif-panel{position:absolute;top:58px;right:12px;width:320px;background:var(--s2);border:1px solid var(--br);border-top:3px solid var(--s1);box-shadow:0 16px 48px rgba(28,21,16,.15);z-index:200;animation:mIn .2s ease}
+.notif-panel{position:absolute;top:58px;right:12px;width:320px;background:#1C1510;border:1px solid rgba(200,169,110,.25);border-top:3px solid var(--gold-light);box-shadow:0 16px 48px rgba(0,0,0,.5);z-index:200;animation:mIn .2s ease}
 
 `
 
@@ -1740,49 +1752,142 @@ function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, cal
   const closingBalance = todayTotal - tkn
   const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
-    @page{size:A4 portrait;margin:5.08mm}
+    @page{size:A4 portrait;margin:8mm 10mm}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}
-    .hotel-name{font-size:18px;font-weight:700;color:#000}.hotel-sub{font-size:9px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
-    .report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
-    .stat-box{background:#f2f2f2;border:1px solid #ccc;padding:6px 8px}
-    .stat-box .lbl{font-size:7px;letter-spacing:.1em;color:#555;text-transform:uppercase;margin-bottom:2px}
-    .stat-box .val{font-size:13px;font-weight:700;color:#000}
-    .stat-box.hi{background:#eee;border-color:#000}.stat-box.hi .val{color:#000}
-    .stat-box.out .val{color:#000;font-style:italic}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1C1510;font-size:10px;background:#fff}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1C1510}
+    .hotel-name{font-size:20px;font-weight:800;color:#1C1510;font-family:Georgia,serif}
+    .hotel-name em{color:#C8A96E;font-style:italic;font-weight:400}
+    .hotel-sub{font-size:8px;color:#8D6F57;margin-top:3px;letter-spacing:.1em;text-transform:uppercase}
+    .report-title{text-align:right}
+    .report-title h2{font-size:13px;font-weight:700;color:#1C1510}
+    .report-title .meta{font-size:8px;color:#8D6F57;margin-top:3px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+    .stat-box{background:#FBF8F3;border:1px solid #8D6F57;padding:8px 10px}
+    .stat-box .lbl{font-size:7px;letter-spacing:.12em;color:#8D6F57;text-transform:uppercase;margin-bottom:3px;font-weight:600}
+    .stat-box .val{font-size:14px;font-weight:800;color:#1C1510}
+    .stat-box.hi{background:#FBF8F3;border-color:#C8A96E;border-top:3px solid #C8A96E}
+    .stat-box.hi .val{color:#1C1510}
+    .stat-box.out .val{color:#950101;font-weight:800}
     table{width:100%;border-collapse:collapse}
-    thead tr{background:#000;color:#fff}
-    thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+    thead tr{background:#fff}
+    thead th{padding:7px 9px;text-align:left;font-size:8px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:#1C1510;border-bottom:1px solid #8D6F57}
     thead th:last-child{text-align:right}
-    tbody tr:nth-child(even){background:#f2f2f2}
-    tbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}
-    tbody td:last-child{text-align:right;font-weight:600}
-    .closing-box{margin-top:16px;border:2px solid #000;padding:12px 16px;background:#f8f8f8}
-    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#000}
-    .closing-row.total{border-top:1px solid #ccc;margin-top:4px;padding-top:6px;font-weight:700}
-    .closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}
-    .footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between}
-    .total-row{font-size:12px;font-weight:700;color:#000}
-    .footer-note{font-size:8px;color:#555}
+    tbody tr:nth-child(even){background:#FBF8F3}
+    tbody tr:nth-child(odd){background:#fff}
+    tbody td{padding:5px 9px;border-bottom:1px solid #8D6F57;font-size:9.5px;color:#1C1510}
+    tbody td:last-child{text-align:right;font-weight:600;font-family:monospace}
+    .subtotal-sep{height:1px;background:#C8A96E}
+    .closing-box{margin-top:16px;border:1px solid #8D6F57;border-top:3px solid #C8A96E;padding:12px 16px;background:#FBF8F3}
+    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:11px;color:#1C1510}
+    .closing-row.total{border-top:1px solid #C8A96E;margin-top:6px;padding-top:8px;font-weight:700}
+    .closing-row.token{color:#8D6F57}
+    .closing-row.final{border-top:1px solid #C8A96E;border-bottom:3px solid #C8A96E;margin-top:8px;padding:10px 0;font-size:16px;font-weight:800;color:#1C1510}
+    .footer{margin-top:14px;padding-top:8px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:center}
+    .total-row{font-size:12px;font-weight:700;color:#1C1510}
+    .footer-note{font-size:7.5px;color:#8D6F57;letter-spacing:.04em}
+    .trend-pos{color:#1F6F54;font-weight:700}
+    .trend-neg{color:#950101;font-weight:700}
   </style></head><body>
-  <div class="header"><div><div class="hotel-name">Hotel Fountain</div><div class="hotel-sub">Billing & Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
+  <div class="header"><div><div class="hotel-name">Hotel <em>Fountain</em></div><div class="hotel-sub">Billing & Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
   <div class="stats">
     <div class="stat-box hi"><div class="lbl">Today</div><div class="val">৳${todayTotal.toLocaleString()}</div></div>
     <div class="stat-box"><div class="lbl">This Month</div><div class="val">৳${monthTotal.toLocaleString()}</div></div>
     <div class="stat-box"><div class="lbl">All Time</div><div class="val">৳${allTotal.toLocaleString()}</div></div>
-    <div class="stat-box out"><div class="lbl">Outstanding</div><div class="val">৳${Number(outstanding||0).toLocaleString()}</div></div>
+    <div class="stat-box out"><div class="lbl">Outstanding Due</div><div class="val trend-neg">৳${Number(outstanding||0).toLocaleString()}</div></div>
   </div>
   <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
   <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
   <div class="closing-box">
-    <div class="closing-row total"><span>Today's Total Collection</span><span>৳${todayTotal.toLocaleString()}</span></div>
-    <div class="closing-row"><span>Token Amount</span><span>− ৳${tkn.toLocaleString()}</span></div>
+    <div class="closing-row total"><span>Today's Total Collection</span><span class="trend-pos">৳${todayTotal.toLocaleString()}</span></div>
+    <div class="closing-row token"><span>Token Amount (Deducted)</span><span>− ৳${tkn.toLocaleString()}</span></div>
     <div class="closing-row final"><span>Closing Balance</span><span>৳${closingBalance.toLocaleString()}</span></div>
   </div>
   <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${realList.length} transaction${realList.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
+  </body></html>`
+  printPDF(content)
+}
+
+
+function printInvoice(grp, res, tTotal, tPaid, tDue, byType) {
+  const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
+  const invoiceNo = 'INV-' + Date.now().toString().slice(-8)
+  const txRows = (grp.txs||[]).filter(t=>t.type!=='Balance Carried Forward').map((t,i)=>`
+    <tr style="background:${i%2===0?'#fff':'#FBF8F3'}">
+      <td style="padding:7px 10px;border-bottom:1px solid #8D6F57;color:#1C1510;font-size:9.5px">${t.fiscal_day||'—'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #8D6F57;color:#1C1510;font-size:9.5px">${t.type||'Charge'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #8D6F57;color:#1C1510;font-size:9.5px;text-align:right;font-weight:600;font-family:monospace">৳${Number(t.amount||0).toLocaleString()}</td>
+    </tr>`).join('')
+  const pmtRows = Object.entries(byType).map(([tp,amt])=>`
+    <tr style="background:#FBF8F3">
+      <td colspan="2" style="padding:5px 10px;font-size:9px;color:#8D6F57;letter-spacing:.04em">${tp}</td>
+      <td style="padding:5px 10px;text-align:right;font-size:9px;color:#1C1510;font-weight:600;font-family:monospace">৳${Number(amt).toLocaleString()}</td>
+    </tr>`).join('')
+  const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice — ${grp.guest_name||'Guest'}</title>
+  <style>
+    @page{size:A4 portrait;margin:10mm 12mm}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#1C1510;font-size:10px}
+    table{width:100%;border-collapse:collapse}
+  </style></head><body>
+  <table style="margin-bottom:18px">
+    <tr>
+      <td width="48%" style="background:#1C1510;padding:18px 20px;vertical-align:top">
+        <div style="font-size:20px;font-weight:800;color:#C8A96E;letter-spacing:.02em;font-family:Georgia,serif">Hotel <em style="font-weight:400">Fountain</em></div>
+        <div style="font-size:7.5px;color:rgba(255,255,255,.5);letter-spacing:.18em;text-transform:uppercase;margin-top:5px">Luxury In Comfort</div>
+        <div style="font-size:7px;color:rgba(200,169,110,.4);margin-top:10px;letter-spacing:.06em">MANAGEMENT CRM · POWERED BY LUMEA</div>
+      </td>
+      <td width="4%"></td>
+      <td width="48%" style="padding:18px 0 18px 8px;vertical-align:top;text-align:right;border-bottom:2px solid #1C1510">
+        <div style="font-size:7.5px;color:#1C1510;letter-spacing:.16em;text-transform:uppercase;margin-bottom:3px">Invoice Number</div>
+        <div style="font-size:13px;font-weight:700;color:#1C1510;margin-bottom:10px;font-family:monospace">${invoiceNo}</div>
+        <div style="font-size:7.5px;color:#1C1510;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px">Date Issued</div>
+        <div style="font-size:9px;font-weight:500;color:#1C1510;margin-bottom:10px">${now}</div>
+        <div style="font-size:7.5px;color:#1C1510;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">Amount Due</div>
+        <div style="font-size:22px;font-weight:800;color:#C8A96E;font-family:monospace">${tDue>0?'৳'+Number(tDue).toLocaleString():'৳0 — PAID'}</div>
+      </td>
+    </tr>
+  </table>
+  <table style="margin-bottom:14px">
+    <tr><td colspan="3" style="padding:6px 0 4px;font-size:7.5px;color:#8D6F57;letter-spacing:.14em;text-transform:uppercase;border-top:1px solid #8D6F57">BILLED TO</td></tr>
+    <tr>
+      <td width="60%">
+        <div style="font-size:14px;font-weight:700;color:#1C1510;margin-bottom:3px">${grp.guest_name||'—'}</div>
+        <div style="font-size:9px;color:#8D6F57">Room ${grp.room_number||'—'}${res?' · Check-in: '+String(res.check_in||'').slice(0,10)+' · Check-out: '+String(res.check_out||'').slice(0,10):''}</div>
+      </td>
+    </tr>
+  </table>
+  <table style="margin-bottom:0">
+    <thead>
+      <tr style="background:#fff">
+        <th style="padding:8px 10px;text-align:left;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#1C1510;border-bottom:1px solid #8D6F57;font-weight:700">Date</th>
+        <th style="padding:8px 10px;text-align:left;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#1C1510;border-bottom:1px solid #8D6F57;font-weight:700">Description</th>
+        <th style="padding:8px 10px;text-align:right;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#1C1510;border-bottom:1px solid #8D6F57;font-weight:700">Amount (BDT)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${txRows||'<tr><td colspan="3" style="padding:18px;text-align:center;color:#8D6F57">No transactions recorded</td></tr>'}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="3" style="height:1px;background:#C8A96E"></td></tr>
+      <tr style="background:#FBF8F3">
+        <td colspan="2" style="padding:8px 10px;font-size:9.5px;font-weight:700;color:#1C1510;letter-spacing:.06em">TOTAL CHARGED</td>
+        <td style="padding:8px 10px;text-align:right;font-size:13px;font-weight:800;color:#1C1510;font-family:monospace">৳${Number(tTotal||0).toLocaleString()}</td>
+      </tr>
+      ${pmtRows?`<tr><td colspan="3" style="padding:6px 10px;font-size:7.5px;color:#8D6F57;letter-spacing:.12em;text-transform:uppercase;border-top:1px solid #8D6F57">PAYMENTS RECEIVED</td></tr>${pmtRows}`:''}
+      <tr><td colspan="3" style="height:1px;background:#C8A96E"></td></tr>
+      <tr style="background:linear-gradient(90deg,#C8A96E,#A07840)">
+        <td colspan="2" style="padding:12px 10px;font-size:12px;font-weight:800;color:#fff;letter-spacing:.1em;text-transform:uppercase">Amount Due</td>
+        <td style="padding:12px 10px;text-align:right;font-size:18px;font-weight:800;color:#fff;font-family:monospace">৳${Number(tDue||0).toLocaleString()}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div style="margin-top:16px;padding-top:8px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:center">
+    <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase">Hotel Fountain · Lumea PMS · Confidential</div>
+    <div style="font-size:7.5px;color:#8D6F57">Computer-generated invoice — no signature required</div>
+  </div>
   </body></html>`
   printPDF(content)
 }
@@ -1953,7 +2058,7 @@ h3{font-size:11px;font-weight:700;color:#000;margin:14px 0 6px;border-bottom:1px
 .closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}
 .footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between;font-size:8px;color:#555}
 </style></head><body>
-<div class="header"><div><div class="hotel-name">Hotel Fountain</div><div class="hotel-sub">Daily Closing Report</div></div><div class="report-title"><h2>Closing: ${today}</h2><div class="meta">Generated: ${now}</div></div></div>
+<div class="header"><div><div class="hotel-name">Hotel <em>Fountain</em></div><div class="hotel-sub">Daily Closing Report</div></div><div class="report-title"><h2>Closing: ${today}</h2><div class="meta">Generated: ${now}</div></div></div>
 <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead><tbody>${txRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions today</td></tr>'}</tbody></table>
 ${dueRows}
 <div class="closing-box">
