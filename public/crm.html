@@ -519,6 +519,7 @@ function LoginPage({onLogin, staffList}) {
         </div>
 
         <div className="login-card">
+          <form onSubmit={e=>{e.preventDefault();doLogin()}} autoComplete="off">
           <div className="lc-inner-top"/>
           <div className="lc-signin-label">Sign In</div>
           <div className="lc-ornament">◆ · ◆ · ◆</div>
@@ -588,6 +589,7 @@ function LoginPage({onLogin, staffList}) {
           <div style={{textAlign:'center',marginTop:28,fontFamily:'var(--mono)',fontSize:9,color:'rgba(150,135,112,.55)',letterSpacing:'.14em',lineHeight:1.7}}>
             Access is role-restricted.<br/>Contact your administrator if you have not received credentials.
           </div>
+          </form>
         </div>
 
         <div className="lp-right-bot">Lumea · Hotel Fountain Management CRM</div>
