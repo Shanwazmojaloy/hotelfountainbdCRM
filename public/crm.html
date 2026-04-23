@@ -147,14 +147,24 @@ html,body,#root{
 /* ── CARDS ── */
 .card{background:var(--s2);border:1px solid var(--br);border-top:3px solid var(--gold-light);transition:transform .2s,box-shadow .2s;overflow:hidden;margin-bottom:16px}
 .rooms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px;margin-bottom:16px}
-.room-card{background:var(--s2);border:1px solid var(--br);padding:14px 12px 12px;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.room-card{background:rgba(38,38,38,.55);border:1px solid rgba(200,169,110,.15);padding:14px 12px 12px;cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;backdrop-filter:blur(6px)}
 .room-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;transition:opacity .2s}
-.room-card.AVAILABLE::before{background:var(--grn)}
+.room-card.AVAILABLE{background:rgba(31,111,84,.2);border-color:rgba(74,222,128,.22);box-shadow:inset 0 0 24px rgba(74,222,128,.06)}
+.room-card.AVAILABLE::before{background:linear-gradient(90deg,#4ADE80,#2DD4BF)}
+.room-card.OCCUPIED{background:rgba(30,58,138,.28);border-color:rgba(96,165,250,.28);box-shadow:inset 0 0 24px rgba(200,169,110,.07)}
+.room-card.OCCUPIED::before{background:linear-gradient(90deg,#60A5FA,#C8A96E)}
+.room-card.DIRTY{background:rgba(120,53,15,.25);border-color:rgba(252,211,77,.25);box-shadow:inset 0 0 20px rgba(252,211,77,.06)}
+.room-card.DIRTY::before{background:linear-gradient(90deg,#FCD34D,#F97316)}
+.room-card.OUT_OF_ORDER{background:rgba(127,29,29,.25);border-color:rgba(248,113,113,.22);box-shadow:inset 0 0 20px rgba(248,113,113,.06)}
+.room-card.OUT_OF_ORDER::before{background:linear-gradient(90deg,#F87171,#7F1D1D)}
+.room-card.RESERVED{background:rgba(88,28,135,.22);border-color:rgba(167,139,250,.22);box-shadow:inset 0 0 20px rgba(167,139,250,.06)}
+.room-card.RESERVED::before{background:linear-gradient(90deg,#A78BFA,#7C3AED)}
+.room-card.AVAILABLE::before
 .room-card.OCCUPIED::before{background:var(--sky)}
 .room-card.DIRTY::before{background:var(--amb)}
 .room-card.OUT_OF_ORDER::before{background:var(--rose)}
 .room-card.RESERVED::before{background:var(--pur)}
-.room-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4);border-color:rgba(200,169,110,.4)}
+.room-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.55),0 0 0 1px rgba(200,169,110,.35)}
 .room-no{font-family:var(--serif);font-size:24px;font-weight:700;color:var(--gold-light);margin-bottom:6px;line-height:1}
 .room-cat{font-family:var(--sans);font-size:10px;color:var(--tx3);margin-bottom:2px;letter-spacing:.02em}
 .room-price{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--tx2);margin-top:6px;border-top:1px solid var(--br2);padding-top:6px}
@@ -1054,7 +1064,7 @@ function AddRoomModal({toast,onClose,reload,rooms}) {
 }
 
 /* ═══════════════════════ RESERVATIONS ═══════════════════════ */
-function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) {
+function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,businessDate,transactions}) {
   const [filter,setFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [selRes,setSelRes]=useState(null)
@@ -1118,7 +1128,8 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
 
       {selRes&&(
         <ReservationDetail res={selRes} guests={guests} rooms={rooms} toast={toast}
-          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'}/>
+          onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'}
+          businessDate={businessDate} transactions={transactions}/>
       )}
       {showNew&&(
         <NewReservationModal guests={guests} rooms={rooms} toast={toast}
@@ -1128,15 +1139,20 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload}) 
   )
 }
 
-function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
+function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,businessDate,transactions}) {
   const [status,setStatus]=useState(res.status)
   const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
   const [discountAmt,setDiscountAmt]=useState(String(res.discount_amount||res.discount||''))
   const [notes,setNotes]=useState(res.notes||'')
   const [saving,setSaving]=useState(false)
 
+  const [checkOut,setCheckOut]=useState(res.check_out?String(res.check_out).slice(0,10):'')
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
-  const nights=nightsCount(res.check_in,res.check_out)
+  const nights=nightsCount(res.check_in,checkOut||res.check_out)
+  const origNights=nightsCount(res.check_in,res.check_out)
+  const extNights=Math.max(0,nights-origNights)
+  const roomRate=rooms.find(r=>(res.room_ids||[]).some(rn=>String(r.room_number)===String(rn)))?.price||0
+  const extCharge=extNights>0?extNights*roomRate:0
   const totalAmt=+res.total_amount||0
   const paidNum=+paidAmt||0
   const balance=totalAmt-paidNum
@@ -1158,8 +1174,22 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
         }
       }
-      await dbPatch('reservations',res.id,{status,paid_amount:paidNum,discount_amount:+discountAmt||0,notes})
-      toast('Reservation updated ✓')
+      const updates={status,paid_amount:paidNum,discount_amount:+discountAmt||0,notes}
+      if(checkOut&&checkOut!==String(res.check_out||'').slice(0,10)){
+        updates.check_out=checkOut
+        if(nights>0) updates.total_amount=nights*roomRate
+        // Post extension charge transaction
+        if(extCharge>0){
+          await dbPost('transactions',{
+            room_number:(res.room_ids||[])[0]||(res.room_number||'?'),
+            guest_name:gn,
+            type:`Stay Extension (+${extNights} night${extNights!==1?'s':''})`,
+            amount:extCharge, fiscal_day:businessDate||todayStr(), tenant_id:TENANT
+          })
+        }
+      }
+      await dbPatch('reservations',res.id,updates)
+      toast(extCharge>0?`Reservation updated · Extension ৳${extCharge.toLocaleString()} charged ✓`:'Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
@@ -1184,7 +1214,26 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
           {(res.status==='RESERVED'||res.status==='PENDING')&&(
             <button className="btn btn-success" disabled={saving} onClick={checkIn}>✓ Check In Now</button>
           )}
-          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{if(!window.confirm('Delete this reservation?'))return;try{await dbDelete('reservations',res.id);toast('Reservation deleted');reload()}catch(e){toast(e.message,'error')}}}>🗑 Delete</button>}
+          {isOwner&&<button className="btn btn-danger btn-sm" onClick={async()=>{
+    if(!window.confirm(`Delete reservation for ${gn}?\nThis will:\n• Delete related transactions\n• Reset rooms to Available\n\nThis cannot be undone.`))return
+    try{
+      // 1. Reset room statuses to AVAILABLE
+      for(const rn of (res.room_ids||[])){
+        const room=rooms.find(r=>String(r.room_number)===String(rn))
+        if(room) await dbPatch('rooms',room.id,{status:'AVAILABLE'})
+      }
+      // 2. Delete related transactions (cascade by room+guest)
+      const relTx=(transactions||[]).filter(t=>
+        (res.room_ids||[]).some(rn=>String(t.room_number)===String(rn))&&
+        (!t.guest_name||t.guest_name===gn)
+      )
+      for(const t of relTx) await dbDelete('transactions',t.id)
+      // 3. Delete reservation
+      await dbDelete('reservations',res.id)
+      toast(`Reservation deleted · ${relTx.length} transaction(s) removed · Rooms freed ✓`)
+      reload()
+    }catch(e){toast(e.message,'error')}
+  }}>🗑 Delete</button>}
           <div style={{flex:1}}/>
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
@@ -1201,6 +1250,18 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner}) {
         ))}
       </div>
       {res.special_requests&&<div className="info-box mb4"><div className="info-lbl">Special Requests</div><div className="info-val" style={{marginTop:4}}>{res.special_requests}</div></div>}
+      {/* Stay Extension — editable check-out */}
+      {(res.status==='CHECKED_IN')&&(
+        <div style={{background:'rgba(200,169,110,.06)',border:'1px solid rgba(200,169,110,.2)',padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+          <span style={{fontSize:10,color:'var(--gold)',letterSpacing:'.1em',textTransform:'uppercase',whiteSpace:'nowrap'}}>✦ Stay Extension</span>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:11,color:'var(--tx3)'}}>New Check-Out:</span>
+            <input type="date" className="finput" value={checkOut} onChange={e=>setCheckOut(e.target.value)} min={String(res.check_in||'').slice(0,10)} style={{width:150,padding:'4px 8px',fontSize:12}}/>
+          </div>
+          {extNights>0&&<span style={{fontSize:11,color:'var(--gold)',fontWeight:600}}>+{extNights} night{extNights!==1?'s':''} · +{BDT(extCharge)}</span>}
+          {checkOut&&checkOut!==String(res.check_out||'').slice(0,10)&&extNights===0&&nights<origNights&&<span style={{fontSize:11,color:'var(--rose)'}}>⚠ Shortening stay — no auto-charge</span>}
+        </div>
+      )}
       <div className="frow">
         <div className="fg">
           <label className="flbl">Status</label>
@@ -1304,32 +1365,34 @@ function GuestSearchInput({guests, value, onChange}) {
 function NewReservationModal({guests,rooms,toast,onClose,reload}) {
   const availRooms=rooms.filter(r=>r.status==='AVAILABLE')
   const [f,setF]=useState({
-    guestId:'', roomNo:availRooms[0]?.room_number||'',
+    guestId:'', roomNos:[availRooms[0]?.room_number||''],
     checkIn:todayStr(), checkOut:'',
     total:'', paid:'', discount:'', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
   })
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
 
-  const selectedRoom=rooms.find(r=>r.room_number===f.roomNo)
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
-  const autoTotal=selectedRoom&&autoNights?(+selectedRoom.price*autoNights):0
+  const autoTotal=f.roomNos.filter(Boolean).reduce((sum,rn)=>{
+    const rm=rooms.find(r=>r.room_number===rn); return sum+(rm&&autoNights?+rm.price*autoNights:0)
+  },0)
 
   useEffect(()=>{
     if(autoTotal>0) setF(p=>({...p,total:String(autoTotal)}))
-  },[f.roomNo,f.checkIn,f.checkOut])
+  },[JSON.stringify(f.roomNos),f.checkIn,f.checkOut])
 
   async function save() {
     if(!f.guestId) return toast('Select a guest','error')
-    if(!f.roomNo) return toast('Select a room','error')
+    if(!f.roomNos.filter(Boolean).length) return toast('Select at least one room','error')
     if(!f.checkIn||!f.checkOut) return toast('Set check-in and check-out dates','error')
     if(autoNights<=0) return toast('Check-out must be after check-in','error')
     setSaving(true)
     try {
       const isCheckIn=f.stayType==='CHECK_IN'
       const totalAmt=+f.total||autoTotal
+      const selectedRooms=f.roomNos.filter(Boolean)
       await dbPost('reservations',{
-        guest_ids:[f.guestId], room_ids:[f.roomNo],
+        guest_ids:[f.guestId], room_ids:selectedRooms,
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
         total_amount:totalAmt, paid_amount:+f.paid||0,
@@ -1337,17 +1400,19 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
         payment_method:f.method, special_requests:f.notes||null,
         on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT
       })
-      if(isCheckIn) {
-        const room=rooms.find(r=>r.room_number===f.roomNo)
-        if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
+      if(isCheckIn){
+        for(const rn of selectedRooms){
+          const room=rooms.find(r=>r.room_number===rn)
+          if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
+        }
       }
-      if((+f.paid||0)>0) {
+      if((+f.paid||0)>0){
         await dbPost('transactions',{
-          room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
+          room_number:selectedRooms[0], guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
           type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:businessDate||todayStr(), tenant_id:TENANT
         })
       }
-      toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
+      toast(isCheckIn?`Check-in complete — Rm ${selectedRooms.join(',')} ✓`:'Reservation created ✓')
       await reload()
       onClose()
     } catch(e){ toast(e.message||'Save failed','error'); setSaving(false) }
@@ -1372,10 +1437,21 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
           <GuestSearchInput guests={guests} value={f.guestId} onChange={id=>setF(p=>({...p,guestId:id}))}/>
         </div>
         <div className="fg">
-          <label className="flbl">Room * {availRooms.length===0&&<span style={{color:'var(--rose)'}}>— no available rooms</span>}</label>
-          <select className="fselect" value={f.roomNo} onChange={F('roomNo')}>
-            {availRooms.map(r=><option key={r.id} value={r.room_number}>{r.room_number} — {r.category} — {BDT(r.price)}/n</option>)}
-          </select>
+          <label className="flbl">Room(s) * {availRooms.length===0&&<span style={{color:'var(--rose)'}}>— no available rooms</span>}</label>
+          {f.roomNos.map((rn,idx)=>(
+            <div key={idx} style={{display:'flex',gap:6,marginBottom:5,alignItems:'center'}}>
+              <select className="fselect" style={{flex:1}} value={rn} onChange={e=>{const a=[...f.roomNos];a[idx]=e.target.value;setF(p=>({...p,roomNos:a}))}}>
+                <option value="">— select room —</option>
+                {availRooms.filter(r=>r.room_number===rn||!f.roomNos.includes(r.room_number)).map(r=>(
+                  <option key={r.id} value={r.room_number}>{r.room_number} — {r.category} — {BDT(r.price)}/n</option>
+                ))}
+              </select>
+              {f.roomNos.length>1&&<button type="button" style={{background:'none',border:'1px solid rgba(248,113,113,.3)',color:'var(--rose)',cursor:'pointer',padding:'4px 8px',fontSize:12}} onClick={()=>setF(p=>({...p,roomNos:p.roomNos.filter((_,i)=>i!==idx)}))}>✕</button>}
+            </div>
+          ))}
+          {availRooms.filter(r=>!f.roomNos.includes(r.room_number)).length>0&&(
+            <button type="button" style={{background:'none',border:'1px dashed rgba(200,169,110,.35)',color:'var(--gold)',cursor:'pointer',padding:'5px 10px',fontSize:10,letterSpacing:'.08em',width:'100%',marginTop:2}} onClick={()=>setF(p=>({...p,roomNos:[...p.roomNos,'']}))}>+ Add Room</button>
+          )}
         </div>
       </div>
       <div className="frow">
@@ -3346,7 +3422,16 @@ function App() {
 
   const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings'}
   const bdTime=new Date(clock.toLocaleString('en',{timeZone:'Asia/Dhaka'}))
-  const clockStr=bdTime.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' · '+bdTime.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})
+  const clockStr=(()=>{
+    const timeStr=bdTime.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'})
+    if(businessDate){
+      const[y,m,d]=businessDate.split('-')
+      const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+      const wd=new Date(businessDate+'T12:00:00').toLocaleDateString('en',{weekday:'short'})
+      return timeStr+' · '+wd+', '+parseInt(d)+' '+mo[+m-1]+' '+y
+    }
+    return timeStr+' · '+bdTime.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})
+  })()
 
   return (
     <>
@@ -3525,7 +3610,7 @@ function App() {
           <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
             {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} businessDate={businessDate}/>}
             {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
-            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
