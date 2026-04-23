@@ -178,6 +178,8 @@ export default function BillingPage() {
       <div className="space-y-4">
         {billingData.map((item, index) => (
           <BillingCard
+            reservationId={item.res?.id}
+            onCheckoutSuccess={fetchBillingData}
             key={index}
             guestName={item.res?.guest_name || "Guest"}
             room={item.res?.room_ids || item.res?.room_number || "N/A"}
