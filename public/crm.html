@@ -241,7 +241,7 @@ html,body,#root{
 .tabs{display:flex;gap:0;border-bottom:2px solid var(--s1);margin-bottom:16px;overflow-x:auto}
 .tab{padding:9px 18px;font-family:var(--sans);font-size:11px;font-weight:500;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap}
 .tab:hover{color:var(--tx);background:var(--s3)}
-.tab.on,.tab.active{color:var(--s1);font-weight:700;border-bottom-color:var(--s1);background:var(--s2)}
+.tab.on,.tab.active{color:var(--gold);font-weight:700;border-bottom-color:var(--gold);background:var(--s4)}
 
 /* ── INFO BOX ── */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -1460,7 +1460,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
       </div>
       {autoNights>0&&(
         <div style={{background:'rgba(200,169,110,.07)',border:'1px solid rgba(200,169,110,.18)',padding:'9px 12px',marginBottom:10,fontSize:12,color:'var(--tx)'}}>
-          {autoNights} night{autoNights!==1?'s':''} × {BDT(selectedRoom?.price||0)} = <strong style={{color:'var(--gold)'}}>{BDT(autoTotal)}</strong>
+          {autoNights} night{autoNights!==1?'s':''} × {f.roomNos.filter(Boolean).length} room{f.roomNos.filter(Boolean).length!==1?'s':''} = <strong style={{color:'var(--gold)'}}>{BDT(autoTotal)}</strong>
         </div>
       )}
       <div className="frow">
