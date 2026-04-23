@@ -624,7 +624,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
     id: t.id.join(', ')
   }));
   const todayT=mergedTransactions.filter(t=>t.fiscal_day===today)
-  const todayRev=todayT.reduce((a,t)=>a+(+t.amount||0),0)
+  const todayRev=reservations.filter(r=>r.status==='CHECKED_IN').reduce((a,r)=>a+(+(r.paid_amount||0)),0)
   const inHouse=reservations.filter(r=>r.status==='CHECKED_IN').length
   const pending=reservations.filter(r=>r.status==='PENDING').length
   const last14=Array.from({length:14},(_,i)=>{
@@ -657,7 +657,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
     <div>
       <div className="stats-row">
         {[
-          {lbl:"Today's Revenue",val:BDT(todayRev),ico:'💰',sub:`${todayT.length} transactions`,ac:'var(--gold)'},
+          {lbl:"Today's Revenue",val:BDT(todayRev),ico:'💰',sub:`${reservations.filter(r=>r.status==='CHECKED_IN').length} in-house`,ac:'var(--gold)'},
           {lbl:'Occupancy',val:`${occPct}%`,ico:'🛏',sub:`${occ}/${rooms.length} rooms occupied`,ac:'var(--sky)'},
           {lbl:'In-House Guests',val:inHouse,ico:'👥',sub:'Currently checked in',ac:'var(--teal)'},
           {lbl:'Pending',val:pending,ico:'📅',sub:'Awaiting confirmation',ac:'var(--rose)'},
@@ -1135,7 +1135,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,bu
       )}
       {showNew&&(
         <NewReservationModal guests={guests} rooms={rooms} toast={toast}
-          onClose={()=>setShowNew(false)} reload={reload}/>
+          onClose={()=>setShowNew(false)} reload={reload} businessDate={businessDate}/>
       )}
     </div>
   )
@@ -1378,7 +1378,7 @@ function GuestSearchInput({guests, value, onChange}) {
   )
 }
 
-function NewReservationModal({guests,rooms,toast,onClose,reload}) {
+function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
   const availRooms=rooms.filter(r=>r.status==='AVAILABLE')
   const [f,setF]=useState({
     guestId:'', roomNos:[availRooms[0]?.room_number||''],
