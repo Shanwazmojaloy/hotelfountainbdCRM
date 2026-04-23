@@ -97,40 +97,34 @@
     const todayStr = () => { const d = todayDhaka(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
     const nightsCount = (ci, co) => { if (!ci || !co) return 0; return Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000)) }
 
-    function computeBill(r, rooms, foliosMap, settings) {
-      const rids = r.room_ids || [r.room_number]
-      const selectedRooms = rooms?.filter(rm => rids.some(rid => String(rid) === String(rm.room_number))) || []
-      const computedRoomRate = selectedRooms.reduce((sum, rm) => sum + (+rm.price || 0), 0) || +r.rate_per_night || 0
-      
-      const nights = nightsCount(r.check_in, r.check_out) || 1
-      let roomCharge = computedRoomRate * nights
-      
-      const fKey = r.id || r.room_number
-      const folios = (foliosMap?.[fKey] || foliosMap?.[r.room_number] || []).filter(f => f.category !== "Receivable")
-      const extras = folios.filter(f => f.category !== 'Payment').reduce((a, f) => a + (+f.amount || 0), 0)
-      
-      const vatPct = 0;
-      const svcPct = 0;
-      const tax = 0;
-      const svc = 0;
-      const discount = +(r.discount_amount || r.discount || 0);
-      /* ── Single Source of Truth ──
-         Base = DB total_amount (agreed room price) OR computed rate × nights.
-         Folio extras (minibar, laundry, etc.) are ALWAYS added on top.
-         "due" is ALWAYS computed live: total − paid.                           */
-      const dbTotal = +(r.total_amount || 0)
-      const basePrice = dbTotal > 0 ? dbTotal : Math.max(0, roomCharge - discount)
-      const grossRate = dbTotal > 0 ? dbTotal + discount : roomCharge
-      
-      if (dbTotal > 0) roomCharge = grossRate;
-      const roomRate = nights > 0 ? roomCharge / nights : roomCharge;
-      const sub = roomCharge + extras;
-      
-      const total = basePrice + extras
-      const paid = +(r.paid_amount || 0);
-      const due = Math.max(0, total - paid);
-      return { roomCharge, extras, sub, tax, svc, discount, total, paid, due, folios, nights, roomRate, vatPct, svcPct, basePrice, grossRate }
-    }
+    // B2:ANCHORED computeBill — transactions-driven paid, reservation_id only
+const PAYMENT_TYPES = new Set(['Cash','Bkash','Nagad','Card','Bank','Complementary'])
+const isPaymentTx = t => PAYMENT_TYPES.has(t?.type) || /^Room Payment/i.test(t?.type || '')
+function computeBill(r, rooms, foliosMap, settings, transactions) {
+  const rids = r.room_ids || [r.room_number]
+  const selectedRooms = rooms?.filter(rm => rids.some(rid => String(rid) === String(rm.room_number))) || []
+  const computedRoomRate = selectedRooms.reduce((s, rm) => s + (+rm.price || 0), 0) || +r.rate_per_night || 0
+  const nights = nightsCount(r.check_in, r.check_out) || 1
+  let roomCharge = computedRoomRate * nights
+  // Folios strictly by reservation_id (no room_number fallback → no bleed)
+  const folios = (foliosMap?.[r.id] || []).filter(f => f.category !== 'Receivable')
+  const extras = folios.filter(f => f.category !== 'Payment').reduce((a, f) => a + (+f.amount || 0), 0)
+  const discount = +(r.discount_amount || r.discount || 0)
+  const dbTotal  = +(r.total_amount || 0)
+  const basePrice = dbTotal > 0 ? dbTotal : Math.max(0, roomCharge - discount)
+  const grossRate = dbTotal > 0 ? dbTotal + discount : roomCharge
+  if (dbTotal > 0) roomCharge = grossRate
+  const roomRate = nights > 0 ? roomCharge / nights : roomCharge
+  const sub = roomCharge + extras
+  const total = basePrice + extras
+  // PAID: pure reduce over transactions anchored by reservation_id
+  const paid = Array.isArray(transactions)
+    ? transactions.filter(t => String(t.reservation_id) === String(r.id) && isPaymentTx(t))
+                  .reduce((a, t) => a + (+t.amount || 0), 0)
+    : +(r.paid_amount || 0)
+  const due = Math.max(0, total - paid)
+  return { roomCharge, extras, sub, tax: 0, svc: 0, discount, total, paid, due, folios, nights, roomRate, vatPct: 0, svcPct: 0, basePrice, grossRate }
+}
     const _computeBillGlobal = computeBill
     const AVC = ['#C8A96E', '#2EC4B6', '#E05C7A', '#58A6FF', '#3FB950', '#9B72CF', '#F0A500']
     const avColor = n => AVC[n ? n.charCodeAt(0) % AVC.length : 0]
@@ -338,14 +332,15 @@
       }
     }
     /* ── Safe transaction POST: sanitizes amount and strips undefined fields ── */
-    async function dbPostTransactionSafe(payload) {
-      const clean = sanitizePayload(payload);
-      if (!clean.amount || clean.amount <= 0) {
-        console.warn('Skipping transaction with zero/invalid amount:', clean);
-        return null;
-      }
-      return await dbPost('transactions', clean);
-    }
+    async function dbPostTransactionSafe(payload){
+  const clean = sanitizePayload(payload);
+  if(!clean.amount || clean.amount <= 0){ console.warn('Skipping tx: zero/invalid amount:',clean); return null; }
+  if(!clean.reservation_id){
+    console.error('[TX BLOCKED] reservation_id missing',clean);
+    throw new Error('Transaction rejected: reservation_id is required.');
+  }
+  return await dbPost('transactions',clean);
+}
 
     const ROLES = {
       owner: { label: 'Founder / Owner', color: '#C8A96E', pages: ['dashboard', 'rooms', 'reservations', 'guests', 'housekeeping', 'billing', 'reports', 'settings', 'seo'] },
@@ -978,6 +973,8 @@ input[type='date']{color:var(--tx);color-scheme:dark}
             })
           }
           await dbPostTransactionSafe({
+            // B1:ANCHORED FinalSettlement
+            reservation_id: activeRes.id,
             type: 'Final Settlement',
             amount: safeNum(total),
             room_number: room.room_number,
@@ -995,11 +992,21 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       }
 
       async function recordPayment() {
+        // B1:ANCHORED recordPayment
         const a = parseFloat(payAmt)
         if (!a || a <= 0) return toast('Enter a valid amount', 'error')
+        if (!activeRes?.id) return toast('No active reservation on this room — cannot record payment', 'error')
         setPaySaving(true)
         try {
-          await dbPostTransactionSafe({ room_number: room.room_number, guest_name: guest?.name || 'Guest', type: payType, amount: safeNum(a), fiscal_day: activeFiscalDay, tenant_id: TENANT })
+          await dbPostTransactionSafe({
+            reservation_id: activeRes.id,
+            room_number: room.room_number,
+            guest_name: guest?.name || 'Guest',
+            type: payType,
+            amount: safeNum(a),
+            fiscal_day: activeFiscalDay,
+            tenant_id: TENANT
+          })
           const curPaid = +(activeRes.paid_amount || 0)
           await dbPatchReservationSafe(activeRes.id, { paid_amount: safeNum(curPaid + a) })
           await dbPost('folios', { room_number: room.room_number, reservation_id: activeRes.id, description: `Payment (${payType})`, category: 'Payment', amount: -a, tenant_id: TENANT })
@@ -1490,13 +1497,15 @@ input[type='date']{color:var(--tx);color-scheme:dark}
             const roomNo = roomIds.join(', ') || '—'
             const fiscalDay = hSettings?.active_fiscal_day || todayStr()
             await dbPostTransactionSafe({
-              room_number: roomNo,
-              guest_name: gn,
-              type: `Room Payment (${method})`,
-              amount: safeNum(paidDiff),
-              fiscal_day: fiscalDay,
-              tenant_id: TENANT
-            })
+          // B1:ANCHORED paidDiff
+          reservation_id: res.id,
+          room_number: roomNo,
+          guest_name: gn,
+          type: `Room Payment (${method})`,
+          amount: safeNum(paidDiff),
+          fiscal_day: fiscalDay,
+          tenant_id: TENANT
+        })
           }
 
           await dbPatchReservationSafe(res.id, {
@@ -1577,25 +1586,17 @@ input[type='date']{color:var(--tx);color-scheme:dark}
               {isOwner && <button className="btn btn-danger btn-sm" onClick={async () => {
                 if (!window.confirm('Delete this reservation?')) return
                 try {
+                  // B3:ANCHORED deleteFlow — reservation_id only, no name/room fallback
                   const directTx = await db('transactions', `?select=id&tenant_id=eq.${TENANT}&reservation_id=eq.${res.id}`)
-                  if (Array.isArray(directTx) && directTx.length) {
-                    for (const tx of directTx) { await dbDelete('transactions', tx.id) }
-                  } else {
-                    const roomFilter = (res.room_ids || []).map(rn => `room_number.eq.${encodeURIComponent(rn)}`).join(',')
-                    if (roomFilter) {
-                      const fallbackTx = await db('transactions', `?select=id,guest_name&tenant_id=eq.${TENANT}&or=(${roomFilter})`)
-                      const guestName = (guests.find(g => String(g.id) === String((res.guest_ids || [])[0] || ''))?.name || '').toLowerCase()
-                      for (const tx of (fallbackTx || [])) {
-                        if (!guestName || String(tx.guest_name || '').toLowerCase() === guestName) { await dbDelete('transactions', tx.id) }
-                      }
-                    }
-                  }
+                  for (const tx of (directTx || [])) { await dbDelete('transactions', tx.id) }
+                  const directFol = await db('folios', `?select=id&tenant_id=eq.${TENANT}&reservation_id=eq.${res.id}`)
+                  for (const f of (directFol || [])) { await dbDelete('folios', f.id) }
                   for (const rn of (res.room_ids || [])) {
                     const room = rooms.find(r => r.room_number === rn)
                     if (room) await dbPatch('rooms', room.id, { status: 'AVAILABLE' })
                   }
                   await dbDelete('reservations', res.id)
-                  toast('Reservation & linked transactions deleted · room set to AVAILABLE')
+                  toast('Reservation & linked txs/folios deleted ✓')
                   reload()
                 } catch (e) { toast(e.message, 'error') }
               }}>🗑 Delete</button>}
@@ -1909,8 +1910,10 @@ input[type='date']{color:var(--tx);color-scheme:dark}
             }
           }
           if (collectedAmt > 0) {
+            // B1:ANCHORED newRes
+            if (!created?.id) throw new Error('Reservation create failed — no ID returned, aborting payment tx.')
             await dbPostTransactionSafe({
-              reservation_id: created?.id || null,
+              reservation_id: created.id,
               room_number: f.roomIds.join(','), guest_name: guests.find(g => g.id === f.guestId)?.name || 'Guest',
               type: `Room Payment (${f.method})`, amount: safeNum(collectedAmt), fiscal_day: hSettings?.active_fiscal_day || todayStr(), tenant_id: TENANT
             })
@@ -2628,11 +2631,12 @@ input[type='date']{color:var(--tx);color-scheme:dark}
         db('folios', `?tenant_id=eq.${TENANT}&select=*&order=created_at`)
           .then(d => {
             const map = {}
-              ; (Array.isArray(d) ? d : []).forEach(f => {
-                const key = f.reservation_id || f.room_number
-                if (!map[key]) map[key] = []
-                map[key].push(f)
-              })
+              ; // B2:ANCHORED foliosMap — reservation_id only
+          ;(Array.isArray(d) ? d : []).forEach(f => {
+            if (!f.reservation_id) return
+            if (!map[f.reservation_id]) map[f.reservation_id] = []
+            map[f.reservation_id].push(f)
+          })
             setFoliosMap(map)
           })
           .catch(() => { })
@@ -2657,47 +2661,11 @@ input[type='date']{color:var(--tx);color-scheme:dark}
       // Keep each amount as-is until running total reaches paid_amount, then reduce/zero the rest.
       // Returns a Map: txId -> corrected amount
       function buildCorrectedAmounts() {
+        // B3:ANCHORED buildCorrectedAmounts — trust anchored amounts; no capping needed
         const corrected = {}
-        const allReal = transactions.filter(t => t.type !== 'Balance Carried Forward')
-        // Group by guest|room
-        const groups = {}
-        allReal.forEach(t => {
-          const key = `${t.guest_name || ''}|${t.room_number || ''}`
-          if (!groups[key]) groups[key] = []
-          groups[key].push(t)
-        })
-        Object.entries(groups).forEach(([key, txs]) => {
-          const [gname, rnum] = key.split('|')
-          // Match reservation by BOTH guest name AND room (most accurate), fallback to room-only
-          const res = reservations?.find(r => {
-            const rRooms = r.room_ids || [r.room_number]
-            if (!rRooms.includes(rnum)) return false
-            // Try to match guest name
-            const rGuestName = r.guest_name || ''
-            const gid = String((r.guest_ids || [r.guest_id] || []).filter(Boolean)[0] || '')
-            const g = guests?.find(g => String(g.id) === gid)
-            const rName = g ? g.name : rGuestName
-            return rName && gname && rName.toLowerCase() === gname.toLowerCase()
-          }) || reservations?.find(r => (r.room_ids || [r.room_number]).includes(rnum))
-          if (!res) {
-            txs.forEach(t => { corrected[t.id] = +t.amount || 0 })
-            return
-          }
-          const resPaid = +(res.paid_amount || 0)
-          // Sort REVERSE chronologically — most recent first (preserves latest actual payments)
-          const sorted = [...txs].sort((a, b) =>
-            (b.created_at || b.fiscal_day || '').localeCompare(a.created_at || a.fiscal_day || '') ||
-            String(b.id || '').localeCompare(String(a.id || ''))
-          )
-          let running = 0
-          sorted.forEach(t => {
-            const raw = +t.amount || 0
-            if (resPaid <= 0) { corrected[t.id] = 0; return }
-            if (running >= resPaid) { corrected[t.id] = 0 }
-            else if (running + raw > resPaid) { corrected[t.id] = resPaid - running; running = resPaid }
-            else { corrected[t.id] = raw; running += raw }
-          })
-        })
+        transactions
+          .filter(t => t.type !== 'Balance Carried Forward')
+          .forEach(t => { corrected[t.id] = +t.amount || 0 })
         return corrected
       }
 
