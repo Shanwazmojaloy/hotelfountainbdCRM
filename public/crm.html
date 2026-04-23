@@ -3596,7 +3596,7 @@ function App() {
                                             if(!fresh||fresh.length===0){toast('Room no longer available — pick another','error');setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s});loadAll();return}
                                             const roomRec=data.rooms.find(r=>String(r.room_number)===String(selRoom))
                                             // Assign room + confirm reservation
-                                            await dbPatch('reservations',res.id,{status:'RESERVED',room_ids:[selRoom],room_number:selRoom})
+                                            await dbPatch('reservations',res.id,{status:'RESERVED',room_ids:[roomRec.id],room_number:selRoom})
                                             await dbPatch('rooms',roomRec.id,{status:'RESERVED'})
                                             // Send confirmation email
                                             try{
