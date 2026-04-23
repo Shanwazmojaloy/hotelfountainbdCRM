@@ -3419,7 +3419,7 @@ function App() {
       name: g?.name || res.on_duty_officer || 'Walk-in Guest',
       phone: g?.phone || (phoneMatch?phoneMatch[1].trim():'—'),
       email: g?.email || (emailMatch?emailMatch[1].trim():'—'),
-      roomType: (roomMatch?roomMatch[1].trim():null) || (res.room_ids||[]).join(', ') || 'Not assigned',
+      roomType: (roomMatch?roomMatch[1].trim():null) || (Array.isArray(data?.rooms)?data.rooms:[]).find(x=>String(x.room_number)===(res.room_ids||[])[0])?.category || (res.room_ids||[]).join(', ') || 'Not assigned',
       checkIn: res.check_in,
       checkOut: res.check_out,
       isOnline: sr.includes('ONLINE BOOKING'),
