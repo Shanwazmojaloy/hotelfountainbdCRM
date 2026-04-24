@@ -107,4 +107,46 @@ Returns: `{ roomCharge, extras, sub, tax, svc, discount, total, paid, due, folio
 | `.git/HEAD` can get null-byte-padded by interrupted Windows writes → `fatal: your current branch appears to be broken` | Rewrite via `python3 open('.git/HEAD','wb').write(b'ref: refs/heads/main\n')` |
 | **OneDrive save-truncation** — `public/crm.html` tail (closing `</script></body></html>`) can be lost on save during this session | After every large edit, verify `tail -5 public/crm.html` shows `</html>`; restore tail via `git show HEAD:public/crm.html` + Python write |
 | `Today's Revenue` must never sum `reservations.paid_amount` | Always sum `transactions WHERE fiscal_day===today AND type!=='Balance Carried Forward'`. `paid_amount` is cumulative-per-stay and inflates every day a guest stays checked-in |
-| Revenue / Balance / Discount math | Canonical rule: **`Balance = Total − Discount − Paid`**. Never subtract only paid. Apply 
+| Revenue / Balance / Discount math | Canonical rule: **`Balance = Total − Discount − Paid`**. Never subtract only paid. Apply everywhere a balance is computed or compared |
+| No automatic VAT / Service Charge | Hotel is not VAT-registered in the current CRM flow — never auto-compute 15% / 5%. Any taxes must come from explicit folio rows. Display panels must not show VAT/SC lines |
+| Admin folios (`receivable`, `payment`, `settlement`, `advance`, `refund`) | Must be excluded from guest-facing `extras` / `sub` — use `ADMIN_RE=/receivable\|payment\|settlement\|advance\|refund/i` filter |
+
+## Deploy Flow
+1. Edit only `public/crm.html`
+2. `git add public/crm.html && git commit -m "feat|fix: ..."`
+3. `git push origin main` — Vercel auto-deploys from GitHub main
+4. Verify: `curl -s https://hotelfountainbd.vercel.app/crm.html | head -c 100`
+
+## Recent Fixes (v3.4.x · 2026-04-24)
+
+| Commit | Version | Fix | Location |
+|---|---|---|---|
+| `4caacd3` | v3.4 | Active Ledger shows every CHECKED_IN guest regardless of balance (`activeRes` roster) | BillingPage ~L2315 |
+| `fc20e7d` | v3.4.1 | Defensive jsonb unwrap helpers (`_arr`/`getGN`/`getRoom`) + try/catch around reservation iteration; restore truncated tail | BillingPage ~L2255 · ~L2633 |
+| `28012f5` | v3.4.2 | Ghost filter narrowed — drops only synthetic `Balance Carried Forward` rows for zero-due CHECKED_OUT res; real cash/bkash/settlement tx always pass | BillingPage `activeLedgerTx` ~L2225 |
+| `300be9d` | v3.4.3 | Biz Day total uses per-reservation dedup (Cash/Bkash wins; FS counts only when no cash for same stay) — ZUNAIR double-post collapses, ARNOB FS-only counts | BillingPage `_bizDayTotal` ~L2294 |
+| (follow-up) | v3.4.3 | Same dedup applied to Dashboard Today's Revenue (`_bizDayTotalDash`) — both surfaces must stay in sync | Dashboard ~L630 |
+
+### Biz Day / Today's Revenue contract (canonical)
+
+Per-reservation bucket keyed by `reservation_id || room_number|guest_name|fiscal_day`:
+- Cash/Bkash accumulates into `pay`, sets `hasCash=true`
+- Positive Final Settlement accumulates into `fsPos`
+- Negative Final Settlement (refunds) excluded from headline gross
+- Non-payment types (Stay Extension, Room Charge) contribute 0
+- Contribution per key: `hasCash ? pay : fsPos`
+
+Never sum raw `transactions.amount`. Both BillingPage and Dashboard have local dedup functions — keep logic identical.
+
+### Truncation watchdog (updated)
+
+`public/crm.html` tail has now been truncated **four times** across the v3.3/v3.4 feature lines. Before every commit:
+```
+grep -c "ReactDOM.createRoot" public/crm.html   # must be 1
+tail -3 public/crm.html                          # must end </html>
+wc -l public/crm.html                            # must be ≥ 4200
+```
+Tail restore pattern: splice from last-known-good `/tmp/prev_full.html` at the matching JSX route line.
+
+### Browser cache gotcha
+After any visual-math change deploy, Ctrl+Shift+R in the Lumea tab. Vercel may serve correct JS (verify via `curl | grep <marker>`) while the tab holds a stale bundle.

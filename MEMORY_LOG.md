@@ -63,3 +63,38 @@ Active Billing Ledger Roster Fix (v3.4 — 2026-04-24):
 - Invariant: Active Ledger is a **roster view over reservations**, not a transaction log. Any future filter that uses tx existence OR non-zero balance as a gate for a `CHECKED_IN` guest is a regression. `dueRes` and `activeRes` are not interchangeable.
 - Edge cases verified: CHECKED_IN with no-tx-no-balance (shows, "— No Pymt in Period —"), CHECKED_IN fully prepaid (shows, balance=0), CHECKED_IN partial (shows, balance>0), CHECKED_IN with tx today (shows, deduped by `res.id` key), CHECKED_OUT with due (shows), CHECKED_OUT fully settled (excluded — ghost filter at tx pass + activeRes exclusion), CANCELLED/RESERVED (excluded).
 - Edit-tool truncation recurrence: Mid-edit the Edit tool again shrank the file tail (4143 lines, ending `{cur==='reports' &`). Re-applied v3.3.1 tail-restore from commit `13023fa`. Billing logic patch survived and was preserved. **Reinforced rule: after ANY Edit to `public/crm.html`, immediately grep for `ReactDOM.createRoot` AND `</html>` — if either missing, re-restore tail before the next Edit.**
+
+Defensive jsonb Unwrap + Malformed-Res Guard (v3.4.1 — 2026-04-24, commit `fc20e7d`):
+- Symptom: BillingPage rendered blank on production right after v3.4 deploy. Page stuck with no table, no error in console that mapped to code — React silently remounted on malformed reservation data.
+- Root cause investigated: Suspected `reservations.room_ids` arriving as a JSON-encoded string (`'["uuid1","uuid2"]'`) from PostgREST jsonb columns, causing `(r.room_ids||[]).some(...)` to iterate over string characters instead of UUIDs. **Confirmed via `\d reservations` that `room_ids` is actually PG `text[]` (native array), NOT jsonb.** The blank-page cause was elsewhere (v3.4 activeRes expansion dragged in malformed CHECKED_OUT rows that older code skipped).
+- Fix (`public/crm.html` ~L2255–2277): added three null-guarded helpers kept as defense-in-depth even though jsonb unwrap is not strictly needed:
+  - `_arr(v)` — accepts array OR jsonb string; falls back to `[]`
+  - `getGN(r)` — null-safe guest name lookup
+  - `getRoom(r)` — null-safe room_ids list
+  - Wrapped the main reservation iteration in try/catch (~L2633) so a single malformed row can never crash the whole page.
+- Invariant: `reservations.room_ids` is PG `text[]`. Treat it as an array directly. No `JSON.parse`. If it ever arrives as a string, that's a PostgREST config regression — fix the API layer, not the client.
+
+Ghost Filter Over-Reach + ARNOB Missing (v3.4.2 — 2026-04-24, commit `28012f5`):
+- Symptom: ARNOB N (Room 307) paid ৳500 Final Settlement at checkout but his row did not appear on the Active Billing Ledger — Today. He was CHECKED_OUT with balance=0. Biz Day revenue also showed ৳30,500 while owner expected ৳26,500.
+- Root cause: `activeLedgerTx` ghost filter at BillingPage ~L2226 dropped every tx for any CHECKED_OUT reservation with `_resDue === 0`. This was correct for synthetic "Balance Carried Forward" rows (display-only), but over-reached to real payment txs. ARNOB's reservation `f74a812a…` is CHECKED_OUT, balance=0 after his ৳500 settlement — so his real Final Settlement tx was discarded.
+- Fix (~L2225–2237): ghost rejection now applies ONLY to `type==='Balance Carried Forward'` rows whose reservation is CHECKED_OUT with `_resDue===0`. All real cash/bkash/settlement txs ALWAYS pass, regardless of reservation state.
+- Biz Day calc refined to Cash+Bkash only (`_isPayVehicle = t => /cash|bkash/i.test(t.type)` — excludes Final Settlement from today's gross). This yielded ৳26,000, still off by ARNOB's ৳500 FS.
+- Superseded by v3.4.3 — this attempt got the ghost filter right but the Biz Day math wrong.
+
+Per-Reservation Payment Dedup (v3.4.3 — 2026-04-24, commit `300be9d` + Dashboard follow-up):
+- Symptom: MOHAMMAD ZUNAIR (Room 509) had staff-posted both a ৳4,000 Cash tx AND a ৳4,000 Final Settlement tx for the same stay (staff double-post / data-entry bug in DB). Biz Day summed both → ৳30,500. Owner wanted ৳26,500 (one payment per stay). Separately, ARNOB N's FS of ৳500 was a real collection with no cash counterpart and MUST count.
+- Root cause: Cash-only filter (v3.4.2) dropped ARNOB's legitimate ৳500. Raw sum (pre-fix) double-counted ZUNAIR's ৳4,000. Neither captures the correct accounting intent.
+- Fix — `_bizDayTotal(list)` / `_bizDayTotalDash(list)`: per-reservation dedup bucket keyed by `reservation_id || room_number|guest_name|fiscal_day`.
+  - Cash/Bkash accumulates into `pay`, sets `hasCash=true`.
+  - Final Settlement (positive amount only) accumulates into `fsPos`.
+  - Final contribution per key: `hasCash ? pay : fsPos`. ZUNAIR double-post collapses to ৳4,000; ARNOB FS-only counts as ৳500.
+  - Negative Final Settlement (refunds — DIDARUL ISLAM ৳-500) excluded from headline gross; they adjust prior revenue, not today's collection.
+  - "Stay Extension" / "Room Charge" / any non-payment tx type contributes 0 (matches neither regex).
+- Applied in TWO places (must stay in sync):
+  - BillingPage ~L2294 (`_bizDayTotal`) — fixed first, commit `300be9d`.
+  - Dashboard ~L630 (`_bizDayTotalDash`) — second pass after owner screenshot showed Dashboard still ৳35,000 while Billing read ৳26,500. Logic is a local duplicate, not hoisted. Both functions must be updated together if this math changes.
+- Verification against live DB (`fiscal_day='2026-04-24'`, 11 rows): dedup produced exactly ৳26,500. Matches both Billing and Dashboard surfaces.
+- Invariant: "Today's Revenue" on any surface must use per-reservation dedup. Never sum raw `transactions.amount` without bucketing. If a staff member posts both Cash and Final Settlement for the same stay, only Cash counts (it is the payment vehicle; FS is the accounting closeout). If a stay settles via FS with no cash counterpart (ARNOB-style), the FS counts.
+- DB hygiene follow-up (pending owner action, not code): MOHAMMAD ZUNAIR Room 509 has duplicate ৳4,000 FS row (id `9d212286…`) that should be deleted to remove the double-post from raw reports and other consumers.
+- Edit-tool truncation recurrence (fourth time this feature line): Dashboard edit truncated tail again, ending mid-word `{cu`. Restored via `/tmp/prev_full.html` splice (head through guests-route line + prev_full housekeeping-onward). Post-restore: 4216 lines, `ReactDOM.createRoot` count=1, `</html>` present, `@babel/parser` parses OK (454,202 bytes).
+- Deploy cache gotcha: After push + Vercel build READY, owner screenshot STILL showed old ৳35,000. Curl confirmed live JS contained `_bizDayTotalDash` (ETag match). Root cause: browser was serving a stale cached bundle. Fix: Ctrl+Shift+R (hard-reload). Add this to the verification checklist for any visual-math change.
