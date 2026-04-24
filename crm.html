@@ -3421,4 +3421,296 @@ function App() {
       setData({
         rooms:Array.isArray(rooms)?rooms:[],
         guests:Array.isArray(guests)?guests:[],
-        reservations:Array.isArray(reservations)?reservat
+        reservations:Array.isArray(reservations)?reservations:[],
+        transactions:Array.isArray(transactions)?transactions:[],
+        tasks:Array.isArray(tasks)?tasks:[],
+      })
+    } catch(e){
+      console.error('Load failed',e)
+      toast('Failed to refresh data — check connection','error')
+    }
+  },[toast])
+
+  useEffect(()=>{
+    if(!user){ setData({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]}); return }
+    setLoading(true)
+    const loadTimeout=setTimeout(()=>setLoading(false),10000) // force clear after 10s
+    loadAll().finally(()=>{ clearTimeout(loadTimeout); setLoading(false) })
+    const interval=setInterval(loadAll,90000)
+    return()=>clearInterval(interval)
+  },[user]) // intentionally omit loadAll to avoid re-running on every render
+
+  // BUG FIX: signOut fully resets ALL state
+  function signOut() {
+    setUser(null)
+    setPage('dashboard')
+    setNotifOpen(false)
+    setData({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]})
+    setToastMsg(null)
+  }
+
+  // ── LOGIN
+  if(!user) return (
+    <>
+      <style>{CSS}</style>
+      {/* BUG FIX: pass live staffList so login sees added/edited users */}
+      <LoginPage onLogin={u=>{ setUser({...u}); setPage('dashboard') }} staffList={staffList}/>
+    </>
+  )
+
+  // ── LOADING
+  if(loading&&user) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16,background:'var(--bg)'}}>
+        <div style={{fontFamily:'var(--serif)',fontWeight:300,fontSize:32,color:'var(--gold)',letterSpacing:'.02em'}}>Hotel <em style={{fontStyle:'italic'}}>Fountain</em></div>
+        <div className="spinner"/>
+        <div style={{fontFamily:'var(--sans)',fontSize:9,color:'var(--tx3)',letterSpacing:'.18em',textTransform:'uppercase',fontWeight:200}}>Connecting to Management System…</div>
+      </div>
+    </>
+  )
+
+  const allowed=ROLES[user.role]?.pages||[]
+  const cur=allowed.includes(page)?page:allowed[0]
+  const pendResList=data.reservations.filter(r=>r.status==='PENDING')
+  const pendRes=pendResList.length
+  const hkUrgent=data.tasks.filter(t=>t.status==='pending'&&t.priority==='high').length
+  const dirtyRooms=data.rooms.filter(r=>r.status==='DIRTY').length
+  const totalNotifs=pendRes+hkUrgent+dirtyRooms
+
+  // Helper: resolve guest info from pending reservations
+  function getPendingGuestInfo(res) {
+    // First try to find guest in guests list
+    const guestId=String((res.guest_ids||[])[0]||'')
+    const g=data.guests.find(x=>String(x.id)===guestId)
+    // Parse special_requests for online bookings (format: "ONLINE BOOKING — Room Type: X | Guest: Y | Phone: Z | Email: W")
+    const sr=res.special_requests||''
+    const roomMatch=sr.match(/Room Type:\s*([^|]+)/)
+    const phoneMatch=sr.match(/Phone:\s*([^|]+)/)
+    const emailMatch=sr.match(/Email:\s*([^|]+)/)
+    return {
+      name: g?.name || res.on_duty_officer || 'Walk-in Guest',
+      phone: g?.phone || (phoneMatch?phoneMatch[1].trim():'—'),
+      email: g?.email || (emailMatch?emailMatch[1].trim():'—'),
+      roomType: (roomMatch?roomMatch[1].trim():null) || (res.room_ids||[]).join(', ') || 'Not assigned',
+      checkIn: res.check_in,
+      checkOut: res.check_out,
+      isOnline: sr.includes('ONLINE BOOKING'),
+      id: res.id
+    }
+  }
+
+  const NAV_ITEMS=[
+    {id:'dashboard', ico:'⬡', label:'Dashboard',        sect:'OVERVIEW'},
+    {id:'rooms',     ico:'▦', label:'Room Management'},
+    {id:'reservations',ico:'◈',label:'Reservations',    badge:pendRes},
+    {id:'guests',    ico:'◉', label:'Guests & CRM'},
+    {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
+    {id:'billing',   ico:'◎', label:'Billing & Invoices'},
+    {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
+    {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
+  ].filter(n=>allowed.includes(n.id))
+
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings'}
+  const bdTime=new Date(clock.toLocaleString('en',{timeZone:'Asia/Dhaka'}))
+  const clockStr=bdTime.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' · '+bdTime.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="app">
+
+        {/* ── SIDEBAR ── */}
+        <aside className="sidebar">
+          <div className="s-head">
+            <div className="s-brand">Hotel <em>Fountain</em></div>
+            <div className="s-tag">The Pulse of Modern Hospitality</div>
+            <div className="s-hotel">🏨 Management CRM</div>
+          </div>
+          <nav className="s-nav">
+            {NAV_ITEMS.map(item=>(
+              <div key={item.id}>
+                {item.sect&&<div className="s-sect">{item.sect}</div>}
+                <div className={`nav-item${cur===item.id?' on':''}`} onClick={()=>setPage(item.id)}>
+                  <span className="ico">{item.ico}</span>
+                  <span>{item.label}</span>
+                  {item.badge>0&&<span className="n-badge">{item.badge}</span>}
+                </div>
+              </div>
+            ))}
+          </nav>
+          <div className="s-foot">
+            <div className="flex fac gap2">
+              <div className="av" style={{width:30,height:30,fontSize:11,background:`linear-gradient(135deg,${avColor(user.name)},rgba(0,0,0,.5))`,color:'#EEE9E2',flexShrink:0,fontFamily:'var(--sans)',fontWeight:400}}>
+                {user.av}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'var(--sans)',fontSize:12,fontWeight:300,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:'.02em'}}>{user.name}</div>
+                <div style={{fontFamily:'var(--sans)',fontSize:8,color:ROLES[user.role]?.color||'var(--gold)',letterSpacing:'.1em',marginTop:1,fontWeight:200,textTransform:'uppercase'}}>{ROLES[user.role]?.label}</div>
+              </div>
+              <button
+                title="Sign Out"
+                style={{background:'none',border:'1px solid var(--br2)',color:'var(--tx3)',cursor:'pointer',fontSize:12,padding:'4px 8px',transition:'all .15s',flexShrink:0,lineHeight:1,fontFamily:'var(--sans)'}}
+                onClick={signOut}
+                onMouseEnter={e=>{e.currentTarget.style.color='var(--rose)';e.currentTarget.style.borderColor='rgba(224,92,122,.35)'}}
+                onMouseLeave={e=>{e.currentTarget.style.color='var(--tx3)';e.currentTarget.style.borderColor='var(--br2)'}}
+              >⏻</button>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── MAIN ── */}
+        <main className="main">
+          <div className="topbar">
+            <div className="tb-title">{PAGE_TITLES[cur]}</div>
+            <div className="flex fac gap2"><div className="sync-dot"/><span className="xs muted">Live</span></div>
+            <div className="tb-meta">{clockStr}</div>
+
+            {/* ── NOTIFICATION BELL ── */}
+            <div style={{position:'relative'}}>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{position:'relative',padding:'5px 10px',fontSize:15}}
+                onClick={e=>{ e.stopPropagation(); setNotifOpen(p=>!p) }}
+              >
+                🔔
+                {totalNotifs>0&&(
+                  <span style={{position:'absolute',top:4,right:4,width:7,height:7,borderRadius:'50%',background:'var(--rose)',boxShadow:'0 0 5px var(--rose)',animation:'pulse 2s infinite'}}/>
+                )}
+              </button>
+
+              {notifOpen&&(
+                <div style={{position:'absolute',right:0,top:'calc(100% + 8px)',width:360,background:'var(--s1)',border:'1px solid var(--br)',boxShadow:'0 20px 60px rgba(0,0,0,.8)',zIndex:200,overflow:'hidden',animation:'mIn .18s ease'}} onClick={e=>e.stopPropagation()}>
+
+                  {/* Header */}
+                  <div style={{padding:'12px 16px',borderBottom:'1px solid var(--br2)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(200,169,110,.04)'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{fontSize:13}}>🔔</span>
+                      <span style={{fontFamily:'var(--serif)',fontSize:16,fontWeight:300,color:'var(--tx)'}}>Notifications</span>
+                      {totalNotifs>0&&<span style={{background:'var(--rose)',color:'#fff',fontSize:9,padding:'1px 7px',fontFamily:'var(--sans)',fontWeight:400,letterSpacing:'.06em'}}>{totalNotifs}</span>}
+                    </div>
+                    <button style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:16,lineHeight:1}} onClick={()=>setNotifOpen(false)}>×</button>
+                  </div>
+
+                  <div style={{maxHeight:480,overflowY:'auto'}}>
+
+                    {/* ── PENDING BOOKING CARDS from Landing Page ── */}
+                    {pendResList.length>0&&(
+                      <div>
+                        <div style={{padding:'8px 16px',fontSize:8,letterSpacing:'.18em',color:'var(--gold)',textTransform:'uppercase',fontFamily:'var(--sans)',fontWeight:200,background:'rgba(200,169,110,.03)',borderBottom:'1px solid var(--br2)'}}>
+                          📅 Pending Booking Requests — {pendResList.length} new
+                        </div>
+                        {pendResList.map(res=>{
+                          const info=getPendingGuestInfo(res)
+                          return (
+                            <div key={res.id} style={{padding:'14px 16px',borderBottom:'1px solid var(--br2)',background:info.isOnline?'rgba(200,169,110,.03)':'transparent'}}>
+                              {/* Guest info row */}
+                              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:10}}>
+                                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                  <div style={{width:34,height:34,borderRadius:'50%',background:`linear-gradient(135deg,var(--gold),rgba(200,169,110,.3))`,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--sans)',fontSize:12,color:'#07090E',fontWeight:500,flexShrink:0}}>
+                                    {info.name.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div style={{fontFamily:'var(--sans)',fontSize:13,fontWeight:400,color:'var(--tx)',marginBottom:2}}>{info.name}</div>
+                                    {info.isOnline&&<span style={{background:'rgba(200,169,110,.12)',border:'1px solid rgba(200,169,110,.25)',color:'var(--gold)',fontSize:7.5,padding:'1px 6px',fontFamily:'var(--sans)',letterSpacing:'.1em',textTransform:'uppercase'}}>Online Booking</span>}
+                                  </div>
+                                </div>
+                                <div style={{fontSize:8,color:'var(--tx3)',fontFamily:'var(--sans)',fontWeight:200,letterSpacing:'.06em',textAlign:'right',whiteSpace:'nowrap'}}>{fmtDate(info.checkIn)}<br/>→ {fmtDate(info.checkOut)}</div>
+                              </div>
+
+                              {/* Detail grid */}
+                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:12}}>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'7px 10px'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.16em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:3,fontWeight:200}}>📞 Contact</div>
+                                  <div style={{fontSize:11.5,color:'var(--tx)',fontFamily:'var(--sans)',fontWeight:300}}>{info.phone}</div>
+                                </div>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'7px 10px'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.16em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:3,fontWeight:200}}>🏷 Room Type</div>
+                                  <div style={{fontSize:11.5,color:'var(--gold)',fontFamily:'var(--sans)',fontWeight:300}}>{info.roomType}</div>
+                                </div>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'7px 10px',gridColumn:'span 2'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.16em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:3,fontWeight:200}}>✉️ Email</div>
+                                  <div style={{fontSize:11.5,color:'var(--tx2)',fontFamily:'var(--sans)',fontWeight:300,wordBreak:'break-all'}}>{info.email}</div>
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div style={{display:'flex',gap:6}}>
+                                <button
+                                  className="btn btn-success btn-sm"
+                                  style={{flex:1,justifyContent:'center',fontSize:9.5,letterSpacing:'.12em'}}
+                                  onClick={async()=>{
+                                    try{
+                                      await dbPatch('reservations',res.id,{status:'RESERVED'})
+                                      toast(`✓ Booking confirmed for ${info.name}`,'success')
+                                      loadAll()
+                                      setNotifOpen(false)
+                                    }catch(e){toast(e.message,'error')}
+                                  }}
+                                >✓ Confirm Booking</button>
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  style={{fontSize:9.5,letterSpacing:'.1em'}}
+                                  onClick={()=>{ setPage('reservations'); setNotifOpen(false) }}
+                                >View</button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* HK urgent tasks */}
+                    {hkUrgent>0&&(
+                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                        🧹 {hkUrgent} high-priority housekeeping task{hkUrgent>1?'s':''}
+                      </div>
+                    )}
+
+                    {/* Dirty rooms */}
+                    {dirtyRooms>0&&(
+                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                        🏨 {dirtyRooms} room{dirtyRooms>1?'s':''} require cleaning
+                      </div>
+                    )}
+
+                    {/* All clear */}
+                    {totalNotifs===0&&(
+                      <div className="notif-item" style={{textAlign:'center',color:'var(--tx3)',cursor:'default',padding:'20px'}}>✓ All clear — no alerts</div>
+                    )}
+
+                  </div>{/* end scroll */}
+                </div>
+              )}
+            </div>
+
+            <button className="btn btn-ghost btn-sm" onClick={()=>{ loadAll(); toast('Data refreshed','info') }} title="Refresh data">↻</button>
+          </div>
+
+          {/* Close notif by clicking content area */}
+          <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
+            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage}/>}
+            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user}/>}
+            {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
+            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
+          </div>
+        </main>
+      </div>
+
+      {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type} onDone={()=>setToastMsg(null)}/>}
+    </>
+  )
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+// Fallback: hide loading screen after 8s in case React fails to mount
+setTimeout(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; }, 8000);
+
+  </script>
+</body>
+</html>
