@@ -21,8 +21,12 @@ export default function BillingCard({
   const [checkoutError, setCheckoutError] = useState(null);
   const checkout = useCheckout();
 
-  const statusClass = status === 'CHECKED_IN' ? 'status-checked-in' : 
-                     balanceDue > 0 ? 'status-due' : 'status-paid';
+  const numericBalance = Number(balanceDue) || 0;
+  const numericFolioDues = Number(folioDues) || 0;
+  const numericTodayPaid = Number(todayPaid) || 0;
+
+  const statusClass = status === 'CHECKED_IN' ? 'status-checked-in'
+    : numericBalance > 0 ? 'status-due' : 'status-paid';
 
   async function handleCheckout() {
     if (!reservationId) return;
@@ -57,16 +61,16 @@ export default function BillingCard({
           </div>
           <div>
             <div className="text-teal-300 text-xs uppercase tracking-wider mb-1">Folio Dues</div>
-            <div className="text-2xl font-bold text-neon-cyan">৳{folioDues}</div>
+            <div className="text-2xl font-bold text-neon-cyan">৳{numericFolioDues.toLocaleString()}</div>
           </div>
           <div>
             <div className="text-teal-300 text-xs uppercase tracking-wider mb-1">Today Paid</div>
-            <div className="font-mono text-emerald-400">+৳{todayPaid}</div>
+            <div className="font-mono text-emerald-400">+৳{numericTodayPaid.toLocaleString()}</div>
           </div>
           <div className="text-right">
             <div className="text-teal-300 text-xs uppercase tracking-wider mb-1">Balance</div>
-            <div className={balanceDue > 0 ? 'text-yellow-400 font-bold' : 'text-emerald-400 font-bold'}>
-              ৳{balanceDue}
+            <div className={numericBalance > 0 ? 'text-yellow-400 font-bold' : 'text-emerald-400 font-bold'}>
+              ৳{numericBalance.toLocaleString()}
             </div>
           </div>
         </div>
@@ -158,11 +162,11 @@ export default function BillingCard({
                 <div className="pt-4 border-t border-teal-800/30 text-right space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Total Dues:</span>
-                    <span className="font-mono">৳{folioDues}</span>
+                    <span className="font-mono">৳{numericFolioDues.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold text-neon-cyan">
                     <span>Balance Due:</span>
-                    <span>৳{balanceDue}</span>
+                    <span>৳{numericBalance.toLocaleString()}</span>
                   </div>
                 </div>
 
