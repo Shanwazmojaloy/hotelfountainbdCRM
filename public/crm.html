@@ -2304,9 +2304,18 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const outstanding = reservations
     .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
     .reduce((a, r) => a + _resDue(r), 0)
+  // Outstanding-only (used by KPIs that care about unpaid balances)
   const dueRes = reservations.filter(r => {
     if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false
     return _resDue(r) > 0
+  })
+  // Active ledger roster: every CHECKED_IN guest must appear regardless of balance
+  // (owner spec: zero-balance / fully-prepaid / no-tx-yet must still be visible).
+  // CHECKED_OUT only if still carrying a due. CANCELLED/RESERVED excluded.
+  const activeRes = reservations.filter(r => {
+    if (r.status === 'CHECKED_IN') return true
+    if (r.status === 'CHECKED_OUT') return _resDue(r) > 0
+    return false
   })
 
   // Transactions for current filter (for PDF)
@@ -2592,14 +2601,17 @@ ${dueRows}
           unifiedGroups[key].txs.push(t)
         })
 
-        // 2. Process dueRes (reservations with pending balances)
+        // 2. Process activeRes — EVERY CHECKED_IN guest must appear (owner spec),
+        //    plus CHECKED_OUT guests still carrying a balance. `isDue` is true only
+        //    when _resDue > 0 so the UI cue still distinguishes unpaid rows.
         if (!search) {
-          dueRes.forEach(r=>{
+          activeRes.forEach(r=>{
             const key = r.id;
+            const hasDue = _resDue(r) > 0;
             if(!unifiedGroups[key]) {
-              unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: true }
+              unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: hasDue }
             } else {
-              unifiedGroups[key].isDue = true;
+              unifiedGroups[key].isDue = hasDue;
               unifiedGroups[key].res = r;
             }
           })
@@ -4128,7 +4140,6 @@ function App() {
             {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
           </div>
