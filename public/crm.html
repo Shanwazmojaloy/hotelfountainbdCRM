@@ -1078,12 +1078,14 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,bu
   const [showNew,setShowNew]=useState(false)
 
   const sc=reservations.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
-  const dueCount=reservations.filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0)).length
+  // Balance = Total - Discount - Paid (consistent across ledger, DUE filter, table)
+  const resBalance=r=>Math.max(0,(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)-(+r.paid_amount||0))
+  const dueCount=reservations.filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&resBalance(r)>0).length
   const getGN=gids=>{const fid=String((gids||[])[0]||'');const g=guests.find(g=>String(g.id)===fid);return g?g.name:'Unknown'}
 
   let res
   if(filter==='ALL') res=reservations
-  else if(filter==='DUE') res=reservations.filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&(+r.total_amount||0)>(+r.paid_amount||0))
+  else if(filter==='DUE') res=reservations.filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&resBalance(r)>0)
   else res=reservations.filter(r=>r.status===filter)
   if(search){
     const q=search.toLowerCase()
@@ -1116,7 +1118,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,bu
               {res.slice(0,80).map(r=>{
                 const gn=getGN(r.guest_ids)
                 const nights=nightsCount(r.check_in,r.check_out)
-                const balance=(+r.total_amount||0)-(+r.paid_amount||0)
+                const balance=resBalance(r)
                 return (
                   <tr key={r.id}>
                     <td><div className="flex fac gap2"><Av name={gn} size={24}/><span>{gn}</span></div></td>
@@ -2173,7 +2175,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     if(t.type==='Balance Carried Forward') return true
     const res=reservations.find(r=>(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number))
     if(res?.status==='CHECKED_OUT'){
-      const due=(+(res.total_amount||0))-(+(res.paid_amount||0))
+      const due=Math.max(0,(+(res.total_amount||0))-(+(res.discount_amount||res.discount||0))-(+(res.paid_amount||0)))
       if(due<=0) return false // ghost — zero balance checked-out
     }
     return true
@@ -2244,12 +2246,14 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct,perRoom,topFolios}
   }
 
+  // Balance = Total - Discount - Paid
+  const _resDue = r => Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0))
   const outstanding = reservations
     .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
-    .reduce((a, r) => a + Math.max(0, (+r.total_amount||0) - (+r.paid_amount||0)), 0)
+    .reduce((a, r) => a + _resDue(r), 0)
   const dueRes = reservations.filter(r => {
     if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false
-    return (+r.total_amount||0) > (+r.paid_amount||0)
+    return _resDue(r) > 0
   })
 
   // Transactions for current filter (for PDF)
@@ -2295,9 +2299,10 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       const room=(r.room_ids||[r.room_number]).filter(Boolean).join(', ')||'—'
       const gname=getGN(r)
       const total=+r.total_amount||0
+      const discount=+r.discount_amount||+r.discount||0
       const paid=+r.paid_amount||0
-      const due=Math.max(0,total-paid)
-      return {gname,room,total,paid,due,check_in:r.check_in,check_out:r.check_out}
+      const due=Math.max(0,total-discount-paid)
+      return {gname,room,total,discount,paid,due,check_in:r.check_in,check_out:r.check_out}
     })
     const totalDue=duesCarried.reduce((a,d)=>a+d.due,0)
 
