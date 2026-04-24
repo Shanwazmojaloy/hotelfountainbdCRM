@@ -624,8 +624,22 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
     id: t.id.join(', ')
   }));
   const todayT=mergedTransactions.filter(t=>t.fiscal_day===today)
-  // Today's Revenue = sum of actual transactions posted today (exclude carry-forward entries)
-  const todayRev=(transactions||[]).filter(t=>t.fiscal_day===today&&t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  // Today's Revenue (v3.4.3): per-reservation dedup — mirrors BillingPage _bizDayTotal.
+  // Cash/Bkash takes priority; Final Settlement counts only when no cash/bkash exists
+  // for the same reservation today. Negative FS (refunds) excluded from headline gross.
+  const _bizDayTotalDash = list => {
+    const byKey = {}
+    list.forEach(t=>{
+      if(t.type==='Balance Carried Forward') return
+      const key = t.reservation_id || `${t.room_number||''}|${t.guest_name||''}|${t.fiscal_day||''}`
+      if(!byKey[key]) byKey[key] = { pay:0, fsPos:0, hasCash:false }
+      const amt = +t.amount||0
+      if(/cash|bkash/i.test(t.type||'')) { byKey[key].pay += amt; byKey[key].hasCash = true }
+      else if(/final\s*settlement/i.test(t.type||'') && amt > 0) { byKey[key].fsPos += amt }
+    })
+    return Object.values(byKey).reduce((a,g)=> a + (g.hasCash ? g.pay : g.fsPos), 0)
+  }
+  const todayRev=_bizDayTotalDash((transactions||[]).filter(t=>t.fiscal_day===today))
   const inHouse=reservations.filter(r=>r.status==='CHECKED_IN').length
   const pending=reservations.filter(r=>r.status==='PENDING').length
   const last14=Array.from({length:14},(_,i)=>{
@@ -4179,6 +4193,7 @@ function App() {
             {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
             {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
