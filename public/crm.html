@@ -2222,14 +2222,19 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const today=businessDate||todayStr(), month=today.slice(0,7)
 
   const todayT = transactions.filter(t=>t.fiscal_day===today);
-  // GHOST FILTER: exclude checked-out zero-balance guests from active ledger
+  // GHOST FILTER v3.4.2: real payment/settlement rows ALWAYS pass (they're actual cash movement today).
+  // Ghost rejection applies ONLY to synthetic "Balance Carried Forward" rows whose reservation is
+  // CHECKED_OUT with zero balance — those are purely display artifacts.
   const activeLedgerTx = todayT.filter(t=>{
-    if(t.type==='Balance Carried Forward') return true
-    const res=reservations.find(r=>(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number))
-    if(res?.status==='CHECKED_OUT'){
-      const due=Math.max(0,(+(res.total_amount||0))-(+(res.discount_amount||res.discount||0))-(+(res.paid_amount||0)))
-      if(due<=0) return false // ghost — zero balance checked-out
+    if(t.type==='Balance Carried Forward'){
+      const res=reservations.find(r=>(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number))
+      if(res?.status==='CHECKED_OUT'){
+        const due=Math.max(0,(+(res.total_amount||0))-(+(res.discount_amount||res.discount||0))-(+(res.paid_amount||0)))
+        if(due<=0) return false // ghost — zero balance checked-out carry-forward
+      }
+      return true
     }
+    // Any real tx (Room Payment Cash/Bkash, Final Settlement, refund, etc.) posted today is real money — keep it.
     return true
   })
   const monthT = transactions.filter(t=>t.fiscal_day?.startsWith(month));
@@ -2272,9 +2277,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     return rooms.filter(Boolean).join(', ')||'—'
   }
 
-  // BIZ DAY total = actual transactions posted today (exclude carry-forward)
-  const todayRevenue=todayT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const monthRevenue=monthT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  // BIZ DAY total (v3.4.2): Cash + Bkash payment vehicles only. Final Settlement is an accounting
+  // closeout (not a payment vehicle) and carry-forward is synthetic — both excluded from headline
+  // revenue to prevent double-counting when staff post both Room Payment and Final Settlement.
+  const _isPayVehicle = t => /cash|bkash/i.test(t.type||'') && t.type!=='Balance Carried Forward'
+  const todayRevenue = todayT.filter(_isPayVehicle).reduce((a,t)=>a+(+t.amount||0),0)
+  const monthRevenue = monthT.filter(_isPayVehicle).reduce((a,t)=>a+(+t.amount||0),0)
 
   function computeBill(r) {
     const roomNos=(r.room_ids||[r.room_number]).filter(Boolean)
@@ -2525,7 +2533,7 @@ ${dueRows}
     <div>
       {/* Stats */}
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():(()=>{const[y,m,d]=(today||todayStr()).split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()} <span style={{fontSize:9,color:'var(--gold-light)',marginLeft:4,fontFamily:'var(--mono)'}}>BIZ DAY</span></div><div className="stat-val">{BDT(filter==='DATE'?calT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{filter==='DATE'?`${calT.filter(t=>t.type!=='Balance Carried Forward').length} transactions`:`${reservations.filter(r=>r.status==='CHECKED_IN').length} in-house`}</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():(()=>{const[y,m,d]=(today||todayStr()).split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()} <span style={{fontSize:9,color:'var(--gold-light)',marginLeft:4,fontFamily:'var(--mono)'}}>BIZ DAY</span></div><div className="stat-val">{BDT(filter==='DATE'?calT.filter(_isPayVehicle).reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{filter==='DATE'?`${calT.filter(_isPayVehicle).length} payments`:`${reservations.filter(r=>r.status==='CHECKED_IN').length} in-house`}</div></div>
         <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
       </div>
@@ -4159,7 +4167,6 @@ function App() {
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
-            {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
           </div>
         </main>
