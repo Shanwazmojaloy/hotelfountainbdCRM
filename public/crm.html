@@ -1101,7 +1101,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,bu
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
-              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
+              <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Discount</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
               {res.slice(0,80).map(r=>{
@@ -1116,6 +1116,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,bu
                     <td className="xs muted">{fmtDate(r.check_out)}</td>
                     <td className="xs gold">{nights||'—'}</td>
                     <td className="xs gold">{BDT(r.total_amount)}</td>
+                    <td className="xs" style={{color:'var(--amb)'}}>{(+r.discount_amount||+r.discount||0)>0?'− '+BDT(+r.discount_amount||+r.discount||0):'—'}</td>
                     <td className="xs" style={{color:+r.paid_amount>0?'var(--grn)':'var(--tx2)'}}>{BDT(r.paid_amount)}</td>
                     <td className="xs" style={{color:balance>0?'var(--rose)':'var(--grn)'}}>{BDT(balance)}</td>
                     <td><SBadge status={r.status}/></td>
@@ -2337,7 +2338,7 @@ ${dueRows}
             </div>
             <div className="tbl-wrap">
               <table className="tbl">
-                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
+                <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Discount</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
                 <tbody>
                   {displayList.length===0?(
                     <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
@@ -2368,6 +2369,7 @@ ${dueRows}
                         <td className="xs muted">{chkIn}</td>
                         <td className="xs muted">{chkOut}</td>
                         <td className="xs gold">{BDT(tTotal)}</td>
+                        <td className="xs" style={{color:'var(--amb)'}}>{tDiscount>0?'− '+BDT(tDiscount):'—'}</td>
                         <td className="xs" style={{color:'var(--grn)'}}>{BDT(tPaid)}</td>
                         <td className="xs" style={{color:tDue>0?'var(--rose)':'var(--grn)',fontWeight:tDue>0?600:400}}>{BDT(tDue)}</td>
                         <td className="xs" style={{lineHeight:1.8}}>
