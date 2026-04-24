@@ -1906,76 +1906,105 @@ function printPDF(htmlContent, filename) {
   })
 }
 
-function downloadBillingPDF(list, filter, todayT, monthT, allT, outstanding, calDate, tokenAmount) {
+function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal, outstanding, calDate, tokenAmount) {
   let filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
   if (filter === 'DATE' && calDate) {
     const [y,m,d] = calDate.split('-'); const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     filterLabel = `${+d}-${mo[+m-1]}-${y}`
   }
-  const realList = list.filter(t => t.type !== 'Balance Carried Forward')
-  const total = realList.reduce((a,t)=>a+(+t.amount||0),0)
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c])
   const now = new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
-  const rows = realList.map(t=>`<tr><td>${t.fiscal_day||'—'}</td><td>${t.guest_name||'—'}</td><td>${t.room_number||'—'}</td><td>${t.type||'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount||0).toLocaleString()}</td></tr>`).join('')
-  const todayTotal = todayT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const monthTotal = monthT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
-  const allTotal   = allT.filter(t => t.type !== 'Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+  const fmt = n => `৳${Number(n||0).toLocaleString()}`
+  const short = d => d ? String(d).slice(0,10) : '—'
+  const rows = (enriched||[]).map(r=>`<tr>
+    <td>${esc(r.guest_name||'—')}</td>
+    <td>${esc(r.room_number||'—')}</td>
+    <td class="mono">${short(r.check_in)}<br/><span class="muted">→ ${short(r.check_out)}</span></td>
+    <td class="num">${fmt(r.bill_total)}</td>
+    <td class="num">${fmt(r.discount)}</td>
+    <td class="num">${fmt(r.paid)}</td>
+    <td class="num due">${fmt(r.balance_due)}</td>
+    <td><span class="pm pm-${String(r.payment_method||'').toLowerCase().replace(/[^a-z]/g,'')}">${esc(r.payment_method||'—')}</span></td>
+    <td class="num pos">${fmt(r.collected_amount)}</td>
+  </tr>`).join('')
   const tkn = +(tokenAmount||0)
-  const closingBalance = todayTotal - tkn
+  const closingBalance = (+periodTotal||0) - tkn
   const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
-    @page{size:A4 portrait;margin:8mm 10mm}
+    @page{size:A4 landscape;margin:6mm 8mm}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;color:#1C1510;font-size:10px;background:#fff}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1C1510}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #1C1510}
     .hotel-name{font-size:20px;font-weight:800;color:#1C1510;font-family:Georgia,serif}
     .hotel-name em{color:#C8A96E;font-style:italic;font-weight:400}
     .hotel-sub{font-size:8px;color:#8D6F57;margin-top:3px;letter-spacing:.1em;text-transform:uppercase}
     .report-title{text-align:right}
     .report-title h2{font-size:13px;font-weight:700;color:#1C1510}
     .report-title .meta{font-size:8px;color:#8D6F57;margin-top:3px}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
     .stat-box{background:#FBF8F3;border:1px solid #8D6F57;padding:8px 10px}
     .stat-box .lbl{font-size:7px;letter-spacing:.12em;color:#8D6F57;text-transform:uppercase;margin-bottom:3px;font-weight:600}
-    .stat-box .val{font-size:14px;font-weight:800;color:#1C1510}
+    .stat-box .val{font-size:14px;font-weight:800;color:#1C1510;font-family:'IBM Plex Mono',monospace}
     .stat-box.hi{background:#FBF8F3;border-color:#C8A96E;border-top:3px solid #C8A96E}
-    .stat-box.hi .val{color:#1C1510}
-    .stat-box.out .val{color:#950101;font-weight:800}
-    table{width:100%;border-collapse:collapse}
-    thead tr{background:#fff}
-    thead th{padding:7px 9px;text-align:left;font-size:8px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:#1C1510;border-bottom:1px solid #8D6F57}
-    thead th:last-child{text-align:right}
+    .stat-box.cash{border-top:3px solid #1F6F54}
+    .stat-box.cash .val{color:#1F6F54}
+    .stat-box.bkash{border-top:3px solid #D02A77}
+    .stat-box.bkash .val{color:#D02A77}
+    .stat-box.out{border-top:3px solid #950101}
+    .stat-box.out .val{color:#950101}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    thead tr{background:#1C1510}
+    thead th{padding:6px 7px;text-align:left;font-size:7.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#FBF8F3}
+    thead th.num{text-align:right}
     tbody tr:nth-child(even){background:#FBF8F3}
     tbody tr:nth-child(odd){background:#fff}
-    tbody td{padding:5px 9px;border-bottom:1px solid #8D6F57;font-size:9.5px;color:#1C1510}
-    tbody td:last-child{text-align:right;font-weight:600;font-family:monospace}
-    .subtotal-sep{height:1px;background:#C8A96E}
-    .closing-box{margin-top:16px;border:1px solid #8D6F57;border-top:3px solid #C8A96E;padding:12px 16px;background:#FBF8F3}
-    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:11px;color:#1C1510}
-    .closing-row.total{border-top:1px solid #C8A96E;margin-top:6px;padding-top:8px;font-weight:700}
+    tbody td{padding:5px 7px;border-bottom:1px solid #EAE6DD;font-size:9px;color:#1C1510;vertical-align:middle;word-wrap:break-word}
+    tbody td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
+    tbody td.mono{font-family:'IBM Plex Mono',monospace;font-size:8.5px}
+    tbody td .muted{color:#8D6F57;font-size:8px}
+    tbody td.due{color:#950101;font-weight:700}
+    tbody td.pos{color:#1F6F54}
+    .pm{display:inline-block;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.04em;background:#EAE6DD;color:#1C1510}
+    .pm-cash{background:#E4F0EA;color:#1F6F54}
+    .pm-bkash{background:#FCE4EF;color:#D02A77}
+    .closing-box{margin-top:12px;border:1px solid #8D6F57;border-top:3px solid #C8A96E;padding:10px 14px;background:#FBF8F3}
+    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#1C1510}
+    .closing-row.total{border-top:1px solid #C8A96E;margin-top:5px;padding-top:7px;font-weight:700}
     .closing-row.token{color:#8D6F57}
-    .closing-row.final{border-top:1px solid #C8A96E;border-bottom:3px solid #C8A96E;margin-top:8px;padding:10px 0;font-size:16px;font-weight:800;color:#1C1510}
-    .footer{margin-top:14px;padding-top:8px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:center}
-    .total-row{font-size:12px;font-weight:700;color:#1C1510}
+    .closing-row.final{border-top:1px solid #C8A96E;border-bottom:3px solid #C8A96E;margin-top:6px;padding:9px 0;font-size:15px;font-weight:800;color:#1C1510}
+    .footer{margin-top:10px;padding-top:7px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:center}
+    .total-row{font-size:11px;font-weight:700;color:#1C1510}
     .footer-note{font-size:7.5px;color:#8D6F57;letter-spacing:.04em}
     .trend-pos{color:#1F6F54;font-weight:700}
     .trend-neg{color:#950101;font-weight:700}
+    col.c-g{width:14%} col.c-r{width:6%} col.c-d{width:11%} col.c-n{width:9%}
+    col.c-pm{width:10%}
   </style></head><body>
-  <div class="header"><div><div class="hotel-name">Hotel <em>Fountain</em></div><div class="hotel-sub">Billing & Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
+  <div class="header"><div><div class="hotel-name">Hotel <em>Fountain</em></div><div class="hotel-sub">Billing &amp; Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
   <div class="stats">
-    <div class="stat-box hi"><div class="lbl">Today</div><div class="val">৳${todayTotal.toLocaleString()}</div></div>
-    <div class="stat-box"><div class="lbl">This Month</div><div class="val">৳${monthTotal.toLocaleString()}</div></div>
-    <div class="stat-box"><div class="lbl">All Time</div><div class="val">৳${allTotal.toLocaleString()}</div></div>
-    <div class="stat-box out"><div class="lbl">Outstanding Due</div><div class="val trend-neg">৳${Number(outstanding||0).toLocaleString()}</div></div>
+    <div class="stat-box hi"><div class="lbl">${filterLabel==='Today'?"Today's Total":filterLabel+' Total'}</div><div class="val">${fmt(periodTotal)}</div></div>
+    <div class="stat-box cash"><div class="lbl">Cash Total</div><div class="val">${fmt(cashTotal)}</div></div>
+    <div class="stat-box bkash"><div class="lbl">Bkash Total</div><div class="val">${fmt(bkashTotal)}</div></div>
+    <div class="stat-box out"><div class="lbl">Outstanding Due</div><div class="val">${fmt(outstanding)}</div></div>
   </div>
-  <table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead>
-  <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody></table>
+  <table>
+    <colgroup><col class="c-g"/><col class="c-r"/><col class="c-d"/><col class="c-n"/><col class="c-n"/><col class="c-n"/><col class="c-n"/><col class="c-pm"/><col class="c-n"/></colgroup>
+    <thead><tr>
+      <th>Guest Name</th><th>Room</th><th>Check-In / Out</th>
+      <th class="num">Bill Total</th><th class="num">Discount</th><th class="num">Paid</th><th class="num">Balance Due</th>
+      <th>Payment Method</th><th class="num">Collected</th>
+    </tr></thead>
+    <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody>
+  </table>
   <div class="closing-box">
-    <div class="closing-row total"><span>Today's Total Collection</span><span class="trend-pos">৳${todayTotal.toLocaleString()}</span></div>
-    <div class="closing-row token"><span>Token Amount (Deducted)</span><span>− ৳${tkn.toLocaleString()}</span></div>
-    <div class="closing-row final"><span>Closing Balance</span><span>৳${closingBalance.toLocaleString()}</span></div>
+    <div class="closing-row total"><span>${filterLabel} Total Collection</span><span class="trend-pos">${fmt(periodTotal)}</span></div>
+    <div class="closing-row"><span>Cash Collected</span><span class="trend-pos">${fmt(cashTotal)}</span></div>
+    <div class="closing-row"><span>Bkash Collected</span><span class="trend-pos">${fmt(bkashTotal)}</span></div>
+    <div class="closing-row token"><span>Token Amount (Deducted)</span><span>− ${fmt(tkn)}</span></div>
+    <div class="closing-row final"><span>Closing Balance</span><span>${fmt(closingBalance)}</span></div>
   </div>
-  <div class="footer"><div class="total-row">Total (${filterLabel}): ৳${total.toLocaleString()} · ${realList.length} transaction${realList.length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
+  <div class="footer"><div class="total-row">${filterLabel}: ${fmt(periodTotal)} · ${(enriched||[]).length} transaction${(enriched||[]).length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
   </body></html>`
   printPDF(content)
 }
@@ -2414,7 +2443,56 @@ ${dueRows}
   }
 
   function downloadPDF() {
-    downloadBillingPDF(filteredTx, filter, todayT, monthT, transactions, outstanding, calDate, savedToken)
+    // Real (non-carry) transactions for the selected filter
+    const realList = filteredTx.filter(t => t.type !== 'Balance Carried Forward')
+    // Parse payment method from composite type string: "Room Payment (Cash)" / "Room Payment (Bkash)" / etc.
+    const parsePM = tx => {
+      const s = String(tx?.type||'')
+      const m = s.match(/\(([^)]+)\)/)
+      if (m) return m[1].trim()
+      if (/cash/i.test(s)) return 'Cash'
+      if (/bkash/i.test(s)) return 'Bkash'
+      if (/nagad/i.test(s)) return 'Nagad'
+      if (/card/i.test(s)) return 'Card'
+      return s || '—'
+    }
+    const isPayment = tx => {
+      const t = String(tx?.type||'')
+      if (t === 'Balance Carried Forward') return false
+      return /payment|cash|bkash|nagad|card|advance|token/i.test(t) || (+tx.amount||0) > 0
+    }
+    const periodTotal = realList.reduce((a,t)=>a+(+t.amount||0),0)
+    const cashTotal   = realList.filter(t => /cash/i.test(t.type||'')).reduce((a,t)=>a+(+t.amount||0),0)
+    const bkashTotal  = realList.filter(t => /bkash/i.test(t.type||'')).reduce((a,t)=>a+(+t.amount||0),0)
+    // Build enriched rows: one row per transaction with joined reservation figures
+    const findRes = tx => {
+      const rid = tx.reservation_id || tx.res_id
+      if (rid) return reservations.find(r => String(r.id) === String(rid))
+      // Fallback: match by room + fiscal window (legacy orphan tx only)
+      return reservations.find(r =>
+        (r.room_ids||[r.room_number]).map(String).includes(String(tx.room_number)) &&
+        tx.fiscal_day >= (r.check_in||'').slice(0,10) &&
+        tx.fiscal_day <= (r.check_out||'9999-12-31').slice(0,10)
+      )
+    }
+    const enriched = realList.map(tx => {
+      const res = findRes(tx)
+      const bill = res ? computeBill(res) : null
+      return {
+        guest_name: tx.guest_name || (res ? getGN(res) : '—'),
+        room_number: tx.room_number || (res ? (res.room_ids||[res.room_number]).filter(Boolean).join(',') : '—'),
+        check_in: res?.check_in || '',
+        check_out: res?.check_out || '',
+        bill_total: bill ? (bill.sub || (+res.total_amount||0)) : 0,
+        discount: bill ? bill.discount : (res ? (+res.discount_amount||+res.discount||0) : 0),
+        paid: bill ? bill.paid : (res ? (+res.paid_amount||0) : 0),
+        balance_due: bill ? bill.due : (res ? Math.max(0,(+res.total_amount||0)-(+res.discount_amount||+res.discount||0)-(+res.paid_amount||0)) : 0),
+        payment_method: parsePM(tx),
+        collected_amount: +tx.amount||0,
+        fiscal_day: tx.fiscal_day
+      }
+    })
+    downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal, outstanding, calDate, savedToken)
   }
 
   function openDetail(r) {
@@ -3988,85 +4066,4 @@ function App() {
                                             toast(`✓ Room ${selRoom} assigned & confirmation sent to ${info.email}`,'success')
                                             setNotifRoomSels(p=>{const n={...p};delete n[res.id];return n})
                                             loadAll()
-                                          }catch(e){toast(e.message,'error')}
-                                          finally{setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s})}
-                                        }}
-                                      >{isConfirming?'Confirming…':'✓ Confirm & Send Email'}</button>
-                                      <button
-                                        className="btn btn-ghost btn-sm"
-                                        style={{fontSize:9.5,letterSpacing:'.1em',borderColor:'rgba(220,50,50,.3)',color:'var(--rose)'}}
-                                        disabled={isConfirming}
-                                        onClick={async()=>{
-                                          if(!confirm(`Cancel booking for ${info.name}?`)) return
-                                          try{
-                                            await dbPatch('reservations',res.id,{status:'CANCELLED'})
-                                            toast(`Booking for ${info.name} cancelled`,'info')
-                                            loadAll()
-                                          }catch(e){toast(e.message,'error')}
-                                        }}
-                                      >✕ Cancel</button>
-                                    </div>
-                                  </div>
-                                )
-                              })()}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-
-                    {/* HK urgent tasks */}
-                    {hkUrgent>0&&(
-                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
-                        🧹 {hkUrgent} high-priority housekeeping task{hkUrgent>1?'s':''}
-                      </div>
-                    )}
-
-                    {/* Dirty rooms */}
-                    {dirtyRooms>0&&(
-                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
-                        🏨 {dirtyRooms} room{dirtyRooms>1?'s':''} require cleaning
-                      </div>
-                    )}
-
-                    {/* All clear */}
-                    {totalNotifs===0&&(
-                      <div className="notif-item" style={{textAlign:'center',color:'var(--tx3)',cursor:'default',padding:'20px'}}>✓ All clear — no alerts</div>
-                    )}
-
-                  </div>{/* end scroll */}
-                </div>
-              )}
-            </div>
-
-            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--gold-light)',letterSpacing:'.1em',border:'1px solid rgba(200,169,110,.3)',padding:'3px 8px',marginRight:4}} title="Current Business Date">{(()=>{if(!businessDate)return'—';const[y,m,d]=businessDate.split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()}</span>
-          <button className="btn btn-ghost btn-sm" onClick={()=>{ loadAll(); toast('Data refreshed','info') }} title="Refresh data">↻</button>
-          </div>
-
-          {/* Close notif by clicking content area */}
-          <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
-            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} businessDate={businessDate}/>}
-            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
-            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
-            {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
-            {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
-            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
-          </div>
-        </main>
-      </div>
-
-      {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type} onDone={()=>setToastMsg(null)}/>}
-    </>
-  )
-}
-
-
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
-// Fallback: hide loading screen after 8s in case React fails to mount
-setTimeout(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; }, 8000);
-
-  </script>
-</body>
-</html>
+                                          }catch(e){toast(e.me
