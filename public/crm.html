@@ -4066,4 +4066,85 @@ function App() {
                                             toast(`✓ Room ${selRoom} assigned & confirmation sent to ${info.email}`,'success')
                                             setNotifRoomSels(p=>{const n={...p};delete n[res.id];return n})
                                             loadAll()
-                                          }catch(e){toast(e.me
+                                          }catch(e){toast(e.message,'error')}
+                                          finally{setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s})}
+                                        }}
+                                      >{isConfirming?'Confirming…':'✓ Confirm & Send Email'}</button>
+                                      <button
+                                        className="btn btn-ghost btn-sm"
+                                        style={{fontSize:9.5,letterSpacing:'.1em',borderColor:'rgba(220,50,50,.3)',color:'var(--rose)'}}
+                                        disabled={isConfirming}
+                                        onClick={async()=>{
+                                          if(!confirm(`Cancel booking for ${info.name}?`)) return
+                                          try{
+                                            await dbPatch('reservations',res.id,{status:'CANCELLED'})
+                                            toast(`Booking for ${info.name} cancelled`,'info')
+                                            loadAll()
+                                          }catch(e){toast(e.message,'error')}
+                                        }}
+                                      >✕ Cancel</button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* HK urgent tasks */}
+                    {hkUrgent>0&&(
+                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                        🧹 {hkUrgent} high-priority housekeeping task{hkUrgent>1?'s':''}
+                      </div>
+                    )}
+
+                    {/* Dirty rooms */}
+                    {dirtyRooms>0&&(
+                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                        🏨 {dirtyRooms} room{dirtyRooms>1?'s':''} require cleaning
+                      </div>
+                    )}
+
+                    {/* All clear */}
+                    {totalNotifs===0&&(
+                      <div className="notif-item" style={{textAlign:'center',color:'var(--tx3)',cursor:'default',padding:'20px'}}>✓ All clear — no alerts</div>
+                    )}
+
+                  </div>{/* end scroll */}
+                </div>
+              )}
+            </div>
+
+            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--gold-light)',letterSpacing:'.1em',border:'1px solid rgba(200,169,110,.3)',padding:'3px 8px',marginRight:4}} title="Current Business Date">{(()=>{if(!businessDate)return'—';const[y,m,d]=businessDate.split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()}</span>
+          <button className="btn btn-ghost btn-sm" onClick={()=>{ loadAll(); toast('Data refreshed','info') }} title="Refresh data">↻</button>
+          </div>
+
+          {/* Close notif by clicking content area */}
+          <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
+            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} businessDate={businessDate}/>}
+            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
+            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
+            {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
+            {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
+            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
+          </div>
+        </main>
+      </div>
+
+      {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type} onDone={()=>setToastMsg(null)}/>}
+    </>
+  )
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+// Fallback: hide loading screen after 8s in case React fails to mount
+setTimeout(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; }, 8000);
+
+  </script>
+</body>
+</html>
