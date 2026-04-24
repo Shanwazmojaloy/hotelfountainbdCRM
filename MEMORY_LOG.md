@@ -30,3 +30,14 @@ RoomModal Ghost Folio Fix (v3.2 — 2026-04-24, commit `13023fa`):
 - Root-level `crm.html` received the same patch for parity only; not served.
 - Verification: DB query confirmed zero folios for `f74a812a-871c-4ba1-ad64-ecf4d5f38871`. Deploy `dpl_GyxsKdYpcxPdPUMQpD8qYfu3uz8r` READY. Live prod `crm.html` contains all four patch markers (`key={selRoom.id}`, `HARD RESET`, `?reservation_id=eq.${resId}`, strict filter).
 - Invariant reinforced: never render, fetch, or persist a folio without a matching `activeRes.id`. `room_number` is display metadata, not a join key. Any future `?room_number=eq.` folio query is a regression.
+
+Billing Report Restructure (v3.3 — 2026-04-24, commit `f94b750`):
+- Scope: `downloadBillingPDF` + caller `downloadPDF` in `public/crm.html` rewritten to match the owner's "Today's Report" spec.
+- Header blocks replaced: was {Today, Month, All-Time, Outstanding} → now {Period Total, Cash Total, Bkash Total, Outstanding Due}. First block respects the active filter (TODAY/MONTH/ALL/DATE) and relabels automatically.
+- Table expanded from 5 → 9 columns: Guest Name | Room | Check-In/Out | Bill Total | Discount | Paid | Balance Due | Payment Method | Collected. Paper switched to A4 landscape to fit.
+- **Payment type ≠ column**: there is NO `transactions.payment_type` column in Supabase (`mynwfkgksqqwlqowlscj` / Bridge Booking). Payment method is embedded in `type` as a composite string (`Room Payment (Cash)`, `Room Payment (Bkash)`). Cash/Bkash filters use case-insensitive regex (`/cash/i`, `/bkash/i`) against `type`. Display parenthetical via `/\(([^)]+)\)/`. Any future work that assumes a `payment_type` column is wrong — read this entry first.
+- **"Paid" vs "Collected" semantics** (owner's explicit spec): `Paid` = lifetime amount paid for the entire reservation/stay (pulled from `computeBill(res).paid`); `Collected` = amount of this individual transaction (`t.amount`). Do not conflate.
+- Caller enrichment: `downloadPDF` joins each transaction to its reservation via `reservation_id || res_id` (preferred), with a fallback that matches by `room_number + fiscal_day ∈ [check_in, check_out]` — fallback exists only for legacy orphan tx rows and MUST NOT be broadened.
+- New signature: `downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal, outstanding, calDate, tokenAmount)`. Closing box adds Cash + Bkash lines above the token deduction.
+- Root `crm.html` intentionally skipped (NOT Vercel-served per v3.2). Only `public/crm.html` matters for prod.
+- Pending: push from Windows + MD5-verify deployed file + Vercel deploy READY before closing loop.
