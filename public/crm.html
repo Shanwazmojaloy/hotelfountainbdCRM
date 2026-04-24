@@ -2277,12 +2277,26 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     return rooms.filter(Boolean).join(', ')||'—'
   }
 
-  // BIZ DAY total (v3.4.2): Cash + Bkash payment vehicles only. Final Settlement is an accounting
-  // closeout (not a payment vehicle) and carry-forward is synthetic — both excluded from headline
-  // revenue to prevent double-counting when staff post both Room Payment and Final Settlement.
+  // BIZ DAY total (v3.4.3): per-reservation dedup. Cash/Bkash takes priority; Final Settlement
+  // counts only when no cash/bkash exists for the same reservation today (covers ARNOB-style
+  // checkout collections). Dup protection: if staff post both Room Payment (Cash) and Final
+  // Settlement for the same stay (ZUNAIR-style double-post), only the cash is counted.
+  // Negative Final Settlement (refunds) excluded from headline — they adjust prior revenue, not today's gross.
   const _isPayVehicle = t => /cash|bkash/i.test(t.type||'') && t.type!=='Balance Carried Forward'
-  const todayRevenue = todayT.filter(_isPayVehicle).reduce((a,t)=>a+(+t.amount||0),0)
-  const monthRevenue = monthT.filter(_isPayVehicle).reduce((a,t)=>a+(+t.amount||0),0)
+  const _bizDayTotal = list => {
+    const byKey = {}
+    list.forEach(t=>{
+      if(t.type==='Balance Carried Forward') return
+      const key = t.reservation_id || `${t.room_number||''}|${t.guest_name||''}|${t.fiscal_day||''}`
+      if(!byKey[key]) byKey[key] = { pay:0, fsPos:0, hasCash:false }
+      const amt = +t.amount||0
+      if(/cash|bkash/i.test(t.type||'')) { byKey[key].pay += amt; byKey[key].hasCash = true }
+      else if(/final\s*settlement/i.test(t.type||'') && amt > 0) { byKey[key].fsPos += amt }
+    })
+    return Object.values(byKey).reduce((a,g)=> a + (g.hasCash ? g.pay : g.fsPos), 0)
+  }
+  const todayRevenue = _bizDayTotal(todayT)
+  const monthRevenue = _bizDayTotal(monthT)
 
   function computeBill(r) {
     const roomNos=(r.room_ids||[r.room_number]).filter(Boolean)
@@ -2533,7 +2547,7 @@ ${dueRows}
     <div>
       {/* Stats */}
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():(()=>{const[y,m,d]=(today||todayStr()).split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()} <span style={{fontSize:9,color:'var(--gold-light)',marginLeft:4,fontFamily:'var(--mono)'}}>BIZ DAY</span></div><div className="stat-val">{BDT(filter==='DATE'?calT.filter(_isPayVehicle).reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{filter==='DATE'?`${calT.filter(_isPayVehicle).length} payments`:`${reservations.filter(r=>r.status==='CHECKED_IN').length} in-house`}</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():(()=>{const[y,m,d]=(today||todayStr()).split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()} <span style={{fontSize:9,color:'var(--gold-light)',marginLeft:4,fontFamily:'var(--mono)'}}>BIZ DAY</span></div><div className="stat-val">{BDT(filter==='DATE'?_bizDayTotal(calT):todayRevenue)}</div><div className="stat-sub">{filter==='DATE'?`${calT.filter(_isPayVehicle).length} payments`:`${reservations.filter(r=>r.status==='CHECKED_IN').length} in-house`}</div></div>
         <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
       </div>
@@ -4165,8 +4179,8 @@ function App() {
             {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
             {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
+            {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
           </div>
         </main>
