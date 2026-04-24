@@ -779,7 +779,7 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload,businessD
         ))}
       </div>
       {selRoom&&(
-        <RoomModal room={selRoom} guests={guests} reservations={reservations}
+        <RoomModal room={selRoom} guests={guests} reservations={reservations} rooms={rooms}
           canEdit={canEdit} canHKStatus={canHKStatus} isSA={isSA} toast={toast}
           businessDate={businessDate}
           onClose={()=>setSelRoom(null)}
@@ -790,7 +790,7 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload,businessD
   )
 }
 
-function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onClose,reload,businessDate}) {
+function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toast,onClose,reload,businessDate}) {
   const [status,setStatus]=useState(room.status)
   const [folios,setFolios]=useState([])
   const [fLoad,setFLoad]=useState(true)
@@ -811,16 +811,23 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
 
   const roomRate=+room.price||0
   const nights=activeRes?nightsCount(activeRes.check_in,activeRes.check_out):0
-  let roomCharge=roomRate*nights
-  const extras=folios.reduce((a,f)=>a+(+f.amount||0),0)
+  const roomCharge=roomRate*nights
+  // Exclude admin/receivable folios from guest-facing charges
+  const ADMIN_RE=/receivable|payment|settlement|advance|refund/i
+  const chargeFolios=folios.filter(f=>!ADMIN_RE.test(String(f.category||'')+' '+String(f.description||'')))
+  const extras=chargeFolios.reduce((a,f)=>a+(+f.amount||0),0)
   const sub=roomCharge+extras
-  const discount=+(activeRes?.discount_amount||activeRes?.discount||0)
-  const dbTotal=+(activeRes?.total_amount||0)
-  const basePrice=dbTotal>0?dbTotal:Math.max(0,sub-discount)
-  const _taxBase=basePrice/1.20
-  const tax=Math.round(_taxBase*0.15)
-  const svc=Math.round(_taxBase*0.05)
-  const total=basePrice+extras
+  // Prorate reservation discount across rooms by rate weight
+  const totalDiscount=+(activeRes?.discount_amount||activeRes?.discount||0)
+  const resRoomIds=(activeRes?.room_ids||[]).filter(Boolean)
+  const isMulti=resRoomIds.length>1
+  const resRatesSum=isMulti?resRoomIds.reduce((a,rn)=>a+(+(rooms||[]).find(r=>String(r.room_number)===String(rn))?.price||0),0):roomRate
+  const discount=isMulti&&resRatesSum>0?Math.round(totalDiscount*(roomRate/resRatesSum)):totalDiscount
+  const total=Math.max(0,sub-discount)
+  // Prorate paid amount same way so per-room Due is accurate
+  const totalPaid=+(activeRes?.paid_amount||0)
+  const paid=isMulti&&resRatesSum>0?Math.round(totalPaid*(roomRate/resRatesSum)):totalPaid
+  const due=Math.max(0,total-paid)
 
   async function saveStatus() {
     setSaving(true)
@@ -885,8 +892,8 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
               </div>
             </div>
             <div style={{textAlign:'right'}}>
-              <div className="xs muted">Total Due</div>
-              <div style={{fontWeight:700,fontSize:22,color:'var(--gold)'}}>{BDT(total)}</div>
+              <div className="xs muted">Balance Due</div>
+              <div style={{fontWeight:700,fontSize:22,color:due>0?'var(--rose)':'var(--grn)'}}>{BDT(due)}</div>
             </div>
           </div>
         </div>
@@ -900,7 +907,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
           </div>
           <div style={{padding:'0 12px'}}>
             {fLoad&&<div className="xs muted" style={{padding:'12px 0',textAlign:'center'}}>Loading folio…</div>}
-            {!fLoad&&folios.length===0&&<div className="xs muted" style={{padding:'12px 0',textAlign:'center'}}>No extra charges</div>}
+            {!fLoad&&chargeFolios.length===0&&nights===0&&<div className="xs muted" style={{padding:'12px 0',textAlign:'center'}}>No extra charges</div>}
             {/* Room charge line */}
             {!fLoad&&nights>0&&(
               <div className="folio-row">
@@ -908,7 +915,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
                 <span className="xs gold">{BDT(roomCharge)}</span>
               </div>
             )}
-            {folios.map(f=>(
+            {chargeFolios.map(f=>(
               <div key={f.id} className="folio-row">
                 <div><span>{f.description}</span><span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{f.category}</span></div>
                 <div className="flex fac gap2">
@@ -919,15 +926,13 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
             ))}
           </div>
           <div style={{padding:'9px 12px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)'}}>
-            {[['Subtotal',sub]].map(([l,v])=>(
-              <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-            ))}
-            {discount>0&&<div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Discount</span><span>- {BDT(discount)}</span></div>}
-            {[['VAT 15%',tax],['Service Charge 5%',svc]].map(([l,v])=>(
-              <div key={l} className="flex fjb xs muted" style={{marginBottom:3}}><span>{l}</span><span>{BDT(v)}</span></div>
-            ))}
+            <div className="flex fjb xs muted" style={{marginBottom:3}}><span>Subtotal</span><span>{BDT(sub)}</span></div>
+            {discount>0&&<div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Discount{isMulti?' (prorated)':''}</span><span>- {BDT(discount)}</span></div>}
             <div className="divider" style={{margin:'6px 0'}}/>
-            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}><span>Total Due</span><span>{BDT(total)}</span></div>
+            <div className="flex fjb xs" style={{marginBottom:3,fontWeight:600}}><span>Total</span><span>{BDT(total)}</span></div>
+            <div className="flex fjb xs" style={{marginBottom:3,color:'var(--grn)'}}><span>Paid{isMulti?' (prorated)':''}</span><span>- {BDT(paid)}</span></div>
+            <div className="divider" style={{margin:'6px 0'}}/>
+            <div className="flex fjb" style={{fontSize:13,fontWeight:700,color:due>0?'var(--rose)':'var(--grn)'}}><span>Balance Due</span><span>{BDT(due)}</span></div>
           </div>
         </div>
       )}
@@ -1152,6 +1157,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
   const [discountAmt,setDiscountAmt]=useState(String(res.discount_amount||res.discount||''))
   const [notes,setNotes]=useState(res.notes||'')
   const [saving,setSaving]=useState(false)
+  const [chargeFor,setChargeFor]=useState(null) // room_number for per-room Add Charge modal
 
   const [checkOut,setCheckOut]=useState(res.check_out?String(res.check_out).slice(0,10):'')
   const [checkInDate,setCheckInDate]=useState(res.check_in?String(res.check_in).slice(0,10):'')
@@ -1284,6 +1290,9 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
                     <option key={r.id} value={r.room_number}>{r.room_number} — {r.category} — {BDT(r.price)}/n</option>
                   ))}
                 </select>
+                {rn&&res.id&&(status==='CHECKED_IN'||status==='CHECKED_OUT'||res.status==='CHECKED_IN'||res.status==='CHECKED_OUT')&&(
+                  <button type="button" title={`Add charge to Room ${rn}`} style={{background:'rgba(88,166,255,.08)',border:'1px solid rgba(88,166,255,.35)',color:'var(--info,#58a6ff)',cursor:'pointer',padding:'3px 8px',fontSize:10,letterSpacing:'.04em',whiteSpace:'nowrap'}} onClick={()=>setChargeFor(rn)}>+ Charge</button>
+                )}
                 {roomArr.length>1&&<button type="button" style={{background:'none',border:'1px solid rgba(248,113,113,.3)',color:'var(--rose)',cursor:'pointer',padding:'3px 7px',fontSize:11}} onClick={()=>setRoomArr(roomArr.filter((_,i)=>i!==idx))}>✕</button>}
               </div>
             ))}
@@ -1346,6 +1355,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
         <label className="flbl">Notes</label>
         <textarea className="ftextarea" value={notes} onChange={e=>setNotes(e.target.value)} style={{minHeight:50}} placeholder="Internal notes…"/>
       </div>
+      {chargeFor&&<AddChargeModal roomNo={chargeFor} resId={res.id} toast={toast} onClose={()=>setChargeFor(null)} onDone={()=>{setChargeFor(null);reload()}}/>}
     </Modal>
   )
 }
