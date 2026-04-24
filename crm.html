@@ -691,7 +691,7 @@ function RoomsPage({rooms,guests,reservations,toast,currentUser,reload}) {
         ))}
       </div>
       {selRoom&&(
-        <RoomModal room={selRoom} guests={guests} reservations={reservations}
+        <RoomModal key={selRoom.id} room={selRoom} guests={guests} reservations={reservations}
           canEdit={canEdit} canHKStatus={canHKStatus} isSA={isSA} toast={toast}
           onClose={()=>setSelRoom(null)}
           reload={()=>{ reload(); setSelRoom(null) }}/>
@@ -715,10 +715,21 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
   const guest=activeRes?guests.find(g=>String(g.id)===String((activeRes.guest_ids||[])[0]||'')):null
 
   useEffect(()=>{
-    if(!activeRes?.id){ setFolios([]); setFLoad(false); return }
-    db('folios',`?reservation_id=eq.${activeRes.id}&order=created_at`)
-      .then(d=>{setFolios(Array.isArray(d)?d:[]);setFLoad(false)})
-      .catch(()=>setFLoad(false))
+    // HARD RESET: clear any prior folios before fetch to kill ghost-bleed
+    setFolios([]); setFLoad(true)
+    if(!activeRes?.id){ setFLoad(false); return }
+    let cancelled=false
+    const resId=activeRes.id
+    db('folios',`?reservation_id=eq.${resId}&order=created_at`)
+      .then(d=>{
+        if(cancelled) return
+        const list=Array.isArray(d)?d:[]
+        // DEFENSE: strict client-side filter — only accept rows matching THIS reservation
+        const clean=list.filter(x=>String(x.reservation_id)===String(resId))
+        setFolios(clean); setFLoad(false)
+      })
+      .catch(()=>{ if(!cancelled) setFLoad(false) })
+    return ()=>{ cancelled=true }
   },[activeRes?.id])
 
   const roomRate=+room.price||0
@@ -764,7 +775,13 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
   }
 
   async function addFolioCharge(f) {
-    setFolios(p=>[...p,f])
+    // GUARD: reject charges that don't belong to the active reservation
+    if(!activeRes?.id||String(f?.reservation_id)!==String(activeRes.id)){
+      toast('Charge rejected: reservation mismatch','error')
+      setShowCharge(false)
+      return
+    }
+    setFolios(p=>[...p.filter(x=>x.id!==f.id),f])
     toast(`Charge ${BDT(f.amount)} added`)
     setShowCharge(false)
   }
@@ -921,9 +938,11 @@ function AddChargeModal({roomNo,resId,toast,onClose,onDone}) {
   async function save() {
     const a=parseFloat(amt)
     if(!a||a<=0) return toast('Enter a valid amount','error')
+    // HARD GUARD: never write a folio without a reservation_id (prevents orphans / ghost bleed)
+    if(!resId) return toast('No active reservation — cannot add charge','error')
     setSaving(true)
     try {
-      const [f]=await dbPost('folios',{room_number:roomNo,reservation_id:resId||null,description:desc||cat,category:cat,amount:a,tenant_id:TENANT})
+      const [f]=await dbPost('folios',{room_number:roomNo,reservation_id:resId,description:desc||cat,category:cat,amount:a,tenant_id:TENANT})
       onDone(f)
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
