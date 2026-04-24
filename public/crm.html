@@ -2341,12 +2341,12 @@ ${dueRows}
                 <thead><tr><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Bill Total</th><th>Discount</th><th>Paid</th><th>Balance Due</th><th>Payments (Filtered)</th><th>Action</th></tr></thead>
                 <tbody>
                   {displayList.length===0?(
-                    <tr><td colSpan={9} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
+                    <tr><td colSpan={10} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>No billing activity or dues for this period</td></tr>
                   ):displayList.map(grp=>{
                     const r = grp.res
-                    
+
                     const { total:resTotal, paid:resPaid, due:resDue } = r ? computeBill(r) : { total:0, paid:0, due:0 }
-                    
+
                     const byType={}
                     grp.txs.forEach(t=>{
                       const tp=t.type||'Payment'
@@ -2361,6 +2361,7 @@ ${dueRows}
                     const tTotal = r ? resTotal : (grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
                     const tPaid = r ? resPaid : 0
                     const tDue = r ? resDue : 0
+                    const tDiscount = r ? (+r.discount_amount||+r.discount||0) : 0
 
                     return (
                       <tr key={r?r.id:(grp.guest_name+'|'+grp.room_number)}>
@@ -2427,7 +2428,7 @@ ${dueRows}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
-        const {roomCharge,sub,tax,svc,total,paid,due,folios,nights,roomRate,vatPct,svcPct}=computeBill(detailRes)
+        const {roomCharge,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct}=computeBill(detailRes)
         const relTx=transactions.filter(t=>(detailRes.room_ids||[detailRes.room_number]).includes(t.room_number)&&t.type!=='Balance Carried Forward')
         return (
         <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',border:'1px solid rgba(200,169,110,.18)',padding:'12px 14px',marginBottom:14}}>
