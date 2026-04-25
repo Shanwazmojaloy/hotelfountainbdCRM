@@ -2718,8 +2718,13 @@ ${dueRows}
 
                     const { total:resTotal, paid:resPaid, due:resDue } = r ? computeBill(r) : { total:0, paid:0, due:0 }
 
+                    // Dedup: if Cash/Bkash exists for this reservation, suppress Final Settlement
+                    // (mirrors Dashboard _bizDayTotalDash — prevents legacy duplicate FS txs from
+                    //  inflating row sums to 7,000 when actual paid is 3,500).
+                    const _hasCash = grp.txs.some(t=>/cash|bkash/i.test(t.type||''))
                     const byType={}
                     grp.txs.forEach(t=>{
+                      if(_hasCash && /final\s*settlement/i.test(t.type||'')) return
                       const tp=t.type||'Payment'
                       if(!byType[tp]) byType[tp]=0
                       byType[tp]+=(+t.amount||0)
