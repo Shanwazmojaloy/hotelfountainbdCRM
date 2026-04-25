@@ -112,6 +112,7 @@ Hard-reload Chrome (`Ctrl+Shift+R`) — browser cache will serve the old bundle 
 
 | Ver | Date | Scope | Commit |
 |---|---|---|---|
+| v3.5.3 | 2026-04-26 | BIZ DAY KPI dedup key fragmentation (drop reservation_id + fiscal_day from key) | _pending push_ |
 | v3.5.2 | 2026-04-26 | RecordPayModal discount double-count + Final Settlement ghost bleed (checkout + row dedup) | _pending push_ |
 | v3.5.1 | 2026-04-25 | Day-reset + FK schema correction (transactions.reservation_id has NO FK) | — |
 | v3.5 | 2026-04-25 | Canonical Dhaka date helpers + 4 prod bugs (clock TZ, Today filter, canonical bill total) | `10cd760` |

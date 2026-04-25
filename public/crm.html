@@ -638,7 +638,11 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
     const byKey = {}
     list.forEach(t=>{
       if(t.type==='Balance Carried Forward') return
-      const key = t.reservation_id || `${t.room_number||''}|${t.guest_name||''}|${t.fiscal_day||''}`
+      // FIX (v3.5.3): drop reservation_id + fiscal_day from key. List is already day-filtered;
+      // most tx writes leave reservation_id null AND fiscal_day can drift mid-session when
+      // active_fiscal_day rolls (v3.5.1) — both fragmented same-stay buckets and broke dedup.
+      // room_number|guest_name is the canonical "one stay today" bucket.
+      const key = `${t.room_number||''}|${t.guest_name||''}`
       if(!byKey[key]) byKey[key] = { pay:0, fsPos:0, hasCash:false }
       const amt = +t.amount||0
       if(/cash|bkash/i.test(t.type||'')) { byKey[key].pay += amt; byKey[key].hasCash = true }
@@ -2324,7 +2328,10 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const byKey = {}
     list.forEach(t=>{
       if(t.type==='Balance Carried Forward') return
-      const key = t.reservation_id || `${t.room_number||''}|${t.guest_name||''}|${t.fiscal_day||''}`
+      // FIX (v3.5.3): match _bizDayTotalDash — key by room|guest only. fiscal_day in fallback
+      // key fragmented buckets when active_fiscal_day rolled mid-session, so same stay's Cash
+      // + FS landed in different buckets and dedup missed (৳8,000 ghost vs real ৳4,500).
+      const key = `${t.room_number||''}|${t.guest_name||''}`
       if(!byKey[key]) byKey[key] = { pay:0, fsPos:0, hasCash:false }
       const amt = +t.amount||0
       if(/cash|bkash/i.test(t.type||'')) { byKey[key].pay += amt; byKey[key].hasCash = true }
