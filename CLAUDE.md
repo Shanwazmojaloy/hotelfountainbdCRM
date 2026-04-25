@@ -38,6 +38,10 @@ Active Billing Ledger is a roster view over reservations, not a tx log. Any filt
 
 "Today's Revenue" on any surface uses per-reservation dedup. Never sum raw `transactions.amount` without bucketing. Cash/Bkash takes priority over Final Settlement when both exist for one stay.
 
+`transactions` table records real money movements only — **never** a synthetic mirror of `paid_amount`. `Final Settlement` at checkout writes only the residual due (or skips entirely when balance=0); writing `total` duplicated prior Cash txs and inflated every consumer that summed `amount` (v3.5.2). Any new tx-write path must pass this test: would deleting this row lose information about an actual rupee that moved? If no, don't write it.
+
+Cross-component value passing: pass **canonical** fields (`reservations.total_amount` = gross), never derived (`computeBill().total` = net). The "৳13,600 / ghost bleed" family of bugs all start with a derived value crossing a component boundary and being re-derived downstream.
+
 ## Date & Time — v3.5 Canonical Helpers
 
 Top of script (~L40-41). Use everywhere; never call `toLocaleString` for date math again.
@@ -108,6 +112,8 @@ Hard-reload Chrome (`Ctrl+Shift+R`) — browser cache will serve the old bundle 
 
 | Ver | Date | Scope | Commit |
 |---|---|---|---|
+| v3.5.2 | 2026-04-26 | RecordPayModal discount double-count + Final Settlement ghost bleed (checkout + row dedup) | _pending push_ |
+| v3.5.1 | 2026-04-25 | Day-reset + FK schema correction (transactions.reservation_id has NO FK) | — |
 | v3.5 | 2026-04-25 | Canonical Dhaka date helpers + 4 prod bugs (clock TZ, Today filter, canonical bill total) | `10cd760` |
 | v3.4.3 | 2026-04-24 | Per-reservation payment dedup (Biz Day) | `300be9d` |
 | v3.4.2 | 2026-04-24 | Ghost filter scope to `Balance Carried Forward` rows only | `28012f5` |
@@ -137,6 +143,8 @@ Full audit trail in `MEMORY_LOG.md`. Append a new entry for any architectural de
 | Use `_dhakaParts` / `todayStr` for any date math | Use `new Date(toLocaleString('en',{timeZone:'Asia/Dhaka'}))` |
 | Anchor every folio/tx to `reservation_id` | Match by `room_number` or `guest_name` |
 | Use `reservations.total_amount` as canonical | Recompute total when canonical exists |
+| Pass gross `total_amount` across component props | Pass `computeBill().total` (already net of discount) downstream |
+| Post `Final Settlement` only for residual due | Post `Final Settlement` for full bill at checkout (mirrors Cash, double-counts) |
 | Verify `public/crm.html` byte/line count post-Edit | Trust Edit tool silently — it's truncated 5+ times |
 | Push from Windows PowerShell | `git commit` from sandbox bash |
 | Hard-reload Chrome after deploy | Trust the visual until `Ctrl+Shift+R` |
