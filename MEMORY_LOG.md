@@ -141,3 +141,23 @@ Day Reset + FK Schema Correction (v3.5.1 — 2026-04-25, post-deploy):
   -- ALTER TABLE transactions DROP COLUMN res_id;
   ```
 - Invariant: backup tables `*_deleted_YYYYMMDD` are the audit trail for reset operations. Do not drop them; archive into a `_audit` schema if needed.
+
+RecordPayModal Discount Double-Count + Final Settlement Ghost Bleed (v3.5.2 — 2026-04-26):
+- Symptom A: Shanwaz Ahmed (Room 304, Total ৳4,000 / Discount ৳500 / Paid ৳1,000). Reservation modal, Room detail modal, and Billing ledger row all correctly showed Balance Due ৳2,500. The "+ Pay" → Record Payment modal alone showed Balance Due ৳2,000 (off by ৳500). Amount field auto-filled ৳2,000 — collecting that would leave a ghost ৳500 residue.
+- Root cause A: Billing row passed `_total: tTotal` where `tTotal = computeBill(r).total`, and `computeBill` returns `rawTotal − discount` (line 2366). `RecordPayModal` (line 2898) then computed `lockedDue = _total − _discount − _paid` — applying discount twice. Modal also displayed `_total` as 3,500 in its "Total" cell, contradicting every other surface.
+- Symptom B: MD SHAKAWAT HOSSAIN (Room 506, settled). Billing row Paid column read ৳3,500 / Balance Due ৳0 ✓ but the "Payments (Filtered)" chip column showed both `Room Payment (Cash) ৳3,500` AND `Final Settlement ৳3,500` (sum ৳7,000) — a phantom 2× of actual money received.
+- Root cause B: `doCheckout()` at L878 posted a Final Settlement transaction for the **full `total`** at every checkout, regardless of how much had already been collected via Cash/Bkash. So a fully-prepaid stay always wrote a duplicate FS row mirroring the Cash payment. `_bizDayTotalDash` already deduped this for KPI math (line 637, "Cash takes priority over FS"), but the Billing row's per-row `byType` aggregator did not — so the ledger surface displayed inflated sums.
+- Fix A — `crm.html:2754`: when opening RecordPayModal from a billing row, pass `grossTotal = r ? (+r.total_amount||0) : tTotal` instead of `tTotal`. Modal now subtracts discount exactly once. Total cell displays canonical ৳4,000; Balance Due math collapses to 4,000 − 500 − 1,000 = ৳2,500. `payCap` inside `save()` now correctly equals 3,500 (was 3,000), so settling the full balance no longer leaves a ghost residue.
+- Fix B1 — `crm.html:874-882` (`doCheckout`): post Final Settlement ONLY for residual unpaid amount, and skip the post entirely when residual=0. Tx now also carries `reservation_id: activeRes.id` so the row is anchored per v3.1.
+  ```js
+  const residual = Math.max(0, total - (+activeRes?.paid_amount||0))
+  if (residual > 0) await dbPost('transactions',{type:'Final Settlement',amount:residual,reservation_id:activeRes.id,...})
+  ```
+- Fix B2 — `crm.html:2721-2731` (Billing row `byType` aggregator): apply same dedup as Dashboard `_bizDayTotalDash` — when any Cash/Bkash tx exists for the reservation, suppress Final Settlement chips from the row sum. This makes existing legacy duplicate FS rows render correctly without DB mutation.
+- Pending DB hygiene: 1+ legacy duplicate FS row(s) exist (confirmed: MD SHAKAWAT HOSSAIN Room 506, fiscal_day 2026-04-25, ৳3,500). Display dedup hides them from UI but they still inflate raw `SELECT SUM(amount) FROM transactions` queries. Optional cleanup SQL provided in chat — owner deferred execution.
+- Architecture rule reinforced (4th instance of this pattern, see v3.4.3, v3.5 Bug #1, v3.5.1):
+  - **`transactions` table records real money movements only.** Never write a synthetic mirror of `paid_amount` (e.g. "Final Settlement = full bill" at checkout). Every consumer that sums `transactions.amount` would otherwise have to reverse-engineer the dedup, and at least one always misses (Billing row `byType` did this time).
+  - **Pass canonical fields, not derived ones, across component boundaries.** `_total` between BillingPage and RecordPayModal is canonical `r.total_amount` (gross). `computeBill().total` is derived (net of discount) and is for display, not for re-deriving dependent values downstream. Mixing the two is the root pattern of the "৳13,600 Rule" / ghost bleed family.
+- Edit-tool stability: 3 surgical edits to `public/crm.html` in this session, no truncation. Tail-check (`grep -c ReactDOM.createRoot` + `grep -c </html>`) verified after each edit.
+- Verification (post-fix, pre-deploy): math walked through manually for both surfaces. Live verification pending owner push from Windows PowerShell + Ctrl+Shift+R cache-bust.
+- Pending: commit + push from Windows; verify live bundle with marker grep before closing loop.
