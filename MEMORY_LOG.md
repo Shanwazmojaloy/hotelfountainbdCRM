@@ -159,8 +159,8 @@ RecordPayModal Discount Double-Count + Final Settlement Ghost Bleed (v3.5.2 — 
   - **`transactions` table records real money movements only.** Never write a synthetic mirror of `paid_amount` (e.g. "Final Settlement = full bill" at checkout). Every consumer that sums `transactions.amount` would otherwise have to reverse-engineer the dedup, and at least one always misses (Billing row `byType` did this time).
   - **Pass canonical fields, not derived ones, across component boundaries.** `_total` between BillingPage and RecordPayModal is canonical `r.total_amount` (gross). `computeBill().total` is derived (net of discount) and is for display, not for re-deriving dependent values downstream. Mixing the two is the root pattern of the "৳13,600 Rule" / ghost bleed family.
 - Edit-tool stability: 3 surgical edits to `public/crm.html` in this session, no truncation. Tail-check (`grep -c ReactDOM.createRoot` + `grep -c </html>`) verified after each edit.
-- Verification (post-fix, pre-deploy): math walked through manually for both surfaces. Live verification pending owner push from Windows PowerShell + Ctrl+Shift+R cache-bust.
-- Pending: commit + push from Windows; verify live bundle with marker grep before closing loop.
+- Verification: deployed and live-verified 2026-04-26. Owner confirmed Shanwaz Ahmed (304) Record Payment modal reads ৳2,500 balance and MD SHAKAWAT HOSSAIN (506) row payment chip suppresses duplicate FS. Marker grep `pass GROSS total_amount` returned LIVE.
+- Status: **LIVE** — commit chain `29728ea` (Fix A) → `728bda6` (Fix B1 doCheckout) → `3cb9547` (Fix B2 row dedup) → `cb7be26` (consolidated tag). Vercel deploy READY 2026-04-26.
 
 BIZ DAY KPI Dedup Key Fragmentation (v3.5.3 — 2026-04-26):
 - Symptom: After v3.5.2 deploy, Dashboard "Today's Revenue" correctly read ৳4,500 (Shanwaz ৳1,000 + MD SHAKAWAT ৳3,500 deduped). Billing & Invoices "BIZ DAY" KPI read ৳8,000 — counting MD SHAKAWAT's Cash AND Final Settlement as ৳3,500 each (৳7,000) plus Shanwaz ৳1,000.
@@ -171,4 +171,5 @@ BIZ DAY KPI Dedup Key Fragmentation (v3.5.3 — 2026-04-26):
 - Fix (`crm.html` L641 + L2327): drop both `reservation_id` and `fiscal_day` from the dedup key. New key is `${room_number||''}|${guest_name||''}`. Justification: the input list is ALREADY day-filtered before `_bizDayTotal*` runs, so fiscal_day in the key is redundant noise that fragments same-stay buckets when active_fiscal_day drifts. `reservation_id` was inert because it's null on most tx rows.
 - Edge cases verified mentally: same guest two separate stays same day (over-collapse, but for daily revenue dedup that's intentional — represents "what this stay paid today"). Different guests same room same day (separate buckets ✓ via guest_name). Walk-in with no guest_name (single empty-key bucket — pre-existing edge case, unchanged).
 - Architecture rule reinforced: **dedup keys must be deterministic across all tx-write paths.** If a write path can omit a field, that field cannot be a discriminator in the key. `reservation_id` and `fiscal_day` both fail this test. Only `room_number` + `guest_name` are written by every path.
-- Pending: commit + push + Vercel READY + Ctrl+Shift+R + verify both surfaces read identical ৳4,500.
+- Verification: deployed and live-verified 2026-04-26. Owner confirmed Dashboard Today's Revenue and Billing BIZ DAY both read ৳4,500 identically. Marker grep `v3.5.3` returned LIVE.
+- Status: **LIVE** — commit `3a15639`. Vercel deploy READY 2026-04-26.
