@@ -115,3 +115,29 @@ Canonical Dhaka Date Helpers + 4-Bug Hotfix (v3.5 — 2026-04-25):
 - Invariant: `reservations.total_amount` is the canonical bill total. `computeBill` may fall back to `roomCharge+extras` only when canonical is missing (legacy rows). Display, PDF, and ledger math must all agree on this hierarchy — divergence is a regression.
 - Edit-tool truncation recurrence (fifth time): Edit pass shrank `public/crm.html` tail again, ending mid-token at `{cur==='rooms'        &`. Restored from git HEAD (lines 4193–4216) and `truncate -s 460826` to remove the orphan remnant. Post-restore: 460,826 bytes, ends cleanly with `</html>\r\n`, brace/paren/bracket signature matches HEAD (same `-1` paren delta is a regex-literal artifact of the brace counter, not a defect).
 - Pending owner action: push from Windows + verify deploy md5 + Ctrl+Shift+R to bust browser cache.
+
+Day Reset + FK Schema Correction (v3.5.1 — 2026-04-25, post-deploy):
+- Trigger: After v3.5 deploy verified (`_dhakaParts` present in live, header reads `Sat, 25 Apr 2026` ✓, BIZ DAY chip reads `25-APR-2026` ✓), owner requested `remove all data inputs todays` for a clean operational reset of 2026-04-25.
+- Pre-reset diagnostics: `active_fiscal_day` had been over-advanced (rolled twice on 2026-04-25 — at 04:02 Dhaka from 04-24→04-25, then again at 13:35 Dhaka from 04-25→04-26). Manually rolled it back via `UPDATE hotel_settings SET value='2026-04-25' WHERE key='active_fiscal_day'`. Re-stamped 7 tx rows that had been bucketed to fiscal_day='2026-04-26' but were created on 2026-04-25 wall day.
+- Reset performed (Option A — full reset): backups created in `transactions_deleted_20260425` (24 rows, ৳91,500), `folios_deleted_20260425` (1 row, ৳499), `reservations_deleted_20260425` (12 rows). Then DELETE all rows where `(created_at AT TIME ZONE 'Asia/Dhaka')::date='2026-04-25'`. Folios and tx deleted directly (no FK cascade available, see below); reservations deleted last to clean any remnants.
+- Critical schema correction — v3.1 MEMORY entry was WRONG about `transactions.reservation_id`:
+  - **CLAIM (v3.1):** "`transactions.reservation_id` and `folios.reservation_id` are `NOT NULL` with FK → `reservations(id) ON DELETE CASCADE`."
+  - **REALITY (verified via `pg_get_constraintdef` 2026-04-25):**
+    - `folios.reservation_id` → `reservations(id) ON DELETE CASCADE` ✓ (matches claim)
+    - `transactions.reservation_id` has **NO FK constraint** at all
+    - `transactions.res_id` (legacy column) → `reservations(id) ON DELETE SET NULL`
+  - The FK was added to the wrong column or never migrated to the canonical column when the v3.2 RoomModal fix promoted `reservation_id` as the join key.
+- Consequence: 24 pre-existing orphan tx (dates 2026-04-04 → 2026-04-23, sum ৳70,680) point to deleted reservations. They were already orphaned BEFORE today's reset; the cleanup just made them visible. They inflate `THIS MONTH` KPI by ৳70,680 (real total ৳713,801 vs displayed ৳784,481).
+- Backfill attempt (v3.1 logic — match by `room_number + fiscal_day ∈ [check_in, check_out]`): 0/24 matched. The reservations these orphans tied to are completely deleted; no surrogate reservation exists on the same rooms (any date) or under the same guest names. Backfill against existing reservations is impossible.
+- Owner aborted further orphan handling. Three options remained on the table for future cleanup: (a) recreate phantom reservations from tx data, (b) hard delete orphans, (c) demote `reservation_id` to NULL on the 24 rows.
+- Invariant correction: `transactions.reservation_id` IS the canonical join key (per v3.2), but it currently has no FK protection. Any deletion from `reservations` will silently orphan related tx until the FK is added. Add this migration before any further bulk reservation deletes:
+  ```sql
+  -- 1. Decide what to do with current 24 orphans (delete/recreate/null) FIRST.
+  -- 2. Then add the FK:
+  ALTER TABLE transactions
+    ADD CONSTRAINT transactions_reservation_id_fkey
+    FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE CASCADE;
+  -- 3. Optionally drop the legacy res_id column after migrating any data:
+  -- ALTER TABLE transactions DROP COLUMN res_id;
+  ```
+- Invariant: backup tables `*_deleted_YYYYMMDD` are the audit trail for reset operations. Do not drop them; archive into a `_audit` schema if needed.

@@ -16,7 +16,17 @@
 
 ## Architecture Invariants
 
-`reservation_id` (UUID) is the single anchor for every financial row. Every `transactions` and `folios` write must carry a non-null `reservation_id`; `dbPostTransactionSafe` throws if missing. `foliosMap` is keyed strictly by `reservation_id` — `room_number` is display metadata, never a join key. Any `?room_number=eq.` folio query is a regression. Cascade deletes only — no orphan rows.
+`reservation_id` (UUID) is the single anchor for every financial row. Every `transactions` and `folios` write must carry a non-null `reservation_id`; `dbPostTransactionSafe` throws if missing. `foliosMap` is keyed strictly by `reservation_id` — `room_number` is display metadata, never a join key. Any `?room_number=eq.` folio query is a regression.
+
+**FK reality (verified 2026-04-25, contradicts older v3.1 MEMORY claim):**
+
+| Table | Column | FK | On Delete |
+|---|---|---|---|
+| `folios` | `reservation_id` | → `reservations(id)` | `CASCADE` ✓ |
+| `transactions` | `reservation_id` (canonical) | **NO FK** ⚠ | — |
+| `transactions` | `res_id` (legacy) | → `reservations(id)` | `SET NULL` |
+
+Any DELETE from `reservations` will silently orphan related transactions. Migration to add `transactions_reservation_id_fkey FK ... ON DELETE CASCADE` is pending — see `MEMORY_LOG.md` v3.5.1. Until then, treat reservation deletes as a multi-step procedure: explicitly delete tx + folios first, OR run inside a transaction with manual cascade.
 
 `reservations.total_amount` is the canonical bill total. `computeBill` falls back to `roomCharge + extras - discount` only when canonical is missing (legacy rows). Display, PDF, and ledger math must agree on this hierarchy.
 
