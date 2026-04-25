@@ -875,7 +875,12 @@ function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toas
     try {
       await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      // FIX: Final Settlement = residual collected at checkout, NOT full bill.
+      // Posting `total` duplicated prior Room Payment (Cash) txs and inflated row sums.
+      const residual=Math.max(0,total-(+activeRes?.paid_amount||0))
+      if(residual>0){
+        await dbPost('transactions',{type:'Final Settlement',amount:residual,room_number:room.room_number,reservation_id:activeRes.id,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      }
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
