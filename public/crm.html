@@ -37,8 +37,15 @@ const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 
 const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
 const fmtDate = d => d ? String(d).slice(0,10) : '—'
-const todayDhaka = () => new Date(new Date().toLocaleString('en',{timeZone:'Asia/Dhaka'}))
-const todayStr = () => { const d=todayDhaka(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+// FIX (Bug #4): use Intl parts (en-CA → ISO order) — avoids `new Date(toLocaleString())`
+// round-trip that drifts +1 day in non-BDT browsers.
+const _dhakaParts = (d=new Date()) => {
+  const p = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(d)
+  const g = k => p.find(x=>x.type===k)?.value || '00'
+  return { y:g('year'), m:g('month'), d:g('day'), H:g('hour'), M:g('minute'), S:g('second') }
+}
+const todayStr = () => { const p=_dhakaParts(); return `${p.y}-${p.m}-${p.d}` }
+const todayDhaka = () => { const p=_dhakaParts(); return new Date(`${p.y}-${p.m}-${p.d}T${p.H}:${p.M}:${p.S}`) }
 const nightsCount = (ci,co) => { if(!ci||!co) return 0; return Math.max(0, Math.round((new Date(co)-new Date(ci))/86400000)) }
 const AVC = ['#C8A96E','#2EC4B6','#E05C7A','#58A6FF','#3FB950','#9B72CF','#F0A500']
 const avColor = n => AVC[n ? n.charCodeAt(0)%AVC.length : 0]
@@ -2235,7 +2242,18 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [tokenSaving,setTokenSaving]=useState(false)
   const today=businessDate||todayStr(), month=today.slice(0,7)
 
-  const todayT = transactions.filter(t=>t.fiscal_day===today);
+  // FIX (Bug #2/#3): "Today" must reflect REAL wall-clock date (when cash actually moved),
+  // not the drifted fiscal_day stamped at insert-time. Use created_at (Dhaka-local) as primary
+  // truth; fall back to fiscal_day only if created_at missing (legacy rows).
+  const _wallToday = todayStr()
+  const _txWallDay = t => {
+    if (t.created_at) {
+      const p = _dhakaParts(new Date(t.created_at))
+      return `${p.y}-${p.m}-${p.d}`
+    }
+    return t.fiscal_day
+  }
+  const todayT = transactions.filter(t => _txWallDay(t) === _wallToday);
   // GHOST FILTER v3.4.2: real payment/settlement rows ALWAYS pass (they're actual cash movement today).
   // Ghost rejection applies ONLY to synthetic "Balance Carried Forward" rows whose reservation is
   // CHECKED_OUT with zero balance — those are purely display artifacts.
@@ -2338,8 +2356,13 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const sub=roomCharge+extras
     const vatPct=0, svcPct=0, tax=0, svc=0
     const discount=+r.discount_amount||+r.discount||0
-    const fallback=+r.total_amount||0
-    const rawTotal=sub>0?sub:fallback
+    // FIX (Bug #1): Reservation modal's `total_amount` is the canonical, human-saved figure.
+    // Trust it as the room+extras base whenever it exists; the recomputed `sub` (rate × nights)
+    // is only a fallback for legacy rows missing total_amount. Extras (folios) are added on top
+    // of the canonical room base only when sub-derived extras are non-zero AND total_amount
+    // already includes them — to avoid double-charging we keep extras inside `sub` semantics.
+    const canonical=+r.total_amount||0
+    const rawTotal = canonical>0 ? canonical : (sub>0 ? sub : 0)
     const total=Math.max(0,rawTotal-discount)
     const paid=+r.paid_amount||0
     const due=Math.max(0,total-paid)
@@ -2540,7 +2563,7 @@ ${dueRows}
         room_number: tx.room_number || (res ? (res.room_ids||[res.room_number]).filter(Boolean).join(',') : '—'),
         check_in: res?.check_in || '',
         check_out: res?.check_out || '',
-        bill_total: bill ? (bill.sub || (+res.total_amount||0)) : 0,
+        bill_total: bill ? ((+res.total_amount||0) || bill.sub) : 0, // FIX (Bug #1): canonical total wins
         discount: bill ? bill.discount : (res ? (+res.discount_amount||+res.discount||0) : 0),
         paid: bill ? bill.paid : (res ? (+res.paid_amount||0) : 0),
         balance_due: bill ? bill.due : (res ? Math.max(0,(+res.total_amount||0)-(+res.discount_amount||+res.discount||0)-(+res.paid_amount||0)) : 0),
@@ -3936,16 +3959,15 @@ function App() {
   ].filter(n=>allowed.includes(n.id))
 
   const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings'}
-  const bdTime=new Date(clock.toLocaleString('en',{timeZone:'Asia/Dhaka'}))
+  // FIX (Bug #4): Live clock must reflect real wall-clock Dhaka time, NOT stale businessDate
+  // (which can drift +1 after night-audit). businessDate is shown separately as "BIZ DAY" badge.
+  const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
+  const _p = k => bdParts.find(p=>p.type===k)?.value || ''
   const clockStr=(()=>{
-    const timeStr=bdTime.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'})
-    if(businessDate){
-      const[y,m,d]=businessDate.split('-')
-      const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-      const wd=new Date(businessDate+'T12:00:00').toLocaleDateString('en',{weekday:'short'})
-      return timeStr+' · '+wd+', '+parseInt(d)+' '+mo[+m-1]+' '+y
-    }
-    return timeStr+' · '+bdTime.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})
+    const hh=_p('hour'), mm=_p('minute'), ss=_p('second'), dp=_p('dayPeriod')
+    const timeStr = `${hh}:${mm}:${ss} ${dp}`
+    const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    return timeStr+' · '+_p('weekday')+', '+parseInt(_p('day'))+' '+mo[+_p('month')-1]+' '+_p('year')
   })()
 
   return (
