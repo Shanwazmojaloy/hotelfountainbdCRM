@@ -1633,12 +1633,14 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
   const [sel,setSel]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
 
-  // Reservation-anchored aggregate balance: guest_id → sum(total - paid) across ALL stays.
-  // Also bucketed by lowercased name to capture legacy reservations missing guest_ids.
+  // Reservation-anchored aggregate balance: guest_id → sum(total - discount - paid) across ALL stays.
+  // Canonical formula matches _resDue used by Billing/Outstanding KPIs.
+  // Bucketed by lowercased name to capture legacy reservations missing guest_ids.
   const balByGuest=useMemo(()=>{
     const byId={}, byName={}
+    const _due=r=>Math.max(0,(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)-(+r.paid_amount||0))
     ;(reservations||[]).forEach(r=>{
-      const due=Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0))
+      const due=_due(r)
       if(due<=0) return
       ;(r.guest_ids||[]).forEach(gid=>{ const k=String(gid); byId[k]=(byId[k]||0)+due })
       const nm=String(r.guest_name||'').trim().toLowerCase()
@@ -1738,8 +1740,8 @@ function GuestModal({guest,reservations,toast,onClose,reload,isSA}) {
     if(r.guest_name && String(r.guest_name).trim().toLowerCase()===gnameKey) return true
     return false
   })
-  // Reservation-anchored aggregate balance: sum (total - paid) across ALL stays
-  const aggBalance=gAll.reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
+  // Reservation-anchored aggregate balance: sum max(0, total - discount - paid) across ALL stays
+  const aggBalance=gAll.reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)-(+r.paid_amount||0)),0)
   const gRes=gAll.slice().sort((a,b)=>String(b.check_in||'').localeCompare(String(a.check_in||''))).slice(0,10)
   const [showEdit,setShowEdit]=useState(false)
   async function toggleVIP() {
@@ -1997,7 +1999,6 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
     <td>${esc(r.room_number||'—')}</td>
     <td class="mono">${short(r.check_in)}<br/><span class="muted">→ ${short(r.check_out)}</span></td>
     <td class="num">${fmt(r.bill_total)}</td>
-    <td class="num">${fmt(r.discount)}</td>
     <td class="num">${fmt(r.paid)}</td>
     <td class="num due">${fmt(r.balance_due)}</td>
     <td><span class="pm pm-${String(r.payment_method||'').toLowerCase().replace(/[^a-z]/g,'')}">${esc(r.payment_method||'—')}</span></td>
@@ -2007,55 +2008,62 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
   const closingBalance = (+periodTotal||0) - tkn
   const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
   <style>
-    @page{size:A4 landscape;margin:6mm 8mm}
+    @page{size:A4 portrait;margin:6mm 6mm}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;color:#1C1510;font-size:10px;background:#fff}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #1C1510}
-    .hotel-name{font-size:20px;font-weight:800;color:#1C1510;font-family:Georgia,serif}
+    html,body{width:100%}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1C1510;font-size:8px;background:#fff;line-height:1.25}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;padding-bottom:4px;border-bottom:1.5px solid #1C1510}
+    .hotel-name{font-size:15px;font-weight:800;color:#1C1510;font-family:Georgia,serif;line-height:1}
     .hotel-name em{color:#C8A96E;font-style:italic;font-weight:400}
-    .hotel-sub{font-size:8px;color:#8D6F57;margin-top:3px;letter-spacing:.1em;text-transform:uppercase}
+    .hotel-sub{font-size:6.5px;color:#8D6F57;margin-top:2px;letter-spacing:.1em;text-transform:uppercase}
     .report-title{text-align:right}
-    .report-title h2{font-size:13px;font-weight:700;color:#1C1510}
-    .report-title .meta{font-size:8px;color:#8D6F57;margin-top:3px}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
-    .stat-box{background:#FBF8F3;border:1px solid #8D6F57;padding:8px 10px}
-    .stat-box .lbl{font-size:7px;letter-spacing:.12em;color:#8D6F57;text-transform:uppercase;margin-bottom:3px;font-weight:600}
-    .stat-box .val{font-size:14px;font-weight:800;color:#1C1510;font-family:'IBM Plex Mono',monospace}
-    .stat-box.hi{background:#FBF8F3;border-color:#C8A96E;border-top:3px solid #C8A96E}
-    .stat-box.cash{border-top:3px solid #1F6F54}
+    .report-title h2{font-size:10px;font-weight:700;color:#1C1510}
+    .report-title .meta{font-size:6.5px;color:#8D6F57;margin-top:2px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}
+    .stat-box{background:#FBF8F3;border:1px solid #8D6F57;padding:3px 6px}
+    .stat-box .lbl{font-size:5.5px;letter-spacing:.1em;color:#8D6F57;text-transform:uppercase;margin-bottom:1px;font-weight:600}
+    .stat-box .val{font-size:10px;font-weight:800;color:#1C1510;font-family:'IBM Plex Mono',monospace}
+    .stat-box.hi{background:#FBF8F3;border-color:#C8A96E;border-top:2px solid #C8A96E}
+    .stat-box.cash{border-top:2px solid #1F6F54}
     .stat-box.cash .val{color:#1F6F54}
-    .stat-box.bkash{border-top:3px solid #D02A77}
+    .stat-box.bkash{border-top:2px solid #D02A77}
     .stat-box.bkash .val{color:#D02A77}
-    .stat-box.out{border-top:3px solid #950101}
+    .stat-box.out{border-top:2px solid #950101}
     .stat-box.out .val{color:#950101}
+    .sec-hdr{margin-top:4px;padding:3px 6px;background:#1C1510;color:#FBF8F3;font-size:7px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+    .sec-hdr.due{background:#950101}
     table{width:100%;border-collapse:collapse;table-layout:fixed}
-    thead tr{background:#1C1510}
-    thead th{padding:6px 7px;text-align:left;font-size:7.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#FBF8F3}
+    thead tr{background:#3A2D22}
+    thead th{padding:3px 4px;text-align:left;font-size:6.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#FBF8F3}
     thead th.num{text-align:right}
+    .due-table thead tr{background:#950101}
     tbody tr:nth-child(even){background:#FBF8F3}
     tbody tr:nth-child(odd){background:#fff}
-    tbody td{padding:5px 7px;border-bottom:1px solid #EAE6DD;font-size:9px;color:#1C1510;vertical-align:middle;word-wrap:break-word}
+    tbody td{padding:2.5px 4px;border-bottom:1px solid #EAE6DD;font-size:7.5px;color:#1C1510;vertical-align:middle;word-wrap:break-word;line-height:1.2}
     tbody td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
-    tbody td.mono{font-family:'IBM Plex Mono',monospace;font-size:8.5px}
-    tbody td .muted{color:#8D6F57;font-size:8px}
+    tbody td.mono{font-family:'IBM Plex Mono',monospace;font-size:7px}
+    tbody td .muted{color:#8D6F57;font-size:6.5px}
     tbody td.due{color:#950101;font-weight:700}
     tbody td.pos{color:#1F6F54}
-    .pm{display:inline-block;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.04em;background:#EAE6DD;color:#1C1510}
+    tfoot tr{background:#FBE9E9}
+    tfoot td{padding:3px 4px;font-size:7.5px;font-weight:700;color:#950101}
+    tfoot td.num{text-align:right;font-family:'IBM Plex Mono',monospace}
+    .pm{display:inline-block;padding:1px 4px;border-radius:2px;font-size:6.5px;font-weight:700;letter-spacing:.04em;background:#EAE6DD;color:#1C1510}
     .pm-cash{background:#E4F0EA;color:#1F6F54}
     .pm-bkash{background:#FCE4EF;color:#D02A77}
-    .closing-box{margin-top:12px;border:1px solid #8D6F57;border-top:3px solid #C8A96E;padding:10px 14px;background:#FBF8F3}
-    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#1C1510}
-    .closing-row.total{border-top:1px solid #C8A96E;margin-top:5px;padding-top:7px;font-weight:700}
+    .closing-box{margin-top:6px;border:1px solid #8D6F57;border-top:2px solid #C8A96E;padding:5px 9px;background:#FBF8F3}
+    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:1.5px 0;font-size:8px;color:#1C1510}
+    .closing-row.total{border-top:1px solid #C8A96E;margin-top:2px;padding-top:3px;font-weight:700}
     .closing-row.token{color:#8D6F57}
-    .closing-row.final{border-top:1px solid #C8A96E;border-bottom:3px solid #C8A96E;margin-top:6px;padding:9px 0;font-size:15px;font-weight:800;color:#1C1510}
-    .footer{margin-top:10px;padding-top:7px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:center}
-    .total-row{font-size:11px;font-weight:700;color:#1C1510}
-    .footer-note{font-size:7.5px;color:#8D6F57;letter-spacing:.04em}
+    .closing-row.final{border-top:1px solid #C8A96E;border-bottom:2px solid #C8A96E;margin-top:3px;padding:4px 0;font-size:11px;font-weight:800;color:#1C1510}
+    .footer{margin-top:5px;padding-top:3px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:center}
+    .total-row{font-size:8px;font-weight:700;color:#1C1510}
+    .footer-note{font-size:6.5px;color:#8D6F57;letter-spacing:.04em}
     .trend-pos{color:#1F6F54;font-weight:700}
     .trend-neg{color:#950101;font-weight:700}
-    col.c-g{width:14%} col.c-r{width:6%} col.c-d{width:11%} col.c-n{width:9%}
-    col.c-pm{width:10%}
+    col.c-g{width:18%} col.c-r{width:6%} col.c-d{width:13%} col.c-n{width:10%}
+    col.c-pm{width:9%}
   </style></head><body>
   <div class="header"><div><div class="hotel-name">Hotel <em>Fountain</em></div><div class="hotel-sub">Billing &amp; Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
   <div class="stats">
@@ -2064,14 +2072,15 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
     <div class="stat-box bkash"><div class="lbl">Bkash Total</div><div class="val">${fmt(bkashTotal)}</div></div>
     <div class="stat-box out"><div class="lbl">Outstanding Due</div><div class="val">${fmt(outstanding)}</div></div>
   </div>
+  <div class="sec-hdr">Collected Transactions — ${esc(filterLabel)}</div>
   <table>
-    <colgroup><col class="c-g"/><col class="c-r"/><col class="c-d"/><col class="c-n"/><col class="c-n"/><col class="c-n"/><col class="c-n"/><col class="c-pm"/><col class="c-n"/></colgroup>
+    <colgroup><col style="width:19%"/><col style="width:7%"/><col style="width:14%"/><col style="width:11%"/><col style="width:10%"/><col style="width:11%"/><col style="width:13%"/><col style="width:15%"/></colgroup>
     <thead><tr>
       <th>Guest Name</th><th>Room</th><th>Check-In / Out</th>
-      <th class="num">Bill Total</th><th class="num">Discount</th><th class="num">Paid</th><th class="num">Balance Due</th>
+      <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance Due</th>
       <th>Payment Method</th><th class="num">Collected</th>
     </tr></thead>
-    <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody>
+    <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:14px;color:#aaa">No transactions</td></tr>'}</tbody>
   </table>
   ${(()=>{
     const dl = (duesList||[]).filter(d=>+d.balance_due>0)
@@ -2089,16 +2098,16 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
       <td><span class="pm" style="background:#FBE9E9;color:#950101">${esc(d.status||'PENDING')}</span></td>
     </tr>`).join('')
     return `
-  <div style="margin-top:14px;padding:6px 10px;background:#950101;color:#FBF8F3;font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:700">⚠ Pending Dues — Outstanding Balance (${dl.length} guest${dl.length!==1?'s':''})</div>
-  <table>
-    <colgroup><col style="width:18%"/><col style="width:8%"/><col style="width:14%"/><col style="width:14%"/><col style="width:14%"/><col style="width:14%"/><col style="width:18%"/></colgroup>
-    <thead><tr style="background:#950101">
+  <div class="sec-hdr due">⚠ Pending Dues — Outstanding Balance (${dl.length} guest${dl.length!==1?'s':''})</div>
+  <table class="due-table">
+    <colgroup><col style="width:22%"/><col style="width:8%"/><col style="width:16%"/><col style="width:13%"/><col style="width:13%"/><col style="width:14%"/><col style="width:14%"/></colgroup>
+    <thead><tr>
       <th>Guest Name</th><th>Room</th><th>Check-In / Out</th>
       <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance Due</th><th>Status</th>
     </tr></thead>
     <tbody>${dRows}</tbody>
-    <tfoot><tr style="background:#FBE9E9;font-weight:700">
-      <td colspan="3" style="padding:5px 7px;color:#950101;text-transform:uppercase;letter-spacing:.06em;font-size:9px">Total Outstanding</td>
+    <tfoot><tr>
+      <td colspan="3">Total Outstanding · ${dl.length} guest${dl.length!==1?'s':''}</td>
       <td class="num">${fmt(totBill)}</td>
       <td class="num pos">${fmt(totPaid)}</td>
       <td class="num due">${fmt(totDue)}</td>
