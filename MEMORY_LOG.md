@@ -186,4 +186,23 @@ Closing Complete Idempotency Guard (v3.5.4 — 2026-04-26):
   - No real-money txs needed re-stamping (today's actual payments already had correct created_at; only the synthetic BCF rows were dated to phantom days).
 - Architecture rule: **state-mutating "advance" buttons must be idempotent within their natural cycle.** Day-rollover, month-close, year-end — all should compute the target state and refuse if the system is already at-or-past that state. Confirm prompts on one-way operations are mandatory; muscle-memory clicks shouldn't be able to mutate global state.
 - Related Open Investigation in CLAUDE.md (v3.5.1) → **CLOSED** by this entry.
-- Pending: commit + push from Windows; verify guard with two-click test on staging.
+- Verification: deployed and live-verified 2026-04-26. UPSERT on `hotel_settings.active_fiscal_day` with value '2026-04-26' for tenant `46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8` reset BIZ DAY chip from 28-APR back to 26-APR after page reload. Pre-fix DB state: row missing entirely (page was holding stale React state from earlier session when row had value '2026-04-28'). Post-UPSERT: row authoritative, chip correct.
+- Status: **LIVE** — commit `b3d553d`. Vercel deploy READY 2026-04-26.
+
+Day Reset 2026-04-26 (v3.5.5 — 2026-04-26):
+- Trigger: After v3.5.4 deploy + BIZ DAY restored to 26-APR, owner requested clean reset of all data created on 2026-04-26 Dhaka wall day. Same playbook as v3.5.1 reset of 2026-04-25.
+- Pre-reset diagnostic (Dhaka-local `created_at = '2026-04-26'`, tenant `46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8`):
+  | Table | Rows |
+  |---|---|
+  | reservations | 15 |
+  | transactions | 23 |
+  | folios | 1 |
+- Backups created (per v3.5.1 invariant — never drop these audit tables):
+  - `transactions_deleted_20260426`
+  - `folios_deleted_20260426`
+  - `reservations_deleted_20260426`
+- Deletion order: transactions → folios → reservations (transactions.reservation_id has NO FK per v3.5.1 verified schema; manual cascade required).
+- Filter strategy: Dhaka-local `(created_at AT TIME ZONE 'Asia/Dhaka')::date = '2026-04-26'` rather than fiscal_day. This catches real wall-day records regardless of `active_fiscal_day` drift — important after the Closing Complete over-advance bug (v3.5.4) that had stamped some rows with fiscal_day='2026-04-28'.
+- Post-reset verify: all three tables returned 0 rows for the filter ✓.
+- Caveat carried into next session: any reservation that checked in on 2026-04-25 but whose Apr 26 payment was wiped by this reset will show its prior balance as outstanding. Owner accepted this trade-off (no Apr 25 reservations in scope today; clean slate preferred).
+- Pending FK migration from v3.5.1 still not applied: `transactions_reservation_id_fkey FK ... ON DELETE CASCADE`. Each reset cycle re-exposes this gap. Add to next sprint.
