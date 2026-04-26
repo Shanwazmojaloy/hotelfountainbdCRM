@@ -173,3 +173,17 @@ BIZ DAY KPI Dedup Key Fragmentation (v3.5.3 — 2026-04-26):
 - Architecture rule reinforced: **dedup keys must be deterministic across all tx-write paths.** If a write path can omit a field, that field cannot be a discriminator in the key. `reservation_id` and `fiscal_day` both fail this test. Only `room_number` + `guest_name` are written by every path.
 - Verification: deployed and live-verified 2026-04-26. Owner confirmed Dashboard Today's Revenue and Billing BIZ DAY both read ৳4,500 identically. Marker grep `v3.5.3` returned LIVE.
 - Status: **LIVE** — commit `3a15639`. Vercel deploy READY 2026-04-26.
+
+Closing Complete Idempotency Guard (v3.5.4 — 2026-04-26):
+- Symptom: Real Dhaka wall day = 2026-04-26. Front office staff clicked "Closing Complete" extra times during the day, advancing `active_fiscal_day` from 2026-04-26 → 2026-04-27 → 2026-04-28. Live BIZ DAY chip and KPIs read "28-APR-2026" against a real Apr 26 wall. All today's tx writes received `fiscal_day='2026-04-28'`, breaking every date-bucket query.
+- Root cause: `doClosingComplete()` (~L2423) had no upper bound on advancement. It computed `nextDay = today + 1` and POSTed unconditionally to `hotel_settings.active_fiscal_day`. No confirmation prompt either — single accidental click silently rolled the day. Open Investigation in CLAUDE.md explicitly flagged this exact failure mode (logged in v3.5.1) — finally fixed here.
+- Fix (`crm.html:2423`): two stacked guards at function entry:
+  1. `if (nextDay > _wallToday) return` — refuses any advance that would push BIZ DAY strictly ahead of current Dhaka calendar day. Allowed direction: catch-up only (today < wallToday). Refused: today >= wallToday.
+  2. `window.confirm(...)` — explicit "Close BIZ DAY X and advance to Y?" prompt. Single-click no longer triggers a one-way operation.
+- DB cleanup performed in tandem (Supabase SQL editor):
+  - `UPDATE hotel_settings SET value='2026-04-26' WHERE key='active_fiscal_day'` — rolled BIZ DAY back to wall.
+  - `DELETE FROM transactions WHERE type='Balance Carried Forward' AND fiscal_day > '2026-04-26'` — removed phantom carry-forward rows the bad closes wrote into Apr 27 and Apr 28.
+  - No real-money txs needed re-stamping (today's actual payments already had correct created_at; only the synthetic BCF rows were dated to phantom days).
+- Architecture rule: **state-mutating "advance" buttons must be idempotent within their natural cycle.** Day-rollover, month-close, year-end — all should compute the target state and refuse if the system is already at-or-past that state. Confirm prompts on one-way operations are mandatory; muscle-memory clicks shouldn't be able to mutate global state.
+- Related Open Investigation in CLAUDE.md (v3.5.1) → **CLOSED** by this entry.
+- Pending: commit + push from Windows; verify guard with two-click test on staging.
