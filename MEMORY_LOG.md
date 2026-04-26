@@ -257,4 +257,31 @@ Paginated Fetch via Range Header (v3.5.8 — 2026-04-27):
   ```
   PostgREST honors `Range: 0-999` / `Range: 1000-1999` / etc. — these specify a row window, not a `limit`, and are not subject to `db-max-rows`. Loop terminates when a partial page returns (last chunk).
 - `loadAll()` switched from `db('guests',...&limit=20000)` to `dbAll('guests',...)` at `crm.html:3912`.
-- Architecture rule: **client-side pagination is mandatory for any table that may exceed 1000 rows.** Tables in scope today: `guests` (1036, growing). Tables to watch: `transactions` (currently capped at `&limit=400` in the dashb
+
+Guest Balance — Reservation-Anchored Aggregation (v3.6.0 — 2026-04-27):
+- Symptom: SI SHAMIM had 3 historical CHECKED_OUT stays, each ৳2,500 due (Apr 18-19, 20-21, 23-24 — total ৳7,500 owed). Billing ledger correctly listed all three. Guest CRM profile showed total balance of only ৳2,500 — the cached `guests.outstanding_balance` field was tracking the most recent stay only, not summing across history. Classic "ghost bleed" from cached totals.
+- Fix at `crm.html`:
+  - `GuestModal` (~L1500): added `gAll = reservations.filter(...)` + `aggBalance = gAll.reduce((a,r)=>a+Math.max(0,total-paid),0)`. Modal `Balance` field now displays `BDT(aggBalance)`.
+  - `GuestsPage` (~L1413): `balByGuest` `useMemo` builds a `{guest_id → aggregate due}` map by iterating all reservations. List column at L1453 reads from this map instead of `g.outstanding_balance`.
+  - Stay history: removed `.slice(0,5)` cap; now `.slice(0,10)` after sort by `check_in DESC` so the modal shows the full recent history.
+- Cached field `guests.outstanding_balance` is no longer referenced by any UI. Schema retains it for backwards compat — recommend dropping in a future migration once Supabase backfill triggers are also retired.
+- Architecture rule reinforced (THE ৳13,600 RULE upgrade): **never trust a cached aggregate on a parent record when the truth lives in child rows.** Reservation-anchored reduce is the only correct read for guest financial state.
+
+Billing PDF — Dual-Table Structure (v3.6.0 — 2026-04-27):
+- Symptom: PDF "Outstanding Due" KPI card showed ৳26,000 but readers couldn't visually trace which guests made up that number. The single combined table mixed paid-today rows with dues-only rows; auditors had to scan the "Balance Due" column row by row.
+- Fix at `crm.html` `downloadBillingPDF` (~L1971-2130): split the data into two structurally-separate tables.
+  - `paidGroups` = groups with at least one tx in current filter window → "Collected Transactions" table (black header, full payment columns).
+  - `dueOnlyGroups` = groups with no period payment but `total_amount - paid_amount > 0` → new "⚠ Pending Dues — Outstanding Balance" table (red `#c0392b` header, status column, dedicated total row).
+  - Pending Dues section is omitted entirely if `dueOnlyGroups.length === 0` (no empty section in the PDF on a fully-collected day).
+- Why this matters operationally: closing report now reads as two stacked stories — "what we collected today" and "what's still owed" — instead of one flat ledger that obscures the dues. Auditors and the owner can verify the ৳26,000 KPI by scanning the dedicated dues subtotal row.
+- No double-counting: a partially-paid guest appears once in Collected (with their remaining balance in the row), never duplicated in Pending Dues.
+
+Official Contact Details Locked In (2026-04-27):
+- All print/PDF templates in `crm.html` updated to canonical hotel details. No more placeholder Dhanmondi address.
+  - **Address:** House 05, Road 02, Nikunja 02, Dhaka 1229, Bangladesh
+  - **Email:** hotellfountainbd@gmail.com (note: double "ll" — official spelling)
+  - **WhatsApp:** +880 1322-840799
+  - **Web:** hotelfountainbd.vercel.app
+- Templates updated: `printInvoice` (single guest invoice, ~L1801) and `downloadBillingPDF` (Billing & Invoices Report, ~L2038).
+- Daily Closing Report template (~L2255) does not display contact info — no change needed there.
+- If contact details change again: search `Nikunja 02` in `crm.html` to find all touchpoints. Do NOT add the contact block to new templates without updating this memory entry.
