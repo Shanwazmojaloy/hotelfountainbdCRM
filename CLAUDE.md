@@ -112,7 +112,8 @@ Hard-reload Chrome (`Ctrl+Shift+R`) — browser cache will serve the old bundle 
 
 | Ver | Date | Scope | Commit |
 |---|---|---|---|
-| v3.5.4 | 2026-04-26 | Closing Complete idempotency guard (refuse advance past wall day + confirm prompt) | _pending push_ |
+| v3.5.5 | 2026-04-26 | Day reset 2026-04-26 (15 res + 23 tx + 1 folio backed up + deleted) | DB-only |
+| v3.5.4 | 2026-04-26 | Closing Complete idempotency guard (refuse advance past wall day + confirm prompt) | `b3d553d` |
 | v3.5.3 | 2026-04-26 | BIZ DAY KPI dedup key fragmentation (drop reservation_id + fiscal_day from key) | `3a15639` |
 | v3.5.2 | 2026-04-26 | RecordPayModal discount double-count + Final Settlement ghost bleed (checkout + row dedup) | `cb7be26` |
 | v3.5.1 | 2026-04-25 | Day-reset + FK schema correction (transactions.reservation_id has NO FK) | — |
