@@ -42,6 +42,10 @@ Active Billing Ledger is a roster view over reservations, not a tx log. Any filt
 
 Cross-component value passing: pass **canonical** fields (`reservations.total_amount` = gross), never derived (`computeBill().total` = net). The "৳13,600 / ghost bleed" family of bugs all start with a derived value crossing a component boundary and being re-derived downstream.
 
+State-mutating "advance" buttons (day-rollover, month-close, year-end) MUST be idempotent within their natural cycle: compute the target state, refuse if already at-or-past it. Confirm prompts on one-way operations are mandatory. v3.5.4 closed the Closing Complete advance-loop hole; the same pattern applies to any future cycle-progression action. Muscle-memory clicks must not be able to mutate global state.
+
+Dedup keys must be deterministic across all tx-write paths. If a write path can omit a field, that field cannot be a discriminator in the key. `reservation_id` (null on most paths) and `fiscal_day` (drifts when `active_fiscal_day` rolls mid-session) both fail this test. Use `room_number|guest_name` for revenue dedup buckets — written by every path.
+
 ## Date & Time — v3.5 Canonical Helpers
 
 Top of script (~L40-41). Use everywhere; never call `toLocaleString` for date math again.
@@ -131,7 +135,15 @@ Full audit trail in `MEMORY_LOG.md`. Append a new entry for any architectural de
 
 ## Open Investigations
 
-_None active. v3.5.4 closed the `active_fiscal_day` over-advance investigation._
+`transactions.reservation_id` still has **NO FK constraint** (v3.5.1 verified, re-flagged by v3.5.5 reset). Each manual reset cycle must explicitly delete tx → folios → reservations in dependency order to avoid orphan-tx accumulation. Pending migration:
+
+```sql
+ALTER TABLE transactions
+  ADD CONSTRAINT transactions_reservation_id_fkey
+  FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE CASCADE;
+```
+
+Blockers: 24 pre-existing orphan transactions identified in v3.5.1 (sum ৳70,680, dates Apr 4 – Apr 23). The FK addition will fail until those are resolved (delete / NULL / recreate phantom reservations). Owner deferred — revisit before next bulk reset.
 
 ## Quick-Commands
 
@@ -148,6 +160,11 @@ _None active. v3.5.4 closed the `active_fiscal_day` over-advance investigation._
 | Use `reservations.total_amount` as canonical | Recompute total when canonical exists |
 | Pass gross `total_amount` across component props | Pass `computeBill().total` (already net of discount) downstream |
 | Post `Final Settlement` only for residual due | Post `Final Settlement` for full bill at checkout (mirrors Cash, double-counts) |
+| Use `room_number\|guest_name` for revenue dedup keys | Include `reservation_id` or `fiscal_day` in dedup keys (both can be null/drift) |
+| UPSERT (`ON CONFLICT DO UPDATE`) when writing `hotel_settings.<key>` | Plain INSERT — duplicate key errors / silent no-op via merge-duplicates |
+| Filter day-resets on `(created_at AT TIME ZONE 'Asia/Dhaka')::date` | Filter resets on `fiscal_day` — drifts when `active_fiscal_day` advances |
+| Guard idempotent state-advance buttons (Closing Complete etc.) with target-state check + confirm prompt | Allow muscle-memory clicks to mutate global state |
+| Backup to `*_deleted_YYYYMMDD` table before any bulk DELETE | Drop audit-trail backup tables — they're forensic evidence |
 | Verify `public/crm.html` byte/line count post-Edit | Trust Edit tool silently — it's truncated 5+ times |
 | Push from Windows PowerShell | `git commit` from sandbox bash |
 | Hard-reload Chrome after deploy | Trust the visual until `Ctrl+Shift+R` |
