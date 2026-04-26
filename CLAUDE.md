@@ -46,6 +46,10 @@ State-mutating "advance" buttons (day-rollover, month-close, year-end) MUST be i
 
 Dedup keys must be deterministic across all tx-write paths. If a write path can omit a field, that field cannot be a discriminator in the key. `reservation_id` (null on most paths) and `fiscal_day` (drifts when `active_fiscal_day` rolls mid-session) both fail this test. Use `room_number|guest_name` for revenue dedup buckets — written by every path.
 
+Status transitions and money movements are orthogonal in the data layer. A status patch (`CHECKED_OUT`, `CANCELLED`, etc.) must NEVER silently mutate `paid_amount` or post a synthetic transaction; a payment write must NEVER silently change status. Couple them in the UI, never in the data layer. Checkout = status change only; unpaid residual carries forward as Outstanding Due via `_resDue(r)` which already covers `CHECKED_OUT` (v3.5.6 closed the auto-settle hack).
+
+Supabase PostgREST enforces a server-side `db-max-rows=1000` cap that overrides any client `?limit=N` query param. Any table that may exceed 1000 rows (guests, transactions over a long period, audit log) MUST be fetched via `dbAll()` which uses HTTP `Range`/`Range-Unit` headers to paginate in 1000-row chunks. `db()` is for fixed-size or known-small queries only. (v3.5.8 — guests table hit the cap at 1036 rows; client `limit=20000` was silently capped.)
+
 ## Date & Time — v3.5 Canonical Helpers
 
 Top of script (~L40-41). Use everywhere; never call `toLocaleString` for date math again.
@@ -116,6 +120,9 @@ Hard-reload Chrome (`Ctrl+Shift+R`) — browser cache will serve the old bundle 
 
 | Ver | Date | Scope | Commit |
 |---|---|---|---|
+| v3.5.8 | 2026-04-27 | Paginated guests fetch via Range header — bypass Supabase `db-max-rows=1000` cap (1036 rows now visible) | `2c03b4e` |
+| v3.5.7 | 2026-04-27 | Raise guests query `limit=20000` (insufficient — server cap, see v3.5.8) | `823e66b` |
+| v3.5.6 | 2026-04-27 | Checkout = status only, never auto-settle — residual carries to Outstanding Due | `085ceed` |
 | v3.5.5 | 2026-04-26 | Day reset 2026-04-26 (15 res + 23 tx + 1 folio backed up + deleted) | DB-only |
 | v3.5.4 | 2026-04-26 | Closing Complete idempotency guard (refuse advance past wall day + confirm prompt) | `b3d553d` |
 | v3.5.3 | 2026-04-26 | BIZ DAY KPI dedup key fragmentation (drop reservation_id + fiscal_day from key) | `3a15639` |
@@ -158,14 +165,4 @@ Blockers: 24 pre-existing orphan transactions identified in v3.5.1 (sum ৳70,68
 | Use `_dhakaParts` / `todayStr` for any date math | Use `new Date(toLocaleString('en',{timeZone:'Asia/Dhaka'}))` |
 | Anchor every folio/tx to `reservation_id` | Match by `room_number` or `guest_name` |
 | Use `reservations.total_amount` as canonical | Recompute total when canonical exists |
-| Pass gross `total_amount` across component props | Pass `computeBill().total` (already net of discount) downstream |
-| Post `Final Settlement` only for residual due | Post `Final Settlement` for full bill at checkout (mirrors Cash, double-counts) |
-| Use `room_number\|guest_name` for revenue dedup keys | Include `reservation_id` or `fiscal_day` in dedup keys (both can be null/drift) |
-| UPSERT (`ON CONFLICT DO UPDATE`) when writing `hotel_settings.<key>` | Plain INSERT — duplicate key errors / silent no-op via merge-duplicates |
-| Filter day-resets on `(created_at AT TIME ZONE 'Asia/Dhaka')::date` | Filter resets on `fiscal_day` — drifts when `active_fiscal_day` advances |
-| Guard idempotent state-advance buttons (Closing Complete etc.) with target-state check + confirm prompt | Allow muscle-memory clicks to mutate global state |
-| Backup to `*_deleted_YYYYMMDD` table before any bulk DELETE | Drop audit-trail backup tables — they're forensic evidence |
-| Verify `public/crm.html` byte/line count post-Edit | Trust Edit tool silently — it's truncated 5+ times |
-| Push from Windows PowerShell | `git commit` from sandbox bash |
-| Hard-reload Chrome after deploy | Trust the visual until `Ctrl+Shift+R` |
-| Append to `MEMORY_LOG.md` for any architectural decision | Modify existing entries — they're an audit trail |
+| Pass gross `total_amount` across
