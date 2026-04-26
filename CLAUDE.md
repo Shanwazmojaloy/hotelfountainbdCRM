@@ -112,6 +112,7 @@ Hard-reload Chrome (`Ctrl+Shift+R`) — browser cache will serve the old bundle 
 
 | Ver | Date | Scope | Commit |
 |---|---|---|---|
+| v3.5.4 | 2026-04-26 | Closing Complete idempotency guard (refuse advance past wall day + confirm prompt) | _pending push_ |
 | v3.5.3 | 2026-04-26 | BIZ DAY KPI dedup key fragmentation (drop reservation_id + fiscal_day from key) | `3a15639` |
 | v3.5.2 | 2026-04-26 | RecordPayModal discount double-count + Final Settlement ghost bleed (checkout + row dedup) | `cb7be26` |
 | v3.5.1 | 2026-04-25 | Day-reset + FK schema correction (transactions.reservation_id has NO FK) | — |
@@ -129,7 +130,7 @@ Full audit trail in `MEMORY_LOG.md`. Append a new entry for any architectural de
 
 ## Open Investigations
 
-`active_fiscal_day` advanced twice on 2026-04-25 (04:02 Dhaka, then 13:35 Dhaka) — should never advance more than once per Dhaka day. Need to grep for writes to `hotel_settings.active_fiscal_day` and add a guard preventing advancement to a date strictly later than wall-clock day.
+_None active. v3.5.4 closed the `active_fiscal_day` over-advance investigation._
 
 ## Quick-Commands
 

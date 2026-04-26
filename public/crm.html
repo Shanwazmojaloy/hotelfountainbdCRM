@@ -2421,6 +2421,20 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   }
 
   async function doClosingComplete() {
+    // GUARD (v3.5.4): refuse to advance active_fiscal_day past wall-clock Dhaka day.
+    // Previously, repeated clicks blindly advanced fiscal_day +1 each time → BIZ DAY drifted
+    // ahead of reality (Apr 26 wall → Apr 28 BIZ). Allowed cases: today < wallToday (catch-up
+    // after a missed night-audit). Refused: today >= wallToday (already closed for today).
+    const _wallToday = todayStr()
+    const _nextDay = (()=>{
+      const d=new Date(today); d.setDate(d.getDate()+1)
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    })()
+    if (_nextDay > _wallToday) {
+      toast(`Closing already complete for ${_wallToday}. BIZ DAY is ${today} — cannot advance further.`,'error')
+      return
+    }
+    if (!window.confirm(`Close BIZ DAY ${today} and advance to ${_nextDay}?\n\nThis is a one-way operation. Verify all payments are recorded.`)) return
     const a=+tokenAmt;
     if (a && a>=0 && a !== savedToken) {
       try {
