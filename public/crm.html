@@ -3894,7 +3894,7 @@ function App() {
     try {
       const [rooms,guests,reservations,transactions,tasks,bdRows]=await Promise.all([
         db('rooms',`?tenant_id=eq.${TENANT}&select=*&order=room_number`),
-        db('guests',`?tenant_id=eq.${TENANT}&select=*&order=name`),
+        db('guests',`?tenant_id=eq.${TENANT}&select=*&order=name&limit=20000`),
         db('reservations',`?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=500`),
         db('transactions',`?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=400`),
         db('housekeeping_tasks',`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),
