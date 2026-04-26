@@ -877,15 +877,12 @@ function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toas
 
   async function doCheckout() {
     try {
-      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
+      // Checkout WITHOUT forced settlement: keep existing paid_amount so any
+      // unpaid residual carries forward as Outstanding Due on the reservation.
+      // _resDue() will surface it in the DUE filter / Outstanding KPI / Closing report.
+      await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT'})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      // FIX: Final Settlement = residual collected at checkout, NOT full bill.
-      // Posting `total` duplicated prior Room Payment (Cash) txs and inflated row sums.
-      const residual=Math.max(0,total-(+activeRes?.paid_amount||0))
-      if(residual>0){
-        await dbPost('transactions',{type:'Final Settlement',amount:residual,room_number:room.room_number,reservation_id:activeRes.id,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
-      }
-      toast(`${guest?.name||'Guest'} checked out ✓`)
+      toast(due>0?`${guest?.name||'Guest'} checked out · ${BDT(due)} carried to outstanding`:`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
   }
@@ -1043,11 +1040,16 @@ function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toas
             <div style={{fontSize:32,marginBottom:10}}>🚪</div>
             <div style={{fontWeight:700,fontSize:17,marginBottom:4}}>{guest?.name||'Guest'}</div>
             <div className="xs muted" style={{marginBottom:12}}>Room {room.room_number} · {nights} night{nights!==1?'s':''}</div>
-            {[['Room Charge',BDT(roomCharge)],['Extra Charges',BDT(extras)]].map(([l,v])=>(
-              <div key={l} className="flex fjb xs muted" style={{maxWidth:220,margin:'3px auto'}}><span>{l}</span><span>{v}</span></div>
+            {[['Total Bill',BDT(total)],['Paid',BDT(paid)]].map(([l,v])=>(
+              <div key={l} className="flex fjb xs muted" style={{maxWidth:240,margin:'3px auto'}}><span>{l}</span><span>{v}</span></div>
             ))}
-            <div className="divider" style={{maxWidth:220,margin:'8px auto'}}/>
-            <div style={{fontWeight:700,fontSize:24,color:'var(--gold)'}}>{BDT(total)}</div>
+            <div className="divider" style={{maxWidth:240,margin:'8px auto'}}/>
+            <div className="flex fjb" style={{maxWidth:240,margin:'4px auto',fontSize:13,fontWeight:700,color:due>0?'var(--rose)':'var(--grn)'}}>
+              <span>{due>0?'Outstanding Due':'Balance'}</span><span>{BDT(due)}</span>
+            </div>
+            {due>0
+              ? <div className="xs" style={{color:'var(--rose)',marginTop:10,maxWidth:280,margin:'10px auto 0'}}>⚠ {BDT(due)} will be carried forward as Outstanding Due. No payment will be auto-posted.</div>
+              : <div className="xs" style={{color:'var(--grn)',marginTop:10}}>✓ Folio fully settled</div>}
             <div className="xs muted mt3">Room will move to Dirty / Housekeeping</div>
           </div>
         </Modal>
