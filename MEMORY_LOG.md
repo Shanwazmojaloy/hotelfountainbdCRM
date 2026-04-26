@@ -285,3 +285,20 @@ Official Contact Details Locked In (2026-04-27):
 - Templates updated: `printInvoice` (single guest invoice, ~L1801) and `downloadBillingPDF` (Billing & Invoices Report, ~L2038).
 - Daily Closing Report template (~L2255) does not display contact info — no change needed there.
 - If contact details change again: search `Nikunja 02` in `crm.html` to find all touchpoints. Do NOT add the contact block to new templates without updating this memory entry.
+
+v3.6.1 — Discount-aware Balance + Portrait PDF (2026-04-27, commit 631f2d6 + follow-up):
+- Bug found post-deploy: Guest profile showed ৳12,000 for SI SHAMIM while Reservations DUE filter showed ৳7,500. Off by ৳4,500 = 3 stays × ৳1,500 missing discount.
+- Root cause: my v3.6.0 `aggBalance` and `balByGuest` memo used `total - paid`. Canonical formula in this codebase (see `_resDue` at `public/crm.html:2475` and `:3027`) is `max(0, total - discount - paid)`. Discount stored separately on reservation row (`discount_amount` or legacy `discount`).
+- Fix: both `balByGuest` (`public/crm.html:1641`) and GuestModal `aggBalance` (`public/crm.html:1744`) now subtract `(+r.discount_amount||+r.discount||0)`. Verified live: SI SHAMIM = ৳7,500 (3 × ৳2,500 net of ৳1,500 discount per ৳4,000 stay).
+- Architecture rule: **any new place that computes a reservation balance must call or inline `_resDue`'s exact formula.** Do not write a fresh `total - paid` reduce — the discount column is invisible until it bites. Add a single shared helper in a future refactor.
+
+Billing PDF — Portrait Single-Page (2026-04-27):
+- Owner request: switch from A4 landscape (2-page) to A4 portrait (1-page).
+- Changes at `public/crm.html` `downloadBillingPDF` template (~L2010-2110):
+  - `@page` → `A4 portrait`, margin `6mm`.
+  - Body font 10px → 8px; row padding 5px → 2.5px; header 20px → 15px; KPI box value 14px → 10px.
+  - Dropped Discount column from Collected table (8 cols total). Math is still verifiable: Bill Total − Paid − Balance Due = implied discount.
+  - New `.sec-hdr` band style (black for Collected, red for Pending Dues) — gives visual separation without consuming a full row.
+  - Pending Dues table now uses 7 cols, dedicated `tfoot` styling (red-tinted total row).
+- Capacity verified live: 14 collected rows + 8 dues rows + 4 KPI cards + closing box fits in 297mm portrait at user's data volume. If row count grows past ~25, second page will start; reduce body font to 7.5px or split dues into appendix at that point.
+- Status: **DEPLOYED & VERIFIED LIVE** — owner confirmed all three checks (SI SHAMIM ৳7,500, PDF portrait single-page, invoice Nikunja header) on 2026-04-27.
