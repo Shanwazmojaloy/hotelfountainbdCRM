@@ -206,3 +206,55 @@ Day Reset 2026-04-26 (v3.5.5 — 2026-04-26):
 - Post-reset verify: all three tables returned 0 rows for the filter ✓.
 - Caveat carried into next session: any reservation that checked in on 2026-04-25 but whose Apr 26 payment was wiped by this reset will show its prior balance as outstanding. Owner accepted this trade-off (no Apr 25 reservations in scope today; clean slate preferred).
 - Pending FK migration from v3.5.1 still not applied: `transactions_reservation_id_fkey FK ... ON DELETE CASCADE`. Each reset cycle re-exposes this gap. Add to next sprint.
+
+Checkout = Status Change Only, Never Auto-Settle (v3.5.6 — 2026-04-27):
+- Architecture decision: **Guest checkout is a status transition, not a financial event.** `doCheckout()` must NOT mutate `paid_amount` and must NOT post any synthetic settlement transaction. Unpaid balance carries forward as Outstanding Due on the reservation.
+- Symptom: Confirm Guest Checkout modal showed "Balance Due ৳2,500" but clicking Confirm Checkout silently treated it as paid — `paid_amount` was force-set to `total` and a `Final Settlement` tx was auto-posted for the residual. This faked a payment that staff never collected and erased the outstanding from the books.
+- Root cause (`crm.html:880`):
+  ```js
+  await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})  // ← wipes due
+  const residual=Math.max(0,total-(+activeRes?.paid_amount||0))
+  if(residual>0){ await dbPost('transactions',{type:'Final Settlement',amount:residual,...}) }  // ← phantom payment
+  ```
+  The `paid_amount:total` patch zeroed `_resDue(r)` for that reservation, which is what every Outstanding query reads from. The Final Settlement tx made the closing report tie to the wiped figure, hiding the discrepancy.
+- Fix (`crm.html:878–891` + modal copy `crm.html:~1040`):
+  - Patch reduced to `{status:'CHECKED_OUT'}` only — paid_amount preserved.
+  - Removed the auto-posted Final Settlement transaction entirely.
+  - Modal redesigned: shows Total / Paid / Outstanding Due breakdown, with a rose-colored callout "⚠ ৳X will be carried forward as Outstanding Due. No payment will be auto-posted." when due > 0.
+  - Toast message reflects carry-forward: "<guest> checked out · ৳X carried to outstanding".
+- Why this was correct downstream: the system already supports CHECKED_OUT-with-balance natively. `_resDue(r)` checks both CHECKED_IN and CHECKED_OUT statuses; the DUE filter (`crm.html:1141`), Outstanding KPI (`crm.html:2387`), Guest 360 outstanding_balance column, and Closing Report's "Outstanding Dues — Carried to Next Day" section all already handle CHECKED_OUT residuals. The fix simply stopped the auto-settle hack from masking the data the rest of the app expected to see.
+- Settlement path now: dedicated **Collect Payment** box on the room modal (already existed at `crm.html:~993`). Staff enters actual amount collected, which posts an `Advance Payment` tx and patches paid_amount. Final settlement happens via the same path — no special "checkout payment" flow.
+- Architecture rule reinforced: **status transitions and money movements are orthogonal.** A status patch must never silently write to amount fields, and a payment write must never silently change status. Couple them in the UI, never in the data layer.
+- Edge cases covered: zero-balance checkout (modal shows "✓ Folio fully settled"); over-paid checkout (due=0 via Math.max clamp, treated as fully settled); checkout with future-dated extension charges (charges already on folio at modal-open time, due figure correct).
+- Status: **LIVE** — commit `085ceed`. Vercel deploy READY 2026-04-27 (`dpl_BVDkQ3TyBStq8HW8xEJcVMNHjryZ`).
+
+Guests Query `limit=20000` (Insufficient) (v3.5.7 — 2026-04-27):
+- Symptom: Guests page badge stuck at "1000 OF 1000 GUESTS" despite database holding 1036 rows. 36 guests at the alphabetical tail (names later than 'A...') were invisible to staff.
+- Initial hypothesis (correct in spirit, wrong in mechanism): client query had no explicit `limit`, so PostgREST default kicked in. Patched `crm.html:3897` to add `&limit=20000`.
+- Why this didn't actually fix anything: Supabase enforces a server-side `db-max-rows=1000` config on its hosted PostgREST instance. The server cap overrides client-supplied `limit` params silently — there's no error, just truncated results. v3.5.7 deployed (`823e66b`) and live-verified the marker (`grep limit=20000` against `https://hotelfountainbd.vercel.app/crm.html` returned 1 match), but the badge still showed 1000 OF 1000.
+- Lesson: **PostgREST `limit` is a max, not a min.** Client `?limit=N` only matters when N < server `db-max-rows`. To exceed server cap, you must paginate via `Range`/`Range-Unit` headers (HTTP-level windowing), not via URL params.
+- Diagnostic SQL run via Supabase MCP confirmed real count = 1036 (`SELECT COUNT(*) FROM guests WHERE tenant_id = ...`).
+- Status: **DEPLOYED but ineffective** — superseded by v3.5.8 the same day. Commit `823e66b` retained for audit trail; the `limit=20000` is harmless (server still caps below it) but no longer load-bearing.
+
+Paginated Fetch via Range Header (v3.5.8 — 2026-04-27):
+- Real fix for v3.5.7: bypass the server cap with HTTP Range pagination.
+- New helper at `crm.html:59`:
+  ```js
+  const dbAll = async (t,q='',pageSize=1000) => {
+    const out=[]; let from=0
+    while(true){
+      const to=from+pageSize-1
+      const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,{headers:{...H,Range:`${from}-${to}`,'Range-Unit':'items'}})
+      if(!r.ok) throw new Error(await r.text())
+      const rows=await r.json()
+      out.push(...rows)
+      if(rows.length<pageSize) break
+      from+=pageSize
+      if(from>50000) break // safety cap
+    }
+    return out
+  }
+  ```
+  PostgREST honors `Range: 0-999` / `Range: 1000-1999` / etc. — these specify a row window, not a `limit`, and are not subject to `db-max-rows`. Loop terminates when a partial page returns (last chunk).
+- `loadAll()` switched from `db('guests',...&limit=20000)` to `dbAll('guests',...)` at `crm.html:3912`.
+- Architecture rule: **client-side pagination is mandatory for any table that may exceed 1000 rows.** Tables in scope today: `guests` (1036, growing). Tables to watch: `transactions` (currently capped at `&limit=400` in the dashb
