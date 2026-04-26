@@ -1633,6 +1633,25 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
   const [sel,setSel]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
 
+  // Reservation-anchored aggregate balance: guest_id → sum(total - paid) across ALL stays.
+  // Also bucketed by lowercased name to capture legacy reservations missing guest_ids.
+  const balByGuest=useMemo(()=>{
+    const byId={}, byName={}
+    ;(reservations||[]).forEach(r=>{
+      const due=Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0))
+      if(due<=0) return
+      ;(r.guest_ids||[]).forEach(gid=>{ const k=String(gid); byId[k]=(byId[k]||0)+due })
+      const nm=String(r.guest_name||'').trim().toLowerCase()
+      if(nm) byName[nm]=(byName[nm]||0)+due
+    })
+    return {byId,byName}
+  },[reservations])
+  const guestBal=g=>{
+    const idHit=balByGuest.byId[String(g.id)]
+    if(idHit!=null) return idHit
+    return balByGuest.byName[String(g.name||'').trim().toLowerCase()]||0
+  }
+
   // Filter by search
   let filtered=guests
   if(search){ const q=search.toLowerCase(); filtered=filtered.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.email?.toLowerCase().includes(q)) }
@@ -1664,7 +1683,7 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
                   <td className="xs muted">{g.email||'—'}</td>
                   <td className="xs muted">{g.id_type?`${g.id_type}: ${g.id_number||''}`:g.id_card||'—'}</td>
                   <td className="xs muted">{g.city||'—'}</td>
-                  <td className="xs" style={{color:+g.outstanding_balance>0?'var(--rose)':'var(--grn)'}}>{BDT(g.outstanding_balance||0)}</td>
+                  <td className="xs" style={{color:guestBal(g)>0?'var(--rose)':'var(--grn)'}}>{BDT(guestBal(g))}</td>
                   <td>{g.vip?<span className="badge bgold">VIP</span>:null}</td>
                   <td><button className="btn btn-ghost btn-sm" onClick={()=>setSel(g)}>View</button></td>
                 </tr>
@@ -1711,7 +1730,17 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
 }
 
 function GuestModal({guest,reservations,toast,onClose,reload,isSA}) {
-  const gRes=reservations.filter(r=>(r.guest_ids||[]).map(String).includes(String(guest.id))).slice(0,5)
+  // Match by guest_ids OR by name (legacy reservations may not have guest_ids populated)
+  const gnameKey=String(guest.name||'').trim().toLowerCase()
+  const gAll=reservations.filter(r=>{
+    const ids=(r.guest_ids||[]).map(String)
+    if(ids.includes(String(guest.id))) return true
+    if(r.guest_name && String(r.guest_name).trim().toLowerCase()===gnameKey) return true
+    return false
+  })
+  // Reservation-anchored aggregate balance: sum (total - paid) across ALL stays
+  const aggBalance=gAll.reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
+  const gRes=gAll.slice().sort((a,b)=>String(b.check_in||'').localeCompare(String(a.check_in||''))).slice(0,10)
   const [showEdit,setShowEdit]=useState(false)
   async function toggleVIP() {
     try { await dbPatch('guests',guest.id,{vip:!guest.vip}); toast(guest.vip?'VIP status removed':'Marked as VIP ★'); reload(); onClose() }
@@ -1734,7 +1763,7 @@ function GuestModal({guest,reservations,toast,onClose,reload,isSA}) {
         </div>
       </div>
       <div className="g2 mb4">
-        {[['Phone',guest.phone||'—'],['Email',guest.email||'—'],['ID Type',guest.id_type||'—'],['ID Number',guest.id_number||guest.id_card||'—'],['Balance',BDT(guest.outstanding_balance||0)],['Address',guest.address||'—']].map(([l,v])=>(
+        {[['Phone',guest.phone||'—'],['Email',guest.email||'—'],['ID Type',guest.id_type||'—'],['ID Number',guest.id_number||guest.id_card||'—'],['Balance',BDT(aggBalance)],['Address',guest.address||'—']].map(([l,v])=>(
           <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
         ))}
       </div>
@@ -1953,7 +1982,7 @@ function printPDF(htmlContent, filename) {
   })
 }
 
-function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal, outstanding, calDate, tokenAmount) {
+function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal, outstanding, calDate, tokenAmount, duesList) {
   let filterLabel = filter==='TODAY'?'Today':filter==='MONTH'?'This Month':'All Time'
   if (filter === 'DATE' && calDate) {
     const [y,m,d] = calDate.split('-'); const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -2044,6 +2073,39 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
     </tr></thead>
     <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:20px;color:#aaa">No transactions</td></tr>'}</tbody>
   </table>
+  ${(()=>{
+    const dl = (duesList||[]).filter(d=>+d.balance_due>0)
+    if(!dl.length) return ''
+    const totDue = dl.reduce((a,d)=>a+(+d.balance_due||0),0)
+    const totPaid = dl.reduce((a,d)=>a+(+d.paid||0),0)
+    const totBill = dl.reduce((a,d)=>a+(+d.bill_total||0),0)
+    const dRows = dl.map(d=>`<tr>
+      <td>${esc(d.guest_name||'—')}</td>
+      <td>${esc(d.room_number||'—')}</td>
+      <td class="mono">${short(d.check_in)}<br/><span class="muted">→ ${short(d.check_out)}</span></td>
+      <td class="num">${fmt(d.bill_total)}</td>
+      <td class="num pos">${fmt(d.paid)}</td>
+      <td class="num due">${fmt(d.balance_due)}</td>
+      <td><span class="pm" style="background:#FBE9E9;color:#950101">${esc(d.status||'PENDING')}</span></td>
+    </tr>`).join('')
+    return `
+  <div style="margin-top:14px;padding:6px 10px;background:#950101;color:#FBF8F3;font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:700">⚠ Pending Dues — Outstanding Balance (${dl.length} guest${dl.length!==1?'s':''})</div>
+  <table>
+    <colgroup><col style="width:18%"/><col style="width:8%"/><col style="width:14%"/><col style="width:14%"/><col style="width:14%"/><col style="width:14%"/><col style="width:18%"/></colgroup>
+    <thead><tr style="background:#950101">
+      <th>Guest Name</th><th>Room</th><th>Check-In / Out</th>
+      <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance Due</th><th>Status</th>
+    </tr></thead>
+    <tbody>${dRows}</tbody>
+    <tfoot><tr style="background:#FBE9E9;font-weight:700">
+      <td colspan="3" style="padding:5px 7px;color:#950101;text-transform:uppercase;letter-spacing:.06em;font-size:9px">Total Outstanding</td>
+      <td class="num">${fmt(totBill)}</td>
+      <td class="num pos">${fmt(totPaid)}</td>
+      <td class="num due">${fmt(totDue)}</td>
+      <td></td>
+    </tr></tfoot>
+  </table>`
+  })()}
   <div class="closing-box">
     <div class="closing-row total"><span>${filterLabel} Total Collection</span><span class="trend-pos">${fmt(periodTotal)}</span></div>
     <div class="closing-row"><span>Cash Collected</span><span class="trend-pos">${fmt(cashTotal)}</span></div>
@@ -2152,8 +2214,9 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
       <td width="52%" style="background:#1C1510;padding:20px 22px;vertical-align:middle">
         <div class="serif" style="font-size:24px;font-weight:800;color:#C8A96E;letter-spacing:.02em">Hotel <em style="font-weight:400">Fountain</em></div>
         <div style="font-size:7.5px;color:rgba(255,255,255,.5);letter-spacing:.22em;text-transform:uppercase;margin-top:6px">The Gilded Threshold · Luxury In Comfort</div>
-        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:10px">House 12, Road 4, Dhanmondi · Dhaka 1205, Bangladesh</div>
-        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">+880-2-XXXXXXXX · reservations@hotelfountain.com</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:10px">House 05, Road 02, Nikunja 02 · Dhaka 1229, Bangladesh</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">WhatsApp +880 1322-840799 · hotellfountainbd@gmail.com</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">hotelfountainbd.vercel.app</div>
         <div style="font-size:6.5px;color:rgba(200,169,110,.45);margin-top:10px;letter-spacing:.08em">MANAGEMENT CRM · POWERED BY LUMEA</div>
       </td>
       <td width="48%" style="padding:20px 0 20px 14px;vertical-align:top;text-align:right;border-bottom:3px solid #1C1510">
@@ -2615,7 +2678,21 @@ ${dueRows}
         fiscal_day: tx.fiscal_day
       }
     })
-    downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal, outstanding, calDate, savedToken)
+    // Build pending-dues list (reservation-anchored — guests with balance>0, regardless of period)
+    const duesList = (dueRes||[]).map(r => {
+      const bill = computeBill(r)
+      return {
+        guest_name: getGN(r),
+        room_number: (r.room_ids||[r.room_number]).filter(Boolean).join(',') || '—',
+        check_in: r.check_in || '',
+        check_out: r.check_out || '',
+        bill_total: ((+r.total_amount||0) || bill?.sub || 0),
+        paid: bill ? bill.paid : (+r.paid_amount||0),
+        balance_due: bill ? bill.due : Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),
+        status: r.status || ''
+      }
+    }).filter(d => d.balance_due > 0)
+    downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal, outstanding, calDate, savedToken, duesList)
   }
 
   function openDetail(r) {
