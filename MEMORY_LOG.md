@@ -60,7 +60,7 @@ Active Billing Ledger Roster Fix (v3.4 — 2026-04-24):
   - Kept `dueRes` for the Outstanding KPI (unpaid-only math).
   - Pass 2 of unified group builder now iterates `activeRes` instead of `dueRes`. `isDue` flag is set per-row from `_resDue(r) > 0` so the unpaid UI cue still distinguishes balance states.
   - Search branch unchanged — typing a query still restricts to tx-driven matches (preserves existing UX).
-- Invariant: Active Ledger is a **roster view over reservations**, not a transaction log. Any future filter that uses tx existence OR non-zero balance as a gate for a `CHECKED_IN` guest is a regression. `dueRes` and `activeRes` are not interchangeable.
+- Invariant: Active Ledger is a **roster view over reservations**, not a transaction log. Any future filter that uses tx existence OR non-zero balance as a gate for a `CHECKED_IN` guest is a regression. `dueRes` and `activeRes` are not interchangeable. **[SUPERSEDED by v3.6.3 — see entry below]**
 - Edge cases verified: CHECKED_IN with no-tx-no-balance (shows, "— No Pymt in Period —"), CHECKED_IN fully prepaid (shows, balance=0), CHECKED_IN partial (shows, balance>0), CHECKED_IN with tx today (shows, deduped by `res.id` key), CHECKED_OUT with due (shows), CHECKED_OUT fully settled (excluded — ghost filter at tx pass + activeRes exclusion), CANCELLED/RESERVED (excluded).
 - Edit-tool truncation recurrence: Mid-edit the Edit tool again shrank the file tail (4143 lines, ending `{cur==='reports' &`). Re-applied v3.3.1 tail-restore from commit `13023fa`. Billing logic patch survived and was preserved. **Reinforced rule: after ANY Edit to `public/crm.html`, immediately grep for `ReactDOM.createRoot` AND `</html>` — if either missing, re-restore tail before the next Edit.**
 
@@ -302,3 +302,33 @@ Billing PDF — Portrait Single-Page (2026-04-27):
   - Pending Dues table now uses 7 cols, dedicated `tfoot` styling (red-tinted total row).
 - Capacity verified live: 14 collected rows + 8 dues rows + 4 KPI cards + closing box fits in 297mm portrait at user's data volume. If row count grows past ~25, second page will start; reduce body font to 7.5px or split dues into appendix at that point.
 - Status: **DEPLOYED & VERIFIED LIVE** — owner confirmed all three checks (SI SHAMIM ৳7,500, PDF portrait single-page, invoice Nikunja header) on 2026-04-27.
+
+Billing Ledger Filter Realignment (v3.6.2 — 2026-04-27):
+- Symptom: After clicking Closing Complete (advancing `active_fiscal_day` 26-Apr → 27-Apr), 15 Room Payments stamped `fiscal_day = 2026-04-26` continued to appear in the 27-Apr ledger. Dashboard correctly showed Today's Revenue ৳0 while Billing showed ৳63,500. Owner read this as "yesterday's transactions still showing today."
+- Root cause: v3.4.2's wall-clock filter (`_txWallDay(t) === _wallToday`, using `created_at` Dhaka-date) made Billing's TODAY view diverge from Dashboard (which uses `t.fiscal_day === today`). When fiscal_day drifts from wall day — which is normal whenever staff post late-night payments before clicking Closing Complete the next morning — Billing showed the drifted rows under today; Dashboard hid them. Two surfaces, two definitions of "today."
+- Fix (`public/crm.html` ~L2354): `todayT = transactions.filter(t => t.fiscal_day === today)`. Helper `_txWallDay` retained as `t => t.fiscal_day` for any downstream callers. Closing Complete is now the **single boundary** for what counts as today's ledger across every surface.
+- Invariant: Every "today" filter on transactions in this codebase MUST be `t.fiscal_day === today` where `today = businessDate || todayStr()`. Never use `created_at` for fiscal-day bucketing — that was the v3.4.2 mistake.
+
+Active Ledger Spec Override (v3.6.3 — 2026-04-27):
+- Owner spec change: only guests with **outstanding dues** OR **payment activity in the current fiscal day** appear in the Active Billing Ledger. Fully-paid CHECKED_IN guests whose payments cleared in a prior fiscal day must NOT appear — their books are closed.
+- This **supersedes** the v3.4 invariant ("every CHECKED_IN must appear regardless of balance"). The old roster view was confusing the close-of-day workflow: after closing 26-Apr, owner expected ARNOB-style fully-paid guests to drop out; the activeRes merge kept them visible.
+- Fix (`public/crm.html` ~L2799-2818): Pass 2 of unified group builder iterates `dueRes` instead of `activeRes`. `isDue` always true for those rows. `activeRes` constant kept defined (still used by some PDF paths) but no longer drives the on-screen ledger.
+- Resulting visibility matrix (canonical):
+
+| Guest state | Visible in today's ledger? | Mechanism |
+|---|---|---|
+| Outstanding due (any age) | Yes | `dueRes` (Pass 2) |
+| Paid today (`fiscal_day === today`) | Yes | `todayT` (Pass 1) |
+| Fully paid in a prior fiscal day | No | Excluded from both passes |
+| Checked-in, no payment yet | Yes | In `dueRes` because `total > 0`, `paid = 0` |
+| CHECKED_OUT with residual due | Yes | `dueRes` includes CHECKED_OUT with `_resDue > 0` |
+| CHECKED_OUT zero balance | No | Excluded from `dueRes` |
+| CANCELLED / RESERVED | No | Status filter |
+
+- Invariant: Active Billing Ledger Pass 2 MUST iterate `dueRes`, never `activeRes`. Any PR that re-introduces `activeRes.forEach` into the ledger merge is a regression against owner spec confirmed 2026-04-27.
+
+Repo Single-Source Cleanup (v3.6.4 — 2026-04-27):
+- Removed root-level `crm.html` (3738 lines, v3.6.0 era — stale duplicate). Vercel serves only `public/crm.html` per Next.js convention. Root file caused confusion in v3.6.1: an initial fix was applied to root and committed (`13f813c`) but had zero effect on prod because Vercel never read it. Two-file divergence is itself a regression risk.
+- Removed `fix_project.js` — outdated one-shot utility from 2026-04-16 hard-coding specific transaction amounts; no longer relevant.
+- Invariant: There is exactly one `crm.html` in this repo, at `public/crm.html`. Any future appearance of a sibling `crm.html` at the repo root is a regression — delete it.
+- Verification: `find . -name crm.html -not -path "./node_modules/*" -not -path "./.next/*" -not -path "./.claude*" -not -path "./worktrees*"` should return exactly one path: `./public/crm.html`.
