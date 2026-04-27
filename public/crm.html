@@ -2796,20 +2796,20 @@ ${dueRows}
           unifiedGroups[key].txs.push(t)
         })
 
-        // 2. Process activeRes — EVERY CHECKED_IN guest must appear (owner spec),
-        //    plus CHECKED_OUT guests still carrying a balance. `isDue` is true only
-        //    when _resDue > 0 so the UI cue still distinguishes unpaid rows.
+        // 2. Process dueRes — only reservations with OUTSTANDING balance carry forward.
+        //    Owner spec (v3.6.3): fully-paid CHECKED_IN guests whose payments cleared in a
+        //    prior fiscal day must NOT appear in today's ledger — their books are closed.
+        //    Today's activity surfaces via todayT (step 1); only unpaid dues persist here.
         //    Defensive: one malformed reservation must NOT nuke the whole ledger.
         if (!search) {
-          activeRes.forEach(r=>{
+          dueRes.forEach(r=>{
             try {
               if(!r || !r.id) return
               const key = r.id;
-              const hasDue = _resDue(r) > 0;
               if(!unifiedGroups[key]) {
-                unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: hasDue }
+                unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: true }
               } else {
-                unifiedGroups[key].isDue = hasDue;
+                unifiedGroups[key].isDue = true;
                 unifiedGroups[key].res = r;
               }
             } catch(e) {
