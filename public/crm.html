@@ -2340,18 +2340,13 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [tokenSaving,setTokenSaving]=useState(false)
   const today=businessDate||todayStr(), month=today.slice(0,7)
 
-  // FIX (Bug #2/#3): "Today" must reflect REAL wall-clock date (when cash actually moved),
-  // not the drifted fiscal_day stamped at insert-time. Use created_at (Dhaka-local) as primary
-  // truth; fall back to fiscal_day only if created_at missing (legacy rows).
+  // FIX (v3.6.2): "Today" anchors to BIZ DAY (active_fiscal_day), not wall clock. Closing Complete
+  // is the explicit boundary for what counts as "today's" ledger. Filtering by created_at caused
+  // post-close ghost rows: drift-stamped txns (fiscal_day=yesterday, created_at=today) refused to
+  // disappear after the user advanced fiscal day. Use fiscal_day as primary truth.
   const _wallToday = todayStr()
-  const _txWallDay = t => {
-    if (t.created_at) {
-      const p = _dhakaParts(new Date(t.created_at))
-      return `${p.y}-${p.m}-${p.d}`
-    }
-    return t.fiscal_day
-  }
-  const todayT = transactions.filter(t => _txWallDay(t) === _wallToday);
+  const _txWallDay = t => t.fiscal_day  // kept for any downstream callers expecting the helper
+  const todayT = transactions.filter(t => t.fiscal_day === today);
   // GHOST FILTER v3.4.2: real payment/settlement rows ALWAYS pass (they're actual cash movement today).
   // Ghost rejection applies ONLY to synthetic "Balance Carried Forward" rows whose reservation is
   // CHECKED_OUT with zero balance — those are purely display artifacts.
