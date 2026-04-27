@@ -38,6 +38,10 @@ const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
 const fmtDate = d => d ? String(d).slice(0,10) : '—'
 const todayDhaka = () => new Date(new Date().toLocaleString('en',{timeZone:'Asia/Dhaka'}))
 const todayStr = () => { const d=todayDhaka(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+// Operational fiscal day (from hotel_settings.active_fiscal_day) — falls back to device clock until hydrated
+let __activeFiscalDay = null
+const fiscalDayStr = () => __activeFiscalDay || todayStr()
+const setActiveFiscalDay = d => { if(d) __activeFiscalDay = d }
 const nightsCount = (ci,co) => { if(!ci||!co) return 0; return Math.max(0, Math.round((new Date(co)-new Date(ci))/86400000)) }
 const AVC = ['#C8A96E','#2EC4B6','#E05C7A','#58A6FF','#3FB950','#9B72CF','#F0A500']
 const avColor = n => AVC[n ? n.charCodeAt(0)%AVC.length : 0]
@@ -755,7 +759,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     try {
       await dbPatch('reservations',activeRes.id,{status:'CHECKED_OUT',paid_amount:total})
       await dbPatch('rooms',room.id,{status:'DIRTY'})
-      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{type:'Final Settlement',amount:total,room_number:room.room_number,guest_name:guest?.name,fiscal_day:fiscalDayStr(),tenant_id:TENANT})
       toast(`${guest?.name||'Guest'} checked out ✓`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -767,7 +771,7 @@ function RoomModal({room,guests,reservations,canEdit,canHKStatus,isSA,toast,onCl
     setCollectSaving(true)
     try {
       await dbPatch('reservations',activeRes.id,{paid_amount:a})
-      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:fiscalDayStr(),tenant_id:TENANT})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -1336,7 +1340,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload}) {
       if((+f.paid||0)>0) {
         await dbPost('transactions',{
           room_number:f.roomNo, guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:todayStr(), tenant_id:TENANT
+          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:fiscalDayStr(), tenant_id:TENANT
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${f.roomNo} ✓`:'Reservation created ✓')
@@ -1409,6 +1413,16 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
   const [sel,setSel]=useState(null)
   const [showAdd,setShowAdd]=useState(false)
 
+  // Reservation-anchored aggregate balance map: guest_id → sum of (total - paid) across all stays
+  const balByGuest=useMemo(()=>{
+    const m={}
+    ;(reservations||[]).forEach(r=>{
+      const due=Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0))
+      ;(r.guest_ids||[]).forEach(gid=>{ const k=String(gid); m[k]=(m[k]||0)+due })
+    })
+    return m
+  },[reservations])
+
   // Filter by search
   let filtered=guests
   if(search){ const q=search.toLowerCase(); filtered=filtered.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.email?.toLowerCase().includes(q)) }
@@ -1440,7 +1454,7 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
                   <td className="xs muted">{g.email||'—'}</td>
                   <td className="xs muted">{g.id_type?`${g.id_type}: ${g.id_number||''}`:g.id_card||'—'}</td>
                   <td className="xs muted">{g.city||'—'}</td>
-                  <td className="xs" style={{color:+g.outstanding_balance>0?'var(--rose)':'var(--grn)'}}>{BDT(g.outstanding_balance||0)}</td>
+                  <td className="xs" style={{color:(balByGuest[String(g.id)]||0)>0?'var(--rose)':'var(--grn)'}}>{BDT(balByGuest[String(g.id)]||0)}</td>
                   <td>{g.vip?<span className="badge bgold">VIP</span>:null}</td>
                   <td><button className="btn btn-ghost btn-sm" onClick={()=>setSel(g)}>View</button></td>
                 </tr>
@@ -1487,7 +1501,10 @@ function GuestsPage({guests,reservations,toast,currentUser,reload}) {
 }
 
 function GuestModal({guest,reservations,toast,onClose,reload,isSA}) {
-  const gRes=reservations.filter(r=>(r.guest_ids||[]).map(String).includes(String(guest.id))).slice(0,5)
+  const gAll=reservations.filter(r=>(r.guest_ids||[]).map(String).includes(String(guest.id)))
+  // Aggregate balance: sum unpaid balance across ALL stays (current + historical), reservation-anchored
+  const aggBalance=gAll.reduce((a,r)=>a+Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),0)
+  const gRes=gAll.slice().sort((a,b)=>String(b.check_in||'').localeCompare(String(a.check_in||''))).slice(0,10)
   const [showEdit,setShowEdit]=useState(false)
   async function toggleVIP() {
     try { await dbPatch('guests',guest.id,{vip:!guest.vip}); toast(guest.vip?'VIP status removed':'Marked as VIP ★'); reload(); onClose() }
@@ -1510,7 +1527,7 @@ function GuestModal({guest,reservations,toast,onClose,reload,isSA}) {
         </div>
       </div>
       <div className="g2 mb4">
-        {[['Phone',guest.phone||'—'],['Email',guest.email||'—'],['ID Type',guest.id_type||'—'],['ID Number',guest.id_number||guest.id_card||'—'],['Balance',BDT(guest.outstanding_balance||0)],['Address',guest.address||'—']].map(([l,v])=>(
+        {[['Phone',guest.phone||'—'],['Email',guest.email||'—'],['ID Type',guest.id_type||'—'],['ID Number',guest.id_number||guest.id_card||'—'],['Balance',BDT(aggBalance)],['Address',guest.address||'—']].map(([l,v])=>(
           <div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val">{v}</div></div>
         ))}
       </div>
@@ -1799,9 +1816,9 @@ tbody td   { padding: 5pt 7pt; border-bottom: 1px solid #ede8d8; vertical-align:
     <div class="brand-name">Hotel <em>Fountain</em></div>
     <div class="brand-tag">Luxury in Comfort</div>
     <div class="brand-addr">
-      House 5, Road 13/A, Dhanmondi, Dhaka-1209, Bangladesh<br/>
-      Phone: +880-2-9130000 &nbsp;·&nbsp; Mobile: +880-1711-000000<br/>
-      Email: info@hotelfountainbd.com &nbsp;·&nbsp; hotelfountainbd.vercel.app
+      House 05, Road 02, Nikunja 02, Dhaka 1229, Bangladesh<br/>
+      WhatsApp: +880 1322-840799 &nbsp;·&nbsp; Email: hotellfountainbd@gmail.com<br/>
+      Web: hotelfountainbd.vercel.app
     </div>
   </div>
   <div class="inv-block">
@@ -1970,7 +1987,12 @@ function downloadBillingPDF(displayGroups, filter, todayRevenue, outstanding, ca
 
   let totBillTotal=0, totDiscount=0, totPaid=0, totDue=0
 
-  const rows = (displayGroups||[]).map(grp => {
+  // Split groups: rows with payments in current period vs. dues-only (no period payments but balance>0)
+  const _allGroups = (displayGroups||[])
+  const paidGroups = _allGroups.filter(g => (g.txs||[]).length>0)
+  const dueOnlyGroups = _allGroups.filter(g => (g.txs||[]).length===0 && g.res && (Math.max(0,(+g.res.total_amount||0)-(+g.res.paid_amount||0))>0))
+
+  const rows = paidGroups.map(grp => {
     const r = grp.res
     const bill = r && computeBillFn ? computeBillFn(r) : {total:+(r?.total_amount||0), paid:+(r?.paid_amount||0), due:Math.max(0,+(r?.total_amount||0)-+(r?.paid_amount||0))}
     const tTotal    = r ? bill.total : 0
@@ -2036,8 +2058,8 @@ tfoot td { padding: 5pt 5pt; }
     <div class="brand-name">Hotel <em>Fountain</em></div>
     <div class="brand-sub">Billing &amp; Invoices Report</div>
     <div class="brand-addr">
-      House 5, Road 13/A, Dhanmondi, Dhaka-1209, Bangladesh<br/>
-      Phone: +880-2-9130000 &nbsp;·&nbsp; Email: info@hotelfountainbd.com
+      House 05, Road 02, Nikunja 02, Dhaka 1229, Bangladesh<br/>
+      WhatsApp: +880 1322-840799 &nbsp;·&nbsp; Email: hotellfountainbd@gmail.com &nbsp;·&nbsp; hotelfountainbd.vercel.app
     </div>
   </div>
   <div class="rpt-right">
@@ -2051,6 +2073,7 @@ tfoot td { padding: 5pt 5pt; }
   <div class="sbox"><div class="lbl">Outstanding Due</div><div class="val">৳${Number(outstanding||0).toLocaleString()}</div></div>
 </div>
 
+<h3 style="margin:6pt 0 4pt;font-size:10pt;font-weight:700;color:#1a1a1a;border-bottom:1pt solid #1a1a1a;padding-bottom:3pt">Collected Transactions — ${filterLabel}</h3>
 <table>
   <thead><tr>
     <th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th>
@@ -2060,9 +2083,9 @@ tfoot td { padding: 5pt 5pt; }
     <th style="text-align:right">Balance Due</th>
     <th>Payments (Filtered)</th>
   </tr></thead>
-  <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:16pt;color:#aaa">No records for this period</td></tr>'}</tbody>
+  <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:16pt;color:#aaa">No collected payments in this period</td></tr>'}</tbody>
   <tfoot><tr>
-    <td colspan="4">Totals — ${displayGroups?.length||0} record${(displayGroups?.length||0)!==1?'s':''}</td>
+    <td colspan="4">Totals — ${paidGroups.length} record${paidGroups.length!==1?'s':''}</td>
     <td style="text-align:right">৳${Number(totBillTotal).toLocaleString()}</td>
     <td style="text-align:right">− ৳${Number(totDiscount).toLocaleString()}</td>
     <td style="text-align:right">৳${Number(totPaid).toLocaleString()}</td>
@@ -2070,6 +2093,46 @@ tfoot td { padding: 5pt 5pt; }
     <td></td>
   </tr></tfoot>
 </table>
+
+${(()=>{
+  if(!dueOnlyGroups.length) return ''
+  let dueT=0
+  const dueRows = dueOnlyGroups.map(grp=>{
+    const r=grp.res
+    const bill=r&&computeBillFn?computeBillFn(r):{total:+(r?.total_amount||0),paid:+(r?.paid_amount||0),due:Math.max(0,+(r?.total_amount||0)-+(r?.paid_amount||0))}
+    const due=bill.due
+    dueT+=due
+    const gname=r&&getGNFn?getGNFn(r):(grp.guest_name||'—')
+    const rno=r&&getRoomFn?getRoomFn(r):(grp.room_number||'—')
+    const chkIn=fmtD(r?.check_in?.slice(0,10)||'')
+    const chkOut=fmtD(r?.check_out?.slice(0,10)||'')
+    const stat=(r?.status||'').replace('_',' ')
+    return `<tr>
+      <td>${gname}</td><td>${rno}</td><td>${chkIn}</td><td>${chkOut}</td>
+      <td style="text-align:right">৳${Number(bill.total).toLocaleString()}</td>
+      <td style="text-align:right;color:#1d7a1d">৳${Number(bill.paid).toLocaleString()}</td>
+      <td style="text-align:right;font-weight:700;color:#c0392b">৳${Number(due).toLocaleString()}</td>
+      <td style="font-size:8px;color:#888">${stat}</td>
+    </tr>`
+  }).join('')
+  return `
+<h3 style="margin:14pt 0 4pt;font-size:10pt;font-weight:700;color:#c0392b;border-bottom:1pt solid #c0392b;padding-bottom:3pt">⚠ Pending Dues — Outstanding Balance</h3>
+<table>
+  <thead><tr style="background:#c0392b">
+    <th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th>
+    <th style="text-align:right">Bill Total</th>
+    <th style="text-align:right">Paid</th>
+    <th style="text-align:right">Balance Due</th>
+    <th>Status</th>
+  </tr></thead>
+  <tbody>${dueRows}</tbody>
+  <tfoot><tr style="background:#c0392b">
+    <td colspan="6">Total Outstanding — ${dueOnlyGroups.length} guest${dueOnlyGroups.length!==1?'s':''}</td>
+    <td style="text-align:right">৳${Number(dueT).toLocaleString()}</td>
+    <td></td>
+  </tr></tfoot>
+</table>`
+})()}
 
 <div class="cbox">
   <div class="crow"><span>Today's Total Collection</span><span>৳${Number(todayRevenue).toLocaleString()}</span></div>
@@ -2090,13 +2153,15 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [filter,setFilter]=useState('TODAY')
   const [calDate,setCalDate]=useState('')
   const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
+  const [fiscalToday,setFiscalToday]=useState(todayStr())
   useEffect(()=>{
     db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`).then(rows=>{
       if(!Array.isArray(rows)) return
       const m={};rows.forEach(r=>{m[r.key]=r.value})
       setHSettings({vat:m.vat_rate||'0',svc:m.service_charge||'0'})
+      setFiscalToday(m.active_fiscal_day||todayStr())
     }).catch(()=>{})
-  },[])
+  },[transactions])
   const [search,setSearch]=useState('')
   const [showAdd,setShowAdd]=useState(false)
   const [billingRes,setBillingRes]=useState(null)
@@ -2107,7 +2172,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [tokenAmt,setTokenAmt]=useState('')
   const [savedToken,setSavedToken]=useState(0)
   const [tokenSaving,setTokenSaving]=useState(false)
-  const today=todayStr(), month=today.slice(0,7)
+  const today=fiscalToday, month=today.slice(0,7)
 
   const todayT = transactions.filter(t=>t.fiscal_day===today);
   const monthT = transactions.filter(t=>t.fiscal_day?.startsWith(month));
@@ -2295,6 +2360,8 @@ ${dueRows}
           headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
           body:JSON.stringify({key:'active_fiscal_day',value:nextDay,tenant_id:TENANT})
         })
+        setActiveFiscalDay(nextDay)
+        setFiscalToday(nextDay)
         toast(`✓ Day closed · Fiscal day → ${nextDay}`,'info')
         reload()
       }catch(e){
@@ -2327,7 +2394,7 @@ ${dueRows}
     <div>
       {/* Stats */}
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`}</div><div className="stat-val">{BDT(filter==='DATE'?calT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{(filter==='DATE'?calT:todayT).filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{(()=>{const src=filter==='DATE'&&calDate?calDate:fiscalToday;const [y,m,d]=src.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})()}</div><div className="stat-val">{BDT(filter==='DATE'?calT.filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0):todayRevenue)}</div><div className="stat-sub">{(filter==='DATE'?calT:todayT).filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
       </div>
@@ -2336,7 +2403,7 @@ ${dueRows}
       <div className="flex fac fjb mb4" style={{flexWrap:'wrap',gap:8}}>
         <div style={{display:'flex',alignItems:'center',gap:0}}>
           <div className="tabs" style={{marginBottom:0}}>
-            {[['TODAY',`${new Date().getDate()}-${new Date().toLocaleString('en',{month:'short'})}-${new Date().getFullYear()}`],['MONTH','MONTH'],['ALL','ALL']].map(([f,lbl])=>(
+            {[['TODAY',(()=>{const [y,m,d]=fiscalToday.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})()],['MONTH','MONTH'],['ALL','ALL']].map(([f,lbl])=>(
               <button key={f} className={`tab${filter===f?' on':''}`} onClick={()=>{setFilter(f);setCalDate('')}}>{lbl}</button>
             ))}
           </div>
@@ -3416,6 +3483,12 @@ function App() {
     db('staff',`?tenant_id=eq.${TENANT}&select=*&order=id`)
       .then(d=>{ if(Array.isArray(d)&&d.length>0) setStaffList(d) })
       .catch(()=>{}) // silently fall back to INIT_STAFF
+  },[])
+  // Hydrate active_fiscal_day cache so all transaction inserts anchor to operational day
+  useEffect(()=>{
+    db('hotel_settings',`?tenant_id=eq.${TENANT}&key=eq.active_fiscal_day&select=value`)
+      .then(rows=>{ if(Array.isArray(rows)&&rows[0]?.value) setActiveFiscalDay(rows[0].value) })
+      .catch(()=>{})
   },[])
   const toastRef=useRef()
 
