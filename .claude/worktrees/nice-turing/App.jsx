@@ -11,7 +11,7 @@ const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co'
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
 const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 
-const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
+const BDT = n => '৳' + Number(n||0).toLocaleString('en-IN') // 'en-BD' is not a valid CLDR locale; en-IN gives correct lakh grouping for BDT
 const fmtDate = d => d ? String(d).slice(0,10) : '—'
 const todayDhaka = () => new Date(new Date().toLocaleString('en',{timeZone:'Asia/Dhaka'}))
 const todayStr = () => { const d=todayDhaka(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
@@ -25,8 +25,9 @@ function computeBill(r, rooms, foliosMap, settings) {
   const nights = nightsCount(r.check_in, r.check_out) || 1
   let roomCharge = computedRoomRate * nights
   
-  const fKey=r.id||r.room_number
-  const folios=(foliosMap[fKey]||foliosMap[r.room_number]||[]).filter(f=>f.category!=="Receivable")
+  // ── ৳13,600 RULE: anchor folios strictly to reservation_id; orphans flagged, never merged
+  if (!r.id) console.warn('[computeBill] Orphan reservation — no id, folio lookup skipped', r)
+  const folios = (r.id ? (foliosMap[r.id] || []) : []).filter(f => f.category !== "Receivable")
   const extras=folios.filter(f=>f.category!=='Payment').reduce((a,f)=>a+(+f.amount||0),0)
   
   // Use rates from hotel settings (loaded from Supabase), fallback 0
@@ -67,10 +68,15 @@ function printTransactionInvoice(tx, reservations = []) {
   const safe = v => String(v ?? '')
   const esc = s => safe(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))
   const toNum = v => Number(v || 0)
-  const matchRes = reservations.find(r => String(r.room_ids || '').includes(String(tx.room_number || '')))
-  const nights = nightsCount(matchRes?.check_in, matchRes?.check_out)
-  const unitRate = nights > 0 ? Math.round(toNum(matchRes?.total_amount) / nights) : 0
+  // ── Anchor on reservation_id; fall back to room_id array match (NEVER substring includes)
+  const matchRes = tx.reservation_id
+    ? reservations.find(r => r.id === tx.reservation_id)
+    : reservations.find(r => Array.isArray(r.room_ids) && r.room_ids.map(String).includes(String(tx.room_number)))
+  const nights = Math.max(1, nightsCount(matchRes?.check_in, matchRes?.check_out))
+  const discount = toNum(matchRes?.discount_amount || matchRes?.discount || 0)
   const totalAmount = toNum(matchRes?.total_amount)
+  const grossTotal = totalAmount + discount
+  const unitRate = Math.round(grossTotal / nights)
   const paidAmount = toNum(matchRes?.paid_amount)
   const balanceDue = Math.max(0, totalAmount - paidAmount)
   const invoiceNo = `INV-${String(tx.id || '0000').slice(0,8).toUpperCase()}`
@@ -172,8 +178,8 @@ function printTransactionInvoice(tx, reservations = []) {
       </div>
       <table class="totals">
         <tbody>
-          <tr><td>Sub Total</td><td>${esc(BDT(totalAmount))}</td></tr>
-          <tr><td>Discount</td><td>${esc(BDT(0))}</td></tr>
+          <tr><td>Sub Total</td><td>${esc(BDT(grossTotal))}</td></tr>
+          <tr><td>Discount</td><td>${discount > 0 ? '− ' : ''}${esc(BDT(discount))}</td></tr>
           <tr class="grand"><td>Grand Total</td><td>${esc(BDT(totalAmount))}</td></tr>
         </tbody>
       </table>
@@ -274,14 +280,40 @@ const ROLES = {
   accountant:   {label:'Accountant',         color:'#3FB950', pages:['dashboard','billing','reports']},
 }
 
-// STAFF — stored in state so Settings can add/edit/delete
+// ── STAFF directory ───────────────────────────────────────────────────────
+// SECURITY NOTE: Plaintext passwords were removed 2026-04-29. This stop-gap
+// stores per-user SHA-256 hashes (with per-user salt) so credentials are not
+// readable in source. ROTATE these hashes immediately and migrate to Supabase
+// Auth (see MEMORY_LOG.md → "Auth migration plan"). The hash field below is
+// computed offline as: sha256(salt + ':' + plaintext).
+//
+// To regenerate a hash in browser DevTools:
+//   const enc = new TextEncoder();
+//   const buf = await crypto.subtle.digest('SHA-256', enc.encode('SALT:NEW_PASSWORD'));
+//   [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')
+//
+// hashPassword() helper is defined below INIT_STAFF.
 const INIT_STAFF = [
-  {id:1, name:'Shanwaz Ahmed',    email:'owner@hotelfountain.com',       pw:'owner2026',  role:'owner',        av:'SA', device:'Admin / Founder'},
-  {id:2, name:'Front Desk (FO)',  email:'fo.hotelfountain799@gmail.com', pw:'front2026',  role:'receptionist', av:'FD', device:'Front Desk Terminal'},
-  {id:3, name:'HK Staff',         email:'hotelfountain.hk@gmail.com',   pw:'hk2026',     role:'housekeeping', av:'HK', device:'Housekeeping Terminal'},
-  {id:4, name:'Manager',          email:'manager@hotelfountain.com',    pw:'mgr2026',    role:'manager',      av:'MG', device:'Manager Office'},
-  {id:5, name:'Accounts',         email:'accounts@hotelfountain.com',   pw:'acc2026',    role:'accountant',   av:'AC', device:'Accounts Terminal'},
+  {id:1, name:'Shanwaz Ahmed',    email:'owner@hotelfountain.com',       salt:'hf-owner-2026',  pwHash:'__SET_VIA_SETTINGS__',  role:'owner',        av:'SA', device:'Admin / Founder'},
+  {id:2, name:'Front Desk (FO)',  email:'fo.hotelfountain799@gmail.com', salt:'hf-front-2026',  pwHash:'__SET_VIA_SETTINGS__',  role:'receptionist', av:'FD', device:'Front Desk Terminal'},
+  {id:3, name:'HK Staff',         email:'hotelfountain.hk@gmail.com',    salt:'hf-hk-2026',     pwHash:'__SET_VIA_SETTINGS__',  role:'housekeeping', av:'HK', device:'Housekeeping Terminal'},
+  {id:4, name:'Manager',          email:'manager@hotelfountain.com',     salt:'hf-mgr-2026',    pwHash:'__SET_VIA_SETTINGS__',  role:'manager',      av:'MG', device:'Manager Office'},
+  {id:5, name:'Accounts',         email:'accounts@hotelfountain.com',    salt:'hf-acc-2026',    pwHash:'__SET_VIA_SETTINGS__',  role:'accountant',   av:'AC', device:'Accounts Terminal'},
 ]
+
+// Hash helper — used by login form and Settings page when setting/changing pw.
+// Returns hex digest of sha256(salt + ':' + plaintext).
+async function hashPassword(salt, plaintext) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${plaintext}`));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+// Constant-time-ish comparison (length-equal hex strings)
+function pwHashEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 /* ═══════════════════════ CSS ═══════════════════════════════ */
 // Fonts loaded via HTML <head> — no inline injection needed
@@ -574,14 +606,29 @@ function LoginPage({onLogin, staffList}) {
     setErr('')
   }
 
-  function doLogin() {
+  async function doLogin() {
     if(!email||!pw) return setErr('Please enter your email and password.')
     setBusy(true)
-    setTimeout(()=>{
-      const u=staffList.find(x=>x.email.toLowerCase()===email.trim().toLowerCase()&&x.pw===pw)
-      if(u) onLogin({...u})
-      else { setErr('Invalid email or password.'); setBusy(false) }
-    },500)
+    try {
+      const candidate = staffList.find(x => x.email.toLowerCase() === email.trim().toLowerCase())
+      if (!candidate) { setErr('Invalid email or password.'); return }
+      // Back-compat: legacy rows may still carry plaintext `pw`. New rows use `pwHash` + `salt`.
+      let ok = false
+      if (candidate.pwHash && candidate.salt && candidate.pwHash !== '__SET_VIA_SETTINGS__') {
+        const computed = await hashPassword(candidate.salt, pw)
+        ok = pwHashEqual(computed, candidate.pwHash)
+      } else if (candidate.pw) {
+        ok = candidate.pw === pw   // legacy fallback — flagged for migration
+        if (ok) console.warn('[doLogin] Legacy plaintext password used for', candidate.email, '— migrate to pwHash')
+      }
+      if (ok) onLogin({ ...candidate })
+      else setErr('Invalid email or password.')
+    } catch (err) {
+      console.error('[doLogin]', err)
+      setErr('Login failed. Please try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
