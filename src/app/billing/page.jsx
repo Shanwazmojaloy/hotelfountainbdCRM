@@ -6,11 +6,11 @@ import BillingCard from "@/components/BillingCard";
 import ProgressRing from "../../components/ProgressRing";
 
 const supabase = createClient(
-  "https://mynwfkgksqqwlqowlscj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow"
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
 );
 
-const TENANT_ID = "46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8";
+const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || '';
 
 function computeBill(invoice) {
   // Extracted from original App.jsx logic

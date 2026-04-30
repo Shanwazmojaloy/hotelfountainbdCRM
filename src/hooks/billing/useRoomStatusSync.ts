@@ -10,7 +10,9 @@
 
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { RealtimePostgresUpdatePayload } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
+import type { Room } from '@/types/billing';
 
 export function useRoomStatusSync(tenantId: string | null | undefined) {
   const queryClient = useQueryClient();
@@ -28,7 +30,7 @@ export function useRoomStatusSync(tenantId: string | null | undefined) {
           table:  'rooms',
           filter: `tenant_id=eq.${tenantId}`,
         },
-        (payload: any) => {
+        (payload: RealtimePostgresUpdatePayload<Room>) => {
           // Optimistic partial update — update the specific room in cache
           // before the full list refetch completes
           queryClient.setQueryData(
