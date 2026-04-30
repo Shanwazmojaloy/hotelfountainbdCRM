@@ -1,40 +1,40 @@
-import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
-import { Lead, Transaction } from '../types';
+﻿import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { Lead, Transaction } from "@/types";
 
-dotenv.config();
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-const supabaseUrl = process.env.SUPABASE_URL ?? 'https://placeholder.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY ?? 'placeholder-key';
+let _client: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+function getClient(): SupabaseClient {
+  if (_client) return _client;
+  if (!url || !key) {
+    throw new Error("[supabase] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+  _client = createClient(url, key);
+  return _client;
+}
+
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_t, prop) {
+    return Reflect.get(getClient(), prop);
+  },
+});
 
 export async function insertLead(lead: Lead) {
-  const { data, error } = await supabase
-    .from('leads')
-    .insert([lead])
-    .select()
-    .single();
+  const { data, error } = await getClient().from("leads").insert([lead]).select().single();
   if (error) throw error;
   return data;
 }
 
 export async function getLeadByEmail(email: string) {
-  const { data, error } = await supabase
-    .from('leads')
-    .select('*')
-    .eq('email', email)
-    .single();
-  if (error && error.code !== 'PGRST116') throw error;
+  const { data, error } = await getClient().from("leads").select("*").eq("email", email).single();
+  if (error && error.code !== "PGRST116") throw error;
   return data;
 }
 
 export async function insertTransaction(transaction: Transaction) {
-  const { data, error } = await supabase
-    .from('transactions')
-    .insert([transaction])
-    .select()
-    .single();
+  const { data, error } = await getClient().from("transactions").insert([transaction]).select().single();
   if (error) throw error;
   return data;
 }
