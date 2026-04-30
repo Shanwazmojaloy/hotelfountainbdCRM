@@ -88,3 +88,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   footer           { flex-direction: column !important; gap: 16px !important; text-align: center !important; padding: 24px !important; }
   .tnc-cols        { columns: 1 !important; }
 }
+
+/* ─── NotificationBell ─────────────────────────────────────────────────────── */
+@keyframes bellFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bell-drop-item:hover { background: rgba(200, 169, 110, .04) !important; }

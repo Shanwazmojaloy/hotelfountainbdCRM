@@ -11,7 +11,7 @@ import React, { useState } from 'react';
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const TENANT  = process.env.NEXT_PUBLIC_TENANT_ID || '';
 
 const BDT = (n: number) => '৳' + Number(n || 0).toLocaleString('en-BD');
 

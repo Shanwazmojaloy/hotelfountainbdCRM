@@ -13,7 +13,7 @@ const supabase = createClient(SB_URL, SB_KEY);
 
 // ── Canonical status enum (DB stores UPPERCASE; never use lowercase)
 const ROOM_STATUS_AVAILABLE = 'AVAILABLE';
-const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || '';
 
 const ROOMS = [
   {

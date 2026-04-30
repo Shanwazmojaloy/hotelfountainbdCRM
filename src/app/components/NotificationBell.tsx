@@ -156,14 +156,8 @@ export function NotificationBell({ onRefresh }: Props) {
 
   const count = pending.length;
 
-  const BELL_CSS = `
-    @keyframes bellFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-    .bell-drop-item:hover{background:rgba(200,169,110,.04)!important}
-  `;
-
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: BELL_CSS }} />
 
       {toast && (
         <div style={{

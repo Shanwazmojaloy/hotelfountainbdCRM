@@ -11,7 +11,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase/client';
-import type { BillingInvoice, InvoiceLineItem } from '@/types/billing';
+import type { BillingInvoice, GuestLedgerEntry, InvoiceLineItem } from '@/types/billing';
 
 export interface InvoiceWithLineItems extends BillingInvoice {
   line_items: InvoiceLineItem[];
@@ -35,7 +35,7 @@ async function fetchInvoiceWithItems(
   if (error) throw new Error(`[useBillingInvoice] ${error.message}`);
   return {
     ...(data as BillingInvoice & { line_items: InvoiceLineItem[] }),
-    line_items: (data as any).line_items ?? [],
+    line_items: (data as BillingInvoice & { line_items: InvoiceLineItem[] }).line_items ?? [],
   };
 }
 
@@ -80,12 +80,12 @@ export async function issueInvoice(
 
   // 2. Build line items from non-tax ledger entries
   //    Tax children are summarised per parent in sc_amount_bdt / vat_amount_bdt
-  const ledgerRows = (ledger ?? []) as any[];
-  const parentEntries = ledgerRows.filter((e: any) => !e.is_tax_entry);
+  const ledgerRows = (ledger ?? []) as GuestLedgerEntry[];
+  const parentEntries = ledgerRows.filter((e: GuestLedgerEntry) => !e.is_tax_entry);
   const childMap = new Map<string, { sc: number; vat: number }>();
   ledgerRows
-    .filter((e: any) => e.is_tax_entry && e.parent_ledger_id)
-    .forEach((child: any) => {
+    .filter((e: GuestLedgerEntry) => e.is_tax_entry && e.parent_ledger_id)
+    .forEach((child: GuestLedgerEntry) => {
       const key = child.parent_ledger_id!;
       const existing = childMap.get(key) ?? { sc: 0, vat: 0 };
       if (child.entry_type === 'SERVICE_CHARGE') existing.sc += child.amount_bdt;
