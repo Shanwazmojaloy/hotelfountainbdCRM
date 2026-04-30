@@ -332,3 +332,43 @@ Repo Single-Source Cleanup (v3.6.4 — 2026-04-27):
 - Removed `fix_project.js` — outdated one-shot utility from 2026-04-16 hard-coding specific transaction amounts; no longer relevant.
 - Invariant: There is exactly one `crm.html` in this repo, at `public/crm.html`. Any future appearance of a sibling `crm.html` at the repo root is a regression — delete it.
 - Verification: `find . -name crm.html -not -path "./node_modules/*" -not -path "./.next/*" -not -path "./.claude*" -not -path "./worktrees*"` should return exactly one path: `./public/crm.html`.
+
+---
+
+## 2026-04-30 — Audit re-application after worktree loss
+
+`Remove-Item -Recurse -Force ".claude/worktrees/nice-turing"` deleted the worktree
+that held the in-progress audit edits before they were committed. Phase B
+(Next 15 + React 18.3 + react-query) had been promoted to main earlier and
+survived. Re-applied the rest directly on `main`:
+
+| Domain | File | Change |
+|---|---|---|
+| Data integrity | `App.jsx::printTransactionInvoice` | Match by `reservation_id`; array-membership fallback (no substring includes); real `discount` + `nights ≥ 1`; gross/net split in totals row |
+| Data integrity | `App.jsx::computeBill` | (already on main) Folios anchored to `reservation_id`; `room_number` fallback removed |
+| Data integrity | `src/app/page.tsx` | `submitBooking` throws on insert error; `setBookStatus('success')` only on real success; alert on failure |
+| Data integrity | Status casing | `fetchCount`, `checkAvailability`, `NotificationBell.fetchPending`, `handleAccept` (`CONFIRMED`), `handleReject` (`CANCELLED`) now uppercase |
+| Security | `App.jsx::INIT_STAFF` | Plaintext `pw` removed; `salt` + `pwHash` (SHA-256). Login via `hashPassword` + constant-time-ish compare. Legacy `pw` fallback warns and works. |
+| Security | `page.tsx`, `NotificationBell.tsx` | Hardcoded `SB_URL`/`SB_KEY` → `process.env.NEXT_PUBLIC_*` |
+| Security | `next.config.mjs` | **Removed** `typescript.ignoreBuildErrors` and `eslint.ignoreDuringBuilds` (those were hiding the bugs we just fixed). Added CSP, HSTS, `X-Frame-Options=DENY`, `nosniff`, `Permissions-Policy`. Restored `images.formats: avif/webp`. |
+| Code polish | `App.jsx::BDT` | Locale `'en-BD'` → `'en-IN'` (correct lakh grouping) |
+| Code polish | `pages/api/send-confirmation.ts` | Stale `Resend` references → `Brevo` |
+| Code polish | `src/app/page.tsx` | Removed inline `<style dangerouslySetInnerHTML>` (CSS lives in `globals.css`) |
+| DB | `supabase/migrations/20260429_status_uppercase_constraints.sql` | CHECK constraints + backfill + indexes (idempotent) |
+| Infra | `.env.example` | Added `NEXT_PUBLIC_TENANT_ID` |
+
+### Action required (manual)
+
+1. Rotate the leaked Brevo API key (was pasted in chat earlier).
+2. Rotate the Supabase anon JWT.
+3. Set Vercel env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TENANT_ID`, `BREVO_API_KEY`.
+4. Run `supabase/migrations/20260429_status_uppercase_constraints.sql` in the Supabase SQL Editor.
+5. Generate `pwHash` values in DevTools (snippet in App.jsx comment) for each `INIT_STAFF` row.
+6. `npm install && npm run lint && npm run typecheck && npm run build` locally before pushing.
+7. Commit + push so Vercel rebuilds.
+
+### Lesson learned
+
+Worktree edits stay in the working tree only — `git worktree remove`/`Remove-Item`
+without an intervening `git commit && git push` (or at least a stash) loses them.
+For future audit passes, commit incrementally after each phase before moving on.

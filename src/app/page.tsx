@@ -3,9 +3,17 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow';
+// ── Env-driven Supabase client. Set in Vercel → Settings → Environment Variables:
+//     NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_TENANT_ID
+const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  console.error('[supabase] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
 const supabase = createClient(SB_URL, SB_KEY);
+
+// ── Canonical status enum (DB stores UPPERCASE; never use lowercase)
+const ROOM_STATUS_AVAILABLE = 'AVAILABLE';
+const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 const ROOMS = [
   {
@@ -65,52 +73,7 @@ const AVAIL_ROOMS = [
 
 const fmt = (d: Date) => d.toISOString().split('T')[0];
 
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist:wght@200;300;400;500&display=swap');
-  :root { --gold:#C8A96E; --gold2:#E0C585; --dark:#07090E; --dark2:#0D1117; --dark3:#131B26; --tx:#EEE9E2; --tx2:#C8BFB0; --tx3:#9A907C; --br:rgba(200,169,110,.15); }
-  html { scroll-behavior:smooth; }
-  body { background:var(--dark); color:var(--tx); overflow-x:hidden; }
-  .cg { font-family:'Cormorant Garamond',Georgia,serif; }
-  .gs { font-family:'Geist',var(--font-geist-sans),system-ui,sans-serif; }
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-  .apd { animation:pulse 2s infinite; }
-  .afi { animation:fadeIn .5s ease forwards; }
-  .gc { background:rgba(13,17,23,.75); backdrop-filter:blur(16px); border:1px solid var(--br); }
-  .gb { background:var(--gold); color:var(--dark); font-family:'Geist',sans-serif; font-size:10px; letter-spacing:.2em; text-transform:uppercase; padding:13px 32px; border:none; cursor:pointer; transition:all .3s; font-weight:500; }
-  .gb:hover { background:var(--gold2); transform:translateY(-1px); }
-  .gb:disabled { opacity:.5; cursor:not-allowed; transform:none; }
-  .ob { background:transparent; color:var(--tx); font-family:'Geist',sans-serif; font-size:10px; letter-spacing:.2em; text-transform:uppercase; padding:13px 32px; border:1px solid rgba(238,233,226,.25); cursor:pointer; transition:all .3s; }
-  .ob:hover { border-color:var(--gold); color:var(--gold); }
-  .fi { background:var(--dark); border:1px solid rgba(200,169,110,.2); color:var(--tx); font-family:'Geist',sans-serif; font-size:13px; padding:12px 14px; outline:none; transition:border-color .3s; width:100%; }
-  .fi:focus { border-color:var(--gold); }
-  .fi option { background:var(--dark); }
-  .rc { transition:transform .4s,box-shadow .4s; cursor:pointer; }
-  .rc:hover { transform:translateY(-6px); box-shadow:0 20px 60px rgba(200,169,110,.12); }
-  .ef { padding:24px; border:1px solid var(--br); background:rgba(200,169,110,.03); transition:border-color .3s,background .3s; }
-  .ef:hover { border-color:rgba(200,169,110,.35); background:rgba(200,169,110,.06); }
-  .st { font-size:9px; letter-spacing:.25em; text-transform:uppercase; color:var(--gold); margin-bottom:16px; display:flex; align-items:center; gap:12px; }
-  .st::before { content:''; width:24px; height:1px; background:var(--gold); }
-  .mo { position:fixed; inset:0; background:rgba(7,9,14,.92); z-index:300; display:flex; align-items:center; justify-content:center; }
-  input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(.5) sepia(1) saturate(2) hue-rotate(10deg); }
-  ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:var(--dark2)} ::-webkit-scrollbar-thumb{background:var(--br);border-radius:3px} ::-webkit-scrollbar-thumb:hover{background:var(--gold)}
-  @media(max-width:768px){
-    .hero-grid{grid-template-columns:1fr!important}
-    .hero-right-panel{display:none!important}
-    .hero-left-panel{padding:120px 24px 60px!important}
-    .stats-bar{padding:20px 24px!important;flex-wrap:wrap;gap:16px}
-    .rooms-grid{grid-template-columns:1fr!important}
-    .exp-grid{grid-template-columns:1fr!important}
-    .exp-visual{display:none!important}
-    .avail-grid{grid-template-columns:1fr 1fr!important}
-    .contact-grid{grid-template-columns:1fr!important}
-    .sec{padding:70px 24px!important}
-    .nav-links{display:none!important}
-    .mobile-menu-btn{display:flex!important}
-    footer{flex-direction:column!important;gap:16px!important;text-align:center!important;padding:24px!important}
-    .tnc-cols{columns:1!important}
-  }
-`;
+// CSS moved to src/app/globals.css to avoid render-blocking inline injection.
 
 export default function HotelFountainLanding() {
   const today = new Date();
@@ -142,9 +105,13 @@ export default function HotelFountainLanding() {
   useEffect(() => {
     async function fetchCount() {
       try {
-        const { data } = await supabase.from('rooms').select('id').eq('status', 'AVAILABLE');
+        const { data, error } = await supabase.from('rooms').select('id').eq('status', ROOM_STATUS_AVAILABLE);
+        if (error) throw error;
         if (data) setAvailCount(data.length);
-      } catch {}
+      } catch (err) {
+        console.error('[fetchCount]', err);
+        setAvailCount(0);
+      }
     }
     fetchCount();
     const onScroll = () => setNavScrolled(window.scrollY > 50);
@@ -157,14 +124,15 @@ export default function HotelFountainLanding() {
     if (new Date(checkOut) <= new Date(checkIn)) { setAvailResult({ rooms: [], error: 'Check-out must be after check-in.' }); return; }
     setSearching(true); setAvailResult(null);
     try {
-      let q = supabase.from('rooms').select('*').eq('status', 'available');
+      let q = supabase.from('rooms').select('*').eq('status', ROOM_STATUS_AVAILABLE);
       if (roomType) q = q.eq('type', roomType);
       const { data, error } = await q;
       if (error) throw error;
       const filtered = ROOMS.filter(r => !roomType || r.supabaseType === roomType);
       const results = data && data.length > 0 ? data : filtered;
       setAvailResult({ rooms: results });
-    } catch {
+    } catch (err) {
+      console.error('[checkAvailability]', err);
       setAvailResult({ rooms: ROOMS.filter(r => !roomType || r.supabaseType === roomType) });
     } finally { setSearching(false); }
   }
@@ -173,14 +141,12 @@ export default function HotelFountainLanding() {
     if (!bookForm.name || !bookForm.email) return;
     setBookStatus('sending');
     try {
-      // 1 — Find existing guest by email, only create if not found
       let guestId: string | null = null;
-      const { data: existing } = await supabase
-        .from('guests')
-        .select('id')
+      const { data: existing, error: selErr } = await supabase
+        .from('guests').select('id')
         .eq('email', bookForm.email.trim().toLowerCase())
-        .eq('tenant_id', '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8')
-        .maybeSingle();
+        .eq('tenant_id', TENANT_ID).maybeSingle();
+      if (selErr) throw selErr;
 
       if (existing?.id) {
         guestId = existing.id;
@@ -192,20 +158,16 @@ export default function HotelFountainLanding() {
             email: bookForm.email.trim().toLowerCase(),
             phone: bookForm.phone,
             address: bookForm.address || null,
-            tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8',
-            total_stays: 0,
-            total_spent: 0,
-            loyalty_points: 0,
-            outstanding_balance: 0,
-            vip: false,
+            tenant_id: TENANT_ID,
+            total_stays: 0, total_spent: 0, loyalty_points: 0,
+            outstanding_balance: 0, vip: false,
           }])
-          .select('id')
-          .single();
-        guestId = (!guestError && guestData?.id) ? guestData.id : null;
+          .select('id').single();
+        if (guestError || !guestData?.id) throw (guestError || new Error('Guest insert returned no id'));
+        guestId = guestData.id;
       }
 
-      // 2 — Create reservation linked to the new guest
-      await supabase.from('reservations').insert([{
+      const { error: resErr } = await supabase.from('reservations').insert([{
         guest_name: bookForm.name,
         email: bookForm.email,
         phone: bookForm.phone,
@@ -218,10 +180,16 @@ export default function HotelFountainLanding() {
         created_at: new Date().toISOString(),
         room_ids: [],
         guest_ids: guestId ? [guestId] : [],
-        tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8',
+        tenant_id: TENANT_ID,
       }]);
-    } catch {}
-    setBookStatus('success');
+      if (resErr) throw resErr;
+
+      setBookStatus('success');
+    } catch (err) {
+      console.error('[submitBooking]', err);
+      setBookStatus('idle');
+      alert('Reservation could not be saved. Please try again or call +880 1322-840799.');
+    }
   }
 
   const scrollTo = (id: string) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setMobileMenu(false); };
@@ -231,8 +199,6 @@ export default function HotelFountainLanding() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
-
       {/* NAV */}
       <nav className="gs" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 60px', background: navScrolled ? 'rgba(7,9,14,.97)' : 'linear-gradient(180deg,rgba(7,9,14,.95) 0%,transparent 100%)', borderBottom: `1px solid ${navScrolled ? 'rgba(200,169,110,.15)' : 'rgba(200,169,110,.06)'}`, transition: 'all .4s' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -652,18 +618,14 @@ export default function HotelFountainLanding() {
                     </div>
                   ))}
                 </div>
-                <button className="gb" disabled={bookStatus === 'sending' || !bookForm.name || !bookForm.email} style={{ width: '100%', padding: 15, marginTop: 28, fontSize: 10, ...glow }} onClick={submitBooking}>
-                  {bookStatus === 'sending' ? 'Submitting…' : 'Confirm Reservation →'}
+                <button className="gb" disabled={bookStatus === 'sending'} onClick={submitBooking} style={{ marginTop: 24, width: '100%' }}>
+                  {bookStatus === 'sending' ? 'Processing…' : 'Confirm Reservation'}
                 </button>
-                <p className="gs" style={{ fontSize: 10, color: 'var(--tx3)', textAlign: 'center', marginTop: 12 }}>
-                  No payment required now · Our team will contact you within 2 hours to confirm
-                </p>
               </>
             )}
           </div>
         </div>
       )}
-
     </>
   );
 }

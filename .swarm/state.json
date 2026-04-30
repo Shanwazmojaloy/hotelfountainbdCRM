@@ -1,8 +1,41 @@
 {
-  "id": "swarm-1777243447511-0458cx",
-  "topology": "hierarchical-mesh",
-  "maxAgents": 15,
+  "swarmId": "swarm-mom3nmzi",
+  "objective": "Fix all build-blocking issues: 1) Implement @supabase/ssr in client.ts. 2) Resolve all 'unused-vars' and 'any' types. 3) Escape entities in JSX files. 4) Convert <img> tags to next/image.",
   "strategy": "development",
-  "initializedAt": "2026-04-26T22:44:07.511Z",
-  "status": "ready"
+  "status": "initialized",
+  "agents": 8,
+  "agentPlan": [
+    {
+      "role": "Coordinator",
+      "type": "coordinator",
+      "count": 1,
+      "purpose": "Orchestrate workflow"
+    },
+    {
+      "role": "Architect",
+      "type": "architect",
+      "count": 1,
+      "purpose": "System design"
+    },
+    {
+      "role": "Coder",
+      "type": "coder",
+      "count": 3,
+      "purpose": "Implementation"
+    },
+    {
+      "role": "Tester",
+      "type": "tester",
+      "count": 2,
+      "purpose": "Quality assurance"
+    },
+    {
+      "role": "Reviewer",
+      "type": "reviewer",
+      "count": 1,
+      "purpose": "Code review"
+    }
+  ],
+  "startedAt": "2026-04-30T23:13:03.778Z",
+  "parallel": true
 }
