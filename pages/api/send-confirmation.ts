@@ -216,8 +216,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!response.ok) {
       const detail = await response.text();
-      console.error('[send-confirmation] Resend error:', response.status, detail);
-      return res.status(500).json({ ok: false, error: 'Resend API error', detail });
+      console.error('[send-confirmation] Brevo error:', response.status, detail);
+      return res.status(500).json({ ok: false, error: 'Brevo API error', detail });
     }
 
     return res.status(200).json({ ok: true });

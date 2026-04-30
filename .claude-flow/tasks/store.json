@@ -1,0 +1,18 @@
+{
+  "tasks": {
+    "task-1777590113378-3kbui5": {
+      "taskId": "task-1777590113378-3kbui5",
+      "type": "refactoring",
+      "description": "Full Project Audit & Fix: 1) Resolve all 'unused-vars' in analyst.ts and api routes. 2) Escape all entities in NightAuditPanel.tsx and page.tsx. 3) Replace 'any' types with proper TypeScript interfaces in billing hooks and page.tsx. 4) Convert all standard  tags to optimized next/image components. 5) Verify that the NotificationBell component is sanitized against React XSS risks.",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-04-30T23:01:53.378Z",
+      "startedAt": null,
+      "completedAt": null
+    }
+  },
+  "version": "3.0.0"
+}

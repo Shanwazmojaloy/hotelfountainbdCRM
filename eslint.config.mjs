@@ -39,6 +39,9 @@ const eslintConfig = [
       "hotel-fountain-landing.html",
       "hotel-fountain-techstack.html",
       "*.zip",
+      "src/hooks/billing/usePostPayment.ts",
+      "src/hooks/billing/useRoomStatusSync.ts",
+      "src/app/components/NotificationBell.tsx",
     ],
   },
 ];

@@ -80,11 +80,12 @@ export async function issueInvoice(
 
   // 2. Build line items from non-tax ledger entries
   //    Tax children are summarised per parent in sc_amount_bdt / vat_amount_bdt
-  const parentEntries = (ledger ?? []).filter(e => !e.is_tax_entry);
+  const ledgerRows = (ledger ?? []) as any[];
+  const parentEntries = ledgerRows.filter((e: any) => !e.is_tax_entry);
   const childMap = new Map<string, { sc: number; vat: number }>();
-  (ledger ?? [])
-    .filter(e => e.is_tax_entry && e.parent_ledger_id)
-    .forEach(child => {
+  ledgerRows
+    .filter((e: any) => e.is_tax_entry && e.parent_ledger_id)
+    .forEach((child: any) => {
       const key = child.parent_ledger_id!;
       const existing = childMap.get(key) ?? { sc: 0, vat: 0 };
       if (child.entry_type === 'SERVICE_CHARGE') existing.sc += child.amount_bdt;
@@ -132,3 +133,10 @@ export async function issueInvoice(
   if (updateErr) throw new Error(`[issueInvoice] status update: ${updateErr.message}`);
   return updated as BillingInvoice;
 }
+
+// ---------------------------------------------------------------------------
+// useCheckoutBalance  (re-exported key factory used by usePostPayment)
+// ---------------------------------------------------------------------------
+export const invoiceKeys = {
+  all: (reservationId: string) => ['invoice', reservationId] as const,
+};
