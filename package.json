@@ -6,26 +6,28 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@heroicons/react": "^2.2.0",
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.45.4",
-    "@tailwindcss/postcss": "^4.2.2",
-    "autoprefixer": "^10.5.0",
-    "eslint-config-next": "^16.2.4",
-    "lucide-react": "^1.8.0",
-    "next": "14.2.3",
-    "postcss": "^8.5.10",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "tailwindcss": "^4.2.2",
-    "@tanstack/react-query": "^5.40.0",
-    "@tanstack/react-query-devtools": "^5.40.0",
-    "@supabase/ssr": "^0.5.0"
+    "@tanstack/react-query": "^5.100.6",
+    "@tanstack/react-query-devtools": "^5.100.6",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "next": "^15.0.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/react": "19.2.14",
-    "typescript": "6.0.3"
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.0.4",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.5.0"
   }
 }
