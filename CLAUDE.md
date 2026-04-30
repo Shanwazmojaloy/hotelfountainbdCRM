@@ -10,6 +10,10 @@
 - Never continuously check status after spawning a swarm — wait for results
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
+- After any bash `cat >>` append to a .tsx/.ts file, immediately verify with `tail -5` and `tsc --noEmit` — appends frequently corrupt files silently
+- After any Edit to `public/crm.html`, grep for `ReactDOM.createRoot` AND `</html>` before `git add` — truncation regression check
+- All git commits MUST originate from Windows PowerShell, NOT from the bash sandbox (`.git/*.lock` files are owned by Windows UID and cannot be removed from sandbox)
+- After `git filter-repo`, run `git reflog expire --expire=now --all && git gc --prune=now` before pushing
 
 ## File Organization
 
