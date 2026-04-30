@@ -1,5 +1,68 @@
-﻿*.json
-.claude/
-supabase/.temp/
-*.pdf
+# ─── Hotel Fountain CRM (Lumea) — .gitignore ─────────────────────────
+
+# Node / Next
 node_modules/
+.next/
+out/
+.turbo/
+build/
+dist/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Dependency lock file is OK to commit (one of these):
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
+# but ignore everything else *.json (legacy rule preserved, scoped):
+push_payload.json
+fix_repo.py
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+
+# Internal / pre-deploy artifacts (DO NOT ship)
+*.zip
+*.tar.gz
+*.7z
+folio-fixed.zip
+hotel-*.zip
+hotelos-*.zip
+
+# Internal docs (move to _internal_docs/ + keep out of bundle)
+_internal_docs/
+*.pdf
+*.docx
+*.xlsx
+*.xls
+Hotel_Fountain_*.pdf
+Hotel_Fountain_*.docx
+Guest*.xlsx
+
+# IDE / OS
+.claude/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# env
+.env
+.env.local
+.env.*.local
+

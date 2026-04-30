@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow';
+const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+if (!SB_URL || !SB_KEY) console.error('[NotificationBell] Missing NEXT_PUBLIC_SUPABASE_* env vars');
 const supabase = createClient(SB_URL, SB_KEY);
 
 const fmtDate = (d: string) => d ? String(d).slice(0, 10) : '—';
@@ -46,13 +47,16 @@ export function NotificationBell({ onRefresh }: Props) {
   const fetchPending = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
+      // ── Canonical: landing inserts status='PENDING' (UPPERCASE). Match exactly.
+      const { data, error } = await supabase
         .from('reservations')
         .select('*')
-        .eq('status', 'pending')
+        .eq('status', 'PENDING')
         .order('created_at', { ascending: false });
+      if (error) throw error;
       setPending(data || []);
-    } catch {
+    } catch (err) {
+      console.error('[fetchPending]', err);
       setPending([]);
     } finally {
       setLoading(false);
@@ -61,13 +65,22 @@ export function NotificationBell({ onRefresh }: Props) {
 
   useEffect(() => {
     fetchPending();
+    // ── Debounce realtime refetches: collapse bursts of postgres_changes
+    //    events into a single refetch every 800ms. Avoids hammering Supabase
+    //    when multiple staff edit reservations simultaneously.
+    let pendingRefetch: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefetch = () => {
+      if (pendingRefetch) clearTimeout(pendingRefetch);
+      pendingRefetch = setTimeout(() => { fetchPending(); pendingRefetch = null; }, 800);
+    };
     const channel = supabase
       .channel('pending-reservations')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => {
-        fetchPending();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, scheduleRefetch)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (pendingRefetch) clearTimeout(pendingRefetch);
+      supabase.removeChannel(channel);
+    };
   }, [fetchPending]);
 
   useEffect(() => {
@@ -85,15 +98,16 @@ export function NotificationBell({ onRefresh }: Props) {
     const fee = parseFloat(feeInput) || 0;
 
     try {
-      await supabase
+      const { error: updErr } = await supabase
         .from('reservations')
         .update({
-          status: 'confirmed',
+          status: 'CONFIRMED',
           amount_paid: fee,
           paid_amount: fee,
           updated_at: new Date().toISOString(),
         })
         .eq('id', res.id);
+      if (updErr) throw updErr;
 
       // Fire-and-forget email
       fetch('/api/send-confirmation', {
@@ -113,7 +127,8 @@ export function NotificationBell({ onRefresh }: Props) {
       setAcceptModal({ open: false, reservation: null });
       setFeeInput('');
       showToast('Reservation Confirmed & Confirmation Email Sent to Guest');
-    } catch {
+    } catch (err) {
+      console.error('[handleAccept]', err);
       showToast('Error: Could not confirm reservation. Please try again.');
     } finally {
       setProcessing(false);
@@ -123,15 +138,17 @@ export function NotificationBell({ onRefresh }: Props) {
   const handleReject = async (id: string) => {
     setProcessing(true);
     try {
-      await supabase
+      const { error: updErr } = await supabase
         .from('reservations')
-        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .update({ status: 'CANCELLED', updated_at: new Date().toISOString() })
         .eq('id', id);
+      if (updErr) throw updErr;
       await fetchPending();
       onRefresh?.();
       setRejectId(null);
       showToast('Reservation removed.');
-    } catch {
+    } catch (err) {
+      console.error('[handleReject]', err);
       showToast('Error: Could not remove reservation.');
     } finally {
       setProcessing(false);

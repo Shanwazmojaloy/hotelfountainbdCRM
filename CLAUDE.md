@@ -165,4 +165,16 @@ Blockers: 24 pre-existing orphan transactions identified in v3.5.1 (sum ৳70,68
 | Use `_dhakaParts` / `todayStr` for any date math | Use `new Date(toLocaleString('en',{timeZone:'Asia/Dhaka'}))` |
 | Anchor every folio/tx to `reservation_id` | Match by `room_number` or `guest_name` |
 | Use `reservations.total_amount` as canonical | Recompute total when canonical exists |
-| Pass gross `total_amount` across
+| Pass gross `total_amount` across component props | Pass `computeBill().total` (already net of discount) downstream |
+| Post `Final Settlement` only for residual due | Post `Final Settlement` for full bill at checkout (mirrors Cash, double-counts) |
+| Use `room_number\|guest_name` for revenue dedup keys | Include `reservation_id` or `fiscal_day` in dedup keys (both can be null/drift) |
+| UPSERT (`ON CONFLICT DO UPDATE`) when writing `hotel_settings.<key>` | Plain INSERT — duplicate key errors / silent no-op via merge-duplicates |
+| Filter day-resets on `(created_at AT TIME ZONE 'Asia/Dhaka')::date` | Filter resets on `fiscal_day` — drifts when `active_fiscal_day` advances |
+| Guard idempotent state-advance buttons (Closing Complete etc.) with target-state check + confirm prompt | Allow muscle-memory clicks to mutate global state |
+| Backup to `*_deleted_YYYYMMDD` table before any bulk DELETE | Drop audit-trail backup tables — they're forensic evidence |
+| Verify `public/crm.html` byte/line count post-Edit | Trust Edit tool silently — it's truncated 5+ times |
+| Push from Windows PowerShell | `git commit` from sandbox bash |
+| Hard-reload Chrome after deploy | Trust the visual until `Ctrl+Shift+R` |
+| Treat checkout as status-only; let unpaid balance carry as Outstanding Due | Force `paid_amount = total` or auto-post `Final Settlement` at checkout |
+| Use `dbAll()` (Range-paginated) for any table that may exceed 1000 rows | Use `db()` with `?limit=N` and trust it — PostgREST silently caps at 1000 |
+| Append to `MEMORY_LOG.md` for any architectural decision | Modify existing entries — they're an audit trail |
