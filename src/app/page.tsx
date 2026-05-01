@@ -3,6 +3,30 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+interface AvailableRoom {
+  id?: string;
+  type?: string;
+  supabaseType?: string;
+  room_number?: string;
+  price?: number;
+  category?: string;
+  name?: string;
+  rate?: number;
+  maxGuests?: number;
+  desc?: string;
+  amenities?: string[];
+  img?: string;
+  gradient?: string;
+}
+
+interface BookForm {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+}
+
+
 // ── Env-driven Supabase client. Set in Vercel → Settings → Environment Variables:
 //     NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_TENANT_ID
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
@@ -93,8 +117,8 @@ export default function HotelFountainLanding() {
   const [roomType, setRoomType] = useState('');
   const [guests, setGuests] = useState('2 Guests');
   const [searching, setSearching] = useState(false);
-  const [availResult, setAvailResult] = useState<{ rooms: any[]; error?: string } | null>(null);
-  const [bookingModal, setBookingModal] = useState<{ open: boolean; room: any | null }>({ open: false, room: null });
+  const [availResult, setAvailResult] = useState<{ rooms: AvailableRoom[]; error?: string } | null>(null);
+  const [bookingModal, setBookingModal] = useState<{ open: boolean; room: AvailableRoom | null }>({ open: false, room: null });
   const [bookForm, setBookForm] = useState({ name: '', email: '', phone: '', address: '' });
   const [bookStatus, setBookStatus] = useState<'idle' | 'sending' | 'success'>('idle');
 
@@ -202,6 +226,7 @@ export default function HotelFountainLanding() {
       {/* NAV */}
       <nav className="gs" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 60px', background: navScrolled ? 'rgba(7,9,14,.97)' : 'linear-gradient(180deg,rgba(7,9,14,.95) 0%,transparent 100%)', borderBottom: `1px solid ${navScrolled ? 'rgba(200,169,110,.15)' : 'rgba(200,169,110,.06)'}`, transition: 'all .4s' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Hotel Fountain Logo" style={{ height: 36, width: 'auto', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <div className="cg" style={{ fontSize: 20, color: 'var(--tx)', fontWeight: 400, letterSpacing: '.04em' }}>Hotel <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Fountain</em></div>
         </div>
@@ -286,6 +311,8 @@ export default function HotelFountainLanding() {
           {ROOMS.map(room => (
             <div key={room.id} className="rc" style={{ background: 'var(--dark2)', overflow: 'hidden' }}>
               <div style={{ height: 220, position: 'relative', overflow: 'hidden', background: room.gradient }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+
                 <img
                   src={room.img}
                   alt={room.name}
@@ -378,7 +405,7 @@ export default function HotelFountainLanding() {
           Check <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Availability</em>
         </h2>
         <p className="gs" style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--tx2)', maxWidth: 520, fontWeight: 300, marginBottom: 48 }}>
-          Select your dates and preferred room type. We'll show you real-time availability from our rooms database.
+          Select your dates and preferred room type. We&apos;ll show you real-time availability from our rooms database.
         </p>
         <div className="gc" style={{ maxWidth: 860, padding: 48, position: 'relative', zIndex: 1 }}>
           <div className="avail-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, marginBottom: 32 }}>
@@ -432,7 +459,7 @@ export default function HotelFountainLanding() {
                 <div>
                   <div className="gs" style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>{availResult.rooms.length} Room{availResult.rooms.length !== 1 ? 's' : ''} Available</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-                    {availResult.rooms.map((r: any, i: number) => {
+                    {availResult.rooms.map((r: AvailableRoom, i: number) => {
                       const cat = ROOMS.find(rm => rm.supabaseType === (r.type || r.supabaseType)) || ROOMS[0];
                       return (
                         <div key={r.id || i} style={{ padding: 16, background: 'rgba(200,169,110,.04)', border: '1px solid var(--br)', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -570,6 +597,9 @@ export default function HotelFountainLanding() {
       {/* FOOTER */}
       <footer className="gs" style={{ background: 'var(--dark)', borderTop: '1px solid var(--br)', padding: '32px 60px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+
           <img src="/logo.png" alt="Logo" style={{ height: 28, width: 'auto', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <div className="cg" style={{ fontSize: 17, color: 'var(--tx)', fontWeight: 400 }}>Hotel <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Fountain</em></div>
         </div>
@@ -614,7 +644,7 @@ export default function HotelFountainLanding() {
                   ].map(f => (
                     <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <label className="gs" style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--tx3)' }}>{f.label}</label>
-                      <input type={f.type} className="fi gs" placeholder={f.ph} value={(bookForm as any)[f.key]} onChange={e => setBookForm(p => ({ ...p, [f.key]: e.target.value }))} />
+                      <input type={f.type} className="fi gs" placeholder={f.ph} value={(bookForm as BookForm)[f.key as keyof BookForm]} onChange={e => setBookForm(p => ({ ...p, [f.key]: e.target.value }))} />
                     </div>
                   ))}
                 </div>

@@ -203,14 +203,14 @@ export default function NightAuditPanel({
 
         {/* ── Warning Banner ── */}
         <div style={{ margin: '16px 24px 0', padding: '10px 14px', background: 'rgba(240,165,0,.1)', border: '1px solid rgba(240,165,0,.3)', borderRadius: 8, color: '#F0A500', fontSize: 12, lineHeight: 1.6 }}>
-          ⚠️ This action locks today's entries. Ensure all payments have been recorded before proceeding.
+          ⚠️ This action locks today&apos;s entries. Ensure all payments have been recorded before proceeding.
         </div>
 
         {/* ── Summary Stats ── */}
         {!done && (
           <div style={{ padding: '20px 24px' }}>
             <div style={{ fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: '#9A907C', marginBottom: 14, fontWeight: 200 }}>
-              Today's Summary — {today}
+              Today&apos;s Summary — {today}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
