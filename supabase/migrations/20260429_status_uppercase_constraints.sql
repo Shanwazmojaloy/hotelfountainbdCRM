@@ -31,10 +31,10 @@ ALTER TABLE public.reservations
   DROP CONSTRAINT IF EXISTS reservations_status_uppercase_chk;
 
 -- ── 3. Add CHECK constraints ──────────────────────────────────────────────
--- rooms.status canonical set: AVAILABLE | OCCUPIED | DIRTY | OOO | RESERVED
+-- rooms.status canonical set: AVAILABLE | OCCUPIED | DIRTY | OUT_OF_ORDER | RESERVED
 ALTER TABLE public.rooms
   ADD CONSTRAINT rooms_status_uppercase_chk
-  CHECK (status IN ('AVAILABLE','OCCUPIED','DIRTY','OOO','RESERVED'));
+  CHECK (status IN ('AVAILABLE','OCCUPIED','DIRTY','OUT_OF_ORDER','RESERVED'));
 
 -- reservations.status canonical set:
 --   PENDING | CONFIRMED | CHECKED_IN | CHECKED_OUT | CANCELLED | NO_SHOW
