@@ -276,6 +276,7 @@ export default function HotelFountainLanding() {
 
         {/* HERO RIGHT — Front View Image */}
         <div className="hero-right-panel" style={{ position: 'relative', overflow: 'hidden' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/front-view.jpg"
             alt="Hotel Fountain Front View"
@@ -312,7 +313,6 @@ export default function HotelFountainLanding() {
             <div key={room.id} className="rc" style={{ background: 'var(--dark2)', overflow: 'hidden' }}>
               <div style={{ height: 220, position: 'relative', overflow: 'hidden', background: room.gradient }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-
                 <img
                   src={room.img}
                   alt={room.name}
@@ -598,8 +598,6 @@ export default function HotelFountainLanding() {
       <footer className="gs" style={{ background: 'var(--dark)', borderTop: '1px solid var(--br)', padding: '32px 60px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-
           <img src="/logo.png" alt="Logo" style={{ height: 28, width: 'auto', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <div className="cg" style={{ fontSize: 17, color: 'var(--tx)', fontWeight: 400 }}>Hotel <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Fountain</em></div>
         </div>
