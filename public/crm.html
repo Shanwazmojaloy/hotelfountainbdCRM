@@ -4296,4 +4296,876 @@ function PlanGPanel({toast, reservations, rooms, guests}) {
             <div>
               {offers.length===0&&(<div className="card" style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>No offers yet — run Agent 1 or Agent 2 to generate upsell messages</div>)}
               {offers.map(o=>(
-                <div key={o.id} style={{background:'rgba(0,0,0,.15)',border:`1px solid ${o.status==='accepted'?'rgba(63,185,80,.3)':o
+                <div key={o.id} style={{background:'rgba(0,0,0,.15)',border:`1px solid ${o.status==='accepted'?'rgba(63,185,80,.3)':o.status==='declined'?'rgba(224,92,122,.2)':'var(--br)'}`,padding:'12px 14px',marginBottom:6}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                        <span style={{fontSize:16}}>{offerIcon(o.offer_type)}</span>
+                        <div><span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{o.offer_title}</span><span style={{marginLeft:8,fontSize:11,color:'var(--gold)',fontWeight:500}}>৳{Number(o.offer_price).toLocaleString()}</span></div>
+                        <span style={{fontSize:9,padding:'2px 8px',background:statusBg(o.status),color:statusColor(o.status),letterSpacing:'.08em',textTransform:'uppercase',fontWeight:600}}>{o.status}</span>
+                      </div>
+                      <div style={{fontSize:11,color:'var(--tx2)'}}>{o.guest_name} · Room {o.room_number} · Check-in: {o.check_in}</div>
+                      {o.alert_message&&o.status==='accepted'&&(<div style={{marginTop:6,fontSize:10,color:'var(--grn)',background:'rgba(63,185,80,.06)',border:'1px solid rgba(63,185,80,.2)',padding:'6px 8px'}}>🔔 {o.alert_message} · Assigned: <strong>{o.assigned_to}</strong></div>)}
+                    </div>
+                    {o.status==='sent'&&(<div style={{display:'flex',gap:4,flexShrink:0}}><button className="btn btn-success btn-sm" style={{fontSize:10,padding:'4px 10px'}} disabled={busy===`accept:${o.id}`} onClick={()=>acceptOffer(o.id,o.guest_name)}>{busy===`accept:${o.id}`?'Processing…':'✓ Accept + Bill'}</button><button className="btn btn-sm" style={{fontSize:10,padding:'4px 8px',background:'rgba(224,92,122,.1)',color:'var(--rose)',border:'1px solid rgba(224,92,122,.3)'}} disabled={busy===`decline:${o.id}`} onClick={()=>declineOffer(o.id)}>✕</button></div>)}
+                    {o.status==='accepted'&&(<div style={{fontSize:10,color:'var(--grn)',textAlign:'right',flexShrink:0}}><div>✓ Billed {o.billed?'✓':''}</div><div style={{color:'var(--tx3)'}}>{o.assigned_to}</div></div>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+/* ═══════════════════════ LEAD GEN SWARM ══════════════════════════ */
+function LeadGenSwarmPanel({toast}) {
+  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/lead-gen-swarm'
+
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [leads, setLeads] = useState([])
+  const [dashboard, setDashboard] = useState(null)
+  const [busy, setBusy] = useState(null)
+  const [scoutResult, setScoutResult] = useState(null)
+  const [analystResult, setAnalystResult] = useState(null)
+  const [outreachResult, setOutreachResult] = useState(null)
+  const [replyModal, setReplyModal] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [leadType, setLeadType] = useState('corporate')
+  const [scoreThreshold, setScoreThreshold] = useState(80)
+  const [loadingLeads, setLoadingLeads] = useState(true)
+
+  useEffect(()=>{ loadLeads(); loadDashboard() },[])
+
+  async function call(body) {
+    const r = await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify(body)})
+    return r.json()
+  }
+
+  async function loadLeads() {
+    setLoadingLeads(true)
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/swarm_leads?tenant_id=eq.${TENANT}&select=*&order=intent_score.desc&limit=50`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}})
+      const d = await r.json()
+      setLeads(Array.isArray(d)?d:[])
+    } catch(e){}
+    finally{setLoadingLeads(false)}
+  }
+
+  async function loadDashboard() {
+    try { const d = await call({action:'dashboard'}); setDashboard(d) } catch(e){}
+  }
+
+  async function doScout() {
+    setBusy('scout'); setScoutResult(null)
+    try {
+      const res = await call({action:'scout', lead_type:leadType})
+      if(res.error){toast(res.error,'error');return}
+      setScoutResult(res)
+      toast(`✓ ${res.leads_found} ${leadType} leads found & saved`)
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doAnalyzeAll() {
+    setBusy('analyze'); setAnalystResult(null)
+    try {
+      const res = await call({action:'analyze'})
+      if(res.error){toast(res.error,'error');return}
+      setAnalystResult(res)
+      toast(`✓ ${res.scored} leads scored · ${res.high_priority_count} high priority`)
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doAnalyzeLead(leadId) {
+    setBusy(`analyze:${leadId}`)
+    try {
+      const res = await call({action:'analyze', lead_id:leadId})
+      toast(`✓ Lead scored: ${res.results?.[0]?.score||'?'}/100`)
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doBulkOutreach() {
+    setBusy('bulk_outreach'); setOutreachResult(null)
+    try {
+      const res = await call({action:'outreach', score_threshold:scoreThreshold})
+      if(res.error){toast(res.error,'error');return}
+      setOutreachResult(res)
+      toast(`✓ ${res.sent} outreach messages generated`)
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doOutreachLead(leadId, channel) {
+    setBusy(`outreach:${leadId}`)
+    try {
+      const res = await call({action:'outreach', lead_id:leadId, channel})
+      if(res.error){toast(res.error,'error');return}
+      toast(`✓ Outreach drafted for ${res.lead_name} via ${res.channel}`)
+      loadLeads()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doSync(leadId, reply) {
+    setBusy(`sync:${leadId}`)
+    try {
+      const res = await call({action:'crm_sync', lead_id:leadId, reply_text:reply})
+      if(res.error){toast(res.error,'error');return}
+      toast(`✓ ${res.lead_name} synced to CRM · Front desk notified · Priority: ${res.urgency}`)
+      setReplyModal(null); setReplyText('')
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  const scoreColor = s => s>=80?'var(--grn)':s>=60?'var(--gold)':s>=40?'var(--sky)':'var(--tx3)'
+  const scoreBg    = s => s>=80?'rgba(63,185,80,.12)':s>=60?'rgba(200,169,110,.12)':s>=40?'rgba(88,166,255,.08)':'rgba(255,255,255,.04)'
+  const typeIcon   = t => t==='corporate'?'🏢':t==='event_organizer'?'🎪':t==='long_stay'?'🏠':'👤'
+  const statusBadge = s => {
+    const map = {new:{color:'var(--tx3)',bg:'rgba(255,255,255,.05)',label:'New'},scored:{color:'var(--sky)',bg:'rgba(88,166,255,.1)',label:'Scored'},outreach_sent:{color:'var(--gold)',bg:'rgba(200,169,110,.12)',label:'Outreach Sent'},replied:{color:'var(--grn)',bg:'rgba(63,185,80,.12)',label:'Replied'},converted:{color:'var(--grn)',bg:'rgba(63,185,80,.2)',label:'Converted'},rejected:{color:'var(--rose)',bg:'rgba(224,92,122,.1)',label:'Rejected'}}
+    return map[s]||{color:'var(--tx3)',bg:'rgba(255,255,255,.04)',label:s}
+  }
+
+  return (
+    <div>
+      <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.06),rgba(200,169,110,.04))',border:'1px solid rgba(88,166,255,.2)',padding:'12px 16px',marginBottom:16}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontFamily:'var(--serif)',fontSize:16,color:'var(--sky)'}}>🎯 Lead Gen Swarm — 3 AI Agents</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>Scout → Score → Outreach → CRM Sync · Corporate · Event Organizers · Long-Stay Expats</div>
+          </div>
+          {dashboard&&(<div style={{display:'flex',gap:16,textAlign:'right'}}><div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Total Leads</div><div style={{fontSize:18,color:'var(--sky)',fontFamily:'var(--serif)'}}>{dashboard.total_leads}</div></div><div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>High Priority</div><div style={{fontSize:18,color:'var(--rose)',fontFamily:'var(--serif)'}}>{dashboard.high_priority}</div></div><div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Replied</div><div style={{fontSize:18,color:'var(--grn)',fontFamily:'var(--serif)'}}>{dashboard.replied}</div></div></div>)}
+        </div>
+      </div>
+      <div className="tabs mb4">
+        {[['dashboard','📊 Dashboard'],['scout','🔍 Agent 1 · Scout'],['analyst','🧠 Agent 2 · Analyst'],['outreach','📨 Agent 3 · Outreach'],['leads','📋 All Leads']].map(([v,l])=>(
+          <button key={v} className={`tab${activeTab===v?' on':''}`} onClick={()=>setActiveTab(v)}>{l}</button>
+        ))}
+      </div>
+      {replyModal&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setReplyModal(null)}>
+          <div style={{background:'var(--bg2)',border:'1px solid var(--br)',padding:24,width:480,maxWidth:'90vw'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)',marginBottom:16}}>Log Reply — {replyModal.name}</div>
+            <div className="fg mb3"><label className="flbl">Paste their reply message</label><textarea className="finput" rows={4} value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="e.g. Yes, we're interested! Can we schedule a site visit next week?" style={{resize:'vertical'}}/></div>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+              <button className="btn btn-ghost" onClick={()=>setReplyModal(null)}>Cancel</button>
+              <button className="btn btn-gold" disabled={!replyText.trim()||busy===`sync:${replyModal.leadId}`} onClick={()=>doSync(replyModal.leadId,replyText)}>{busy===`sync:${replyModal.leadId}`?'Syncing…':'✓ Sync to CRM + Notify Front Desk'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {activeTab==='dashboard'&&(
+        <div>
+          {dashboard&&(
+            <div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:16}}>
+                {[['Total Leads',dashboard.total_leads,'var(--sky)'],['High Priority (80+)',dashboard.high_priority,'var(--rose)'],['Outreach Sent',dashboard.by_status?.outreach_sent||0,'var(--gold)'],['Replied',dashboard.replied,'var(--grn)']].map(([l,v,c],i)=>(
+                  <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',textAlign:'center'}}><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:4}}>{l}</div><div style={{fontSize:24,color:c,fontFamily:'var(--serif)',fontWeight:600}}>{v}</div></div>
+                ))}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+                <div className="card">
+                  <div className="card-hd"><span className="card-title">By Lead Type</span></div>
+                  {Object.entries(dashboard.by_type||{}).map(([type,count])=>(<div key={type} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}><span>{typeIcon(type)} {type.replace(/_/g,' ').replace(/\w/g,l=>l.toUpperCase())}</span><span style={{color:'var(--gold)',fontWeight:600}}>{count}</span></div>))}
+                </div>
+                <div className="card">
+                  <div className="card-hd"><span className="card-title">By Status</span></div>
+                  {Object.entries(dashboard.by_status||{}).map(([status,count])=>{ const b=statusBadge(status); return (<div key={status} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}><span style={{color:b.color}}>{b.label}</span><span style={{color:'var(--gold)',fontWeight:600}}>{count}</span></div>) })}
+                </div>
+              </div>
+              {dashboard.top_leads?.length>0&&(
+                <div className="card">
+                  <div className="card-hd"><span className="card-title">Top Priority Leads (Score ≥70)</span></div>
+                  {dashboard.top_leads.map(l=>(
+                    <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)'}}>
+                      <div style={{width:36,height:36,background:scoreBg(l.intent_score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:13,color:scoreColor(l.intent_score),fontWeight:700,flexShrink:0}}>{l.intent_score}</div>
+                      <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{l.full_name} <span style={{fontSize:10,color:'var(--tx3)'}}>· {l.title}</span></div><div style={{fontSize:10,color:'var(--tx3)'}}>{typeIcon(l.lead_type)} {l.company_name} · {l.area}</div></div>
+                      <span style={{fontSize:9,padding:'2px 8px',background:statusBadge(l.outreach_status).bg,color:statusBadge(l.outreach_status).color,letterSpacing:'.08em',textTransform:'uppercase',flexShrink:0}}>{statusBadge(l.outreach_status).label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='scout'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><span style={{fontSize:24}}>🔍</span><div><div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 1 — The Digital Scout</div><div style={{fontSize:10,color:'var(--tx3)'}}>Discovers leads from LinkedIn, corporate directories, Facebook groups · 3 lead types: Corporate, Event Organizers, Long-Stay Expats</div></div></div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:10,marginBottom:14}}>
+              <div>
+                <label className="flbl">Lead Type to Scout</label>
+                <select className="finput" value={leadType} onChange={e=>setLeadType(e.target.value)}>
+                  <option value="corporate">🏢 Corporate — HR/Travel Managers in Nikunja, Khilkhet, Uttara</option>
+                  <option value="event_organizer">🎪 Event Organizers — Training coordinators, seminar planners</option>
+                  <option value="long_stay">🏠 Long-Stay — Expats, consultants moving to Dhaka</option>
+                </select>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+                <button className="btn btn-gold" onClick={doScout} disabled={busy==='scout'} style={{whiteSpace:'nowrap'}}>{busy==='scout'?'🔄 Scouting…':'🔍 Scout Now'}</button>
+              </div>
+            </div>
+            {[{type:'corporate',icon:'🏢',title:'Airport Transit Strategy',target:'HR & Travel Managers at multinationals in Nikunja/Khilkhet/Uttara',pitch:'Dedicated Corporate Wing · 24/7 check-in · High-speed WiFi · Corporate rates'},{type:'event_organizer',icon:'🎪',title:'Small Gathering Strategy',target:'Event planners, training coordinators needing space for 10-30 people',pitch:"30-room boutique · Private meeting room · Chef Samim's Day-Use lunch package"},{type:'long_stay',icon:'🏠',title:'Long-Stay Strategy',target:'Expats & consultants moving to Dhaka, Facebook "Expats in Dhaka" groups',pitch:'Home-Away-From-Home · 24/7 security · Airport proximity · Weekly/monthly rates'}].map(s=>(
+              <div key={s.type} style={{background:leadType===s.type?'rgba(200,169,110,.06)':'rgba(0,0,0,.1)',border:`1px solid ${leadType===s.type?'rgba(200,169,110,.3)':'var(--br)'}`,padding:'10px 12px',marginBottom:6,cursor:'pointer'}} onClick={()=>setLeadType(s.type)}>
+                <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{s.icon} {s.title}</div>
+                <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>Target: {s.target}</div>
+                <div style={{fontSize:10,color:'var(--gold)',marginTop:2}}>Pitch: {s.pitch}</div>
+              </div>
+            ))}
+          </div>
+          {scoutResult&&(
+            <div className="card">
+              <div style={{fontSize:12,color:'var(--grn)',fontWeight:600,marginBottom:10}}>✓ {scoutResult.leads_found} leads found ({scoutResult.lead_type})</div>
+              {(scoutResult.leads||[]).map((l,i)=>(<div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}><div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{l.full_name} <span style={{fontSize:10,color:'var(--tx3)',fontWeight:400}}>· {l.title}</span></div><div style={{fontSize:11,color:'var(--sky)',marginTop:2}}>{l.company_name} · {l.area}</div><div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>{l.qualification_notes}</div>{l.email&&<div style={{fontSize:10,color:'var(--tx2)',marginTop:2}}>{l.email} {l.phone&&`· ${l.phone}`}</div>}</div>))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='analyst'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><span style={{fontSize:24}}>🧠</span><div><div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 2 — The Intent Analyst</div><div style={{fontSize:10,color:'var(--tx3)'}}>Scores leads 0-100 · Analyzes transit needs, event frequency, travel policy · Score ≥80 → auto-queued for outreach</div></div></div>
+            <div style={{background:'rgba(88,166,255,.05)',border:'1px solid rgba(88,166,255,.15)',padding:'10px 14px',marginBottom:14,fontSize:11,color:'var(--sky)'}}>📊 <strong>Scoring logic:</strong> Corporate in Nikunja +30 · Travel/HR role +25 · Multinational +20 · Event frequency +40 · Expat/consultant +40</div>
+            <button className="btn btn-gold" onClick={doAnalyzeAll} disabled={busy==='analyze'}>{busy==='analyze'?'🧠 Analyzing…':'🧠 Analyze All Unscored Leads'}</button>
+          </div>
+          {analystResult&&(
+            <div className="card">
+              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ {analystResult.scored} leads scored · {analystResult.high_priority_count} high priority (≥80)</div>
+              {(analystResult.results||[]).map((r,i)=>(
+                <div key={i} style={{display:'flex',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)',alignItems:'flex-start'}}>
+                  <div style={{width:44,height:44,background:scoreBg(r.score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:16,color:scoreColor(r.score),fontWeight:700,flexShrink:0}}>{r.score}</div>
+                  <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{r.name} <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company}</span></div><div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:4}}>{(r.signals||[]).map((s,j)=>(<span key={j} style={{fontSize:9,padding:'2px 6px',background:'rgba(88,166,255,.08)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.2)'}}>{s}</span>))}</div>{r.high_priority&&<span style={{display:'inline-block',marginTop:4,fontSize:9,padding:'2px 8px',background:'rgba(224,92,122,.12)',color:'var(--rose)',letterSpacing:'.08em'}}>🔴 HIGH PRIORITY</span>}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='outreach'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><span style={{fontSize:24}}>📨</span><div><div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 3 — The Outreach Specialist</div><div style={{fontSize:10,color:'var(--tx3)'}}>Sends personalized LinkedIn/email/WhatsApp · Auto-outreach for score ≥80 · Post-reply: syncs to CRM + alerts front desk</div></div></div>
+            <div style={{display:'flex',gap:8,alignItems:'flex-end',marginBottom:14}}>
+              <div style={{flex:1}}>
+                <label className="flbl">Auto-outreach score threshold</label>
+                <input type="range" min={50} max={95} step={5} value={scoreThreshold} onChange={e=>setScoreThreshold(+e.target.value)} style={{width:'100%',marginTop:6}}/>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)',marginTop:2}}><span>50 (broad)</span><span style={{color:'var(--gold)',fontWeight:600}}>Current: {scoreThreshold}+</span><span>95 (strict)</span></div>
+              </div>
+              <button className="btn btn-gold" onClick={doBulkOutreach} disabled={busy==='bulk_outreach'} style={{whiteSpace:'nowrap',marginBottom:0}}>{busy==='bulk_outreach'?'📨 Sending…':`📨 Send to All ≥${scoreThreshold}`}</button>
+            </div>
+            <div style={{background:'rgba(63,185,80,.05)',border:'1px solid rgba(63,185,80,.15)',padding:'10px 14px',fontSize:11,color:'var(--grn)'}}>🔄 <strong>CRM Sync flow:</strong> Guest replies → log reply below → Agent 3 analyzes intent → creates guest profile in CRM → notifies front desk with priority level</div>
+          </div>
+          {outreachResult&&(
+            <div className="card mb4">
+              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ {outreachResult.sent} messages sent (threshold: {outreachResult.threshold})</div>
+              {(outreachResult.results||[]).map((r,i)=>(<div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><div><span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.lead_name}</span> <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company} · Score: {r.score}</span></div><span style={{fontSize:9,padding:'2px 8px',background:'rgba(200,169,110,.12)',color:'var(--gold)',letterSpacing:'.08em',textTransform:'uppercase'}}>{r.channel}</span></div>{r.message&&<div style={{fontSize:11,color:'var(--tx2)',background:'rgba(0,0,0,.3)',padding:'8px 10px',fontFamily:'monospace',lineHeight:1.6}}>{r.message}</div>}<div style={{fontSize:10,color:'var(--tx3)',marginTop:6}}>Contact: {r.contact||'—'}</div></div>))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='leads'&&(
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div style={{fontSize:12,color:'var(--tx3)'}}>{leads.length} leads total — sorted by score</div>
+            <button className="btn btn-ghost btn-sm" onClick={()=>{loadLeads();loadDashboard()}}>↻ Refresh</button>
+          </div>
+          {loadingLeads?(<div style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>Loading…</div>):(
+            leads.length===0?(<div className="card" style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>No leads yet — run Agent 1 to scout</div>):
+            leads.map(l=>{
+              const sb = statusBadge(l.outreach_status)
+              const signals = typeof l.intent_signals === 'string' ? JSON.parse(l.intent_signals||'[]') : (l.intent_signals||[])
+              return (
+                <div key={l.id} style={{background:'rgba(0,0,0,.12)',border:'1px solid var(--br)',padding:'12px 14px',marginBottom:6}}>
+                  <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+                    {l.intent_score>0&&(<div style={{width:40,height:40,background:scoreBg(l.intent_score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:14,color:scoreColor(l.intent_score),fontWeight:700,flexShrink:0}}>{l.intent_score}</div>)}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
+                        <div><span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{l.full_name}</span><span style={{fontSize:10,color:'var(--tx3)',marginLeft:6}}>{l.title}</span><span style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.08)',color:'var(--sky)',marginLeft:6,letterSpacing:'.06em'}}>{typeIcon(l.lead_type)} {l.lead_type.replace(/_/g,' ')}</span></div>
+                        <span style={{fontSize:9,padding:'2px 8px',background:sb.bg,color:sb.color,letterSpacing:'.08em',textTransform:'uppercase',flexShrink:0,fontWeight:600}}>{sb.label}</span>
+                      </div>
+                      <div style={{fontSize:11,color:'var(--sky)'}}>{l.company_name} · {l.area}</div>
+                      <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{l.email} {l.phone&&`· ${l.phone}`}</div>
+                      {signals.length>0&&(<div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>{signals.map((s,i)=><span key={i} style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.06)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.15)'}}>{s}</span>)}</div>)}
+                      {l.outreach_message&&(<details style={{marginTop:6}}><summary style={{fontSize:10,color:'var(--gold)',cursor:'pointer'}}>📨 View outreach message ▾</summary><div style={{marginTop:4,fontSize:10,color:'var(--tx2)',background:'rgba(0,0,0,.3)',padding:'8px 10px',fontFamily:'monospace',lineHeight:1.6,maxHeight:150,overflow:'auto'}}>{l.outreach_message}</div></details>)}
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
+                      {l.outreach_status==='new'&&(<button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:'rgba(88,166,255,.1)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.3)'}} disabled={busy===`analyze:${l.id}`} onClick={()=>doAnalyzeLead(l.id)}>{busy===`analyze:${l.id}`?'Scoring…':'🧠 Score'}</button>)}
+                      {(l.outreach_status==='scored'||l.intent_score>0)&&l.outreach_status!=='outreach_sent'&&l.outreach_status!=='replied'&&(<><button className="btn btn-sm btn-gold" style={{fontSize:9,padding:'3px 8px'}} disabled={!!busy} onClick={()=>doOutreachLead(l.id,'linkedin')}>💼 LinkedIn</button><button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:'rgba(37,211,102,.1)',color:'#25D366',border:'1px solid rgba(37,211,102,.3)'}} disabled={!!busy} onClick={()=>doOutreachLead(l.id,'whatsapp')}>📱 WhatsApp</button></>)}
+                      {l.outreach_status==='outreach_sent'&&(<button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:'rgba(63,185,80,.1)',color:'var(--grn)',border:'1px solid rgba(63,185,80,.3)'}} onClick={()=>{setReplyModal({leadId:l.id,name:l.full_name});setReplyText('')}}>✉ Log Reply</button>)}
+                      {l.outreach_status==='replied'&&!l.crm_synced&&(<button className="btn btn-sm btn-gold" style={{fontSize:9,padding:'3px 8px'}} disabled={!!busy} onClick={()=>doSync(l.id,'interested')}>🔄 Sync CRM</button>)}
+                      {l.crm_synced&&<span style={{fontSize:9,color:'var(--grn)'}}>✓ CRM</span>}
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+/* ═══════════════════════ WORKFLOW MONITOR ══════════════════ */
+function WorkflowMonitor({toast}) {
+  const [runs,setRuns]=useState([])
+  const [loading,setLoading]=useState(true)
+  const [triggering,setTriggering]=useState(null)
+  const SB_ANON=SB_KEY
+  const BASE='https://mynwfkgksqqwlqowlscj.supabase.co'
+
+  const WORKFLOWS = [
+    {id:'morning-briefing',  label:'Morning Briefing',      slug:'wf-morning-briefing',  time:'7:00 AM daily',   body:'{}'},
+    {id:'checkout-reminder', label:'Checkout Reminder',     slug:'wf-checkout-alerts',   time:'10:30 AM daily',  body:'{"mode":"reminder"}'},
+    {id:'overdue-alert',     label:'Overdue Alert',         slug:'wf-checkout-alerts',   time:'12:30 PM daily',  body:'{"mode":"overdue"}'},
+    {id:'evening-revenue',   label:'Evening Revenue Report',slug:'wf-evening-report',    time:'9:00 PM daily',   body:'{}'},
+    {id:'weekly-summary',    label:'Weekly Summary',        slug:'wf-period-reports',    time:'Mon 8:00 AM',     body:'{"mode":"weekly"}'},
+    {id:'monthly-report',    label:'Monthly Report',        slug:'wf-period-reports',    time:'1st of month',    body:'{"mode":"monthly"}'},
+    {id:'competitor-monitor',label:'Competitor Monitor',    slug:'wf-competitor-monitor',time:'6:00 AM daily',   body:'{}'},
+    {id:'backup-verification',label:'Backup Verification',  slug:'wf-backup-verify',     time:'Sunday 11 PM',    body:'{}'},
+  ]
+
+  useEffect(()=>{
+    db('workflow_runs','?select=workflow_name,status,duration_ms,records_processed,ran_at&order=ran_at.desc&limit=50')
+      .then(d=>{ setRuns(Array.isArray(d)?d:[]); setLoading(false) })
+      .catch(()=>setLoading(false))
+  },[])
+
+  async function triggerNow(wf) {
+    setTriggering(wf.id)
+    try {
+      const resp = await fetch(`${BASE}/functions/v1/${wf.slug}`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SB_ANON},
+        body: wf.body
+      })
+      const data = await resp.json()
+      if(data.error) toast(`${wf.label}: ${data.error}`,'error')
+      else toast(`${wf.label} triggered ✓`)
+      // Refresh runs
+      const fresh = await db('workflow_runs','?select=workflow_name,status,duration_ms,records_processed,ran_at&order=ran_at.desc&limit=50')
+      setRuns(Array.isArray(fresh)?fresh:[])
+    } catch(e){ toast(e.message,'error') }
+    setTriggering(null)
+  }
+
+  const lastRun = (wfId) => runs.find(r=>r.workflow_name===wfId)
+  const fmtTime = (ts) => ts ? new Date(ts).toLocaleString('en',{timeZone:'Asia/Dhaka',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Never'
+
+  return <div className="card mb4">
+    <div className="card-hd">
+      <div className="flex fac gap2">
+        <span style={{fontSize:16}}>⚡</span>
+        <span className="card-title">Email <em style={{fontStyle:'italic',color:'var(--gold)'}}>Workflows</em></span>
+      </div>
+      <div className="flex fac gap2">
+        <div className="sync-dot"/>
+        <span className="xs muted">10 cron jobs active</span>
+      </div>
+    </div>
+    <div className="card-body" style={{padding:0}}>
+      {loading
+        ? <div className="xs muted" style={{padding:'18px',textAlign:'center'}}>Loading workflow history…</div>
+        : WORKFLOWS.map((wf,i)=>{
+            const last = lastRun(wf.id)
+            const isOk = last?.status==='success'
+            const isTrig = triggering===wf.id
+            return <div key={wf.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 16px',borderBottom:i<WORKFLOWS.length-1?'1px solid var(--br2)':'none'}}>
+              <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,background:last?(isOk?'var(--grn)':'var(--rose)'):'var(--tx3)',boxShadow:last?(isOk?'0 0 5px var(--grn)':'0 0 5px var(--rose)'):'none'}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:300,color:'var(--tx)'}}>{wf.label}</div>
+                <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.08em',marginTop:1,display:'flex',gap:8}}>
+                  <span>🕐 {wf.time}</span>
+                  {last&&<span style={{color:isOk?'var(--grn)':'var(--rose)'}}>Last: {fmtTime(last.ran_at)}</span>}
+                  {last?.duration_ms&&<span>{last.duration_ms}ms</span>}
+                </div>
+              </div>
+              {last&&<span className={`badge ${isOk?'bg':'br_'}`} style={{fontSize:8}}>{last.status}</span>}
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={!!triggering}
+                onClick={()=>triggerNow(wf)}
+                style={{fontSize:9,padding:'3px 10px',letterSpacing:'.1em'}}
+              >{isTrig?<><span className="spinner" style={{width:10,height:10}}/></>:'▶ Run'}</button>
+            </div>
+          })
+      }
+      <div style={{padding:'10px 16px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span className="xs muted">All emails → hotellfountainbd@gmail.com</span>
+        <span className="xs muted">{runs.length} runs logged</span>
+      </div>
+    </div>
+  </div>
+}
+
+/* ═══════════════════════ GOOGLE SHEETS CARD ════════════════ */
+function GoogleSheetsCard({toast}) {
+  const [syncing,setSyncing]=useState(false)
+  const [lastSync,setLastSync]=useState(null)
+  const [counts,setCounts]=useState(null)
+  const [sheetId,setSheetId]=useState('1uekoRKGuhMLXBW8AY3ONr-vPTyml9QDoJgRYA3HsPNU')
+  const EDGE_FN='https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/sync-to-sheets'
+  const SB_ANON=SB_KEY
+
+  async function runSync(){
+    setSyncing(true)
+    try{
+      const resp=await fetch(EDGE_FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_ANON},body:'{}'})
+      const data=await resp.json()
+      if(data.error) toast(data.error,'error')
+      else{ setLastSync(data.synced_at); setCounts(data.counts); toast('All data synced to Google Sheets ✓') }
+    }catch(e){toast('Sync failed: '+e.message,'error')}
+    finally{setSyncing(false)}
+  }
+
+  return <div className="card">
+    <div className="card-hd">
+      <div className="flex fac gap2"><span style={{fontSize:16}}>📊</span><span className="card-title">Google Sheets <em style={{fontStyle:'italic',color:'var(--gold)'}}>Backup</em></span></div>
+      {lastSync&&<span className="badge bg">Synced {new Date(lastSync).toLocaleTimeString()}</span>}
+    </div>
+    <div className="card-body">
+      <div style={{background:'rgba(63,185,80,.05)',border:'1px solid rgba(63,185,80,.15)',padding:'10px 13px',marginBottom:14}}>
+        <div style={{fontSize:11,fontWeight:400,color:'var(--grn)',marginBottom:3}}>🔄 Auto-Sync Active</div>
+        <div className="xs muted">Every INSERT/UPDATE on all 6 tables syncs to Google Sheets in real-time via database triggers.</div>
+      </div>
+      {counts&&<div className="g2 mb4">{[['🛏 Rooms',counts.rooms],['👤 Guests',counts.guests],['📅 Reservations',counts.reservations],['💰 Transactions',counts.transactions],['🧾 Folios',counts.folios],['🧹 Housekeeping',counts.housekeeping_tasks]].map(([l,v])=><div key={l} className="info-box"><div className="info-lbl">{l}</div><div className="info-val gold">{v} rows</div></div>)}</div>}
+      <div className="fg">
+        <label className="flbl">Spreadsheet ID</label>
+        <input className="finput" value={sheetId} onChange={e=>setSheetId(e.target.value.trim())} placeholder="Paste Spreadsheet ID"/>
+      </div>
+      <div className="flex gap2" style={{flexWrap:'wrap'}}>
+        <button className="btn btn-gold" disabled={syncing} onClick={runSync}>{syncing?<><span className="spinner" style={{width:12,height:12}}/>{' '}Syncing…</>:'📊 Sync All Data Now'}</button>
+        {sheetId&&<a href={`https://docs.google.com/spreadsheets/d/${sheetId}/edit`} target="_blank" rel="noopener" className="btn btn-ghost">↗ Open Sheet</a>}
+      </div>
+    </div>
+  </div>
+}
+
+/* ═══════════════════════ ROOT APP ═══════════════════════════ */
+function App() {
+  // BUG FIX: user state is the source of truth — must be null initially
+  const [user,setUser]=useState(null)
+  const [page,setPage]=useState('dashboard')
+  const [data,setData]=useState({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]})
+  const [loading,setLoading]=useState(false)
+  const [toastMsg,setToastMsg]=useState(null)
+  // Hide the HTML loading screen on first React render
+  useEffect(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; },[])
+  const [clock,setClock]=useState(new Date())
+  const [notifOpen,setNotifOpen]=useState(false)
+  const [notifRoomSels,setNotifRoomSels]=useState({})
+  const [confirmingIds,setConfirmingIds]=useState(new Set())
+  // Staff list lives here so Settings can mutate it
+  const [staffList,setStaffList]=useState(INIT_STAFF)
+  const [businessDate,setBusinessDate]=useState(todayStr())
+  // Load staff from Supabase on mount (overrides INIT_STAFF)
+  useEffect(()=>{
+    db('staff',`?tenant_id=eq.${TENANT}&select=*&order=id`)
+      .then(d=>{ if(Array.isArray(d)&&d.length>0) setStaffList(d) })
+      .catch(()=>{}) // silently fall back to INIT_STAFF
+  },[])
+  const toastRef=useRef()
+
+  const toast=useCallback((msg,type='success')=>{
+    setToastMsg({msg,type})
+    clearTimeout(toastRef.current)
+    toastRef.current=setTimeout(()=>setToastMsg(null),3500)
+  },[])
+
+  useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),1000); return()=>clearInterval(t) },[])
+
+  // loadAll returns a promise so callers can await it
+  const loadAll=useCallback(async()=>{
+    try {
+      const [rooms,guests,reservations,transactions,tasks,bdRows]=await Promise.all([
+        db('rooms',`?tenant_id=eq.${TENANT}&select=*&order=room_number`),
+        dbAll('guests',`?tenant_id=eq.${TENANT}&select=*&order=name`),
+        db('reservations',`?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=500`),
+        db('transactions',`?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=400`),
+        db('housekeeping_tasks',`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),
+        db('hotel_settings',`?tenant_id=eq.${TENANT}&key=eq.active_fiscal_day&select=value`).catch(()=>[]),
+      ])
+      if(Array.isArray(bdRows)&&bdRows[0]?.value) setBusinessDate(bdRows[0].value)
+      setData({
+        rooms:Array.isArray(rooms)?rooms:[],
+        guests:Array.isArray(guests)?guests:[],
+        reservations:Array.isArray(reservations)?reservations:[],
+        transactions:Array.isArray(transactions)?transactions:[],
+        tasks:Array.isArray(tasks)?tasks:[],
+      })
+    } catch(e){
+      console.error('Load failed',e)
+      toast('Failed to refresh data — check connection','error')
+    }
+  },[toast])
+
+  useEffect(()=>{
+    if(!user){ setData({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]}); return }
+    setLoading(true)
+    const loadTimeout=setTimeout(()=>setLoading(false),10000) // force clear after 10s
+    loadAll().finally(()=>{ clearTimeout(loadTimeout); setLoading(false) })
+    const interval=setInterval(loadAll,90000)
+    return()=>clearInterval(interval)
+  },[user]) // intentionally omit loadAll to avoid re-running on every render
+
+  // BUG FIX: signOut fully resets ALL state
+  function signOut() {
+    setUser(null)
+    setPage('dashboard')
+    setNotifOpen(false)
+    setData({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]})
+    setToastMsg(null)
+  }
+
+  // ── LOGIN
+  if(!user) return (
+    <>
+      <style>{CSS}</style>
+      {/* BUG FIX: pass live staffList so login sees added/edited users */}
+      <LoginPage onLogin={u=>{ setUser({...u}); setPage('dashboard') }} staffList={staffList}/>
+    </>
+  )
+
+  // ── LOADING
+  if(loading&&user) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16,background:'var(--bg)'}}>
+        <div style={{fontFamily:'var(--serif)',fontWeight:300,fontSize:32,color:'var(--gold)',letterSpacing:'.02em'}}>Hotel <em style={{fontStyle:'italic'}}>Fountain</em></div>
+        <div className="spinner"/>
+        <div style={{fontFamily:'var(--sans)',fontSize:9,color:'var(--tx3)',letterSpacing:'.18em',textTransform:'uppercase',fontWeight:200}}>Connecting to Management System…</div>
+      </div>
+    </>
+  )
+
+  const allowed=ROLES[user.role]?.pages||[]
+  const cur=allowed.includes(page)?page:allowed[0]
+  const pendResList=data.reservations.filter(r=>r.status==='PENDING')
+  const pendRes=pendResList.length
+  const hkUrgent=data.tasks.filter(t=>t.status==='pending'&&t.priority==='high').length
+  const dirtyRooms=data.rooms.filter(r=>r.status==='DIRTY').length
+  const totalNotifs=pendRes+hkUrgent+dirtyRooms
+
+  // Helper: resolve guest info from pending reservations
+  function getPendingGuestInfo(res) {
+    // First try to find guest in guests list
+    const guestId=String((res.guest_ids||[])[0]||'')
+    const g=data.guests.find(x=>String(x.id)===guestId)
+    // Parse special_requests for online bookings (format: "ONLINE BOOKING — Room Type: X | Guest: Y | Phone: Z | Email: W")
+    const sr=res.special_requests||''
+    const roomMatch=sr.match(/Room Type:\s*([^|]+)/)
+    const phoneMatch=sr.match(/Phone:\s*([^|]+)/)
+    const emailMatch=sr.match(/Email:\s*([^|]+)/)
+    return {
+      name: g?.name || res.on_duty_officer || 'Walk-in Guest',
+      phone: g?.phone || (phoneMatch?phoneMatch[1].trim():'—'),
+      email: g?.email || (emailMatch?emailMatch[1].trim():'—'),
+      roomType: (roomMatch?roomMatch[1].trim():null) || (res.room_ids||[]).join(', ') || 'Not assigned',
+      checkIn: res.check_in,
+      checkOut: res.check_out,
+      isOnline: sr.includes('ONLINE BOOKING'),
+      id: res.id
+    }
+  }
+
+  const NAV_ITEMS=[
+    {id:'dashboard', ico:'⬡', label:'Dashboard',        sect:'OVERVIEW'},
+    {id:'rooms',     ico:'▦', label:'Room Management'},
+    {id:'reservations',ico:'◈',label:'Reservations',    badge:pendRes},
+    {id:'guests',    ico:'◉', label:'Guests & CRM'},
+    {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
+    {id:'billing',   ico:'◎', label:'Billing & Invoices'},
+    {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
+    {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
+  ].filter(n=>allowed.includes(n.id))
+
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings'}
+  // FIX (Bug #4): Live clock must reflect real wall-clock Dhaka time, NOT stale businessDate
+  // (which can drift +1 after night-audit). businessDate is shown separately as "BIZ DAY" badge.
+  const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
+  const _p = k => bdParts.find(p=>p.type===k)?.value || ''
+  const clockStr=(()=>{
+    const hh=_p('hour'), mm=_p('minute'), ss=_p('second'), dp=_p('dayPeriod')
+    const timeStr = `${hh}:${mm}:${ss} ${dp}`
+    const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    return timeStr+' · '+_p('weekday')+', '+parseInt(_p('day'))+' '+mo[+_p('month')-1]+' '+_p('year')
+  })()
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="app">
+
+        {/* ── SIDEBAR ── */}
+        <aside className="sidebar">
+          <div className="s-head">
+            <div className="s-brand">Hotel <em>Fountain</em></div>
+            <div className="s-tag">The Pulse of Modern Hospitality</div>
+            <div className="s-hotel">🏨 Management CRM</div>
+          </div>
+          <nav className="s-nav">
+            {NAV_ITEMS.map(item=>(
+              <div key={item.id}>
+                {item.sect&&<div className="s-sect">{item.sect}</div>}
+                <div className={`nav-item${cur===item.id?' on':''}`} onClick={()=>setPage(item.id)}>
+                  <span className="ico">{item.ico}</span>
+                  <span>{item.label}</span>
+                  {item.badge>0&&<span className="n-badge">{item.badge}</span>}
+                </div>
+              </div>
+            ))}
+          </nav>
+          <div className="s-foot">
+            <div className="flex fac gap2">
+              <div className="av" style={{width:30,height:30,fontSize:11,background:`linear-gradient(135deg,${avColor(user.name)},rgba(0,0,0,.5))`,color:'#EEE9E2',flexShrink:0,fontFamily:'var(--sans)',fontWeight:400}}>
+                {user.av}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'var(--sans)',fontSize:12,fontWeight:300,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:'.02em'}}>{user.name}</div>
+                <div style={{fontFamily:'var(--sans)',fontSize:8,color:ROLES[user.role]?.color||'var(--gold)',letterSpacing:'.1em',marginTop:1,fontWeight:200,textTransform:'uppercase'}}>{ROLES[user.role]?.label}</div>
+              </div>
+              <button
+                title="Sign Out"
+                style={{background:'none',border:'1px solid var(--br2)',color:'var(--tx3)',cursor:'pointer',fontSize:12,padding:'4px 8px',transition:'all .15s',flexShrink:0,lineHeight:1,fontFamily:'var(--sans)'}}
+                onClick={signOut}
+                onMouseEnter={e=>{e.currentTarget.style.color='var(--rose)';e.currentTarget.style.borderColor='rgba(224,92,122,.35)'}}
+                onMouseLeave={e=>{e.currentTarget.style.color='var(--tx3)';e.currentTarget.style.borderColor='var(--br2)'}}
+              >⏻</button>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── MAIN ── */}
+        <main className="main">
+          <div className="topbar">
+            <div className="tb-title">{PAGE_TITLES[cur]}</div>
+            <div className="flex fac gap2"><div className="sync-dot"/><span className="xs muted">Live</span></div>
+            <div className="tb-meta">{clockStr}</div>
+
+            {/* ── NOTIFICATION BELL ── */}
+            <div style={{position:'relative'}}>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{position:'relative',padding:'5px 10px',fontSize:15}}
+                onClick={e=>{ e.stopPropagation(); setNotifOpen(p=>!p) }}
+              >
+                🔔
+                {totalNotifs>0&&(
+                  <span style={{position:'absolute',top:4,right:4,width:7,height:7,borderRadius:'50%',background:'var(--rose)',boxShadow:'0 0 5px var(--rose)',animation:'pulse 2s infinite'}}/>
+                )}
+              </button>
+
+              {notifOpen&&(
+                <div style={{position:'absolute',right:0,top:'calc(100% + 8px)',width:360,background:'var(--s1)',border:'1px solid var(--br)',boxShadow:'0 20px 60px rgba(0,0,0,.8)',zIndex:200,overflow:'hidden',animation:'mIn .18s ease'}} onClick={e=>e.stopPropagation()}>
+
+                  {/* Header */}
+                  <div style={{padding:'12px 16px',borderBottom:'1px solid var(--br2)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(200,169,110,.04)'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{fontSize:13}}>🔔</span>
+                      <span style={{fontFamily:'var(--serif)',fontSize:16,fontWeight:300,color:'var(--tx)'}}>Notifications</span>
+                      {totalNotifs>0&&<span style={{background:'var(--rose)',color:'#fff',fontSize:9,padding:'1px 7px',fontFamily:'var(--sans)',fontWeight:400,letterSpacing:'.06em'}}>{totalNotifs}</span>}
+                    </div>
+                    <button style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:16,lineHeight:1}} onClick={()=>setNotifOpen(false)}>×</button>
+                  </div>
+
+                  <div style={{maxHeight:480,overflowY:'auto'}}>
+
+                    {/* ── PENDING BOOKING CARDS from Landing Page ── */}
+                    {pendResList.length>0&&(
+                      <div>
+                        <div style={{padding:'8px 16px',fontSize:8,letterSpacing:'.18em',color:'var(--gold)',textTransform:'uppercase',fontFamily:'var(--sans)',fontWeight:200,background:'rgba(200,169,110,.03)',borderBottom:'1px solid var(--br2)'}}>
+                          📅 Pending Booking Requests — {pendResList.length} new
+                        </div>
+                        {pendResList.map(res=>{
+                          const info=getPendingGuestInfo(res)
+                          return (
+                            <div key={res.id} style={{padding:'14px 16px',borderBottom:'1px solid var(--br2)',background:info.isOnline?'rgba(200,169,110,.03)':'transparent'}}>
+                              {/* Guest info row */}
+                              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:10}}>
+                                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                  <div style={{width:34,height:34,borderRadius:'50%',background:`linear-gradient(135deg,var(--gold),rgba(200,169,110,.3))`,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--sans)',fontSize:12,color:'#07090E',fontWeight:500,flexShrink:0}}>
+                                    {info.name.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div style={{fontFamily:'var(--sans)',fontSize:13,fontWeight:400,color:'var(--tx)',marginBottom:2}}>{info.name}</div>
+                                    {info.isOnline&&<span style={{background:'rgba(200,169,110,.12)',border:'1px solid rgba(200,169,110,.25)',color:'var(--gold)',fontSize:7.5,padding:'1px 6px',fontFamily:'var(--sans)',letterSpacing:'.1em',textTransform:'uppercase'}}>Online Booking</span>}
+                                  </div>
+                                </div>
+                                <div style={{fontSize:8,color:'var(--tx3)',fontFamily:'var(--sans)',fontWeight:200,letterSpacing:'.06em',textAlign:'right',whiteSpace:'nowrap'}}>{fmtDate(info.checkIn)}<br/>→ {fmtDate(info.checkOut)}</div>
+                              </div>
+
+                              {/* Detail grid */}
+                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:12}}>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'7px 10px'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.16em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:3,fontWeight:200}}>📞 Contact</div>
+                                  <div style={{fontSize:11.5,color:'var(--tx)',fontFamily:'var(--sans)',fontWeight:300}}>{info.phone}</div>
+                                </div>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'7px 10px'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.16em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:3,fontWeight:200}}>🏷 Room Type</div>
+                                  <div style={{fontSize:11.5,color:'var(--gold)',fontFamily:'var(--sans)',fontWeight:300}}>{info.roomType}</div>
+                                </div>
+                                <div style={{background:'rgba(200,169,110,.04)',border:'1px solid var(--br2)',padding:'7px 10px',gridColumn:'span 2'}}>
+                                  <div style={{fontSize:7,letterSpacing:'.16em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',marginBottom:3,fontWeight:200}}>✉️ Email</div>
+                                  <div style={{fontSize:11.5,color:'var(--tx2)',fontFamily:'var(--sans)',fontWeight:300,wordBreak:'break-all'}}>{info.email}</div>
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              {(()=>{
+                                // Available rooms — prefer matching type, fallback all AVAILABLE
+                                const availRooms=data.rooms.filter(r=>r.status==='AVAILABLE')
+                                const preferred=availRooms.filter(r=>r.category===info.roomType)
+                                const roomList=preferred.length>0?preferred:availRooms
+                                const selRoom=notifRoomSels[res.id]||(roomList[0]?.room_number||'')
+                                const isConfirming=confirmingIds.has(res.id)
+                                return (
+                                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                                    {/* Room selector */}
+                                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                                      <div style={{fontSize:7,letterSpacing:'.14em',color:'var(--tx3)',textTransform:'uppercase',fontFamily:'var(--sans)',fontWeight:200,whiteSpace:'nowrap'}}>Assign Room</div>
+                                      <select
+                                        className="fselect"
+                                        style={{flex:1,fontSize:11,padding:'4px 8px',background:'#1C1510',color:'var(--tx)',border:'1px solid rgba(200,169,110,.25)'}}
+                                        value={selRoom}
+                                        onChange={e=>setNotifRoomSels(p=>({...p,[res.id]:e.target.value}))}
+                                      >
+                                        {roomList.length===0&&<option value="">— No AVAILABLE rooms —</option>}
+                                        {roomList.map(r=>(
+                                          <option key={r.id} value={r.room_number}>{r.room_number} · {r.category||''} · ৳{(+r.price||0).toLocaleString()}/night</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    {/* Confirm + Cancel */}
+                                    <div style={{display:'flex',gap:6}}>
+                                      <button
+                                        className="btn btn-success btn-sm"
+                                        style={{flex:1,justifyContent:'center',fontSize:9.5,letterSpacing:'.1em',opacity:isConfirming?0.6:1}}
+                                        disabled={isConfirming||!selRoom||roomList.length===0}
+                                        onClick={async()=>{
+                                          if(isConfirming) return
+                                          setConfirmingIds(p=>{const s=new Set(p);s.add(res.id);return s})
+                                          try{
+                                            // Lock check — verify room still AVAILABLE
+                                            const fresh=await db('rooms',`?tenant_id=eq.${TENANT}&room_number=eq.${selRoom}&status=eq.AVAILABLE&select=id,room_number`)
+                                            if(!fresh||fresh.length===0){toast('Room no longer available — pick another','error');setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s});loadAll();return}
+                                            const roomRec=data.rooms.find(r=>String(r.room_number)===String(selRoom))
+                                            // Assign room + confirm reservation
+                                            (()=>{
+                                              const ciDate=new Date((res.check_in||'').replace(' ','T').split('+')[0])
+                                              const coDate=new Date((res.check_out||'').replace(' ','T').split('+')[0])
+                                              const nights=(!isNaN(ciDate)&&!isNaN(coDate))?Math.max(1,Math.round((coDate-ciDate)/86400000)):1
+                                              const roomPrice=+(roomRec?.price||0)
+                                              const computedTotal=roomPrice*nights||(+(res.total_amount||0))
+                                              return dbPatch('reservations',res.id,{status:'RESERVED',room_ids:[String(selRoom)],room_id:roomRec.id,room_type:roomRec.category||info.roomType||'',total_amount:computedTotal})
+                                            })()
+                                            await dbPatch('rooms',roomRec.id,{status:'RESERVED'})
+                                            // Send confirmation email
+                                            try{
+                                              await fetch(`${SB_URL}/functions/v1/send-booking-email`,{
+                                                method:'POST',
+                                                headers:{'Content-Type':'application/json','Authorization':`Bearer ${SB_KEY}`},
+                                                body:JSON.stringify({
+                                                  to:info.email,guestName:info.name,
+                                                  roomNo:selRoom,roomType:info.roomType,
+                                                  checkIn:info.checkIn,checkOut:info.checkOut,
+                                                  total:res.total_amount||0,phone:info.phone
+                                                })
+                                              })
+                                            }catch(emailErr){console.warn('Email send failed:',emailErr)}
+                                            toast(`✓ Room ${selRoom} assigned & confirmation sent to ${info.email}`,'success')
+                                            setNotifRoomSels(p=>{const n={...p};delete n[res.id];return n})
+                                            loadAll()
+                                          }catch(e){toast(e.message,'error')}
+                                          finally{setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s})}
+                                        }}
+                                      >{isConfirming?'Confirming…':'✓ Confirm & Send Email'}</button>
+                                      <button
+                                        className="btn btn-ghost btn-sm"
+                                        style={{fontSize:9.5,letterSpacing:'.1em',borderColor:'rgba(220,50,50,.3)',color:'var(--rose)'}}
+                                        disabled={isConfirming}
+                                        onClick={async()=>{
+                                          if(!confirm(`Cancel booking for ${info.name}?`)) return
+                                          try{
+                                            await dbPatch('reservations',res.id,{status:'CANCELLED'})
+                                            toast(`Booking for ${info.name} cancelled`,'info')
+                                            loadAll()
+                                          }catch(e){toast(e.message,'error')}
+                                        }}
+                                      >✕ Cancel</button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* HK urgent tasks */}
+                    {hkUrgent>0&&(
+                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                        🧹 {hkUrgent} high-priority housekeeping task{hkUrgent>1?'s':''}
+                      </div>
+                    )}
+
+                    {/* Dirty rooms */}
+                    {dirtyRooms>0&&(
+                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                        🏨 {dirtyRooms} room{dirtyRooms>1?'s':''} require cleaning
+                      </div>
+                    )}
+
+                    {/* All clear */}
+                    {totalNotifs===0&&(
+                      <div className="notif-item" style={{textAlign:'center',color:'var(--tx3)',cursor:'default',padding:'20px'}}>✓ All clear — no alerts</div>
+                    )}
+
+                  </div>{/* end scroll */}
+                </div>
+              )}
+            </div>
+
+            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--gold-light)',letterSpacing:'.1em',border:'1px solid rgba(200,169,110,.3)',padding:'3px 8px',marginRight:4}} title="Current Business Date">{(()=>{if(!businessDate)return'—';const[y,m,d]=businessDate.split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()}</span>
+          <button className="btn btn-ghost btn-sm" onClick={()=>{ loadAll(); toast('Data refreshed','info') }} title="Refresh data">↻</button>
+          </div>
+
+          {/* Close notif by clicking content area */}
+          <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
+            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} businessDate={businessDate}/>}
+            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
+            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
+            {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
+            {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
+            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests}/>}
+          </div>
+        </main>
+      </div>
+
+      {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type} onDone={()=>setToastMsg(null)}/>}
+    </>
+  )
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+// Fallback: hide loading screen after 8s in case React fails to mount
+setTimeout(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; }, 8000);
+
+  </script>
+</body>
+</html>
