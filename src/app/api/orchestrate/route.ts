@@ -28,7 +28,7 @@ export async function POST() {
         
         // Ensure no duplicate processing
         let existingLead = null;
-        try { existingLead = await getLeadByEmail(leadData.email); } catch (e) { }
+        try { existingLead = await getLeadByEmail(leadData.email); } catch { }
 
         let currentLead = existingLead;
         if (!existingLead) {

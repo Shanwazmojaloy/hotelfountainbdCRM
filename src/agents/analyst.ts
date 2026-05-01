@@ -1,4 +1,3 @@
-import { supabase } from '../services/supabase';
 import { sendToMakeWebhook } from '../services/make';
 import { Transaction, Lead } from '../types';
 
