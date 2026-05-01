@@ -35,7 +35,7 @@ export async function POST() {
           try {
             currentLead = await insertLead({ ...leadData, source: leadData.source || 'Orchestration API Engine' });
             console.log(`[API Manager] Saved new lead: ${currentLead.name}`);
-          } catch (e) { continue; }
+          } catch { continue; }
         }
         dailyLeads.push(currentLead);
 
