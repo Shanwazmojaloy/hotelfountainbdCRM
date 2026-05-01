@@ -1,20 +1,8 @@
 @echo off
-echo === Hotel Fountain CRM — Push JWT Fix ===
 cd /d "%~dp0"
+echo Pushing commit 7ba5c11 to GitHub (triggers Vercel redeploy)...
 echo.
-echo Removing git lock if present...
-del /f ".git\index.lock" 2>nul
-del /f ".git\objects\maintenance.lock" 2>nul
-echo.
-echo Staging files...
-git add public/crm.html crm.logic.test.ts package.json
-echo.
-echo Committing...
-git commit -m "fix: replace all legacy JWTs with sb_publishable_ key — restores all data loading"
-echo.
-echo Pushing to GitHub (triggers Vercel redeploy)...
 git push origin main
 echo.
-echo ✅ Done! Vercel will redeploy in ~60 seconds.
-echo    Then hard-refresh your CRM: Ctrl+Shift+R
+echo Done. Vercel deploys in ~60s then hard-refresh: Ctrl+Shift+R
 pause
