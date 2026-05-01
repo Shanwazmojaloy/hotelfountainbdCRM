@@ -32,7 +32,7 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 ═══════════════════════════════════════════════════════════ */
 
 const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co'
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+const SB_KEY = (window.__env&&window.__env.SB_KEY)||'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh'
 const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 
 const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
@@ -83,13 +83,16 @@ const ROLES = {
 }
 
 // STAFF — stored in state so Settings can add/edit/delete
+// Passwords are SHA-256 hashed — never store plaintext. To change a password:
+// open browser console and run: crypto.subtle.digest('SHA-256',new TextEncoder().encode('newpass')).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
 const INIT_STAFF = [
-  {id:1, name:'Shanwaz Ahmed',    email:'owner@hotelfountain.com',       pw:'owner2026',  role:'owner',        av:'SA', device:'Admin / Founder'},
-  {id:2, name:'Front Desk (FO)',  email:'fo.hotelfountain799@gmail.com', pw:'front2026',  role:'receptionist', av:'FD', device:'Front Desk Terminal'},
-  {id:3, name:'HK Staff',         email:'hotelfountain.hk@gmail.com',   pw:'hk2026',     role:'housekeeping', av:'HK', device:'Housekeeping Terminal'},
-  {id:4, name:'Manager',          email:'manager@hotelfountain.com',    pw:'mgr2026',    role:'manager',      av:'MG', device:'Manager Office'},
-  {id:5, name:'Accounts',         email:'accounts@hotelfountain.com',   pw:'acc2026',    role:'accountant',   av:'AC', device:'Accounts Terminal'},
+  {id:1, name:'Shanwaz Ahmed',    email:'owner@hotelfountain.com',       pwh:'e37838828f7335c08e5249022d9537a4d8c1f350be1b84af32f8296647bd28b9', role:'owner',        av:'SA', device:'Admin / Founder'},
+  {id:2, name:'Front Desk (FO)',  email:'fo.hotelfountain799@gmail.com', pwh:'e2244795ea58b8fc1d2f00fd55bf3a3591a018984b622d62e89ce188b92b89ad', role:'receptionist', av:'FD', device:'Front Desk Terminal'},
+  {id:3, name:'HK Staff',         email:'hotelfountain.hk@gmail.com',   pwh:'5e9b65e235bfbd8c61a769aabe08b27e4f9db7055f971392c686b73a6f355357', role:'housekeeping', av:'HK', device:'Housekeeping Terminal'},
+  {id:4, name:'Manager',          email:'manager@hotelfountain.com',    pwh:'311a5b001353c76385d5b47516f05102975b44a2f617d3b564862b9612e608d9', role:'manager',      av:'MG', device:'Manager Office'},
+  {id:5, name:'Accounts',         email:'accounts@hotelfountain.com',   pwh:'e147ec11b5c183b8958e7bffe6ce93f588a5b63a4b4306ed7468be462c454022', role:'accountant',   av:'AC', device:'Accounts Terminal'},
 ]
+const _hashPw=async p=>{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 
 /* ═══════════════════════ CSS ═══════════════════════════════ */
 // Fonts loaded via HTML <head> — no inline injection needed
@@ -479,11 +482,11 @@ function LoginPage({onLogin, staffList}) {
   function doLogin() {
     if(!email||!pw) return setErr('Please enter your email and password.')
     setBusy(true)
-    setTimeout(()=>{
-      const u=staffList.find(x=>x.email.toLowerCase()===email.trim().toLowerCase()&&x.pw===pw)
+    _hashPw(pw).then(h=>{
+      const u=staffList.find(x=>x.email.toLowerCase()===email.trim().toLowerCase()&&x.pwh===h)
       if(u) onLogin({...u})
       else { setErr('Invalid email or password.'); setBusy(false) }
-    },500)
+    })
   }
 
   return (
@@ -2528,7 +2531,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
           body:JSON.stringify({key:'daily_token_amount',value:String(a),tenant_id:TENANT})
         });
         setSavedToken(a);
-      } catch(e) {}
+      } catch {}
     }
     // Use business date (today = businessDate in BillingPage scope)
     const todayList=transactions.filter(t=>t.fiscal_day===today && t.type!=='Balance Carried Forward')
@@ -3267,7 +3270,7 @@ function ReportsPage({transactions,rooms,reservations,guests}) {
 }
 
 /* ═══════════════════════ SETTINGS (owner-only) ══════════════ */
-function SettingsPage({currentUser,toast,staffList,setStaffList}) {
+function SettingsPage({currentUser,toast,staffList,setStaffList,reservations,rooms,guests}) {
   const isSA=currentUser?.role==='owner'
   const [tab,setTab]=useState('hotel')
   const [hs,setHS]=useState({hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'15',svc:'5'})
@@ -3330,7 +3333,7 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
   return (
     <div style={{maxWidth:700}}>
       <div className="tabs mb4">
-        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System'],['agents','🤖 AI Agents'],['research','🧠 AI Research']].map(([v,l])=>(
+        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System'],['agents','🤖 AI Agents'],['research','🧠 AI Research'],['b2b','🤝 B2B Swarm'],['plang','✨ Plan G'],['leadgen','🎯 Lead Gen']].map(([v,l])=>(
           <button key={v} className={`tab${tab===v?' on':''}`} onClick={()=>setTab(v)}>{l}</button>
         ))}
       </div>
@@ -3459,6 +3462,24 @@ function SettingsPage({currentUser,toast,staffList,setStaffList}) {
         </div>
       )}
 
+      {tab==='b2b'&&(
+        <div>
+          <B2BSwarmPanel toast={toast}/>
+        </div>
+      )}
+
+      {tab==='plang'&&(
+        <div>
+          <PlanGPanel toast={toast} reservations={reservations} rooms={rooms} guests={guests}/>
+        </div>
+      )}
+
+      {tab==='leadgen'&&(
+        <div>
+          <LeadGenSwarmPanel toast={toast}/>
+        </div>
+      )}
+
       {showAddUser&&isSA&&(
         <AddStaffModal toast={toast} onClose={()=>setShowAddUser(false)}
           onAdd={u=>{ setStaffList(p=>[...p,u]); toast(`${u.name} added as ${ROLES[u.role]?.label}`); setShowAddUser(false) }}
@@ -3512,10 +3533,12 @@ function EditStaffModal({user,toast,onClose,onSave}) {
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
   async function save() {
-    if(!f.name||!f.email||!f.pw) return toast('All fields required','error')
+    if(!f.name||!f.email) return toast('All fields required','error')
     setSaving(true)
     try{
-      await dbPatch('staff',user.id,{name:f.name,email:f.email,pw:f.pw,role:f.role,device:f.device})
+      const patch={name:f.name,email:f.email,role:f.role,device:f.device}
+      if(f.pw) patch.pwh=await _hashPw(f.pw)
+      await dbPatch('staff',user.id,patch)
       onSave({...f,av:f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()})
     }catch(e){ toast('Save failed: '+e.message,'error') }
     finally{ setSaving(false) }
@@ -3543,7 +3566,7 @@ function EditStaffModal({user,toast,onClose,onSave}) {
 /* ═══════════════════════ AI AGENTS ══════════════════════════ */
 function AIAgentsPanel({toast}) {
   const EDGE='https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/ai-agents'
-  const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+  const ANON=SB_KEY
 
   const [prospectQ,setProspectQ]=useState('event planners in Dhaka needing hotel rooms')
   const [prospectRes,setProspectRes]=useState(null)
@@ -3817,12 +3840,790 @@ function AIResearchPanel({toast}) {
   )
 }
 
+/* ═══════════════════════ B2B SWARM PANEL ══════════════════════════ */
+function B2BSwarmPanel({toast}) {
+  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/b2b-agents'
+
+  const [activeAgent, setActiveAgent] = useState('recruiter')
+  const [partners, setPartners] = useState([])
+  const [loadingPartners, setLoadingPartners] = useState(true)
+  const [busy, setBusy] = useState(null)
+  const [dashboard, setDashboard] = useState(null)
+  const [outreach, setOutreach] = useState(null)
+  const [billingResult, setBillingResult] = useState(null)
+
+  useEffect(() => { loadPartners() }, [])
+
+  async function loadPartners() {
+    setLoadingPartners(true)
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/b2b_partners?tenant_id=eq.${TENANT}&select=*&order=created_at`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } })
+      const d = await r.json()
+      setPartners(Array.isArray(d) ? d : [])
+    } catch(e) { toast(e.message,'error') }
+    finally { setLoadingPartners(false) }
+  }
+
+  async function callB2B(body) {
+    const r = await fetch(EDGE, { method:'POST', headers:{'Content-Type':'application/json','apikey':SB_KEY}, body: JSON.stringify(body) })
+    return r.json()
+  }
+
+  async function doScan() {
+    setBusy('scan')
+    try {
+      const res = await callB2B({ agent:'recruiter', action:'scan' })
+      if(res.error) { toast(res.error,'error'); return }
+      toast(`✓ ${res.agencies_found} new agencies found & saved`)
+      loadPartners()
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function doInvite(partnerId, agencyName) {
+    setBusy(`invite:${partnerId}`)
+    setOutreach(null)
+    try {
+      const res = await callB2B({ agent:'recruiter', action:'invite', partner_id: partnerId })
+      if(res.error) { toast(res.error,'error'); return }
+      setOutreach({ type:'invite', partner: agencyName, content: res.whatsapp_message, portal_link: res.portal_link })
+      toast(`✓ WhatsApp invite generated for ${agencyName}`)
+      loadPartners()
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function doJoiningLetter(partnerId, agencyName) {
+    setBusy(`letter:${partnerId}`)
+    setOutreach(null)
+    try {
+      const res = await callB2B({ agent:'recruiter', action:'joining_letter', partner_id: partnerId })
+      if(res.error) { toast(res.error,'error'); return }
+      setOutreach({ type:'letter', partner: agencyName, content: res.letter })
+      toast(`✓ Joining letter generated — ${agencyName} marked Active`)
+      loadPartners()
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function doBillingDashboard() {
+    setBusy('dashboard')
+    try {
+      const res = await callB2B({ agent:'billing_analyst', action:'get_dashboard' })
+      if(res.error) { toast(res.error,'error'); return }
+      setDashboard(res)
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function doWeeklyRun() {
+    setBusy('weekly')
+    setBillingResult(null)
+    try {
+      const res = await callB2B({ agent:'billing_analyst', action:'weekly_run' })
+      if(res.error) { toast(res.error,'error'); return }
+      setBillingResult(res)
+      toast(`✓ Weekly run complete — ${res.partners_processed} partners processed`)
+    } catch(e) { toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  const statusColor = (s) => s==='vip'?'var(--gold)':s==='active'?'var(--grn)':s==='inactive'?'var(--rose)':'var(--tx3)'
+  const statusBg = (s) => s==='vip'?'rgba(200,169,110,.15)':s==='active'?'rgba(63,185,80,.12)':s==='inactive'?'rgba(224,92,122,.12)':'rgba(255,255,255,.05)'
+
+  return (
+    <div>
+      <div style={{background:'linear-gradient(135deg,rgba(63,185,80,.06),rgba(200,169,110,.04))',border:'1px solid rgba(63,185,80,.2)',padding:'10px 14px',marginBottom:16,fontSize:11,color:'var(--grn)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}><span>🤝</span><span>B2B Partner Swarm — 3 AI Agents · Gemini 2.5 Flash</span></div>
+        <div style={{fontSize:10,color:'var(--tx3)'}}>{partners.length} partners · {partners.filter(p=>p.status==='active'||p.status==='vip').length} active</div>
+      </div>
+      <div className="tabs mb4">
+        {[['recruiter','🔍 Agent 1 — Recruiter'],['butler','🛎 Agent 2 — Portal Butler'],['billing','💰 Agent 3 — Billing Analyst']].map(([v,l])=>(
+          <button key={v} className={`tab${activeAgent===v?' on':''}`} onClick={()=>setActiveAgent(v)}>{l}</button>
+        ))}
+      </div>
+      {activeAgent==='recruiter'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+              <span style={{fontSize:22}}>🔍</span>
+              <div>
+                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 1 — The Recruiter</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>Scans for travel agencies in Dhaka, Chittagong & Sylhet · Sends WhatsApp invites · Generates joining letters</div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <button className="btn btn-gold" onClick={doScan} disabled={busy==='scan'}>{busy==='scan'?'🔄 Scanning…':'🌐 Scan for New Agencies'}</button>
+              <button className="btn btn-ghost" onClick={loadPartners} disabled={loadingPartners}>{loadingPartners?'Loading…':'↻ Refresh'}</button>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-hd"><span className="card-title">Partner Agencies ({partners.length})</span></div>
+            {loadingPartners?(<div style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)',fontSize:12}}>Loading partners…</div>):(
+              <table className="tbl">
+                <thead><tr><th>Agency</th><th>City</th><th>Contact</th><th>Status</th><th>Rate/Night</th><th>Bookings</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {partners.length===0?(<tr><td colSpan={7} style={{textAlign:'center',padding:'20px 0',color:'var(--tx3)'}}>No partners yet — click Scan to find agencies</td></tr>)
+                  :partners.map(p=>(
+                    <tr key={p.id}>
+                      <td><div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{p.agency_name}</div><div style={{fontSize:10,color:'var(--sky)'}}>{p.email}</div></td>
+                      <td className="xs muted">{p.city}</td>
+                      <td><div style={{fontSize:11,color:'var(--tx)'}}>{p.contact_name||'—'}</div><div style={{fontSize:10,color:'var(--tx3)'}}>{p.phone||'—'}</div></td>
+                      <td><span style={{fontSize:9,padding:'2px 8px',background:statusBg(p.status),color:statusColor(p.status),letterSpacing:'.08em',textTransform:'uppercase',fontWeight:600}}>{p.status==='vip'?'⭐ VIP':p.status}</span></td>
+                      <td className="xs gold">৳{Number(p.wholesale_rate||2800).toLocaleString()}</td>
+                      <td className="xs" style={{color:'var(--tx3)'}}>{p.total_bookings||0}</td>
+                      <td>
+                        <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                          <button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:p.whatsapp_sent?'rgba(63,185,80,.1)':'rgba(37,211,102,.15)',color:p.whatsapp_sent?'var(--grn)':'#25D366',border:'1px solid currentColor'}} disabled={busy===`invite:${p.id}`} onClick={()=>doInvite(p.id, p.agency_name)}>{busy===`invite:${p.id}`?'Sending…':p.whatsapp_sent?'✓ Resend WA':'📱 WhatsApp Invite'}</button>
+                          <button className="btn btn-sm btn-gold" style={{fontSize:9,padding:'3px 8px',opacity:p.joining_letter_sent?.9:1}} disabled={busy===`letter:${p.id}`} onClick={()=>doJoiningLetter(p.id, p.agency_name)}>{busy===`letter:${p.id}`?'Generating…':p.joining_letter_sent?'✓ Re-generate Letter':'📄 Joining Letter'}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {outreach&&(
+            <div className="card" style={{marginTop:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{outreach.type==='invite'?'📱 WhatsApp Invite':'📄 Joining Letter'} — {outreach.partner}</div>
+                {outreach.type==='invite'&&outreach.portal_link&&<div style={{fontSize:10,color:'var(--sky)',fontFamily:'monospace',wordBreak:'break-all'}}>{outreach.portal_link.slice(0,60)}…</div>}
+              </div>
+              <div style={{background:'rgba(0,0,0,.3)',padding:'12px 14px',fontSize:11,color:'var(--tx2)',whiteSpace:'pre-wrap',lineHeight:1.7,maxHeight:300,overflow:'auto',fontFamily:'monospace'}}>{outreach.content}</div>
+              {outreach.type==='invite'&&<div style={{marginTop:8,fontSize:10,color:'var(--tx3)'}}>💡 Copy this message and send via WhatsApp to {outreach.partner}</div>}
+            </div>
+          )}
+        </div>
+      )}
+      {activeAgent==='butler'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+              <span style={{fontSize:22}}>🛎</span>
+              <div>
+                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 2 — The Portal Butler</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>Authenticates partners via Secret Key · Handles bookings · Answers room questions · Checks availability</div>
+              </div>
+            </div>
+          </div>
+          <div className="card mb4">
+            <div className="card-hd"><span className="card-title">Active Partner Portal Keys</span></div>
+            <table className="tbl">
+              <thead><tr><th>Agency</th><th>Status</th><th>Secret Key (Portal Auth)</th><th>Portal Link</th></tr></thead>
+              <tbody>
+                {partners.filter(p=>p.status==='active'||p.status==='vip').map(p=>(
+                  <tr key={p.id}>
+                    <td style={{fontWeight:600,fontSize:12}}>{p.agency_name}</td>
+                    <td><span style={{fontSize:9,padding:'2px 7px',background:statusBg(p.status),color:statusColor(p.status),letterSpacing:'.08em',textTransform:'uppercase'}}>{p.status}</span></td>
+                    <td><code style={{fontSize:10,color:'var(--gold)',background:'rgba(0,0,0,.3)',padding:'2px 6px'}}>{p.secret_key?.slice(0,16)}…</code></td>
+                    <td><a href={`https://hotelfountainbd-crm.vercel.app?b2b=${p.secret_key}`} target="_blank" style={{fontSize:10,color:'var(--sky)'}}>Open Portal ↗</a></td>
+                  </tr>
+                ))}
+                {partners.filter(p=>p.status==='active'||p.status==='vip').length===0&&(<tr><td colSpan={4} style={{textAlign:'center',padding:'16px 0',color:'var(--tx3)',fontSize:11}}>No active partners yet — activate via joining letter in Agent 1</td></tr>)}
+              </tbody>
+            </table>
+          </div>
+          <div className="card" style={{background:'rgba(88,166,255,.03)',border:'1px solid rgba(88,166,255,.15)'}}>
+            <div style={{fontSize:12,fontWeight:600,color:'var(--sky)',marginBottom:10}}>How Agent 2 Works Automatically</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              {[['🔐 Authentication','Partner visits portal link with secret key → Agent 2 verifies identity → grants access to wholesale rates'],['📅 Booking','Partner selects dates & room → Agent 2 confirms rate (৳2,800/night) → creates reservation → notifies front desk'],['❓ Q&A','Partner asks "Does room have balcony?" → Agent 2 answers from hotel knowledge base instantly'],['🏨 Availability','Agent 2 checks both main reservations + B2B bookings to show real-time availability grid']].map(([title,desc],i)=>(
+                <div key={i} style={{background:'rgba(0,0,0,.2)',padding:'10px 12px'}}><div style={{fontSize:11,fontWeight:600,color:'var(--tx)',marginBottom:4}}>{title}</div><div style={{fontSize:10,color:'var(--tx3)',lineHeight:1.5}}>{desc}</div></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {activeAgent==='billing'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+              <span style={{fontSize:22}}>💰</span>
+              <div>
+                <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 3 — The Billing Analyst</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>Runs every Sunday 10 PM · Tracks commissions · Sends statements · Re-engages inactive partners · Awards VIP status</div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn btn-gold" onClick={doBillingDashboard} disabled={busy==='dashboard'}>{busy==='dashboard'?'📊 Loading…':'📊 Load B2B Dashboard'}</button>
+              <button className="btn btn-gold" onClick={doWeeklyRun} disabled={busy==='weekly'}>{busy==='weekly'?'⚙ Running…':'⚡ Run Weekly Cycle Now'}</button>
+            </div>
+          </div>
+          {dashboard&&(
+            <div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:12}}>
+                {[['Total Partners',dashboard.summary?.total_partners||0,'var(--sky)'],['Active',dashboard.summary?.active_partners||0,'var(--grn)'],['⭐ VIP',dashboard.summary?.vip_partners||0,'var(--gold)'],['Total B2B Revenue',`৳${(dashboard.summary?.total_revenue||0).toLocaleString()}`,'var(--gold)']].map(([label,val,color],i)=>(
+                  <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'10px 12px',textAlign:'center'}}><div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:4}}>{label}</div><div style={{fontSize:20,color,fontFamily:'var(--serif)',fontWeight:600}}>{val}</div></div>
+                ))}
+              </div>
+              {dashboard.recent_bookings?.length>0&&(
+                <div className="card mb3">
+                  <div className="card-hd"><span className="card-title">Recent B2B Bookings</span></div>
+                  <table className="tbl">
+                    <thead><tr><th>Partner</th><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Revenue</th><th>Commission</th></tr></thead>
+                    <tbody>{dashboard.recent_bookings.map(b=>(<tr key={b.id}><td style={{fontSize:11,fontWeight:500}}>{b.partner_name}</td><td style={{fontSize:11}}>{b.guest_name||'—'}</td><td><span className="badge bb">{b.room_number||'—'}</span></td><td className="xs muted">{b.check_in}</td><td className="xs muted">{b.check_out}</td><td className="xs gold">৳{Number(b.total_amount||0).toLocaleString()}</td><td className="xs" style={{color:'var(--grn)'}}>৳{Number(b.commission_amount||0).toLocaleString()}</td></tr>))}</tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+          {billingResult&&(
+            <div className="card">
+              <div style={{fontSize:12,fontWeight:600,color:'var(--tx)',marginBottom:10}}>⚡ Weekly Run Results — {billingResult.partners_processed} partners processed</div>
+              {(billingResult.results||[]).map((r,i)=>(
+                <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                    <div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.partner}</div>
+                    <span style={{fontSize:9,padding:'2px 8px',background:r.action==='commission_sent'?'rgba(63,185,80,.12)':r.action==='re-engagement_sent'?'rgba(224,92,122,.12)':'rgba(255,255,255,.05)',color:r.action==='commission_sent'?'var(--grn)':r.action==='re-engagement_sent'?'var(--rose)':'var(--tx3)',letterSpacing:'.08em',textTransform:'uppercase'}}>{r.action==='commission_sent'?'💰 Commission Sent':r.action==='re-engagement_sent'?'📨 Re-engaged':'✓ No Action'}</span>
+                  </div>
+                  {r.action==='commission_sent'&&<div style={{fontSize:10,color:'var(--gold)'}}>Commission: ৳{Number(r.commission||0).toLocaleString()} · {r.bookings} booking{r.bookings!==1?'s':''} this week</div>}
+                  {r.action==='re-engagement_sent'&&<div style={{fontSize:10,color:'var(--tx3)'}}>Inactive {r.days_inactive} days · Discount offer sent</div>}
+                  {(r.statement||r.message)&&<div style={{marginTop:6,fontSize:10,color:'var(--tx2)',background:'rgba(0,0,0,.3)',padding:'8px 10px',fontFamily:'monospace',whiteSpace:'pre-wrap',maxHeight:120,overflow:'auto'}}>{r.statement||r.message}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+          {!dashboard&&!billingResult&&(
+            <div className="card" style={{background:'rgba(200,169,110,.03)',border:'1px solid rgba(200,169,110,.15)'}}>
+              <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:10}}>⏰ Automated Schedule</div>
+              {[['Every Sunday 10 PM','Run weekly cycle — commission statements + re-engagement offers'],['Active partners (any bookings)','Commission statement emailed + VIP check (≥10 total bookings)'],['Inactive ≥14 days','Re-engagement WhatsApp: ৳200 discount code generated'],['VIP threshold','Auto-upgrade to VIP status at 10 total bookings']].map(([trigger,action],i)=>(
+                <div key={i} style={{display:'flex',gap:10,marginBottom:8,padding:'8px 10px',background:'rgba(0,0,0,.2)'}}><div style={{fontSize:10,color:'var(--gold)',minWidth:160,fontWeight:500}}>{trigger}</div><div style={{fontSize:10,color:'var(--tx3)'}}>{action}</div></div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+/* ═══════════════════════ PLAN G — UPSELL PANEL ══════════════════════════ */
+function PlanGPanel({toast, reservations, rooms, guests}) {
+  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/plan-g-upsell'
+
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [dashboard, setDashboard] = useState(null)
+  const [offers, setOffers] = useState([])
+  const [busy, setBusy] = useState(null)
+  const [agentResult, setAgentResult] = useState(null)
+  const [selectedRes, setSelectedRes] = useState('')
+  const [loadingOffers, setLoadingOffers] = useState(true)
+
+  useEffect(() => { loadOffers(); loadDashboard() }, [])
+
+  async function call(body) {
+    const r = await fetch(EDGE, { method:'POST', headers:{'Content-Type':'application/json','apikey':SB_KEY}, body:JSON.stringify(body) })
+    return r.json()
+  }
+
+  async function loadOffers() {
+    setLoadingOffers(true)
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/upsell_offers?tenant_id=eq.${TENANT}&order=created_at.desc&limit=50`, { headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`} })
+      const d = await r.json()
+      setOffers(Array.isArray(d)?d:[])
+    } catch(e) {}
+    finally { setLoadingOffers(false) }
+  }
+
+  async function loadDashboard() {
+    try { const res = await call({action:'dashboard'}); setDashboard(res) } catch(e) {}
+  }
+
+  async function runAgent(action, resId) {
+    setBusy(action); setAgentResult(null)
+    try {
+      const body = resId ? {action, reservation_id:resId} : {action}
+      const res = await call(body)
+      if(res.error) { toast(res.error,'error'); return }
+      setAgentResult(res)
+      loadOffers(); loadDashboard()
+      const count = res.results?.length || res.processed || 0
+      toast(`✓ ${action==='pre_arrival'?'Pre-arrival':'Room customizer'} — ${count} guest${count!==1?'s':''} messaged`)
+    } catch(e){ toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function acceptOffer(offerId, guestName) {
+    setBusy(`accept:${offerId}`)
+    try {
+      const res = await call({action:'accept_offer', offer_id:offerId, guest_reply:'yes'})
+      if(res.error) { toast(res.error,'error'); return }
+      toast(`✓ ৳${Number(res.amount).toLocaleString()} added to ${guestName}'s folio · ${res.assigned_to} alerted`)
+      loadOffers(); loadDashboard()
+    } catch(e){ toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  async function declineOffer(offerId) {
+    setBusy(`decline:${offerId}`)
+    try {
+      await call({action:'accept_offer', offer_id:offerId, guest_reply:'no'})
+      toast('Offer marked as declined')
+      loadOffers()
+    } catch(e){ toast(e.message,'error') }
+    finally { setBusy(null) }
+  }
+
+  const getGN = r => {
+    const gid = String((r.guest_ids||[])[0]||'')
+    const g = guests?.find(g=>String(g.id)===gid)
+    return g?.name||'Unknown Guest'
+  }
+
+  const statusColor = s => s==='accepted'?'var(--grn)':s==='declined'?'var(--rose)':s==='sent'?'var(--sky)':'var(--tx3)'
+  const statusBg   = s => s==='accepted'?'rgba(63,185,80,.12)':s==='declined'?'rgba(224,92,122,.12)':s==='sent'?'rgba(88,166,255,.1)':'rgba(255,255,255,.05)'
+  const offerIcon = t => t==='airport_pickup'?'🚗':t==='early_checkin'?'🌅':t==='jet_lag_menu'?'🍽':t==='room_upgrade'?'👑':t==='sim_card'?'📱':t==='late_checkout'?'🌙':'✨'
+  const upcoming = (reservations||[]).filter(r=>r.status==='RESERVED'||r.status==='PENDING').slice(0,10)
+
+  return (
+    <div>
+      <div style={{background:'linear-gradient(135deg,rgba(200,169,110,.08),rgba(88,166,255,.04))',border:'1px solid rgba(200,169,110,.2)',padding:'12px 16px',marginBottom:16}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontFamily:'var(--serif)',fontSize:16,color:'var(--gold)'}}>Plan G — Premium Transit Experience</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>3-Agent upsell engine · Turns ৳3,500 ADR → ৳5,000+ through perfectly timed offers</div>
+          </div>
+          {dashboard&&(<div style={{display:'flex',gap:16,textAlign:'right'}}><div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Upsell Revenue</div><div style={{fontSize:18,color:'var(--gold)',fontFamily:'var(--serif)'}}>৳{Number(dashboard.summary?.total_upsell_revenue||0).toLocaleString()}</div></div><div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Conversion</div><div style={{fontSize:18,color:'var(--grn)',fontFamily:'var(--serif)'}}>{dashboard.summary?.conversion_rate||0}%</div></div></div>)}
+        </div>
+      </div>
+      <div className="tabs mb4">
+        {[['dashboard','📊 Dashboard'],['agent1','✈ Agent 1 · Pre-Arrival'],['agent2','🍽 Agent 2 · Room Customizer'],['offers','📋 All Offers']].map(([v,l])=>(
+          <button key={v} className={`tab${activeTab===v?' on':''}`} onClick={()=>setActiveTab(v)}>{l}</button>
+        ))}
+      </div>
+      {activeTab==='dashboard'&&(
+        <div>
+          {dashboard&&(
+            <div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:16}}>
+                {[['Offers Sent',dashboard.summary?.total_offers_sent||0,'var(--sky)'],['Accepted',dashboard.summary?.total_accepted||0,'var(--grn)'],['Conversion Rate',`${dashboard.summary?.conversion_rate||0}%`,'var(--gold)'],['Upsell Revenue',`৳${Number(dashboard.summary?.total_upsell_revenue||0).toLocaleString()}`,'var(--gold)']].map(([label,val,color],i)=>(
+                  <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',textAlign:'center'}}><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:4}}>{label}</div><div style={{fontSize:22,color,fontFamily:'var(--serif)',fontWeight:600}}>{val}</div></div>
+                ))}
+              </div>
+              {dashboard?.by_type&&Object.keys(dashboard.by_type).length>0&&(
+                <div className="card mb4">
+                  <div className="card-hd"><span className="card-title">Performance by Offer Type</span></div>
+                  <table className="tbl"><thead><tr><th>Offer</th><th>Sent</th><th>Accepted</th><th>Conversion</th><th>Revenue</th></tr></thead>
+                  <tbody>{Object.entries(dashboard.by_type).map(([type,data])=>(<tr key={type}><td><span style={{marginRight:6}}>{offerIcon(type)}</span>{type.replace(/_/g,' ').replace(/\w/g,l=>l.toUpperCase())}</td><td className="xs muted">{data.sent}</td><td className="xs" style={{color:'var(--grn)'}}>{data.accepted}</td><td className="xs gold">{data.sent>0?Math.round(data.accepted/data.sent*100):0}%</td><td className="xs gold">৳{Number(data.revenue||0).toLocaleString()}</td></tr>))}</tbody>
+                  </table>
+                </div>
+              )}
+              <div className="card">
+                <div className="card-hd"><span className="card-title">Upsell Catalog — Plan G Offers</span></div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                  {[['🚗','airport_pickup','Airport Pickup','৳500','24h before','Private car from any Dhaka airport → hotel'],['🌅','early_checkin','Early Check-in (9AM-12PM)','৳1,000','24h before','Guaranteed room from 9:00 AM for morning arrivals'],['🍽','jet_lag_menu',"Chef Samim's Jet Lag Menu",'৳850','4h before','Light recovery meal ready in room on arrival'],['👑','room_upgrade','Royal Suite Upgrade','৳4,000','4h before','Room 303 — balcony, premium amenities'],['📱','sim_card','Welcome SIM Pack','৳800','4h before','Local SIM + 10GB data waiting in room'],['🌙','late_checkout','Late Check-out (till 6PM)','৳1,500','Day of','Keep room for guests with late flights']].map(([icon,type,title,price,timing,desc])=>(
+                    <div key={type} style={{background:'rgba(200,169,110,.03)',border:'1px solid var(--br)',padding:'10px 12px',display:'flex',gap:10,alignItems:'flex-start'}}><span style={{fontSize:18,flexShrink:0}}>{icon}</span><div><div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{title}</div><div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{desc}</div><div style={{display:'flex',gap:12,marginTop:6}}><span style={{fontSize:11,color:'var(--gold)',fontWeight:600}}>{price}</span><span style={{fontSize:10,color:'var(--tx3)'}}>{timing}</span></div></div></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='agent1'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><span style={{fontSize:24}}>✈</span><div><div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 1 — Pre-Arrival Specialist</div><div style={{fontSize:10,color:'var(--tx3)'}}>Sends personalized WhatsApp 24h before check-in · Offers Airport Pickup (৳500) + Early Check-in (৳1,000)</div></div></div>
+            <div style={{background:'rgba(88,166,255,.05)',border:'1px solid rgba(88,166,255,.15)',padding:'10px 14px',marginBottom:14,fontSize:11,color:'var(--sky)'}}>💡 <strong>Why it works:</strong> Pre-arrival messages have 80% higher acceptance than check-in offers</div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
+              <button className="btn btn-gold" onClick={()=>runAgent('pre_arrival',null)} disabled={busy==='pre_arrival'}>{busy==='pre_arrival'?'🔄 Running…':'✈ Run for Tomorrow\'s Arrivals'}</button>
+            </div>
+            <div style={{paddingTop:12,borderTop:'1px solid var(--br2)'}}>
+              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:8}}>Or trigger for a specific reservation</div>
+              <div style={{display:'flex',gap:8}}>
+                <select className="finput" style={{flex:1}} value={selectedRes} onChange={e=>setSelectedRes(e.target.value)}>
+                  <option value="">— Select upcoming reservation —</option>
+                  {upcoming.map(r=>(<option key={r.id} value={r.id}>{getGN(r)} · {(r.room_ids||[]).join(',')} · {r.check_in?.slice(0,10)}</option>))}
+                </select>
+                <button className="btn btn-gold btn-sm" style={{padding:'0 14px',whiteSpace:'nowrap'}} disabled={!selectedRes||busy==='pre_arrival'} onClick={()=>runAgent('pre_arrival',selectedRes)}>Send Offers</button>
+              </div>
+            </div>
+          </div>
+          {agentResult?.agent==='PreArrival'&&(
+            <div className="card">
+              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ Agent 1 processed {agentResult.processed} reservation{agentResult.processed!==1?'s':''}</div>
+              {(agentResult.results||[]).map((r,i)=>(
+                <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><div><div style={{fontWeight:600,fontSize:13,color:'var(--tx)'}}>{r.guest}</div><div style={{fontSize:10,color:'var(--tx3)'}}>Room {r.room} · Check-in: {r.check_in} · {r.phone}</div></div>{r.skipped?<span style={{fontSize:10,color:'var(--tx3)'}}>⏭ {r.skipped}</span>:<span style={{fontSize:9,background:'rgba(88,166,255,.12)',color:'var(--sky)',padding:'2px 8px',letterSpacing:'.1em'}}>SENT</span>}</div>
+                  {r.whatsapp_message&&(<div style={{background:'rgba(37,211,102,.05)',border:'1px solid rgba(37,211,102,.2)',padding:'10px 12px',fontSize:11,color:'var(--tx2)',lineHeight:1.6}}><div style={{fontSize:9,color:'#25D366',fontWeight:600,marginBottom:6,letterSpacing:'.1em'}}>📱 WHATSAPP MESSAGE</div>{r.whatsapp_message}</div>)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='agent2'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><span style={{fontSize:24}}>🍽</span><div><div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 2 — Room Customizer</div><div style={{fontSize:10,color:'var(--tx3)'}}>Sends targeted upsells 4h before arrival · Jet Lag Menu (৳850) · Room Upgrade · SIM Pack · Smart targeting for international guests</div></div></div>
+            <div style={{background:'rgba(200,169,110,.05)',border:'1px solid rgba(200,169,110,.15)',padding:'10px 14px',marginBottom:14,fontSize:11,color:'var(--gold)'}}>🎯 <strong>Smart targeting:</strong> International guests → Jet Lag Menu + SIM Pack · Local guests → Jet Lag Menu + Royal Suite Upgrade</div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
+              <button className="btn btn-gold" onClick={()=>runAgent('room_customizer',null)} disabled={busy==='room_customizer'}>{busy==='room_customizer'?'🔄 Running…':'🍽 Run for Today\'s Arrivals'}</button>
+            </div>
+            <div style={{paddingTop:12,borderTop:'1px solid var(--br2)'}}>
+              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:8}}>Or trigger for specific reservation</div>
+              <div style={{display:'flex',gap:8}}>
+                <select className="finput" style={{flex:1}} value={selectedRes} onChange={e=>setSelectedRes(e.target.value)}>
+                  <option value="">— Select reservation —</option>
+                  {upcoming.map(r=>(<option key={r.id} value={r.id}>{getGN(r)} · {(r.room_ids||[]).join(',')} · {r.check_in?.slice(0,10)}</option>))}
+                </select>
+                <button className="btn btn-gold btn-sm" style={{padding:'0 14px',whiteSpace:'nowrap'}} disabled={!selectedRes||busy==='room_customizer'} onClick={()=>runAgent('room_customizer',selectedRes)}>Send Offers</button>
+              </div>
+            </div>
+          </div>
+          {agentResult?.agent==='RoomCustomizer'&&(
+            <div className="card">
+              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ Agent 2 processed {agentResult.processed} reservation{agentResult.processed!==1?'s':''}</div>
+              {(agentResult.results||[]).map((r,i)=>(
+                <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><div><div style={{fontWeight:600,fontSize:13,color:'var(--tx)'}}>{r.guest}</div><div style={{fontSize:10,color:'var(--tx3)'}}>Room {r.room} · Arrival: {r.arrival_time} · {r.international?'🌍 International':'🇧🇩 Local'}</div></div>{r.skipped?<span style={{fontSize:10,color:'var(--tx3)'}}>⏭ {r.skipped}</span>:(<div style={{display:'flex',gap:4}}>{(r.offers_sent||[]).map(o=>(<span key={o} style={{fontSize:9,background:'rgba(200,169,110,.15)',color:'var(--gold)',padding:'2px 8px',letterSpacing:'.08em'}}>{o.replace(/_/g,' ').toUpperCase()}</span>))}</div>)}</div>
+                  {r.whatsapp_message&&(<div style={{background:'rgba(37,211,102,.05)',border:'1px solid rgba(37,211,102,.2)',padding:'10px 12px',fontSize:11,color:'var(--tx2)',lineHeight:1.6}}><div style={{fontSize:9,color:'#25D366',fontWeight:600,marginBottom:6,letterSpacing:'.1em'}}>📱 WHATSAPP MESSAGE</div>{r.whatsapp_message}</div>)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='offers'&&(
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div style={{fontSize:12,color:'var(--tx3)'}}>All upsell offers — click Accept to bill folio + alert front desk</div>
+            <button className="btn btn-ghost btn-sm" onClick={()=>{loadOffers();loadDashboard()}}>↻ Refresh</button>
+          </div>
+          {loadingOffers?(<div style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>Loading offers…</div>):(
+            <div>
+              {offers.length===0&&(<div className="card" style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>No offers yet — run Agent 1 or Agent 2 to generate upsell messages</div>)}
+              {offers.map(o=>(
+                <div key={o.id} style={{background:'rgba(0,0,0,.15)',border:`1px solid ${o.status==='accepted'?'rgba(63,185,80,.3)':o.status==='declined'?'rgba(224,92,122,.2)':'var(--br)'}`,padding:'12px 14px',marginBottom:6}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                        <span style={{fontSize:16}}>{offerIcon(o.offer_type)}</span>
+                        <div><span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{o.offer_title}</span><span style={{marginLeft:8,fontSize:11,color:'var(--gold)',fontWeight:500}}>৳{Number(o.offer_price).toLocaleString()}</span></div>
+                        <span style={{fontSize:9,padding:'2px 8px',background:statusBg(o.status),color:statusColor(o.status),letterSpacing:'.08em',textTransform:'uppercase',fontWeight:600}}>{o.status}</span>
+                      </div>
+                      <div style={{fontSize:11,color:'var(--tx2)'}}>{o.guest_name} · Room {o.room_number} · Check-in: {o.check_in}</div>
+                      {o.alert_message&&o.status==='accepted'&&(<div style={{marginTop:6,fontSize:10,color:'var(--grn)',background:'rgba(63,185,80,.06)',border:'1px solid rgba(63,185,80,.2)',padding:'6px 8px'}}>🔔 {o.alert_message} · Assigned: <strong>{o.assigned_to}</strong></div>)}
+                    </div>
+                    {o.status==='sent'&&(<div style={{display:'flex',gap:4,flexShrink:0}}><button className="btn btn-success btn-sm" style={{fontSize:10,padding:'4px 10px'}} disabled={busy===`accept:${o.id}`} onClick={()=>acceptOffer(o.id,o.guest_name)}>{busy===`accept:${o.id}`?'Processing…':'✓ Accept + Bill'}</button><button className="btn btn-sm" style={{fontSize:10,padding:'4px 8px',background:'rgba(224,92,122,.1)',color:'var(--rose)',border:'1px solid rgba(224,92,122,.3)'}} disabled={busy===`decline:${o.id}`} onClick={()=>declineOffer(o.id)}>✕</button></div>)}
+                    {o.status==='accepted'&&(<div style={{fontSize:10,color:'var(--grn)',textAlign:'right',flexShrink:0}}><div>✓ Billed {o.billed?'✓':''}</div><div style={{color:'var(--tx3)'}}>{o.assigned_to}</div></div>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+/* ═══════════════════════ LEAD GEN SWARM ══════════════════════════ */
+function LeadGenSwarmPanel({toast}) {
+  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/lead-gen-swarm'
+
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [leads, setLeads] = useState([])
+  const [dashboard, setDashboard] = useState(null)
+  const [busy, setBusy] = useState(null)
+  const [scoutResult, setScoutResult] = useState(null)
+  const [analystResult, setAnalystResult] = useState(null)
+  const [outreachResult, setOutreachResult] = useState(null)
+  const [replyModal, setReplyModal] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [leadType, setLeadType] = useState('corporate')
+  const [scoreThreshold, setScoreThreshold] = useState(80)
+  const [loadingLeads, setLoadingLeads] = useState(true)
+
+  useEffect(()=>{ loadLeads(); loadDashboard() },[])
+
+  async function call(body) {
+    const r = await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify(body)})
+    return r.json()
+  }
+
+  async function loadLeads() {
+    setLoadingLeads(true)
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/swarm_leads?tenant_id=eq.${TENANT}&select=*&order=intent_score.desc&limit=50`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}})
+      const d = await r.json()
+      setLeads(Array.isArray(d)?d:[])
+    } catch(e){}
+    finally{setLoadingLeads(false)}
+  }
+
+  async function loadDashboard() {
+    try { const d = await call({action:'dashboard'}); setDashboard(d) } catch(e){}
+  }
+
+  async function doScout() {
+    setBusy('scout'); setScoutResult(null)
+    try {
+      const res = await call({action:'scout', lead_type:leadType})
+      if(res.error){toast(res.error,'error');return}
+      setScoutResult(res)
+      toast(`✓ ${res.leads_found} ${leadType} leads found & saved`)
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doAnalyzeAll() {
+    setBusy('analyze'); setAnalystResult(null)
+    try {
+      const res = await call({action:'analyze'})
+      if(res.error){toast(res.error,'error');return}
+      setAnalystResult(res)
+      toast(`✓ ${res.scored} leads scored · ${res.high_priority_count} high priority`)
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doAnalyzeLead(leadId) {
+    setBusy(`analyze:${leadId}`)
+    try {
+      const res = await call({action:'analyze', lead_id:leadId})
+      toast(`✓ Lead scored: ${res.results?.[0]?.score||'?'}/100`)
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doBulkOutreach() {
+    setBusy('bulk_outreach'); setOutreachResult(null)
+    try {
+      const res = await call({action:'outreach', score_threshold:scoreThreshold})
+      if(res.error){toast(res.error,'error');return}
+      setOutreachResult(res)
+      toast(`✓ ${res.sent} outreach messages generated`)
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doOutreachLead(leadId, channel) {
+    setBusy(`outreach:${leadId}`)
+    try {
+      const res = await call({action:'outreach', lead_id:leadId, channel})
+      if(res.error){toast(res.error,'error');return}
+      toast(`✓ Outreach drafted for ${res.lead_name} via ${res.channel}`)
+      loadLeads()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  async function doSync(leadId, reply) {
+    setBusy(`sync:${leadId}`)
+    try {
+      const res = await call({action:'crm_sync', lead_id:leadId, reply_text:reply})
+      if(res.error){toast(res.error,'error');return}
+      toast(`✓ ${res.lead_name} synced to CRM · Front desk notified · Priority: ${res.urgency}`)
+      setReplyModal(null); setReplyText('')
+      loadLeads(); loadDashboard()
+    } catch(e){toast(e.message,'error')}
+    finally{setBusy(null)}
+  }
+
+  const scoreColor = s => s>=80?'var(--grn)':s>=60?'var(--gold)':s>=40?'var(--sky)':'var(--tx3)'
+  const scoreBg    = s => s>=80?'rgba(63,185,80,.12)':s>=60?'rgba(200,169,110,.12)':s>=40?'rgba(88,166,255,.08)':'rgba(255,255,255,.04)'
+  const typeIcon   = t => t==='corporate'?'🏢':t==='event_organizer'?'🎪':t==='long_stay'?'🏠':'👤'
+  const statusBadge = s => {
+    const map = {new:{color:'var(--tx3)',bg:'rgba(255,255,255,.05)',label:'New'},scored:{color:'var(--sky)',bg:'rgba(88,166,255,.1)',label:'Scored'},outreach_sent:{color:'var(--gold)',bg:'rgba(200,169,110,.12)',label:'Outreach Sent'},replied:{color:'var(--grn)',bg:'rgba(63,185,80,.12)',label:'Replied'},converted:{color:'var(--grn)',bg:'rgba(63,185,80,.2)',label:'Converted'},rejected:{color:'var(--rose)',bg:'rgba(224,92,122,.1)',label:'Rejected'}}
+    return map[s]||{color:'var(--tx3)',bg:'rgba(255,255,255,.04)',label:s}
+  }
+
+  return (
+    <div>
+      <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.06),rgba(200,169,110,.04))',border:'1px solid rgba(88,166,255,.2)',padding:'12px 16px',marginBottom:16}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontFamily:'var(--serif)',fontSize:16,color:'var(--sky)'}}>🎯 Lead Gen Swarm — 3 AI Agents</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>Scout → Score → Outreach → CRM Sync · Corporate · Event Organizers · Long-Stay Expats</div>
+          </div>
+          {dashboard&&(<div style={{display:'flex',gap:16,textAlign:'right'}}><div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Total Leads</div><div style={{fontSize:18,color:'var(--sky)',fontFamily:'var(--serif)'}}>{dashboard.total_leads}</div></div><div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>High Priority</div><div style={{fontSize:18,color:'var(--rose)',fontFamily:'var(--serif)'}}>{dashboard.high_priority}</div></div><div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em'}}>Replied</div><div style={{fontSize:18,color:'var(--grn)',fontFamily:'var(--serif)'}}>{dashboard.replied}</div></div></div>)}
+        </div>
+      </div>
+      <div className="tabs mb4">
+        {[['dashboard','📊 Dashboard'],['scout','🔍 Agent 1 · Scout'],['analyst','🧠 Agent 2 · Analyst'],['outreach','📨 Agent 3 · Outreach'],['leads','📋 All Leads']].map(([v,l])=>(
+          <button key={v} className={`tab${activeTab===v?' on':''}`} onClick={()=>setActiveTab(v)}>{l}</button>
+        ))}
+      </div>
+      {replyModal&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setReplyModal(null)}>
+          <div style={{background:'var(--bg2)',border:'1px solid var(--br)',padding:24,width:480,maxWidth:'90vw'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)',marginBottom:16}}>Log Reply — {replyModal.name}</div>
+            <div className="fg mb3"><label className="flbl">Paste their reply message</label><textarea className="finput" rows={4} value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="e.g. Yes, we're interested! Can we schedule a site visit next week?" style={{resize:'vertical'}}/></div>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+              <button className="btn btn-ghost" onClick={()=>setReplyModal(null)}>Cancel</button>
+              <button className="btn btn-gold" disabled={!replyText.trim()||busy===`sync:${replyModal.leadId}`} onClick={()=>doSync(replyModal.leadId,replyText)}>{busy===`sync:${replyModal.leadId}`?'Syncing…':'✓ Sync to CRM + Notify Front Desk'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {activeTab==='dashboard'&&(
+        <div>
+          {dashboard&&(
+            <div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:16}}>
+                {[['Total Leads',dashboard.total_leads,'var(--sky)'],['High Priority (80+)',dashboard.high_priority,'var(--rose)'],['Outreach Sent',dashboard.by_status?.outreach_sent||0,'var(--gold)'],['Replied',dashboard.replied,'var(--grn)']].map(([l,v,c],i)=>(
+                  <div key={i} style={{background:'rgba(0,0,0,.2)',border:'1px solid var(--br)',padding:'12px',textAlign:'center'}}><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:4}}>{l}</div><div style={{fontSize:24,color:c,fontFamily:'var(--serif)',fontWeight:600}}>{v}</div></div>
+                ))}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+                <div className="card">
+                  <div className="card-hd"><span className="card-title">By Lead Type</span></div>
+                  {Object.entries(dashboard.by_type||{}).map(([type,count])=>(<div key={type} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}><span>{typeIcon(type)} {type.replace(/_/g,' ').replace(/\w/g,l=>l.toUpperCase())}</span><span style={{color:'var(--gold)',fontWeight:600}}>{count}</span></div>))}
+                </div>
+                <div className="card">
+                  <div className="card-hd"><span className="card-title">By Status</span></div>
+                  {Object.entries(dashboard.by_status||{}).map(([status,count])=>{ const b=statusBadge(status); return (<div key={status} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--br2)',fontSize:12}}><span style={{color:b.color}}>{b.label}</span><span style={{color:'var(--gold)',fontWeight:600}}>{count}</span></div>) })}
+                </div>
+              </div>
+              {dashboard.top_leads?.length>0&&(
+                <div className="card">
+                  <div className="card-hd"><span className="card-title">Top Priority Leads (Score ≥70)</span></div>
+                  {dashboard.top_leads.map(l=>(
+                    <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)'}}>
+                      <div style={{width:36,height:36,background:scoreBg(l.intent_score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:13,color:scoreColor(l.intent_score),fontWeight:700,flexShrink:0}}>{l.intent_score}</div>
+                      <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{l.full_name} <span style={{fontSize:10,color:'var(--tx3)'}}>· {l.title}</span></div><div style={{fontSize:10,color:'var(--tx3)'}}>{typeIcon(l.lead_type)} {l.company_name} · {l.area}</div></div>
+                      <span style={{fontSize:9,padding:'2px 8px',background:statusBadge(l.outreach_status).bg,color:statusBadge(l.outreach_status).color,letterSpacing:'.08em',textTransform:'uppercase',flexShrink:0}}>{statusBadge(l.outreach_status).label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='scout'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><span style={{fontSize:24}}>🔍</span><div><div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 1 — The Digital Scout</div><div style={{fontSize:10,color:'var(--tx3)'}}>Discovers leads from LinkedIn, corporate directories, Facebook groups · 3 lead types: Corporate, Event Organizers, Long-Stay Expats</div></div></div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:10,marginBottom:14}}>
+              <div>
+                <label className="flbl">Lead Type to Scout</label>
+                <select className="finput" value={leadType} onChange={e=>setLeadType(e.target.value)}>
+                  <option value="corporate">🏢 Corporate — HR/Travel Managers in Nikunja, Khilkhet, Uttara</option>
+                  <option value="event_organizer">🎪 Event Organizers — Training coordinators, seminar planners</option>
+                  <option value="long_stay">🏠 Long-Stay — Expats, consultants moving to Dhaka</option>
+                </select>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+                <button className="btn btn-gold" onClick={doScout} disabled={busy==='scout'} style={{whiteSpace:'nowrap'}}>{busy==='scout'?'🔄 Scouting…':'🔍 Scout Now'}</button>
+              </div>
+            </div>
+            {[{type:'corporate',icon:'🏢',title:'Airport Transit Strategy',target:'HR & Travel Managers at multinationals in Nikunja/Khilkhet/Uttara',pitch:'Dedicated Corporate Wing · 24/7 check-in · High-speed WiFi · Corporate rates'},{type:'event_organizer',icon:'🎪',title:'Small Gathering Strategy',target:'Event planners, training coordinators needing space for 10-30 people',pitch:"30-room boutique · Private meeting room · Chef Samim's Day-Use lunch package"},{type:'long_stay',icon:'🏠',title:'Long-Stay Strategy',target:'Expats & consultants moving to Dhaka, Facebook "Expats in Dhaka" groups',pitch:'Home-Away-From-Home · 24/7 security · Airport proximity · Weekly/monthly rates'}].map(s=>(
+              <div key={s.type} style={{background:leadType===s.type?'rgba(200,169,110,.06)':'rgba(0,0,0,.1)',border:`1px solid ${leadType===s.type?'rgba(200,169,110,.3)':'var(--br)'}`,padding:'10px 12px',marginBottom:6,cursor:'pointer'}} onClick={()=>setLeadType(s.type)}>
+                <div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{s.icon} {s.title}</div>
+                <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>Target: {s.target}</div>
+                <div style={{fontSize:10,color:'var(--gold)',marginTop:2}}>Pitch: {s.pitch}</div>
+              </div>
+            ))}
+          </div>
+          {scoutResult&&(
+            <div className="card">
+              <div style={{fontSize:12,color:'var(--grn)',fontWeight:600,marginBottom:10}}>✓ {scoutResult.leads_found} leads found ({scoutResult.lead_type})</div>
+              {(scoutResult.leads||[]).map((l,i)=>(<div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'10px 12px',marginBottom:6}}><div style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{l.full_name} <span style={{fontSize:10,color:'var(--tx3)',fontWeight:400}}>· {l.title}</span></div><div style={{fontSize:11,color:'var(--sky)',marginTop:2}}>{l.company_name} · {l.area}</div><div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>{l.qualification_notes}</div>{l.email&&<div style={{fontSize:10,color:'var(--tx2)',marginTop:2}}>{l.email} {l.phone&&`· ${l.phone}`}</div>}</div>))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='analyst'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><span style={{fontSize:24}}>🧠</span><div><div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 2 — The Intent Analyst</div><div style={{fontSize:10,color:'var(--tx3)'}}>Scores leads 0-100 · Analyzes transit needs, event frequency, travel policy · Score ≥80 → auto-queued for outreach</div></div></div>
+            <div style={{background:'rgba(88,166,255,.05)',border:'1px solid rgba(88,166,255,.15)',padding:'10px 14px',marginBottom:14,fontSize:11,color:'var(--sky)'}}>📊 <strong>Scoring logic:</strong> Corporate in Nikunja +30 · Travel/HR role +25 · Multinational +20 · Event frequency +40 · Expat/consultant +40</div>
+            <button className="btn btn-gold" onClick={doAnalyzeAll} disabled={busy==='analyze'}>{busy==='analyze'?'🧠 Analyzing…':'🧠 Analyze All Unscored Leads'}</button>
+          </div>
+          {analystResult&&(
+            <div className="card">
+              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ {analystResult.scored} leads scored · {analystResult.high_priority_count} high priority (≥80)</div>
+              {(analystResult.results||[]).map((r,i)=>(
+                <div key={i} style={{display:'flex',gap:10,padding:'8px 0',borderBottom:'1px solid var(--br2)',alignItems:'flex-start'}}>
+                  <div style={{width:44,height:44,background:scoreBg(r.score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:16,color:scoreColor(r.score),fontWeight:700,flexShrink:0}}>{r.score}</div>
+                  <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx)'}}>{r.name} <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company}</span></div><div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:4}}>{(r.signals||[]).map((s,j)=>(<span key={j} style={{fontSize:9,padding:'2px 6px',background:'rgba(88,166,255,.08)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.2)'}}>{s}</span>))}</div>{r.high_priority&&<span style={{display:'inline-block',marginTop:4,fontSize:9,padding:'2px 8px',background:'rgba(224,92,122,.12)',color:'var(--rose)',letterSpacing:'.08em'}}>🔴 HIGH PRIORITY</span>}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='outreach'&&(
+        <div>
+          <div className="card mb4">
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><span style={{fontSize:24}}>📨</span><div><div style={{fontFamily:'var(--serif)',fontSize:15,color:'var(--tx)'}}>Agent 3 — The Outreach Specialist</div><div style={{fontSize:10,color:'var(--tx3)'}}>Sends personalized LinkedIn/email/WhatsApp · Auto-outreach for score ≥80 · Post-reply: syncs to CRM + alerts front desk</div></div></div>
+            <div style={{display:'flex',gap:8,alignItems:'flex-end',marginBottom:14}}>
+              <div style={{flex:1}}>
+                <label className="flbl">Auto-outreach score threshold</label>
+                <input type="range" min={50} max={95} step={5} value={scoreThreshold} onChange={e=>setScoreThreshold(+e.target.value)} style={{width:'100%',marginTop:6}}/>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)',marginTop:2}}><span>50 (broad)</span><span style={{color:'var(--gold)',fontWeight:600}}>Current: {scoreThreshold}+</span><span>95 (strict)</span></div>
+              </div>
+              <button className="btn btn-gold" onClick={doBulkOutreach} disabled={busy==='bulk_outreach'} style={{whiteSpace:'nowrap',marginBottom:0}}>{busy==='bulk_outreach'?'📨 Sending…':`📨 Send to All ≥${scoreThreshold}`}</button>
+            </div>
+            <div style={{background:'rgba(63,185,80,.05)',border:'1px solid rgba(63,185,80,.15)',padding:'10px 14px',fontSize:11,color:'var(--grn)'}}>🔄 <strong>CRM Sync flow:</strong> Guest replies → log reply below → Agent 3 analyzes intent → creates guest profile in CRM → notifies front desk with priority level</div>
+          </div>
+          {outreachResult&&(
+            <div className="card mb4">
+              <div style={{fontSize:12,fontWeight:600,color:'var(--grn)',marginBottom:10}}>✓ {outreachResult.sent} messages sent (threshold: {outreachResult.threshold})</div>
+              {(outreachResult.results||[]).map((r,i)=>(<div key={i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'12px',marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><div><span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{r.lead_name}</span> <span style={{fontSize:10,color:'var(--tx3)'}}>· {r.company} · Score: {r.score}</span></div><span style={{fontSize:9,padding:'2px 8px',background:'rgba(200,169,110,.12)',color:'var(--gold)',letterSpacing:'.08em',textTransform:'uppercase'}}>{r.channel}</span></div>{r.message&&<div style={{fontSize:11,color:'var(--tx2)',background:'rgba(0,0,0,.3)',padding:'8px 10px',fontFamily:'monospace',lineHeight:1.6}}>{r.message}</div>}<div style={{fontSize:10,color:'var(--tx3)',marginTop:6}}>Contact: {r.contact||'—'}</div></div>))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==='leads'&&(
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div style={{fontSize:12,color:'var(--tx3)'}}>{leads.length} leads total — sorted by score</div>
+            <button className="btn btn-ghost btn-sm" onClick={()=>{loadLeads();loadDashboard()}}>↻ Refresh</button>
+          </div>
+          {loadingLeads?(<div style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>Loading…</div>):(
+            leads.length===0?(<div className="card" style={{textAlign:'center',padding:'24px',color:'var(--tx3)',fontSize:12}}>No leads yet — run Agent 1 to scout</div>):
+            leads.map(l=>{
+              const sb = statusBadge(l.outreach_status)
+              const signals = typeof l.intent_signals === 'string' ? JSON.parse(l.intent_signals||'[]') : (l.intent_signals||[])
+              return (
+                <div key={l.id} style={{background:'rgba(0,0,0,.12)',border:'1px solid var(--br)',padding:'12px 14px',marginBottom:6}}>
+                  <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+                    {l.intent_score>0&&(<div style={{width:40,height:40,background:scoreBg(l.intent_score),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:14,color:scoreColor(l.intent_score),fontWeight:700,flexShrink:0}}>{l.intent_score}</div>)}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
+                        <div><span style={{fontWeight:600,fontSize:12,color:'var(--tx)'}}>{l.full_name}</span><span style={{fontSize:10,color:'var(--tx3)',marginLeft:6}}>{l.title}</span><span style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.08)',color:'var(--sky)',marginLeft:6,letterSpacing:'.06em'}}>{typeIcon(l.lead_type)} {l.lead_type.replace(/_/g,' ')}</span></div>
+                        <span style={{fontSize:9,padding:'2px 8px',background:sb.bg,color:sb.color,letterSpacing:'.08em',textTransform:'uppercase',flexShrink:0,fontWeight:600}}>{sb.label}</span>
+                      </div>
+                      <div style={{fontSize:11,color:'var(--sky)'}}>{l.company_name} · {l.area}</div>
+                      <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{l.email} {l.phone&&`· ${l.phone}`}</div>
+                      {signals.length>0&&(<div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}}>{signals.map((s,i)=><span key={i} style={{fontSize:9,padding:'1px 6px',background:'rgba(88,166,255,.06)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.15)'}}>{s}</span>)}</div>)}
+                      {l.outreach_message&&(<details style={{marginTop:6}}><summary style={{fontSize:10,color:'var(--gold)',cursor:'pointer'}}>📨 View outreach message ▾</summary><div style={{marginTop:4,fontSize:10,color:'var(--tx2)',background:'rgba(0,0,0,.3)',padding:'8px 10px',fontFamily:'monospace',lineHeight:1.6,maxHeight:150,overflow:'auto'}}>{l.outreach_message}</div></details>)}
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
+                      {l.outreach_status==='new'&&(<button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:'rgba(88,166,255,.1)',color:'var(--sky)',border:'1px solid rgba(88,166,255,.3)'}} disabled={busy===`analyze:${l.id}`} onClick={()=>doAnalyzeLead(l.id)}>{busy===`analyze:${l.id}`?'Scoring…':'🧠 Score'}</button>)}
+                      {(l.outreach_status==='scored'||l.intent_score>0)&&l.outreach_status!=='outreach_sent'&&l.outreach_status!=='replied'&&(<><button className="btn btn-sm btn-gold" style={{fontSize:9,padding:'3px 8px'}} disabled={!!busy} onClick={()=>doOutreachLead(l.id,'linkedin')}>💼 LinkedIn</button><button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:'rgba(37,211,102,.1)',color:'#25D366',border:'1px solid rgba(37,211,102,.3)'}} disabled={!!busy} onClick={()=>doOutreachLead(l.id,'whatsapp')}>📱 WhatsApp</button></>)}
+                      {l.outreach_status==='outreach_sent'&&(<button className="btn btn-sm" style={{fontSize:9,padding:'3px 8px',background:'rgba(63,185,80,.1)',color:'var(--grn)',border:'1px solid rgba(63,185,80,.3)'}} onClick={()=>{setReplyModal({leadId:l.id,name:l.full_name});setReplyText('')}}>✉ Log Reply</button>)}
+                      {l.outreach_status==='replied'&&!l.crm_synced&&(<button className="btn btn-sm btn-gold" style={{fontSize:9,padding:'3px 8px'}} disabled={!!busy} onClick={()=>doSync(l.id,'interested')}>🔄 Sync CRM</button>)}
+                      {l.crm_synced&&<span style={{fontSize:9,color:'var(--grn)'}}>✓ CRM</span>}
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 /* ═══════════════════════ WORKFLOW MONITOR ══════════════════ */
 function WorkflowMonitor({toast}) {
   const [runs,setRuns]=useState([])
   const [loading,setLoading]=useState(true)
   const [triggering,setTriggering]=useState(null)
-  const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+  const SB_ANON=SB_KEY
   const BASE='https://mynwfkgksqqwlqowlscj.supabase.co'
 
   const WORKFLOWS = [
@@ -3916,7 +4717,7 @@ function GoogleSheetsCard({toast}) {
   const [counts,setCounts]=useState(null)
   const [sheetId,setSheetId]=useState('1uekoRKGuhMLXBW8AY3ONr-vPTyml9QDoJgRYA3HsPNU')
   const EDGE_FN='https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/sync-to-sheets'
-  const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+  const SB_ANON=SB_KEY
 
   async function runSync(){
     setSyncing(true)
@@ -4350,7 +5151,7 @@ function App() {
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
-            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList}/>}
+            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests}/>}
           </div>
         </main>
       </div>
