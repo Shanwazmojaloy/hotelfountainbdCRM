@@ -502,3 +502,53 @@ All security items from the 2026-04-30 action list are now resolved:
 - Add `transactions_reservation_id_fkey` FK migration
 - Orphan tx cleanup (24 rows, ~à§³70,680 inflation)
 - **Renew FACEBOOK_PAGE_TOKEN before 2026-06-30** â€” re-run Graph API Explorer on Shanwaz Ahmed account, update `ADD_FACEBOOK_TOKEN.bat` + re-run it + update `.env.local`
+
+---
+
+## Session: 2026-05-04 — Ruflo Agents + DB Fixes + Deployment
+
+### Ruflo Agent Infrastructure
+- Installed ruflo v3.5.80, configured Claude Desktop MCP via stdio
+- PM2 persistent service: `lumea-ruflo` (id:2), auto-restarts on reboot
+- Wrapper: `ruflo-mcp.js` in project root (pnpm compat fix)
+- Agents clear on MCP restart — recreate via Claude at each session start (~10s)
+
+### 5 Permanent DAA Agents
+| ID | Role | Pattern |
+|---|---|---|
+| `lumea-billing` | Billing & Folio Analyst | critical |
+| `lumea-rooms` | Room Matrix & Availability | systems |
+| `lumea-reservations` | Reservation Workflow | adaptive |
+| `lumea-db` | Database Architect | convergent |
+| `lumea-guests` | Guest Ledger & CRM | divergent |
+
+### Database Fixes (mynwfkgksqqwlqowlscj)
+- Dropped 7 redundant columns; consolidated discount_amount -> discount
+- Status casing: CHECK constraints + auto-UPPER triggers on rooms + reservations
+- RLS: Fixed open qual:true on reservations/rooms/transactions/guests/folios
+- Deployed: reservation_billing_summary view, compute_bill() function
+- Guest cleanup: 452 placeholder emails nulled, ledger 12.5% -> 99% coverage
+- Compat columns restored (fixes Supabase 400 on reservation INSERT)
+
+### Canonical Architecture Decisions
+- discount = canonical (not discount_amount)
+- room_ids[] = canonical (not room_id)
+- check_in/check_out = canonical (not _time variants)
+- All statuses UPPERCASE enforced at DB level
+- reservation_billing_summary = source of truth for dues
+- Billing formula: total_amount + folio_extras - discount
+- Guest count: 2,668 actual (docs said 994 — now corrected)
+
+### Security Event
+- Service role key accidentally committed to MEMORY_LOG.md line 449
+- Redacted and force-pushed — ROTATE KEY IN SUPABASE + VERCEL if not done
+
+### Known Bugs Fixed
+- Supabase 400 on reservation INSERT: compat columns + sync trigger
+- Babel 500KB warning: data-presets=react added to script tags
+- Phantom dues reduced from 81 reservations/82700 BDT to 10/19570 BDT
+
+### Deployment Info
+- crm.html: Hotel Fountain BD CRM/public/crm.html (556KB)
+- Vercel project: prj_BvTsXnp2GWgXsp6smJOXAm5gLgdr
+- Repo: Shanwazmojaloy/hotelfountainbdCRM

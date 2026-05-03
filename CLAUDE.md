@@ -278,3 +278,26 @@ npx @claude-flow/cli@latest doctor --fix
 
 - Documentation: https://github.com/ruvnet/ruflo
 - Issues: https://github.com/ruvnet/ruflo/issues
+
+---
+
+## Updated: 2026-05-04
+
+### Ruflo MCP
+- Always running via PM2 (lumea-ruflo). Check: `pm2 status`
+- Recreate 5 agents at session start — ask Claude to do it
+
+### DB Canonical Rules
+- discount > discount_amount (dropped, synced via trigger)
+- room_ids[] > room_id (dropped, synced via trigger)  
+- check_in/check_out > check_in_time/check_out_time (dropped)
+- Statuses always UPPERCASE (enforced at DB level)
+
+### File Locations
+- CRM: Hotel Fountain BD CRM/public/crm.html
+- Ruflo wrapper: Hotel Fountain BD CRM/ruflo-mcp.js
+
+### Active DB Objects
+- View: reservation_billing_summary
+- Function: compute_bill(uuid)
+- Triggers: trg_sync_compat_columns, trg_checkout_settlement_check, trg_rooms_status_upper, trg_reservations_status_upper
