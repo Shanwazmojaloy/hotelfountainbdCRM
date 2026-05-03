@@ -66,6 +66,38 @@ npm run lint
 - Always sanitize file paths to prevent directory traversal
 - Run `npx @claude-flow/cli@latest security scan` after security-related changes
 
+## Facebook Integration (Automated Marketer Agent)
+
+| Var | Value | Location |
+|-----|-------|----------|
+| `FACEBOOK_PAGE_TOKEN` | PAGE token (not USER token) | Vercel (all envs) + `.env.local` |
+| `FACEBOOK_PAGE_ID` | `111521248040168` | Vercel (all envs) + `.env.local` |
+
+- **Page:** Hotel Fountain (facebook.com/thehotelfountain, Shanwaz Ahmed account)
+- **Token type:** PAGE — obtained via Graph API Explorer → User token → `/me/accounts` → copy Page Access Token → Extend to 60-day via token debugger
+- **Expires:** 2026-06-30 — renew by running Graph API Explorer on Shanwaz Ahmed account, re-extending, updating `ADD_FACEBOOK_TOKEN.bat` + Vercel env vars
+- **DO NOT use USER tokens** — `me/accounts` returns `data:[]` for personal profiles with no Business Page admin role. Always get a PAGE token from the Shanwaz Ahmed account (ID: 26709838978678716), not the "Hotel Fountain" personal profile (ID: 995130273017390)
+- **App in dev mode** — `POST /me/accounts` (page creation via API) returns `(#100) Can only call this method on valid test users`. Cannot create pages via API; use Facebook UI.
+
+## Git / Sandbox Invariants
+
+- **NTFS index.lock**: `.git/*.lock` owned by Windows UID — cannot be deleted from Linux sandbox. All commits MUST originate from Windows PowerShell, not bash sandbox.
+- **Staged deletions guard**: Before every `git commit`, run `git diff --cached --name-only` and verify no critical files (`.env.local`, `facebook_post.py`, `ADD_FACEBOOK_TOKEN.bat`, `ruflo.config.json`, batch scripts) are staged for deletion. Use `git restore --staged <file>` if caught.
+- **crm.html truncation check**: After any Edit to `public/crm.html`, grep for `ReactDOM.createRoot` AND `</html>` before `git add`. Missing either = truncation regression.
+
+## Lumea CRM — Active Key Architecture (updated 2026-05-01)
+
+| Var | Format | Location |
+|-----|--------|----------|
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_...` | Vercel (sensitive) |
+| `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_...` | Vercel (encrypted) |
+| `BREVO_API_KEY` | `xkeysib-...` | Vercel (encrypted) |
+
+- Legacy HS256 JWT anon/service_role keys: **DISABLED + REVOKED** (2026-05-01). Do NOT re-enable.
+- `createClient(url, key)` works identically with both old JWT and new `sb_*` formats — no code change needed when rotating.
+- Supabase project ref: `mynwfkgksqqwlqowlscj` (Bridge Booking)
+- Vercel project: `prj_BvTsXnp2GWgXsp6smJOXAm5gLgdr` / team: `team_l1SAECyZJ9giIw4o2SGxjpqd`
+
 ## Concurrency: 1 MESSAGE = ALL RELATED OPERATIONS
 
 - All operations MUST be concurrent/parallel in a single message

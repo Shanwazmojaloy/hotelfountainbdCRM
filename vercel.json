@@ -2,8 +2,14 @@
   "version": 2,
   "framework": "nextjs",
   "outputDirectory": ".next",
+  "regions": ["sin1"],
   "rewrites": [
     { "source": "/crm.html", "destination": "/crm.html" },
     { "source": "/landing", "destination": "/index.html" }
-  ]
+  ],
+  "functions": {
+    "api/**": {
+      "maxDuration": 30
+    }
+  }
 }
