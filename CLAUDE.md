@@ -311,3 +311,17 @@ npx @claude-flow/cli@latest doctor --fix
 
 ### Full Agent Roster (10 total) — recreate all at session start
 Say "start agents" to Claude — boots all 10 in ~20 seconds.
+
+## RUFLO AGENT SWARM (10 Agents — recreate each session with "start agents")
+| ID | Domain | Pattern |
+|---|---|---|
+| `lumea-billing` | Billing & Folio | critical |
+| `lumea-rooms` | Room Matrix | systems |
+| `lumea-reservations` | Reservations | adaptive |
+| `lumea-db` | Database & RLS | convergent |
+| `lumea-guests` | Guest Ledger | divergent |
+| `lumea-housekeeping` | Room Turnover | systems |
+| `lumea-reports` | Analytics & Closing | convergent |
+| `lumea-alerts` | Overdue & Notifications | critical |
+| `lumea-leads` | B2B Pipeline | divergent |
+| `lumea-audit` | Security Monitoring | critical |
