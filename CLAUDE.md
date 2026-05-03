@@ -325,3 +325,42 @@ Say "start agents" to Claude — boots all 10 in ~20 seconds.
 | `lumea-alerts` | Overdue & Notifications | critical |
 | `lumea-leads` | B2B Pipeline | divergent |
 | `lumea-audit` | Security Monitoring | critical |
+
+---
+
+## RUFLO AGENT SWARM (10 Agents — recreate each session with "start agents")
+
+| ID | Domain | Pattern | DB Objects |
+|---|---|---|---|
+| `lumea-billing` | Billing & Folio | critical | compute_bill(), reservation_billing_summary |
+| `lumea-rooms` | Room Matrix | systems | status triggers, CHECK constraints |
+| `lumea-reservations` | Reservations | adaptive | compat columns, sync trigger |
+| `lumea-db` | Database & RLS | convergent | RLS policies, indexes |
+| `lumea-guests` | Guest Ledger | divergent | unique email index, ledger backfill |
+| `lumea-housekeeping` | Room Turnover | systems | auto-DIRTY/AVAILABLE triggers, dashboard view |
+| `lumea-reports` | Analytics | convergent | daily_revenue_summary, occupancy_stats, monthly_revenue_summary |
+| `lumea-alerts` | Overdue & Notifications | critical | overdue_payment_alerts view, log_overdue_alerts() |
+| `lumea-leads` | B2B Pipeline | divergent | leads_pipeline, b2b_partner_summary views |
+| `lumea-audit` | Security Monitoring | critical | rls_audit, open_access_audit views |
+
+## ACTIVE DB VIEWS (all SECURITY INVOKER)
+- reservation_billing_summary — billing source of truth
+- overdue_payment_alerts — live unpaid checkout tracker
+- daily_revenue_summary — per-day revenue breakdown
+- occupancy_stats — room occupancy by date
+- monthly_revenue_summary — monthly P&L rollup
+- housekeeping_dashboard — pending room tasks
+- leads_pipeline — lead health tracker
+- b2b_partner_summary — agency performance
+- rls_audit — RLS policy coverage
+- open_access_audit — open qual:true policy detector
+
+## ACTIVE DB FUNCTIONS & TRIGGERS
+- compute_bill(uuid) — canonical billing calc
+- log_overdue_alerts() — snapshot overdue to notifications_log
+- trg_sync_compat_columns — maps old frontend cols to canonical
+- trg_checkout_settlement_check — warns on partial checkout
+- trg_rooms_status_upper — enforces UPPERCASE room status
+- trg_reservations_status_upper — enforces UPPERCASE reservation status
+- trg_auto_housekeeping — creates DIRTY + task on checkout
+- trg_room_available_on_clean — sets AVAILABLE when task completed
