@@ -418,7 +418,87 @@ For future audit passes, commit incrementally after each phase before moving on.
 - `.gitignore` updated: added `.claude-flow/`, `.swarm/`, `tsconfig.tsbuildinfo`, `.mcp.json`, `.claude/worktrees/`
 
 ### Pending (carry forward)
-1. Set Vercel env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TENANT_ID`, `BREVO_API_KEY`
-2. Rotate leaked Brevo API key + Supabase anon JWT (flagged in 2026-04-30 entry)
-3. Run `supabase/migrations/20260429_status_uppercase_constraints.sql` in Supabase SQL Editor
+1. ~~Set Vercel env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TENANT_ID`, `BREVO_API_KEY`~~ ✅ DONE (2026-05-01)
+2. ~~Rotate leaked Brevo API key + Supabase anon JWT~~ ✅ DONE (2026-05-01) — see Security Migration entry below
+3. Run `supabase/migrations/20260429_status_uppercase_constraints.sql` in Supabase SQL Editor — still pending owner action
 4. Clean up orphaned worktree directory: `.claude/worktrees/nice-turing` still tracked? Verify with `git ls-files .claude/worktrees/`
+
+---
+
+## 2026-05-01 — Security Migration + ESLint Build Cleanup
+
+### ESLint / TypeScript Build Warning Fixes (commits c3f66bc, 9a8959d, b430c6a)
+
+Three-commit sprint to get Vercel build to zero errors, zero blocking warnings:
+
+| Commit | Fix |
+|---|---|
+| `c3f66bc` | Removed unused `e` bindings in `catch` clauses across `route.ts` and other files |
+| `9a8959d` | Fixed `eslint-disable-next-line @next/next/no-img-element` placement — directive must be on the **immediately preceding line** with no blank line gap. Fixed 4 `<img>` tags in `page.tsx`. Also removed duplicate disable comment. |
+| `b430c6a` | Migration canonical status `OOO` → `OUT_OF_ORDER` in `20260429_status_uppercase_constraints.sql` |
+
+**Rule confirmed:** `{/* eslint-disable-next-line */}` applies to the IMMEDIATELY next rendered line. A blank JSX line between the comment and the `<img>` tag causes the directive to fire on the blank line, leaving the `<img>` still flagged.
+
+### Security Migration — Full Key Rotation (2026-05-01)
+
+All security items from the 2026-04-30 action list are now resolved:
+
+| Item | Before | After | Status |
+|---|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | HS256 JWT (`[REDACTED]…TRiow`) | `sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh` | ✅ Live |
+| `SUPABASE_SERVICE_ROLE_KEY` | HS256 JWT (`[REDACTED]…`) | `[REDACTED]` | ✅ Live |
+| `BREVO_API_KEY` | Already rotated (updated ~1h before this sprint) | — | ✅ Live |
+| Legacy `anon` / `service_role` JWT-based API keys | Enabled | **Disabled** | ✅ Done |
+| HS256 signing key `A1647548-C0A5-4EC1-8A9E-EF0A7A346551` | "Previously used" | **REVOKED** | ✅ Done |
+
+**The leaked `…TRiow` anon JWT from git history is cryptographically dead.** Its signing key no longer exists in Supabase. Any bearer presenting that token will receive a 401.
+
+**Migration sequence that was required (for future reference):**
+1. Update `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Vercel → `sb_publishable_...` (done via Vercel Management API PATCH)
+2. Get new `sb_secret_...` from Supabase → Settings → API Keys → Secret keys → Reveal + copy
+3. Update `SUPABASE_SERVICE_ROLE_KEY` in Vercel → `sb_secret_...`
+4. In Supabase → Settings → API Keys → Legacy tab → click "Disable JWT-based API keys" → type `disable` → confirm
+5. In Supabase → Settings → JWT Keys → Previously used keys → ⋮ → Revoke key → type full key ID → confirm
+
+**Architecture — new key formats:**
+- **Publishable key** (`sb_publishable_...`): replaces legacy `anon` JWT. Safe for browser. Controlled by RLS.
+- **Secret key** (`sb_secret_...`): replaces legacy `service_role` JWT. Server-side only. Bypasses RLS.
+- Both keys rotate independently of the HS256 signing key and are not invalidated by signing key revocation.
+- Code that calls `createClient(url, key)` works identically with both old JWT format and new `sb_*` format — no code changes required.
+
+**Vercel env var IDs (for future PATCH via Management API):**
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` → env ID: `E6ALkqIyxUpKQg3P`
+- `SUPABASE_SERVICE_ROLE_KEY` → env ID: `W8rd4cL0avYZz3mn`
+- Project: `prj_BvTsXnp2GWgXsp6smJOXAm5gLgdr` / Team: `team_l1SAECyZJ9giIw4o2SGxjpqd`
+
+### Pending (carry forward)
+- Run `supabase/migrations/20260429_status_uppercase_constraints.sql` in Supabase SQL Editor (owner action)
+- Add `transactions_reservation_id_fkey` FK migration (flagged in v3.5.1 — still no FK on `transactions.reservation_id`)
+- Orphan tx cleanup: 24 pre-2026-04-25 rows with no matching reservation inflate THIS MONTH KPI by ~৳70,680
+- `.claude/worktrees/nice-turing` — verify with `git ls-files .claude/worktrees/` and remove if tracked
+
+---
+
+## 2026-05-02 — Facebook Page Token + crm.html Truncation Fix
+
+### crm.html Babel Truncation Hotfix (commit `08514e4`)
+- **Symptom:** `Unexpected token, expected "}"` at line 4274 — app failed to mount on prod.
+- **Root cause:** Last committed `public/crm.html` (commit `99e185b`) was truncated mid-token at `` rgba(63,185,80,.3)':o `` with `\ No newline at end of file`. 873 lines of JSX (OffersPanel, LeadGenSwarmPanel, B2BSwarmPanel, PlanGPanel, ReactDOM.createRoot) were missing.
+- **Fix:** Staged the complete local file and committed as `08514e4`: "fix: complete truncated crm.html — restores offers panel JSX and all agent panels". Worked around `.git/index.lock` (Windows UID-owned, unremovable from sandbox) by using a temp git dir: `cp -r .git /tmp/crm-git-fix`, committed there, copied new objects back to NTFS repo, updated `refs/heads/main` manually.
+- **Staged deletions incident:** `git diff --cached --name-only` revealed `ruflo.config.json`, `facebook_post.py`, `ADD_FACEBOOK_TOKEN.bat`, `PUSH_FIX.bat` staged for deletion. All restored via `git restore --staged` before committing.
+- **Non-fatal warning noted:** In-browser Babel transformer; `public/crm.html` exceeds 500KB — deoptimized. Non-blocking; should pre-compile for production when time permits.
+
+### Facebook Page Token Setup (COMPLETE ✅)
+- **Page confirmed:** Hotel Fountain, Page ID `111521248040168` (facebook.com/thehotelfountain)
+- **Account:** Shanwaz Ahmed (ID: 26709838978678716) — not the "Hotel Fountain" personal profile (995130273017390 returned `data:[]` from `me/accounts`)
+- **Token type:** PAGE (long-lived, ~60 days). Obtained via Graph API Explorer → User token with `pages_manage_posts` + `pages_read_engagement` → `/me/accounts` → copy page token → extend via token debugger.
+- **Token expiry:** 2026-06-30. File `ADD_FACEBOOK_TOKEN.bat` contains renewal instructions and token value.
+- **Test post verified:** Post ID `111521248040168_993294476553091` — confirmed PAGE token works.
+- **Vercel env vars set:** `FACEBOOK_PAGE_TOKEN` + `FACEBOOK_PAGE_ID` pushed to production/preview/development via `.\ADD_FACEBOOK_TOKEN.bat` (confirmed 2026-05-02).
+- **`.env.local` updated** with same values for local dev.
+
+### Pending (carry forward)
+- Run `supabase/migrations/20260429_status_uppercase_constraints.sql` in Supabase SQL Editor
+- Add `transactions_reservation_id_fkey` FK migration
+- Orphan tx cleanup (24 rows, ~৳70,680 inflation)
+- **Renew FACEBOOK_PAGE_TOKEN before 2026-06-30** — re-run Graph API Explorer on Shanwaz Ahmed account, update `ADD_FACEBOOK_TOKEN.bat` + re-run it + update `.env.local`

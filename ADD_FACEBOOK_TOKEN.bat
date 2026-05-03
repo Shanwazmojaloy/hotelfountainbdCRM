@@ -1,64 +1,22 @@
 @echo off
-setlocal enabledelayedexpansion
 cd /d "%~dp0"
-
-echo ============================================================
-echo  Hotel Fountain — Add FACEBOOK_PAGE_TOKEN to Vercel
-echo ============================================================
-echo.
-echo You need two values from Facebook Developers:
-echo   1. Page Access Token  (long-lived)
-echo   2. Page ID            (numeric, e.g. 123456789012345)
-echo.
-echo Get them at: https://developers.facebook.com/tools/explorer
-echo Required permissions: pages_manage_posts, pages_read_engagement
+echo Adding FACEBOOK_PAGE_TOKEN to Vercel (all environments)...
 echo.
 
-set /p PAGE_TOKEN="Paste your FACEBOOK_PAGE_TOKEN: "
-set /p PAGE_ID="Paste your FACEBOOK_PAGE_ID (numeric): "
+echo EAANtCIB83mMBRQ1F0Nhw32uDPQ5tZBveHkUuYMmeP8g7FDOV2Va4yg8D0ZCUDzBY4YfuJRrSUy6TQGHTEjPNmaha9OImhzyGIHO0ZAt30rFD7C2ZCLbbme3KDbLq2tdbw8gePGp7QdtbWYYFefSlub67Fgfec8ZA9DMjqjqklDN18ZBX9BJ9AWU4RP9HHeY5y9hrfGqlwa6OLdVmPo2NgZD | vercel env add FACEBOOK_PAGE_TOKEN production --yes 2>nul
+echo EAANtCIB83mMBRQ1F0Nhw32uDPQ5tZBveHkUuYMmeP8g7FDOV2Va4yg8D0ZCUDzBY4YfuJRrSUy6TQGHTEjPNmaha9OImhzyGIHO0ZAt30rFD7C2ZCLbbme3KDbLq2tdbw8gePGp7QdtbWYYFefSlub67Fgfec8ZA9DMjqjqklDN18ZBX9BJ9AWU4RP9HHeY5y9hrfGqlwa6OLdVmPo2NgZD | vercel env add FACEBOOK_PAGE_TOKEN preview --yes 2>nul
+echo EAANtCIB83mMBRQ1F0Nhw32uDPQ5tZBveHkUuYMmeP8g7FDOV2Va4yg8D0ZCUDzBY4YfuJRrSUy6TQGHTEjPNmaha9OImhzyGIHO0ZAt30rFD7C2ZCLbbme3KDbLq2tdbw8gePGp7QdtbWYYFefSlub67Fgfec8ZA9DMjqjqklDN18ZBX9BJ9AWU4RP9HHeY5y9hrfGqlwa6OLdVmPo2NgZD | vercel env add FACEBOOK_PAGE_TOKEN development --yes 2>nul
 
-if "!PAGE_TOKEN!"=="" (
-    echo ERROR: Token cannot be empty.
-    pause & exit /b 1
-)
-if "!PAGE_ID!"=="" (
-    echo ERROR: Page ID cannot be empty.
-    pause & exit /b 1
-)
+echo 111521248040168 | vercel env add FACEBOOK_PAGE_ID production --yes 2>nul
+echo 111521248040168 | vercel env add FACEBOOK_PAGE_ID preview --yes 2>nul
+echo 111521248040168 | vercel env add FACEBOOK_PAGE_ID development --yes 2>nul
 
 echo.
-echo Adding to Vercel (production + preview + development)...
+echo Done. Check Vercel Dashboard ^> Environment Variables to confirm.
 echo.
-
-:: Add to all environments
-echo !PAGE_TOKEN! | vercel env add FACEBOOK_PAGE_TOKEN production  --token "" 2>nul
-echo !PAGE_TOKEN! | vercel env add FACEBOOK_PAGE_TOKEN preview     --token "" 2>nul
-echo !PAGE_TOKEN! | vercel env add FACEBOOK_PAGE_TOKEN development --token "" 2>nul
-echo !PAGE_ID!    | vercel env add FACEBOOK_PAGE_ID    production  --token "" 2>nul
-echo !PAGE_ID!    | vercel env add FACEBOOK_PAGE_ID    preview     --token "" 2>nul
-echo !PAGE_ID!    | vercel env add FACEBOOK_PAGE_ID    development --token "" 2>nul
-
-:: Write to .env.local for local dev
-echo. >> .env.local
-echo # Facebook Graph API >> .env.local
-echo FACEBOOK_PAGE_TOKEN=!PAGE_TOKEN! >> .env.local
-echo FACEBOOK_PAGE_ID=!PAGE_ID! >> .env.local
-
+echo Token: PAGE type, expires 2026-06-30 (60-day long-lived token)
+echo Page:  Hotel Fountain (ID: 111521248040168)
 echo.
-echo Validating token against Graph API...
-set FACEBOOK_PAGE_TOKEN=!PAGE_TOKEN!
-set FACEBOOK_PAGE_ID=!PAGE_ID!
-python scripts/facebook_post.py --message "test" --validate
-
-echo.
-echo Committing .env.example update...
-git add .env.example scripts/facebook_post.py ruflo.config.json crm.logic.test.ts package.json public/crm.html
-git commit -m "feat: add FACEBOOK_PAGE_TOKEN, facebook_post.py, ruflo agent config, marketing_opt_out migration"
-git push origin main
-
-echo.
-echo ============================================================
-echo  Done! Vercel will redeploy with FACEBOOK_PAGE_TOKEN set.
-echo  Test a post: python scripts/facebook_post.py --dry-run --message "Test"
-echo ============================================================
+echo NOTE: Renew before 2026-06-30 by re-running Graph API Explorer
+echo and replacing the token in this file + Vercel env vars.
 pause

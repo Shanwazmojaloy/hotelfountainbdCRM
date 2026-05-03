@@ -88,7 +88,7 @@
     ═══════════════════════════════════════════════════════════ */
 
     const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co'
-    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+    const SB_KEY = (window.__env&&window.__env.SB_KEY)||'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh'
     const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 
     const BDT = n => '৳' + Number(n || 0).toLocaleString('en-BD')
