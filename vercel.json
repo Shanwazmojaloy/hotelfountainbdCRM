@@ -6,10 +6,5 @@
   "rewrites": [
     { "source": "/crm.html", "destination": "/crm.html" },
     { "source": "/landing", "destination": "/index.html" }
-  ],
-  "functions": {
-    "api/**": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
