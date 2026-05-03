@@ -301,3 +301,13 @@ npx @claude-flow/cli@latest doctor --fix
 - View: reservation_billing_summary
 - Function: compute_bill(uuid)
 - Triggers: trg_sync_compat_columns, trg_checkout_settlement_check, trg_rooms_status_upper, trg_reservations_status_upper
+
+### Additional DAA Agents (added 2026-05-04)
+| `lumea-housekeeping` | Housekeeping & Room Turnover | systems |
+| `lumea-reports` | Reports & Analytics | convergent |
+| `lumea-alerts` | Alerts & Notifications | critical |
+| `lumea-leads` | Leads & B2B Pipeline | divergent |
+| `lumea-audit` | Security & Audit | critical |
+
+### Full Agent Roster (10 total) — recreate all at session start
+Say "start agents" to Claude — boots all 10 in ~20 seconds.
