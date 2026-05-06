@@ -613,19 +613,34 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
     id: t.id.join(', ')
   }));
   const todayT=mergedTransactions.filter(t=>t.fiscal_day===today)
-  const _bizDayTotalDash = list => {
-    const byKey = {}
-    list.forEach(t=>{
-      if(t.type==='Balance Carried Forward') return
-      const key = `${t.room_number||''}|${t.guest_name||''}`
-      if(!byKey[key]) byKey[key] = { pay:0, fsPos:0, hasCash:false }
-      const amt = +t.amount||0
-      if(/cash|bkash/i.test(t.type||'')) { byKey[key].pay += amt; byKey[key].hasCash = true }
-      else if(/final\s*settlement/i.test(t.type||'') && amt > 0) { byKey[key].fsPos += amt }
+  // todayRev: mirrors BillingPage's unifiedGroups logic — sums r.paid_amount for all
+  // reservations visible in today's ledger (activeTx matches + outstanding balance entries).
+  const todayRev = (() => {
+    const todayTxs = (transactions||[]).filter(t => t.fiscal_day === today)
+    const seen = new Set()
+    let total = 0
+    // Part 1 — reservations found via today's transactions (same dual-match as ledger table)
+    todayTxs.forEach(t => {
+      const guestId = guests?.find(g => g.name === t.guest_name)?.id
+      const res = reservations?.find(r => {
+        const roomMatch = (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number)
+        const nameMatch = !guestId || (r.guest_ids||[]).includes(guestId) || r.guest_name === t.guest_name
+        return roomMatch && nameMatch
+      }) || reservations?.find(r => (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number))
+      if (res && !seen.has(res.id)) {
+        seen.add(res.id)
+        total += +res.paid_amount || 0
+      }
     })
-    return Object.values(byKey).reduce((a,g)=> a + (g.hasCash ? g.pay : g.fsPos), 0)
-  }
-  const todayRev=_bizDayTotalDash((transactions||[]).filter(t=>t.fiscal_day===today))
+    // Part 2 — outstanding balance reservations not caught above
+    const _rDue = r => Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0))
+    reservations.filter(r => (r.status==='CHECKED_IN'||r.status==='CHECKED_OUT') && _rDue(r)>0).forEach(r => {
+      if (!r?.id || seen.has(r.id)) return
+      seen.add(r.id)
+      total += +r.paid_amount || 0
+    })
+    return total
+  })()
   const inHouse=reservations.filter(r=>r.status==='CHECKED_IN').length
   const pending=reservations.filter(r=>r.status==='PENDING').length
   const last14=Array.from({length:14},(_,i)=>{
