@@ -89,6 +89,16 @@ export async function GET(req: Request) {
   try {
     const today = new Date().toISOString().split('T')[0];
 
+    // Fetch WhatsApp number from hotel_settings
+    const { data: waSetting } = await supabase
+      .from('hotel_settings')
+      .select('value')
+      .eq('tenant_id', TENANT)
+      .eq('key', 'whatsapp_number')
+      .single();
+    const waNumber = (waSetting?.value ?? '+8801322840799').replace(/[^0-9]/g, '');
+    const waLink = `https://wa.me/${waNumber}`;
+
     const { data: approvedContent } = await supabase
       .from('marketing_content')
       .select('*')
@@ -112,7 +122,7 @@ export async function GET(req: Request) {
 
       if (rooms && rooms.length > 0) {
         const room = rooms[0];
-        postBody = `🏨 Room of the Day — ${room.name}\n\n✨ ${room.room_type} | ৳${room.rate}/night\n\n📞 Book now via WhatsApp: https://wa.me/8801XXXXXXXXX\n\n#HotelFountain #Dhaka #HotelBD`;
+        postBody = `🏨 Room of the Day — ${room.name}\n\n✨ ${room.room_type} | ৳${room.rate}/night\n\n📞 Book now via WhatsApp: ${waLink}\n\n#HotelFountain #Dhaka #HotelBD`;
       }
     }
 
