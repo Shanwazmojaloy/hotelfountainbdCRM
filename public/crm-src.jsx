@@ -2326,23 +2326,32 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     })
     return Object.values(byKey).reduce((a,g)=> a + (g.hasCash ? g.pay : g.fsPos), 0)
   }
-  // todayRevenue: sum computeBill(r).paid for unique reservations active in today's ledger
-  // Fixes: cash paid on a prior biz day (BCF carry-forward) was excluded. Now matches PAID column sum.
+  // todayRevenue: mirrors the ledger table's unifiedGroups logic exactly.
+  // Part 1: reservations matched via activeLedgerTx (same dual-match: room_ids UUID OR room_number string + guest name)
+  // Part 2: reservations with outstanding balance (dueRes equivalent) not already counted.
+  // Result = exact sum of the PAID column shown in today's ledger table.
   const todayRevenue = (() => {
     const seen = new Set()
     let total = 0
+    // Part 1 — same reservation lookup the table uses
     activeLedgerTx.forEach(t => {
-      const r = reservations.find(r => {
-        const rns = (r.room_ids||[]).map(String).concat(r.room_number ? [String(r.room_number)] : [])
-        return rns.includes(String(t.room_number)) &&
-               t.fiscal_day >= (r.check_in||'').slice(0,10) &&
-               t.fiscal_day <= (r.check_out||'9999-12-31').slice(0,10)
-      })
-      if (r && !seen.has(r.id)) {
-        seen.add(r.id)
-        const bill = computeBill(r)
-        total += bill?.paid || 0
+      const guestId = guests?.find(g => g.name === t.guest_name)?.id
+      const res = reservations?.find(r => {
+        const roomMatch = (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number)
+        const nameMatch = !guestId || (r.guest_ids||[]).includes(guestId) || r.guest_name === t.guest_name
+        return roomMatch && nameMatch
+      }) || reservations?.find(r => (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number))
+      if (res && !seen.has(res.id)) {
+        seen.add(res.id)
+        total += computeBill(res)?.paid || 0
       }
+    })
+    // Part 2 — outstanding balance reservations (dueRes logic inlined to avoid TDZ)
+    const _rDue = r => Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0))
+    reservations.filter(r => (r.status==='CHECKED_IN'||r.status==='CHECKED_OUT') && _rDue(r)>0).forEach(r => {
+      if (!r?.id || seen.has(r.id)) return
+      seen.add(r.id)
+      total += computeBill(r)?.paid || 0
     })
     return total
   })()
