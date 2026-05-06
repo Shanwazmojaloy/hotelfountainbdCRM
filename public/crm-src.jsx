@@ -617,10 +617,22 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
   // reservations visible in today's ledger (activeTx matches + outstanding balance entries).
   const todayRev = (() => {
     const todayTxs = (transactions||[]).filter(t => t.fiscal_day === today)
+    // Ghost-BCF filter: exclude Balance Carried Forward for CHECKED_OUT rooms with zero due
+    const activeTx = todayTxs.filter(t => {
+      if (t.type === 'Balance Carried Forward') {
+        const res = reservations?.find(r => (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number))
+        if (res?.status === 'CHECKED_OUT') {
+          const due = Math.max(0, (+res.total_amount||0) - (+res.discount_amount||+res.discount||0) - (+res.paid_amount||0))
+          if (due <= 0) return false
+        }
+        return true
+      }
+      return true
+    })
     const seen = new Set()
     let total = 0
     // Part 1 — reservations found via today's transactions (same dual-match as ledger table)
-    todayTxs.forEach(t => {
+    activeTx.forEach(t => {
       const guestId = guests?.find(g => g.name === t.guest_name)?.id
       const res = reservations?.find(r => {
         const roomMatch = (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number)
