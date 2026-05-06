@@ -1797,7 +1797,7 @@ function EditGuestModal({guest,toast,onClose,reload}) {
   async function save() {
     if(!f.name.trim()) return toast('Name required','error')
     setSaving(true)
-    try { await dbPatch('guests',guest.id,{...f}); toast('Guest updated ✓'); reload() }
+    try { const gp={...f};gp.email=gp.email?.trim()||null;gp.phone=gp.phone?.trim()||null; await dbPatch('guests',guest.id,gp); toast('Guest updated ✓'); reload() }
     catch(e){ toast(e.message,'error'); setSaving(false) }
   }
   return (
@@ -1833,7 +1833,7 @@ function AddGuestModal({toast,onClose,reload}) {
     if(!f.name.trim()) return toast('Name required','error')
     if(!f.phone.trim()) return toast('Contact Number required','error')
     setSaving(true)
-    try { await dbPost('guests',{...f,tenant_id:TENANT}); toast(`Guest "${f.name}" added`); reload(); onClose() }
+    try { const gp={...f,tenant_id:TENANT};gp.email=gp.email?.trim()||null;gp.phone=gp.phone?.trim()||null; await dbPost('guests',gp); toast(`Guest "${f.name}" added`); reload(); onClose() }
     catch(e){ toast(e.message,'error'); setSaving(false) }
   }
   return (
@@ -3333,7 +3333,7 @@ function SettingsPage({currentUser,toast,staffList,setStaffList,reservations,roo
   return (
     <div style={{maxWidth:700}}>
       <div className="tabs mb4">
-        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System'],['agents','🤖 AI Agents'],['research','🧠 AI Research'],['b2b','🤝 B2B Swarm'],['plang','✨ Plan G'],['leadgen','🎯 Lead Gen']].map(([v,l])=>(
+        {[['hotel','🏨 Hotel Info'],['users','👥 Staff & Users'],['devices','📱 Devices'],['system','⚙ System']].map(([v,l])=>(
           <button key={v} className={`tab${tab===v?' on':''}`} onClick={()=>setTab(v)}>{l}</button>
         ))}
       </div>
@@ -3448,37 +3448,6 @@ function SettingsPage({currentUser,toast,staffList,setStaffList,reservations,roo
         </div>
       )}
 
-      {/* AI AGENTS PANEL */}
-      {tab==='agents'&&(
-        <div>
-          <AIAgentsPanel toast={toast}/>
-        </div>
-      )}
-
-      {/* AI RESEARCH — historical lead data from leads table */}
-      {tab==='research'&&(
-        <div>
-          <AIResearchPanel toast={toast}/>
-        </div>
-      )}
-
-      {tab==='b2b'&&(
-        <div>
-          <B2BSwarmPanel toast={toast}/>
-        </div>
-      )}
-
-      {tab==='plang'&&(
-        <div>
-          <PlanGPanel toast={toast} reservations={reservations} rooms={rooms} guests={guests}/>
-        </div>
-      )}
-
-      {tab==='leadgen'&&(
-        <div>
-          <LeadGenSwarmPanel toast={toast}/>
-        </div>
-      )}
 
       {showAddUser&&isSA&&(
         <AddStaffModal toast={toast} onClose={()=>setShowAddUser(false)}
