@@ -2326,7 +2326,26 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     })
     return Object.values(byKey).reduce((a,g)=> a + (g.hasCash ? g.pay : g.fsPos), 0)
   }
-  const todayRevenue = _bizDayTotal(todayT)
+  // todayRevenue: sum computeBill(r).paid for unique reservations active in today's ledger
+  // Fixes: cash paid on a prior biz day (BCF carry-forward) was excluded. Now matches PAID column sum.
+  const todayRevenue = (() => {
+    const seen = new Set()
+    let total = 0
+    activeLedgerTx.forEach(t => {
+      const r = reservations.find(r => {
+        const rns = (r.room_ids||[]).map(String).concat(r.room_number ? [String(r.room_number)] : [])
+        return rns.includes(String(t.room_number)) &&
+               t.fiscal_day >= (r.check_in||'').slice(0,10) &&
+               t.fiscal_day <= (r.check_out||'9999-12-31').slice(0,10)
+      })
+      if (r && !seen.has(r.id)) {
+        seen.add(r.id)
+        const bill = computeBill(r)
+        total += bill?.paid || 0
+      }
+    })
+    return total
+  })()
   const monthRevenue = _bizDayTotal(monthT)
 
   function computeBill(r) {
