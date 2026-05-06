@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   other: {
-    "facebook-domain-verification": "apqanhrpmfkq6pzdr6j35p7jptlot7",
+    "facebook-domain-verification": "w7icv7iysd2acjgv61jwe0ezzcblfa",
   },
 };
 
@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full antialiased font-sans">
       <head>
-        <meta name="facebook-domain-verification" content="apqanhrpmfkq6pzdr6j35p7jptlot7" />
+        <meta name="facebook-domain-verification" content="w7icv7iysd2acjgv61jwe0ezzcblfa" />
       </head>
       <body className="min-h-full flex flex-col antialiased" style={{ background: '#07090E' }}>
         <QueryProvider>
