@@ -364,3 +364,36 @@ Say "start agents" to Claude — boots all 10 in ~20 seconds.
 - trg_reservations_status_upper — enforces UPPERCASE reservation status
 - trg_auto_housekeeping — creates DIRTY + task on checkout
 - trg_room_available_on_clean — sets AVAILABLE when task completed
+
+---
+
+## REVENUE CALCULATION RULES (2026-05-07)
+
+### Ghost-BCF Filter â€” MANDATORY for all revenue aggregations
+
+Any code that iterates `transactions` to compute revenue MUST apply this filter before the loop:
+
+```js
+const activeTx = todayTxs.filter(t => {
+  if (t.type === 'Balance Carried Forward') {
+    const res = reservations?.find(r =>
+      (r.room_ids||[]).some(id => String(id) === String(t.room_number)) ||
+      String(r.room_number) === String(t.room_number))
+    if (res?.status === 'CHECKED_OUT') {
+      const due = Math.max(0, (+res.total_amount||0) - (+res.discount_amount||+res.discount||0) - (+res.paid_amount||0))
+      if (due <= 0) return false
+    }
+    return true
+  }
+  return true
+})
+```
+
+**Why:** BCF transactions for CHECKED_OUT rooms with zero balance are "ghost" entries â€” they appear in today's ledger but represent settled-and-closed folios. Including them double-counts settled amounts (caused à§³4,000 phantom in the à§³13,600 incident pattern).
+
+**Affects:** Dashboard `todayRev`, BillingPage `todayRevenue` (already uses `activeLedgerTx`), any future analytics aggregations.
+
+### Build Pipeline (crm-src.jsx)
+- **Edit method:** Python string replacement ONLY â€” Edit tool truncates at Windows mount boundary.
+- **Rebuild:** Node at `/tmp/babel-tools` with `@babel/preset-react` + Terser â†’ `crm-bundle.js`.
+- **Commit:** PowerShell only â€” sandbox bash creates unremovable lock files.

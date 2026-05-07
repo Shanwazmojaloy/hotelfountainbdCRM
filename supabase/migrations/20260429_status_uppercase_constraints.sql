@@ -37,10 +37,18 @@ ALTER TABLE public.rooms
   CHECK (status IN ('AVAILABLE','OCCUPIED','DIRTY','OUT_OF_ORDER','RESERVED'));
 
 -- reservations.status canonical set:
---   PENDING | CONFIRMED | CHECKED_IN | CHECKED_OUT | CANCELLED | NO_SHOW
+--   PENDING | CONFIRMED | RESERVED | CHECKED_IN | CHECKED_OUT | CANCELLED | NO_SHOW
+--   NOTE: RESERVED is used for future bookings awaiting check-in
+ALTER TABLE public.reservations
+  DROP CONSTRAINT IF EXISTS reservations_status_check;
+ALTER TABLE public.reservations
+  ADD CONSTRAINT reservations_status_check
+  CHECK (status IN ('PENDING','CONFIRMED','RESERVED','CHECKED_IN','CHECKED_OUT','CANCELLED','NO_SHOW'));
+ALTER TABLE public.reservations
+  DROP CONSTRAINT IF EXISTS reservations_status_uppercase_chk;
 ALTER TABLE public.reservations
   ADD CONSTRAINT reservations_status_uppercase_chk
-  CHECK (status IN ('PENDING','CONFIRMED','CHECKED_IN','CHECKED_OUT','CANCELLED','NO_SHOW'));
+  CHECK (status IN ('PENDING','CONFIRMED','RESERVED','CHECKED_IN','CHECKED_OUT','CANCELLED','NO_SHOW'));
 
 -- ── 4. Helpful indexes for status filters used in CRM queries ─────────────
 CREATE INDEX IF NOT EXISTS idx_rooms_status        ON public.rooms(status);
