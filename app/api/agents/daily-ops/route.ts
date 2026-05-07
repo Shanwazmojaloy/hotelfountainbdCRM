@@ -1,10 +1,55 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const BASE = 'https://mynwfkgksqqwlqowlscj.supabase.co/rest/v1';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+function headers() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return {
+    'apikey': key,
+    'Authorization': `Bearer ${key}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=minimal',
+  };
+}
+
+async function dbGet(table: string, query: string) {
+  const res = await fetch(`${BASE}/${table}?${query}`, { headers: headers() });
+  if (!res.ok) throw new Error(`GET ${table}: ${await res.text()}`);
+  return res.json();
+}
+
+async function dbPost(table: string, body: object) {
+  const res = await fetch(`${BASE}/${table}`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`POST ${table}: ${await res.text()}`);
+}
+
+async function dbUpsert(table: string, body: object, onConflict: string) {
+  const res = await fetch(`${BASE}/${table}?on_conflict=${onConflict}`, {
+    method: 'POST',
+    headers: { ...headers(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`UPSERT ${table}: ${await res.text()}`);
+}
+
+// Dhaka = UTC+6. Returns { today, startUtc, endUtc }
+function dhakaDay() {
+  const nowUtc = new Date();
+  const dhakaMs = nowUtc.getTime() + 6 * 60 * 60 * 1000;
+  const dhakaDate = new Date(dhakaMs);
+  const today = dhakaDate.toISOString().split('T')[0]; // YYYY-MM-DD in Dhaka time
+  const startUtc = new Date(`${today}T00:00:00+06:00`).toISOString();
+  const endUtc   = new Date(`${today}T23:59:59+06:00`).toISOString();
+  return { today, startUtc, endUtc };
+}
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
@@ -12,45 +57,35 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
   const results: Record<string, unknown> = {};
+  const { today, startUtc, endUtc } = dhakaDay();
 
   // ── REVENUE MANAGER ──────────────────────────────────────────────
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const txns = await dbGet(
+      'transactions',
+      `select=amount,type&tenant_id=eq.${TENANT}&created_at=gte.${startUtc}&created_at=lte.${endUtc}`
+    );
+    const txnTotal = (txns ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 
-    const { data: txns } = await supabase
-      .from('transactions')
-      .select('amount, type')
-      .eq('tenant_id', TENANT)
-      .gte('created_at', `${today}T00:00:00`)
-      .lte('created_at', `${today}T23:59:59`);
+    let closingTotal = 0;
+    try {
+      const closing = await dbGet(
+        'daily_closing',
+        `select=total_revenue&tenant_id=eq.${TENANT}&date=eq.${today}&limit=1`
+      );
+      closingTotal = Number(closing?.[0]?.total_revenue ?? 0);
+    } catch { /* no closing record yet */ }
 
-    const txnTotal = (txns ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
-
-    const { data: closing } = await supabase
-      .from('daily_closing')
-      .select('total_revenue')
-      .eq('tenant_id', TENANT)
-      .eq('date', today)
-      .single();
-
-    const closingTotal = Number(closing?.total_revenue ?? 0);
     const variance = Math.abs(txnTotal - closingTotal);
 
-    const { data: checkedIn } = await supabase
-      .from('reservations')
-      .select('id')
-      .eq('tenant_id', TENANT)
-      .eq('status', 'CHECKED_IN');
-
+    const checkedIn = await dbGet(
+      'reservations',
+      `select=id&tenant_id=eq.${TENANT}&status=eq.CHECKED_IN`
+    );
     const occupancy = ((checkedIn?.length ?? 0) / 24) * 100;
 
-    const alerts = [];
+    const alerts: { severity: string; body: string }[] = [];
 
     if (variance > 500) {
       alerts.push({ severity: 'HIGH', body: `Revenue variance ৳${variance.toFixed(0)} exceeds ৳500 threshold. Transactions: ৳${txnTotal.toFixed(0)}, Closing: ৳${closingTotal.toFixed(0)}` });
@@ -59,71 +94,74 @@ export async function GET(req: Request) {
       alerts.push({ severity: 'MEDIUM', body: `Occupancy ${occupancy.toFixed(0)}% below 40% threshold (${checkedIn?.length ?? 0}/24 rooms)` });
     }
     if (txnTotal < 20000) {
-      alerts.push({ severity: 'LOW', body: `Daily revenue ৳${txnTotal.toFixed(0)} below ৳20,000 minimum threshold` });
+      alerts.push({ severity: 'LOW', body: `Daily revenue ৳${txnTotal.toFixed(0)} below ৳20,000 threshold` });
     }
 
     for (const alert of alerts) {
-      await supabase.from('notifications_log').insert({
-        tenant_id: TENANT,
-        workflow: 'revenue-manager',
-        body: alert.body,
-        status: alert.severity.toLowerCase(),
-        triggered_by: 'cron:daily-ops',
-      });
+      try {
+        await dbPost('notifications_log', {
+          tenant_id: TENANT,
+          workflow: 'revenue-manager',
+          body: alert.body,
+          status: alert.severity.toLowerCase(),
+          triggered_by: 'cron:daily-ops',
+        });
+      } catch { /* non-fatal */ }
     }
 
-    await supabase.from('daily_closing').upsert({
-      tenant_id: TENANT,
-      date: today,
-      total_revenue: txnTotal,
-      agent_verified: true,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'tenant_id,date' });
+    try {
+      await dbUpsert('daily_closing', {
+        tenant_id: TENANT,
+        date: today,
+        total_revenue: txnTotal,
+        agent_verified: true,
+        updated_at: new Date().toISOString(),
+      }, 'tenant_id,date');
+    } catch { /* non-fatal */ }
 
-    results.revenue_manager = { alerts: alerts.length, occupancy: `${occupancy.toFixed(0)}%`, revenue: `৳${txnTotal.toFixed(0)}` };
+    results.revenue_manager = {
+      alerts: alerts.length,
+      occupancy: `${occupancy.toFixed(0)}%`,
+      revenue: `৳${txnTotal.toFixed(0)}`,
+      dhaka_date: today,
+    };
   } catch (e) {
     results.revenue_manager = { error: String(e) };
   }
 
   // ── AUTOMATED MARKETER ───────────────────────────────────────────
   try {
-    const today = new Date().toISOString().split('T')[0];
-
-    // Fetch WhatsApp number from hotel_settings
-    const { data: waSetting } = await supabase
-      .from('hotel_settings')
-      .select('value')
-      .eq('tenant_id', TENANT)
-      .eq('key', 'whatsapp_number')
-      .single();
-    const waNumber = (waSetting?.value ?? '+8801322840799').replace(/[^0-9]/g, '');
+    let waNumber = '8801322840799';
+    try {
+      const waSetting = await dbGet(
+        'hotel_settings',
+        `select=value&tenant_id=eq.${TENANT}&key=eq.whatsapp_number&limit=1`
+      );
+      waNumber = (waSetting?.[0]?.value ?? '+8801322840799').replace(/[^0-9]/g, '');
+    } catch { /* use default */ }
     const waLink = `https://wa.me/${waNumber}`;
-
-    const { data: approvedContent } = await supabase
-      .from('marketing_content')
-      .select('*')
-      .eq('tenant_id', TENANT)
-      .eq('status', 'approved')
-      .eq('scheduled_date', today)
-      .order('priority', { ascending: true })
-      .limit(1);
 
     let postBody = '';
 
-    if (approvedContent && approvedContent.length > 0) {
-      postBody = approvedContent[0].content;
-    } else {
-      const { data: rooms } = await supabase
-        .from('rooms')
-        .select('name, room_type, rate, features')
-        .eq('tenant_id', TENANT)
-        .eq('status', 'AVAILABLE')
-        .limit(1);
+    try {
+      const approvedContent = await dbGet(
+        'marketing_content',
+        `select=*&tenant_id=eq.${TENANT}&status=eq.approved&scheduled_date=eq.${today}&order=priority.asc&limit=1`
+      );
+      if (approvedContent?.length > 0) postBody = approvedContent[0].content;
+    } catch { /* fall through to room-of-day */ }
 
-      if (rooms && rooms.length > 0) {
-        const room = rooms[0];
-        postBody = `🏨 Room of the Day — ${room.name}\n\n✨ ${room.room_type} | ৳${room.rate}/night\n\n📞 Book now via WhatsApp: ${waLink}\n\n#HotelFountain #Dhaka #HotelBD`;
-      }
+    if (!postBody) {
+      try {
+        const rooms = await dbGet(
+          'rooms',
+          `select=name,room_type,rate,features&tenant_id=eq.${TENANT}&status=eq.AVAILABLE&limit=1`
+        );
+        if (rooms?.length > 0) {
+          const room = rooms[0];
+          postBody = `🏨 Room of the Day — ${room.name}\n\n✨ ${room.room_type} | ৳${room.rate}/night\n\n📞 Book now via WhatsApp: ${waLink}\n\n#HotelFountain #Dhaka #HotelBD`;
+        }
+      } catch { /* no rooms */ }
     }
 
     if (postBody) {
@@ -137,13 +175,17 @@ export async function GET(req: Request) {
       );
       const fbData = await fbRes.json();
 
-      await supabase.from('notifications_log').insert({
-        tenant_id: TENANT,
-        workflow: 'automated-marketer',
-        body: fbData.id ? `Facebook post published: ${fbData.id}` : `Facebook post failed: ${JSON.stringify(fbData)}`,
-        status: fbData.id ? 'success' : 'error',
-        triggered_by: 'cron:daily-ops',
-      });
+      try {
+        await dbPost('notifications_log', {
+          tenant_id: TENANT,
+          workflow: 'automated-marketer',
+          body: fbData.id
+            ? `Facebook post published: ${fbData.id}`
+            : `Facebook post failed: ${JSON.stringify(fbData)}`,
+          status: fbData.id ? 'success' : 'error',
+          triggered_by: 'cron:daily-ops',
+        });
+      } catch { /* non-fatal */ }
 
       results.automated_marketer = { published: !!fbData.id, post_id: fbData.id ?? null };
     } else {
@@ -153,5 +195,5 @@ export async function GET(req: Request) {
     results.automated_marketer = { error: String(e) };
   }
 
-  return NextResponse.json({ ok: true, date: new Date().toISOString(), results });
+  return NextResponse.json({ ok: true, date: new Date().toISOString(), dhaka_date: today, results });
 }
