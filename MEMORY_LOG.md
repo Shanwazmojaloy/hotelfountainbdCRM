@@ -505,13 +505,13 @@ All security items from the 2026-04-30 action list are now resolved:
 
 ---
 
-## Session: 2026-05-04 � Ruflo Agents + DB Fixes + Deployment
+## Session: 2026-05-04   Ruflo Agents + DB Fixes + Deployment
 
 ### Ruflo Agent Infrastructure
 - Installed ruflo v3.5.80, configured Claude Desktop MCP via stdio
 - PM2 persistent service: `lumea-ruflo` (id:2), auto-restarts on reboot
 - Wrapper: `ruflo-mcp.js` in project root (pnpm compat fix)
-- Agents clear on MCP restart � recreate via Claude at each session start (~10s)
+- Agents clear on MCP restart   recreate via Claude at each session start (~10s)
 
 ### 5 Permanent DAA Agents
 | ID | Role | Pattern |
@@ -537,11 +537,11 @@ All security items from the 2026-04-30 action list are now resolved:
 - All statuses UPPERCASE enforced at DB level
 - reservation_billing_summary = source of truth for dues
 - Billing formula: total_amount + folio_extras - discount
-- Guest count: 2,668 actual (docs said 994 � now corrected)
+- Guest count: 2,668 actual (docs said 994   now corrected)
 
 ### Security Event
 - Service role key accidentally committed to MEMORY_LOG.md line 449
-- Redacted and force-pushed � ROTATE KEY IN SUPABASE + VERCEL if not done
+- Redacted and force-pushed   ROTATE KEY IN SUPABASE + VERCEL if not done
 
 ### Known Bugs Fixed
 - Supabase 400 on reservation INSERT: compat columns + sync trigger
@@ -552,3 +552,177 @@ All security items from the 2026-04-30 action list are now resolved:
 - crm.html: Hotel Fountain BD CRM/public/crm.html (556KB)
 - Vercel project: prj_BvTsXnp2GWgXsp6smJOXAm5gLgdr
 - Repo: Shanwazmojaloy/hotelfountainbdCRM
+
+---
+
+## Session: 2026-05-06 — DB Bug Fixes + CRM Pre-Compile + Agent Activation
+
+### Database Fixes
+
+**PATCH 400 — notifications_log column mismatch**
+- Two PL/pgSQL triggers (`check_checkout_settlement`, `log_overdue_alerts`) were inserting into `notifications_log.message` which doesn't exist — correct column is `body`.
+- Also missing NOT NULL column `workflow` in INSERT.
+- Fix: migration `fix_notifications_log_column_message_to_body` — rewrote both functions using correct columns: `id`, `workflow`, `body`, `status`, `triggered_by`, `created_at`, `tenant_id`.
+
+**DELETE 409 — FK cascade on reservation child tables**
+- Deleting a reservation failed with FK constraint violations on child tables.
+- 4 tables had RESTRICT/NO ACTION delete rules: `guest_ledger`, `billing_invoices`, `payment_transactions`, `review_requests`.
+- Fix: migration `cascade_delete_reservation_child_tables` — dropped and recreated all 4 FKs with `ON DELETE CASCADE`.
+
+**POST /guests 409 — email unique constraint on empty string**
+- Frontend sending `""` (empty string) for blank email; partial unique index only excluded NULL, not empty string.
+- Fix: migration `fix_guests_email_unique_empty_string` — normalized 452 empty-string emails to NULL, rebuilt index:
+  `CREATE UNIQUE INDEX guests_unique_real_email ON guests (email, tenant_id) WHERE (email IS NOT NULL AND email <> '')`.
+- Frontend fix: both `AddGuestModal.save()` and `EditGuestModal.save()` now normalize: `gp.email = gp.email?.trim() || null`.
+
+### crm.html Pre-Compile Pipeline (Babel eliminated)
+
+**Problem:** crm.html was 528KB JSX — exceeded Babel's 500KB in-browser transpile limit. Babel deopt warning + 828ms DOMContentLoaded blocking time.
+
+**Solution: JSX extracted and pre-compiled at build time.**
+
+| File | Role | Size |
+|---|---|---|
+| `public/crm.html` | Shell — CDN scripts + `<script src="/crm-bundle.js">` | 1.9 KB |
+| `public/crm-src.jsx` | Source JSX (do not edit crm.html for logic) | 316 KB |
+| `public/crm-bundle.js` | Pre-compiled + minified output (Babel + Terser) | 262 KB |
+| `babel.crm.json` | Babel config: `@babel/preset-react`, runtime=classic | — |
+
+**Build command:** `npm run build:crm` → runs Babel then Terser.
+`package.json scripts.build` now: `npm run build:crm && next build`.
+
+**Invariant:** Never edit `public/crm.html` for logic changes. All JSX lives in `public/crm-src.jsx`. After any edit to crm-src.jsx, run `npm run build:crm` and commit BOTH `crm-src.jsx` and `crm-bundle.js`. The old file-size invariants (≥ 450KB) are OBSOLETE — crm.html is now 1.9KB.
+
+**Image extraction:** Two base64 images (~100KB each) extracted from crm.html:
+- `public/lp-bg.jpg` — login page left-panel background (CSS: `url("/lp-bg.jpg")`)
+- `public/lp-logo.png` — login page logo (`src="/lp-logo.png"`)
+
+**Favicon:** `public/favicon.ico` created (16×16 gold 'F' on dark bg). crm.html has two link tags: `/favicon.ico` (any) + SVG emoji fallback.
+
+**Result:** Babel CDN (~200KB) no longer downloaded. In-browser transpile time eliminated. DOMContentLoaded: 828ms → ~150ms.
+
+### Settings Page — Dead Tab Removal
+- Removed 5 non-functional AI agent tabs from Settings page in `public/crm-src.jsx`:
+  `agents (🤖 AI Agents)`, `research (🧠 AI Research)`, `b2b (🤝 B2B Swarm)`, `plang (✨ Plan G)`, `leadgen (🎯 Lead Gen)`.
+- Settings now shows only: 🏨 Hotel Info · 👥 Staff & Users · 📱 Devices · ⚙ System.
+- Commit: `aeaa9b2`.
+
+### Ruflo Agent Activation
+
+**All 9 agents set to `active` status + autopilot enabled (maxIterations: 1000, timeout: 24h).**
+
+| Agent ID | Domain | Trigger |
+|---|---|---|
+| booking-concierge | sales | Landing page booking widget (realtime) |
+| lead-qualifier | sales | Contact form submission (realtime) |
+| faq-specialist | support | Chat widget message (realtime) |
+| revenue-manager | audit | Vercel cron 08:00 BDT daily |
+| automated-marketer | marketing | Vercel cron 10:00 BDT daily |
+| guest-retention | marketing | Vercel cron Monday 09:00 BDT |
+| architect | dev_maintenance | Manual invocation |
+| security | dev_maintenance | Pre-commit hook |
+| coder | dev_maintenance | Manual invocation |
+
+**4 ruflo workflows created:**
+- `workflow-1778087148596-qg1ozz` → `daily_ops` (revenue-manager → automated-marketer)
+- `workflow-1778087150188-ype8qd` → `weekly_retention` (guest-retention)
+- `workflow-1778087156572-1nfsqg` → `landing_page_intake` (lead-qualifier ∥ faq-specialist → booking-concierge)
+- `workflow-1778087160522-nf61cq` → `pre_deploy_check` (security)
+
+### Vercel Cron Jobs
+
+Added to `vercel.json`:
+```json
+"crons": [
+  { "path": "/api/agents/daily-ops",      "schedule": "0 2 * * *"   },
+  { "path": "/api/agents/weekly-retention","schedule": "0 3 * * 1"   }
+]
+```
+(UTC times: 02:00 UTC = 08:00 BDT, 03:00 UTC = 09:00 BDT Monday)
+
+**New API routes created:**
+- `src/app/api/agents/daily-ops/route.ts` — runs revenue-manager (tx vs closing reconciliation, occupancy alert) then automated-marketer (Facebook Graph API post)
+- `src/app/api/agents/weekly-retention/route.ts` — runs guest-retention (VIP/Regular/Lapsed outreach drafts → review_queue, never auto-sends)
+
+**Env var required:** `CRON_SECRET` — add to Vercel Settings → Environment Variables.
+Generated value: `2d1fa28fd5c8f0ec941845bf5c72f926b1405bcf6aeaa997eb2fdd2cc469e31d`
+
+### Sandbox Git Limitation (repeated)
+- `.git/index.lock` and `.git/HEAD.lock` created by sandbox bash are unremovable from sandbox (Windows mount ACL).
+- All `git commit && git push` operations MUST run from Windows PowerShell. Sandbox can only write files; user pushes.
+
+### Pending (carry forward)
+- Run `supabase/migrations/20260429_status_uppercase_constraints.sql` in Supabase SQL Editor
+- Add `transactions_reservation_id_fkey` FK migration
+- Orphan tx cleanup (24 rows, ~৳70,680 inflation)
+- **Renew FACEBOOK_PAGE_TOKEN before 2026-06-30**
+- Add `CRON_SECRET` to Vercel env vars (value above)
+- Push all pending files: `git add public/crm-src.jsx public/crm-bundle.js public/crm.html public/favicon.ico public/lp-bg.jpg public/lp-logo.png package.json babel.crm.json vercel.json src/app/api/agents/`
+
+$env:CLAUDE_CODE_BACKEND="ollama"
+$env:OLLAMA_MODEL="qwen2.5:7b"
+---
+
+## Session 2026-05-07 — BIZ DAY Revenue Fix (Dashboard + Billing Parity)
+
+### Root Cause of Dashboard ৳18,000 vs Billing ৳14,000
+
+**Problem:** `todayRev` on Dashboard used raw `todayTxs` (no ghost-BCF filter), causing a phantom ৳4,000 from ZUBAYED KHAN's Balance Carried Forward transaction.
+
+**Data involved:**
+- ZUBAYED KHAN has a BCF for room 306.
+- Room-only fallback matched MD.RASUL ISLAM RIJUAN's CHECKED_OUT reservation (`paid_amount=4000`, `total_amount=4500`, `discount=500`, `due=0`).
+- Without the ghost filter, that ৳4,000 was counted erroneously.
+- Correct total: ৳11,000 (own reservations) + ৳3,000 (CHOWDHURY) = ৳14,000.
+
+### Fix Applied (`public/crm-src.jsx`, line 619)
+
+Added ghost-BCF filter to Dashboard `todayRev` (mirrors `activeLedgerTx` on BillingPage):
+
+```js
+const activeTx = todayTxs.filter(t => {
+  if (t.type === 'Balance Carried Forward') {
+    const res = reservations?.find(r =>
+      (r.room_ids||[]).some(id => String(id) === String(t.room_number)) ||
+      String(r.room_number) === String(t.room_number))
+    if (res?.status === 'CHECKED_OUT') {
+      const due = Math.max(0, (+res.total_amount||0) - (+res.discount_amount||+res.discount||0) - (+res.paid_amount||0))
+      if (due <= 0) return false  // ghost — exclude
+    }
+    return true
+  }
+  return true
+})
+// then: activeTx.forEach(t => { ... })
+```
+
+**Rule going forward:** Any new revenue aggregation on Dashboard MUST apply this same ghost-BCF filter before iterating transactions. Raw `todayTxs` should never be used directly in financial totals.
+
+### Build Pipeline Note (2026-05-07)
+- `crm-src.jsx` edits via **Python string replacement only** (Edit tool truncates the file at Windows mount boundary).
+- Bundle rebuilt at `/tmp/babel-tools` via `@babel/preset-react` + Terser → `crm-bundle.js` (268,003 bytes).
+- Git commit/push must run from **Windows PowerShell** (bash creates lock files unremovable from sandbox).
+
+### Pending (carry forward)
+- Run orphan tx cleanup (24 rows, ~৳70,680 inflation)
+- Renew `FACEBOOK_PAGE_TOKEN` before **2026-06-30**
+- Add `CRON_SECRET` to Vercel env vars
+- STAAH Channel Manager webhook configuration
+
+### 2026-05-07 — reservations_status_check Constraint Fix
+
+**Error:** `23514 — new row for relation 'reservations' violates check constraint 'reservations_status_check'`
+
+**Cause:** Original `reservations_status_check` constraint didn't include `'RESERVED'`. Code uses `status:'RESERVED'` for future reservations (intentional — distinct from PENDING/CONFIRMED).
+
+**Fix (Supabase SQL Editor):**
+```sql
+ALTER TABLE public.reservations DROP CONSTRAINT IF EXISTS reservations_status_check;
+ALTER TABLE public.reservations ADD CONSTRAINT reservations_status_check
+  CHECK (status IN ('PENDING','CONFIRMED','RESERVED','CHECKED_IN','CHECKED_OUT','CANCELLED','NO_SHOW'));
+```
+
+**Canonical reservations.status set (locked):**
+`PENDING | CONFIRMED | RESERVED | CHECKED_IN | CHECKED_OUT | CANCELLED | NO_SHOW`
+
+Migration file `20260429_status_uppercase_constraints.sql` updated to match.
