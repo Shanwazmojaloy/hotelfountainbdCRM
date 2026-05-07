@@ -1473,6 +1473,24 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
   })
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
+  const [availableRooms,setAvailableRooms]=useState(availRooms)
+  const [loadingRooms,setLoadingRooms]=useState(false)
+
+  // Date-based availability: re-query when dates change (Future Reservation mode only)
+  useEffect(()=>{
+    if(f.stayType==='CHECK_IN'){ setAvailableRooms(availRooms); return }
+    if(!f.checkIn||!f.checkOut||f.checkIn>=f.checkOut){ setAvailableRooms(rooms.filter(r=>r.status!=='OUT_OF_ORDER'&&r.status!=='DIRTY')); return }
+    setLoadingRooms(true)
+    supabase.from('reservations').select('room_ids')
+      .in('status',['RESERVED','CHECKED_IN','CONFIRMED'])
+      .lt('check_in',f.checkOut)
+      .gt('check_out',f.checkIn)
+      .then(({data:conflicts})=>{
+        const blocked=new Set((conflicts||[]).flatMap(r=>r.room_ids||[]).map(String))
+        setAvailableRooms(rooms.filter(r=>!blocked.has(String(r.room_number))&&r.status!=='OUT_OF_ORDER'&&r.status!=='DIRTY'))
+      })
+      .finally(()=>setLoadingRooms(false))
+  },[f.checkIn,f.checkOut,f.stayType])
 
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
   const autoTotal=f.roomNos.filter(Boolean).reduce((sum,rn)=>{
@@ -1539,19 +1557,19 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
           <GuestSearchInput guests={guests} value={f.guestId} onChange={id=>setF(p=>({...p,guestId:id}))}/>
         </div>
         <div className="fg">
-          <label className="flbl">Room(s) * {availRooms.length===0&&<span style={{color:'var(--rose)'}}>— no available rooms</span>}</label>
+          <label className="flbl">Room(s) * {loadingRooms?<span style={{color:'var(--gold)',fontSize:10}}> Checking availability…</span>:availableRooms.length===0&&<span style={{color:'var(--rose)'}}>— no available rooms</span>}</label>
           {f.roomNos.map((rn,idx)=>(
             <div key={idx} style={{display:'flex',gap:6,marginBottom:5,alignItems:'center'}}>
               <select className="fselect" style={{flex:1}} value={rn} onChange={e=>{const a=[...f.roomNos];a[idx]=e.target.value;setF(p=>({...p,roomNos:a}))}}>
                 <option value="">— select room —</option>
-                {availRooms.filter(r=>r.room_number===rn||!f.roomNos.includes(r.room_number)).map(r=>(
+                {availableRooms.filter(r=>r.room_number===rn||!f.roomNos.includes(r.room_number)).map(r=>(
                   <option key={r.id} value={r.room_number}>{r.room_number} — {r.category} — {BDT(r.price)}/n</option>
                 ))}
               </select>
               {f.roomNos.length>1&&<button type="button" style={{background:'none',border:'1px solid rgba(248,113,113,.3)',color:'var(--rose)',cursor:'pointer',padding:'4px 8px',fontSize:12}} onClick={()=>setF(p=>({...p,roomNos:p.roomNos.filter((_,i)=>i!==idx)}))}>✕</button>}
             </div>
           ))}
-          {availRooms.filter(r=>!f.roomNos.includes(r.room_number)).length>0&&(
+          {availableRooms.filter(r=>!f.roomNos.includes(r.room_number)).length>0&&(
             <button type="button" style={{background:'none',border:'1px dashed rgba(200,169,110,.35)',color:'var(--gold)',cursor:'pointer',padding:'5px 10px',fontSize:10,letterSpacing:'.08em',width:'100%',marginTop:2}} onClick={()=>setF(p=>({...p,roomNos:[...p.roomNos,'']}))}>+ Add Room</button>
           )}
         </div>
