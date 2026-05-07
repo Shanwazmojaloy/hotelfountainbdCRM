@@ -21,9 +21,9 @@ export async function GET(req: Request) {
 
   const { data: guests, error } = await supabase
     .from('guests')
-    .select('id, name, email, phone, visit_count, last_contacted, marketing_opt_out')
+    .select('id, name, email, phone, total_stays, last_contacted, marketing_opt_out')
     .eq('tenant_id', TENANT)
-    .gte('visit_count', 2)
+    .gte('total_stays', 1)
     .or(`last_contacted.is.null,last_contacted.lt.${thirtyDaysAgo}`)
     .eq('marketing_opt_out', false);
 
@@ -47,7 +47,7 @@ export async function GET(req: Request) {
       : 999;
 
     const tier =
-      guest.visit_count >= 5 || ltv > 50000 ? 'VIP'
+      guest.total_stays >= 5 || ltv > 50000 ? 'VIP'
       : daysSinceStay > 90 ? 'Lapsed'
       : 'Regular';
 
