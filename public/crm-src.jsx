@@ -885,7 +885,7 @@ function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toas
     setCollectSaving(true)
     try {
       await dbPatch('reservations',activeRes.id,{paid_amount:a})
-      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),tenant_id:TENANT})
+      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),reservation_id:activeRes?.id||null,tenant_id:TENANT})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -1260,7 +1260,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
             room_number:newRoomNos[0]||'?',
             guest_name:gn,
             type:`Stay Extension (+${extNights} night${extNights!==1?'s':''})`,
-            amount:extCharge, fiscal_day:businessDate||todayStr(), tenant_id:TENANT
+            amount:extCharge, fiscal_day:businessDate||todayStr(), reservation_id:res.id, tenant_id:TENANT
           })
         }
       }
@@ -1481,14 +1481,12 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
     if(f.stayType==='CHECK_IN'){ setAvailableRooms(availRooms); return }
     if(!f.checkIn||!f.checkOut||f.checkIn>=f.checkOut){ setAvailableRooms(rooms.filter(r=>r.status!=='OUT_OF_ORDER'&&r.status!=='DIRTY')); return }
     setLoadingRooms(true)
-    supabase.from('reservations').select('room_ids')
-      .in('status',['RESERVED','CHECKED_IN','CONFIRMED'])
-      .lt('check_in',f.checkOut)
-      .gt('check_out',f.checkIn)
-      .then(({data:conflicts})=>{
+    db('reservations',`?select=room_ids&status=in.(RESERVED,CHECKED_IN,CONFIRMED)&check_in=lt.${f.checkOut}&check_out=gt.${f.checkIn}`)
+      .then(conflicts=>{
         const blocked=new Set((conflicts||[]).flatMap(r=>r.room_ids||[]).map(String))
         setAvailableRooms(rooms.filter(r=>!blocked.has(String(r.room_number))&&r.status!=='OUT_OF_ORDER'&&r.status!=='DIRTY'))
       })
+      .catch(()=>setAvailableRooms(rooms.filter(r=>r.status!=='OUT_OF_ORDER'&&r.status!=='DIRTY')))
       .finally(()=>setLoadingRooms(false))
   },[f.checkIn,f.checkOut,f.stayType])
 
@@ -1511,7 +1509,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
       const isCheckIn=f.stayType==='CHECK_IN'
       const totalAmt=+f.total||autoTotal
       const selectedRooms=f.roomNos.filter(Boolean)
-      await dbPost('reservations',{
+      const [newRes]=await dbPost('reservations',{
         guest_ids:[f.guestId], room_ids:selectedRooms,
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
@@ -1529,7 +1527,7 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
       if((+f.paid||0)>0){
         await dbPost('transactions',{
           room_number:selectedRooms[0], guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:businessDate||todayStr(), tenant_id:TENANT
+          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:businessDate||todayStr(), reservation_id:newRes?.id||null, tenant_id:TENANT
         })
       }
       toast(isCheckIn?`Check-in complete — Rm ${selectedRooms.join(',')} ✓`:'Reservation created ✓')
@@ -2501,7 +2499,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       const discount=+r.discount_amount||+r.discount||0
       const paid=+r.paid_amount||0
       const due=Math.max(0,total-discount-paid)
-      return {gname,room,total,discount,paid,due,check_in:r.check_in,check_out:r.check_out}
+      return {gname,room,total,discount,paid,due,check_in:r.check_in,check_out:r.check_out,resId:r.id}
     })
     const totalDue=duesCarried.reduce((a,d)=>a+d.due,0)
 
@@ -2566,7 +2564,8 @@ ${dueRows}
               guest_name: d.gname,
               room_number: d.room,
               amount: d.due,
-              type: 'Balance Carried Forward'
+              type: 'Balance Carried Forward',
+              reservation_id: d.resId||null
             })
           )))
         }
@@ -2994,7 +2993,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
     const resPaid     = fromRow?(+prefill._paid||0):(+selRes?.paid_amount||0)
     const payCap      = Math.max(0, resTotal - resDiscount)
     try{
-      await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,tenant_id:TENANT})
+      await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,reservation_id:resId||null,tenant_id:TENANT})
       if(resId) await dbPatch('reservations',resId,{paid_amount:Math.min(payCap,resPaid+a)})
       toast(`Payment ${BDT(a)} recorded`); reload(); onClose()
     }catch(e){ toast(e.message,'error'); setSaving(false) }
