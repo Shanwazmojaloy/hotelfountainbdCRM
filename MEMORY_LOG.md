@@ -726,3 +726,39 @@ ALTER TABLE public.reservations ADD CONSTRAINT reservations_status_check
 `PENDING | CONFIRMED | RESERVED | CHECKED_IN | CHECKED_OUT | CANCELLED | NO_SHOW`
 
 Migration file `20260429_status_uppercase_constraints.sql` updated to match.
+
+---
+
+## Session 2026-05-07 — Availability Filter + Orphan TX Audit
+
+### Date-Based Room Availability Filter (NewReservationModal)
+
+**Feature:** Future Reservation modal now queries Supabase for conflicting bookings when dates are selected.
+
+- **Direct Check-In mode:** shows only `AVAILABLE` rooms (status-based, unchanged)
+- **Future Reservation mode:** queries `reservations` for overlap (`check_in < checkOut AND check_out > checkIn`, status IN `RESERVED/CHECKED_IN/CONFIRMED`), excludes `OUT_OF_ORDER/DIRTY`
+- Turnover rule handled via strict `<`/`>` — same-day checkout/checkin is allowed
+- Label shows "Checking availability…" while loading
+
+**Bug fixed during implementation:** Used `supabase.from()` (Supabase JS client) — doesn't exist in this codebase. CRM uses raw `fetch` via `db(t, query)` wrapper. Fixed to: `db('reservations', \`?select=room_ids&status=in.(...)\`)`
+
+**Rule:** NEVER use `supabase.from()` in crm-src.jsx. Always use `db()`, `dbPost()`, `dbPatch()`, `dbDelete()`.
+
+### Orphan Transaction Audit — All 5 Write Sites Fixed
+
+Added `reservation_id` to every `dbPost('transactions', ...)` call:
+
+| Location | Fix |
+|---|---|
+| `saveCollectAmount` (RoomCard) | `reservation_id: activeRes?.id\|\|null` |
+| Stay extension (ReservationModal) | `reservation_id: res.id` |
+| New reservation payment | Captured `[newRes]` from `dbPost('reservations',...)`, used `newRes?.id` |
+| BCF day-close | Added `resId: r.id` to `duesCarried` map, then `reservation_id: d.resId\|\|null` |
+| Record Payment modal | `reservation_id: resId\|\|null` |
+
+All future transaction writes are now anchored. Existing orphan cleanup (24 rows) still pending.
+
+### DB Constraint Fixes (2026-05-07)
+- `reservations_status_check` — expanded to include `RESERVED`
+- `reservations_status_uppercase_chk` — expanded to include `RESERVED`
+- Canonical set: `PENDING | CONFIRMED | RESERVED | CHECKED_IN | CHECKED_OUT | CANCELLED | NO_SHOW`
