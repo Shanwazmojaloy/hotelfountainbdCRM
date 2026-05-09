@@ -49,66 +49,91 @@ export default function BillingPage() {
         .select("id, room_number, status")
         .eq("tenant_id", TENANT_ID);
 
-      // Group by guest/room (from original App.jsx logic)
+      // Group by reservation UUID — prevents key collisions when guest_name is null
       const unifiedGroups = {};
-      
+
       reservations.forEach((res) => {
-        const key = `${res.guest_name}-${res.room_ids || res.room_number}`;
-        if (!unifiedGroups[key]) {
-          unifiedGroups[key] = { res, txs: [] };
-        }
+        unifiedGroups[res.id] = { res, txs: [] };
       });
 
       transactions.forEach((tx) => {
-        // Find matching reservation/guest
-        const matchingRes = reservations.find(
-          (r) => r.guest_name === tx.guest_name || r.id === tx.reservation_id
-        );
-        if (matchingRes) {
-          const key = `${matchingRes.guest_name}-${matchingRes.room_ids || matchingRes.room_number}`;
-          if (unifiedGroups[key]) {
-            unifiedGroups[key].txs.push(tx);
-          }
+        // Primary: match by reservation_id (UUID anchor)
+        if (tx.reservation_id && unifiedGroups[tx.reservation_id]) {
+          unifiedGroups[tx.reservation_id].txs.push(tx);
+          return;
+        }
+        // Fallback: match orphan TXs by room_number + date overlap
+        const roomNum = tx.room_number;
+        const txDate = tx.created_at ? tx.created_at.slice(0, 10) : null;
+        if (!roomNum || !txDate) return;
+        const matchingRes = reservations.find((r) => {
+          const inRoom = Array.isArray(r.room_ids)
+            ? r.room_ids.includes(roomNum)
+            : r.room_number === roomNum;
+          const ciDate = r.check_in ? r.check_in.slice(0, 10) : null;
+          const coDate = r.check_out ? r.check_out.slice(0, 10) : null;
+          return inRoom && ciDate && coDate && txDate >= ciDate && txDate <= coDate;
+        });
+        if (matchingRes && unifiedGroups[matchingRes.id]) {
+          unifiedGroups[matchingRes.id].txs.push(tx);
         }
       });
 
-      // Process displayList (exact logic from App.jsx)
-  // 🔥 THE DHAKA ANCHOR (Bypasses the 20-Apr jump)
-  const getDhakaDate = () => {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Dhaka',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(new Date()); 
-  };
+      // 🔥 THE DHAKA ANCHOR
+      const getDhakaDate = () => {
+        return new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Dhaka',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).format(new Date());
+      };
 
-  const todayDhaka = getDhakaDate(); // Forces "2026-04-19"
+      const todayDhaka = getDhakaDate();
 
-  // --- UPDATED LEDGER FILTER ---
-  const displayList = Object.values(unifiedGroups)
-    .map(grp => {
-      const invoice = grp.res;
-      const comp = invoice ? computeBill(invoice) : null;
-      const activeDate = filter === 'TODAY' ? todayDhaka : calDate;
-      
-      // STRICT: Only count payments collected ON the activeDate
-      const collectionToday = grp.txs
-        .filter(t => t.date === activeDate)
-        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      // Date range bounds for WEEK/MONTH filters
+      const getFilterBounds = () => {
+        const today = new Date(todayDhaka);
+        if (filter === 'WEEK') {
+          const start = new Date(today); start.setDate(today.getDate() - 6);
+          return { from: start.toISOString().slice(0, 10), to: todayDhaka };
+        }
+        if (filter === 'MONTH') {
+          const start = new Date(today); start.setDate(1);
+          return { from: start.toISOString().slice(0, 10), to: todayDhaka };
+        }
+        return { from: todayDhaka, to: todayDhaka };
+      };
+      const { from: dateFrom, to: dateTo } = getFilterBounds();
 
-      const totalPaidEver = (invoice?.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-      const balanceDue = comp ? comp.total - totalPaidEver : 0;
-      
-      return { ...grp, collectionToday, balanceDue, status: invoice?.status };
-    })
-    .filter(grp => {
-      // Show only active guests, today's cash, or unpaid dues
-      return grp.status === 'CHECKED_IN' || grp.collectionToday > 0 || grp.balanceDue > 0;
-    });
+      // --- LEDGER FILTER ---
+      const displayList = Object.values(unifiedGroups)
+        .map(grp => {
+          const invoice = grp.res;
+          const totalAmount = Number(invoice?.total_amount || 0);
+          const discountAmount = Number(invoice?.discount_amount || invoice?.discount || 0);
+          const billTotal = totalAmount - discountAmount;
+
+          // Use paid_amount from reservations table (DB-authoritative)
+          const totalPaidEver = Number(invoice?.paid_amount || 0);
+          const balanceDue = Math.max(0, billTotal - totalPaidEver);
+
+          // Payments collected within the active date range
+          const collectionToday = grp.txs
+            .filter(t => {
+              const d = (t.fiscal_day || t.created_at || '').slice(0, 10);
+              return d >= dateFrom && d <= dateTo;
+            })
+            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+          return { ...grp, collectionToday, balanceDue, paidInReportPeriod: collectionToday, status: invoice?.status };
+        })
+        .filter(grp => {
+          return grp.status === 'CHECKED_IN' || grp.collectionToday > 0 || grp.balanceDue > 0;
+        });
 
       // Compute stats
-      const revenue = displayList.reduce((sum, item) => sum + item.paidInReportPeriod, 0);
+      const revenue = displayList.reduce((sum, item) => sum + (item.paidInReportPeriod || 0), 0);
       const occupiedRooms = rooms.filter((r) => r.status === "OCCUPIED").length;
       const occupancy = rooms.length > 0 ? Math.round((occupiedRooms / rooms.length) * 100) : 0;
 
@@ -162,41 +187,4 @@ export default function BillingPage() {
         {["TODAY", "WEEK", "MONTH"].map((tab) => (
           <button
             key={tab}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-              filter === tab
-                ? "bg-neon-cyan text-black neon-glow shadow-lg"
-                : "text-teal-300 hover:text-neon-cyan"
-            }`}
-            onClick={() => setFilter(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Billing Cards / Table */}
-      <div className="space-y-4">
-        {billingData.map((item, index) => (
-          <BillingCard
-            reservationId={item.res?.id}
-            onCheckoutSuccess={fetchBillingData}
-            key={index}
-            guestName={item.res?.guest_name || "Guest"}
-            room={item.res?.room_ids || item.res?.room_number || "N/A"}
-            status={item.status}
-            stayDates={`${item.res?.check_in || ""} → ${item.res?.check_out || ""}`}
-            folioDues={item.comp?.total?.toLocaleString() || 0}
-            todayPaid={item.paidInReportPeriod?.toLocaleString() || 0}
-            balanceDue={item.balanceDue?.toLocaleString() || 0}
-            detailData={item}
-          />
-        ))}
-        {billingData.length === 0 && (
-          <div className="glass-card text-center py-16 text-teal-400">
-            No active folios for selected period
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+            className={`flex-1 py-3 px-4 rounded-
