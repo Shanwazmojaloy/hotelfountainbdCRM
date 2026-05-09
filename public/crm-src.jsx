@@ -2740,14 +2740,16 @@ ${dueRows}
         })
 
         if (!search) {
-          dueRes.forEach(r=>{
+          // Use activeRes (all CHECKED_IN + CHECKED_OUT with balance) so fully-paid
+          // CHECKED_IN guests still appear in the ledger
+          activeRes.forEach(r=>{
             try {
               if(!r || !r.id) return
               const key = r.id;
               if(!unifiedGroups[key]) {
-                unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: true }
+                unifiedGroups[key] = { txs:[], res: r, guest_name: getGN(r), room_number: getRoom(r), isDue: _resDue(r)>0 }
               } else {
-                unifiedGroups[key].isDue = true;
+                unifiedGroups[key].isDue = _resDue(r)>0;
                 unifiedGroups[key].res = r;
               }
             } catch(e) {
