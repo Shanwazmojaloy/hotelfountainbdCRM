@@ -634,7 +634,8 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
     // Part 1 — reservations found via today's transactions (same dual-match as ledger table)
     activeTx.forEach(t => {
       const guestId = guests?.find(g => g.name === t.guest_name)?.id
-      const res = reservations?.find(r => {
+      const res = (t.reservation_id ? reservations?.find(r => r.id === t.reservation_id) : null)
+        || reservations?.find(r => {
         const roomMatch = (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number)
         const nameMatch = !guestId || (r.guest_ids||[]).includes(guestId) || r.guest_name === t.guest_name
         return roomMatch && nameMatch
@@ -2389,9 +2390,9 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
         total += computeBill(res)?.paid || 0
       }
     })
-    // Part 2 — outstanding balance reservations (dueRes logic inlined to avoid TDZ)
+    // Part 2 — all CHECKED_IN + CHECKED_OUT with balance (fallback for fully-paid guests missed in Part 1)
     const _rDue = r => Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0))
-    reservations.filter(r => (r.status==='CHECKED_IN'||r.status==='CHECKED_OUT') && _rDue(r)>0).forEach(r => {
+    reservations.filter(r => r.status==='CHECKED_IN' || (r.status==='CHECKED_OUT' && _rDue(r)>0)).forEach(r => {
       if (!r?.id || seen.has(r.id)) return
       seen.add(r.id)
       total += computeBill(r)?.paid || 0
