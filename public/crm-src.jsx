@@ -2735,10 +2735,14 @@ ${dueRows}
           })
         }
 
-        // TODAY view: only show groups with activity today OR outstanding balance.
-        // Fully-paid CHECKED_IN guests with no new-day transactions are hidden until they transact.
+        // TODAY view: show only guests who OWE MONEY or made a real payment today.
+        // BCF-only + due=0 = ghost row (fully settled — hide after day close).
+        // Guest reappears when a new cash/bkash/folio TX is recorded today.
         const displayList = (filter==='TODAY')
-          ? Object.values(unifiedGroups).filter(grp => grp.txs.length > 0 || grp.isDue)
+          ? Object.values(unifiedGroups).filter(grp => {
+              if (grp.isDue) return true  // still owes money
+              return grp.txs.some(t => !/balance carried forward/i.test(t.type||''))  // real TX today
+            })
           : Object.values(unifiedGroups)
 
         return (
