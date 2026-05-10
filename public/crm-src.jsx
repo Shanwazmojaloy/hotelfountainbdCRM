@@ -2390,9 +2390,9 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
         total += computeBill(res)?.paid || 0
       }
     })
-    // Part 2 — all CHECKED_IN + CHECKED_OUT with balance (fallback for fully-paid guests missed in Part 1)
+    // Part 2 — outstanding balance reservations not caught in Part 1 (balance > 0 only)
     const _rDue = r => Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0))
-    reservations.filter(r => r.status==='CHECKED_IN' || (r.status==='CHECKED_OUT' && _rDue(r)>0)).forEach(r => {
+    reservations.filter(r => (r.status==='CHECKED_IN'||r.status==='CHECKED_OUT') && _rDue(r)>0).forEach(r => {
       if (!r?.id || seen.has(r.id)) return
       seen.add(r.id)
       total += computeBill(r)?.paid || 0
