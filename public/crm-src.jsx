@@ -2776,7 +2776,10 @@ ${dueRows}
                     const chkIn = r ? fmtDate(r.check_in) : (grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
                     const chkOut = r ? fmtDate(r.check_out) : (grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
                     const tTotal = r ? resTotal : (grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
-                    const tPaid = r ? resPaid : 0
+                    // PAID column: TODAY = actual cash/bkash collected today; other filters = lifetime paid
+                    const tPaid = (filter==='TODAY')
+                      ? grp.txs.filter(t=>/cash|bkash/i.test(t.type||'')).reduce((s,t)=>s+(+t.amount||0),0)
+                      : (r ? resPaid : 0)
                     const tDue = r ? resDue : 0
                     const tDiscount = r ? (+r.discount_amount||+r.discount||0) : 0
 
