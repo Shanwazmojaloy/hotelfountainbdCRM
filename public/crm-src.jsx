@@ -615,44 +615,20 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
   const todayT=mergedTransactions.filter(t=>t.fiscal_day===today)
   // todayRev: mirrors BillingPage's unifiedGroups logic — sums r.paid_amount for all
   // reservations visible in today's ledger (activeTx matches + outstanding balance entries).
+  // todayRev: sum of actual cash/bkash TX amounts for today's fiscal_day only.
+  // Zero transactions = ৳0. Resets cleanly after Closing Complete.
   const todayRev = (() => {
     const todayTxs = (transactions||[]).filter(t => t.fiscal_day === today)
-    // Ghost-BCF filter: exclude Balance Carried Forward for CHECKED_OUT rooms with zero due
-    const activeTx = todayTxs.filter(t => {
-      if (t.type === 'Balance Carried Forward') {
-        const res = reservations?.find(r => (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number))
-        if (res?.status === 'CHECKED_OUT') {
-          const due = Math.max(0, (+res.total_amount||0) - (+res.discount_amount||+res.discount||0) - (+res.paid_amount||0))
-          if (due <= 0) return false
-        }
-        return true
-      }
-      return true
+    const byKey = {}
+    todayTxs.forEach(t => {
+      if(t.type==='Balance Carried Forward') return
+      const key = `${t.room_number||''}|${t.guest_name||''}`
+      if(!byKey[key]) byKey[key] = {pay:0, fsPos:0, hasCash:false}
+      const amt = +t.amount||0
+      if(/cash|bkash/i.test(t.type||'')) { byKey[key].pay += amt; byKey[key].hasCash = true }
+      else if(/final\s*settlement/i.test(t.type||'') && amt > 0) { byKey[key].fsPos += amt }
     })
-    const seen = new Set()
-    let total = 0
-    // Part 1 — reservations found via today's transactions (same dual-match as ledger table)
-    activeTx.forEach(t => {
-      const guestId = guests?.find(g => g.name === t.guest_name)?.id
-      const res = (t.reservation_id ? reservations?.find(r => r.id === t.reservation_id) : null)
-        || reservations?.find(r => {
-        const roomMatch = (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number)
-        const nameMatch = !guestId || (r.guest_ids||[]).includes(guestId) || r.guest_name === t.guest_name
-        return roomMatch && nameMatch
-      }) || reservations?.find(r => (r.room_ids||[]).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number))
-      if (res && !seen.has(res.id)) {
-        seen.add(res.id)
-        total += +res.paid_amount || 0
-      }
-    })
-    // Part 2 — outstanding balance reservations not caught above
-    const _rDue = r => Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0))
-    reservations.filter(r => (r.status==='CHECKED_IN'||r.status==='CHECKED_OUT') && _rDue(r)>0).forEach(r => {
-      if (!r?.id || seen.has(r.id)) return
-      seen.add(r.id)
-      total += +r.paid_amount || 0
-    })
-    return total
+    return Object.values(byKey).reduce((a,g) => a + (g.hasCash ? g.pay : g.fsPos), 0)
   })()
   const inHouse=reservations.filter(r=>r.status==='CHECKED_IN').length
   const pending=reservations.filter(r=>r.status==='PENDING').length
@@ -2655,7 +2631,7 @@ ${dueRows}
     <div>
       {/* Stats */}
       <div className="stats-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():(()=>{const[y,m,d]=(today||todayStr()).split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()} <span style={{fontSize:9,color:'var(--gold-light)',marginLeft:4,fontFamily:'var(--mono)'}}>BIZ DAY</span></div><div className="stat-val">{BDT(filter==='DATE'?_bizDayTotal(calT):todayRevenue)}</div><div className="stat-sub">{filter==='DATE'?`${calT.filter(_isPayVehicle).length} payments`:`${reservations.filter(r=>r.status==='CHECKED_IN').length} in-house`}</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">💰</div><div className="stat-lbl">{filter==='DATE'&&calDate?(()=>{const [y,m,d]=calDate.split('-');const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${+d}-${mo[+m-1]}-${y}`})():(()=>{const[y,m,d]=(today||todayStr()).split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()} <span style={{fontSize:9,color:'var(--gold-light)',marginLeft:4,fontFamily:'var(--mono)'}}>BIZ DAY</span></div><div className="stat-val">{BDT(filter==='DATE'?_bizDayTotal(calT):_bizDayTotal(todayT))}</div><div className="stat-sub">{filter==='DATE'?`${calT.filter(_isPayVehicle).length} payments`:`${reservations.filter(r=>r.status==='CHECKED_IN').length} in-house`}</div></div>
         <div className="stat" style={{'--ac':'var(--teal)'}}><div className="stat-ico">📈</div><div className="stat-lbl">This Month</div><div className="stat-val">{BDT(monthRevenue)}</div><div className="stat-sub">{monthT.filter(t=>t.type!=='Balance Carried Forward').length} transactions</div></div>
         <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">⚠</div><div className="stat-lbl">Outstanding</div><div className="stat-val">{BDT(outstanding)}</div><div className="stat-sub">In-house balance due</div></div>
       </div>
