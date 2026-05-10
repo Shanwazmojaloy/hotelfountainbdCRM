@@ -2735,7 +2735,11 @@ ${dueRows}
           })
         }
 
-        const displayList = Object.values(unifiedGroups)
+        // TODAY view: only show groups with activity today OR outstanding balance.
+        // Fully-paid CHECKED_IN guests with no new-day transactions are hidden until they transact.
+        const displayList = (filter==='TODAY')
+          ? Object.values(unifiedGroups).filter(grp => grp.txs.length > 0 || grp.isDue)
+          : Object.values(unifiedGroups)
 
         return (
           <div className="card" style={{marginBottom:12}}>
