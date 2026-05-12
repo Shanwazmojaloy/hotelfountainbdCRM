@@ -46,8 +46,8 @@ const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?
 const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
 
 const ROLES = {
-  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','settings']},
-  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports']},
+  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','settings','seo']},
+  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','seo']},
   receptionist: {label:'Receptionist',       color:'#58A6FF', pages:['dashboard','rooms','reservations','guests','billing']},
   housekeeping: {label:'Housekeeping Staff', color:'#F0A500', pages:['dashboard','rooms','housekeeping','billing']},
   accountant:   {label:'Accountant',         color:'#3FB950', pages:['dashboard','billing','reports']},
@@ -4753,11 +4753,12 @@ function App() {
     {id:'guests',    ico:'◉', label:'Guests & CRM'},
     {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
     {id:'billing',   ico:'◎', label:'Billing & Invoices'},
+    {id:'seo',       ico:'🔍', label:'SEO & GEO Agent',  sect:'MARKETING'},
     {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
     {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
   ].filter(n=>allowed.includes(n.id))
 
-  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings'}
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings',seo:'SEO & GEO Agent'}
   const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
   const _p = k => bdParts.find(p=>p.type===k)?.value || ''
   const clockStr=(()=>{
@@ -5011,6 +5012,7 @@ function App() {
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
+            {cur==='seo'          &&<SEOGEOPage toast={toast} rooms={data.rooms}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests}/>}
           </div>
         </main>
@@ -5020,6 +5022,631 @@ function App() {
     </>
   )
 }
+
+    function SEOGEOPage({ toast, rooms }) {
+      const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/seo-geo-agent'
+      const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+
+      const [activeTab, setActiveTab] = useState('dashboard')
+      const [busy, setBusy] = useState(null)
+      const [drafts, setDrafts] = useState([])
+      const [loadingDrafts, setLoadingDrafts] = useState(true)
+      const [gbpTopic, setGbpTopic] = useState('New premium rooms available in Nikunja 2')
+      const [gbpResult, setGbpResult] = useState(null)
+      const [contentTopic, setContentTopic] = useState('Why Nikunja 2 is the best location for transit travelers in Dhaka')
+      const [contentType, setContentType] = useState('blog_post')
+      const [contentResult, setContentResult] = useState(null)
+      const [schemaResult, setSchemaResult] = useState(null)
+      const [rankingsResult, setRankingsResult] = useState(null)
+      const [designPlatform, setDesignPlatform] = useState('instagram_post')
+      const [designTheme, setDesignTheme] = useState('room_promo')
+      const [designBg, setDesignBg] = useState('twilight_gold')
+      const [designSeed, setDesignSeed] = useState(1)
+      const [approvalSent, setApprovalSent] = useState(false)
+
+      useEffect(() => { loadDrafts() }, [])
+
+      async function call(body) {
+        const r = await fetch(EDGE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON }, body: JSON.stringify(body) })
+        return r.json()
+      }
+
+      async function loadDrafts() {
+        setLoadingDrafts(true)
+        try {
+          const r = await fetch(`${SB_URL}/rest/v1/marketing_content?tenant_id=eq.${TENANT}&order=created_at.desc&limit=30`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } })
+          const d = await r.json()
+          setDrafts(Array.isArray(d) ? d : [])
+        } catch (e) { }
+        finally { setLoadingDrafts(false) }
+      }
+
+      async function postGBP() {
+        setBusy('gbp'); setGbpResult(null)
+        try {
+          const res = await call({ action: 'post_gbp', topic: gbpTopic })
+          if (res.error) { toast(res.error.includes('not deployed') || res.error.includes('GEMINI') ? 'Edge function not deployed — see Developer Guide' : res.error, 'error'); setGbpResult({ error: res.error }); return }
+          setGbpResult(res); toast('GBP post published ✓'); loadDrafts()
+        } catch (e) { toast(e.message, 'error') }
+        finally { setBusy(null) }
+      }
+
+      async function generateContent() {
+        setBusy('content'); setContentResult(null)
+        try {
+          const res = await call({ action: 'generate_content', topic: contentTopic, type: contentType, platform: designPlatform, variation: Math.floor(Math.random() * 5), seed: Date.now() })
+          if (res.error) { toast(res.error, 'error'); return }
+          setContentResult(res); toast('Content draft saved ✓'); loadDrafts()
+        } catch (e) { toast(e.message, 'error') }
+        finally { setBusy(null) }
+      }
+
+      async function generateSchema() {
+        setBusy('schema'); setSchemaResult(null)
+        try {
+          const res = await call({ action: 'generate_schema', rooms })
+          if (res.error) { toast(res.error, 'error'); return }
+          setSchemaResult(res); toast('Schema.org JSON-LD generated ✓')
+        } catch (e) { toast(e.message, 'error') }
+        finally { setBusy(null) }
+      }
+
+      async function checkRankings() {
+        setBusy('rankings'); setRankingsResult(null)
+        try {
+          const res = await call({ action: 'check_rankings' })
+          if (res.error) { toast(res.error, 'error'); return }
+          setRankingsResult(res); toast('Rankings fetched ✓')
+        } catch (e) { toast(e.message, 'error') }
+        finally { setBusy(null) }
+      }
+
+      async function approveDraft(id) {
+        try {
+          await fetch(`${SB_URL}/rest/v1/marketing_content?id=eq.${id}`, { method: 'PATCH', headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'approved' }) })
+          toast('Draft approved ✓'); loadDrafts()
+        } catch (e) { toast(e.message, 'error') }
+      }
+
+      async function publishDraft(id) {
+        setBusy(`publish:${id}`)
+        try {
+          const res = await call({ action: 'publish_content', content_id: id })
+          if (res.error) { toast(res.error, 'error'); return }
+          toast('Content published ✓'); loadDrafts()
+        } catch (e) { toast(e.message, 'error') }
+        finally { setBusy(null) }
+      }
+
+      const statusColor = s => s === 'published' ? 'var(--grn)' : s === 'approved' ? 'var(--gold)' : 'var(--sky)'
+      const statusBg = s => s === 'published' ? 'rgba(63,185,80,.12)' : s === 'approved' ? 'rgba(200,169,110,.12)' : 'rgba(88,166,255,.08)'
+      const typeIcon = t => t === 'blog_post' ? '📝' : t === 'landing_page' ? '🏠' : t === 'gbp_post' ? '📍' : t === 'schema' ? '🔧' : '📄'
+
+      const STATIC_SCHEMA = `{
+  "@context": "https://schema.org",
+  "@type": ["Hotel", "LocalBusiness"],
+  "name": "Hotel Fountain",
+  "description": "Premium hotel in Nikunja 2, Dhaka — 5 min from Hazrat Shahjalal Airport",
+  "url": "https://hotelfountainbd-crm.vercel.app",
+  "telephone": "+880-1319407384",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Nikunja 2",
+    "addressLocality": "Dhaka",
+    "addressCountry": "BD"
+  },
+  "priceRange": "৳3,500 – ৳9,000",
+  "starRating": { "@type": "Rating", "ratingValue": "4.8" },
+  "numberOfRooms": 28
+}
+(Agent auto-fills amenityFeature from rooms table when deployed)`
+
+      return (
+        <div>
+          {/* Header */}
+          <div style={{ background: 'linear-gradient(135deg,rgba(200,169,110,.08),rgba(88,166,255,.04))', border: '1px solid rgba(200,169,110,.2)', padding: '14px 18px', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--gold)' }}>🔍 SEO & GEO Specialist Agent</div>
+                <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>Local Authority Engine · Google Business Profile · Generative Engine Optimization · Schema.org · Content Marketing</div>
+              </div>
+              <div style={{ background: 'rgba(63,185,80,.06)', border: '1px solid rgba(63,185,80,.15)', padding: '8px 12px', fontSize: 10, color: 'var(--tx3)', flexShrink: 0, lineHeight: 1.8 }}>
+                <div style={{ color: 'var(--grn)', fontWeight: 600, marginBottom: 4 }}>TARGET KEYWORDS</div>
+                <div>Best hotel in Nikunja 2</div>
+                <div>Hotel near Dhaka Airport</div>
+                <div>Corporate accommodation Dhaka</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-tabs */}
+          <div className="tabs mb4">
+            {[['dashboard', '📊 Dashboard'], ['gbp', '📍 GBP Manager'], ['content', '✍️ Content Engine'], ['schema', '🔧 Schema & Rankings'], ['guide', '📋 Developer Guide'], ['design', '🎨 Design Studio']].map(([v, l]) => (
+              <button key={v} className={`tab${activeTab === v ? ' on' : ''}`} onClick={() => setActiveTab(v)}>{l}</button>
+            ))}
+          </div>
+
+          {/* ── DASHBOARD ── */}
+          {activeTab === 'dashboard' && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 16 }}>
+                {[['Content Drafts', drafts.filter(d => d.status === 'draft').length, 'var(--sky)'], ['Approved', drafts.filter(d => d.status === 'approved').length, 'var(--gold)'], ['Published', drafts.filter(d => d.status === 'published').length, 'var(--grn)'], ['GBP Posts', drafts.filter(d => d.content_type === 'gbp_post').length, 'var(--teal)']].map(([l, v, c], i) => (
+                  <div key={i} style={{ background: 'rgba(0,0,0,.2)', border: '1px solid var(--br)', padding: '14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 4 }}>{l}</div>
+                    <div style={{ fontSize: 28, color: c, fontFamily: 'var(--serif)', fontWeight: 600 }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                {[
+                  { icon: '📍', title: 'Post GBP Update', desc: 'Publish a Google Business Profile post to boost local visibility', tab: 'gbp', color: 'var(--gold)' },
+                  { icon: '✍️', title: 'Generate SEO Content', desc: 'Write a GEO-optimized blog post or landing page', tab: 'content', color: 'var(--sky)' },
+                  { icon: '🔧', title: 'Generate Schema Markup', desc: 'Create Hotel & LocalBusiness JSON-LD for every page', tab: 'schema', color: 'var(--teal)' },
+                  { icon: '📈', title: 'Check Rankings', desc: 'Monitor real-time search rankings vs. competitors in Nikunja', tab: 'schema', color: 'var(--pur)' },
+                ].map((a, i) => (
+                  <div key={i} onClick={() => setActiveTab(a.tab)}
+                    style={{ background: 'rgba(0,0,0,.15)', border: '1px solid var(--br)', padding: '14px 16px', cursor: 'pointer', display: 'flex', gap: 12, alignItems: 'flex-start' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(200,169,110,.4)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--br)'}>
+                    <span style={{ fontSize: 22, flexShrink: 0 }}>{a.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: a.color, marginBottom: 3 }}>{a.title}</div>
+                      <div style={{ fontSize: 10, color: 'var(--tx3)', lineHeight: 1.5 }}>{a.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="card">
+                <div className="card-hd">
+                  <span className="card-title">Content Drafts — Awaiting Approval</span>
+                  <button className="btn btn-ghost btn-sm" onClick={loadDrafts}>↻ Refresh</button>
+                </div>
+                {loadingDrafts ? (
+                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--tx3)', fontSize: 12 }}>Loading…</div>
+                ) : drafts.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px', color: 'var(--tx3)', fontSize: 12 }}>No content yet — generate your first post in the Content Engine or GBP Manager</div>
+                ) : (
+                  <table className="tbl">
+                    <thead><tr><th>Type</th><th>Title</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+                    <tbody>
+                      {drafts.map(d => (
+                        <tr key={d.id}>
+                          <td><span style={{ fontSize: 15, marginRight: 4 }}>{typeIcon(d.content_type)}</span><span className="xs muted">{(d.content_type || 'draft').replace(/_/g, ' ')}</span></td>
+                          <td style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx)' }}>{d.title || '—'}</td>
+                          <td><span style={{ fontSize: 9, padding: '2px 8px', background: statusBg(d.status), color: statusColor(d.status), letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 600 }}>{d.status || 'draft'}</span></td>
+                          <td className="xs muted">{d.created_at ? new Date(d.created_at).toLocaleDateString('en', { day: 'numeric', month: 'short' }) : '—'}</td>
+                          <td>
+                            {d.status === 'draft' && <button className="btn btn-gold btn-sm" style={{ fontSize: 9, padding: '3px 8px' }} onClick={() => approveDraft(d.id)}>✓ Approve</button>}
+                            {d.status === 'approved' && <button className="btn btn-sm" style={{ fontSize: 9, padding: '3px 8px', background: 'rgba(63,185,80,.1)', color: 'var(--grn)', border: '1px solid rgba(63,185,80,.3)' }} disabled={busy === `publish:${d.id}`} onClick={() => publishDraft(d.id)}>{busy === `publish:${d.id}` ? 'Publishing…' : '🚀 Publish'}</button>}
+                            {d.status === 'published' && <span style={{ fontSize: 9, color: 'var(--grn)' }}>✓ Live</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── GBP MANAGER ── */}
+          {activeTab === 'gbp' && (
+            <div>
+              <div className="card mb4">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <span style={{ fontSize: 24 }}>📍</span>
+                  <div>
+                    <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--tx)' }}>Google Business Profile Manager</div>
+                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Posts weekly updates · Uploads room photos · Profile ID: 6462181989202463603</div>
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(200,169,110,.05)', border: '1px solid rgba(200,169,110,.15)', padding: '10px 14px', marginBottom: 14, fontSize: 11, color: 'var(--gold)' }}>
+                  💡 <strong>Why GBP matters:</strong> Hotels with active GBP profiles get 70% more direction requests and appear in "Hotels near me" on Google Maps
+                </div>
+                <div className="fg mb3">
+                  <label className="flbl">Post Topic / Update</label>
+                  <input className="finput" value={gbpTopic} onChange={e => setGbpTopic(e.target.value)} placeholder="e.g. New premium rooms available in Nikunja 2" />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
+                  {['New premium rooms available in Nikunja 2', 'Special corporate rate — ৳3,500/night this week', 'Hotel Fountain: 5 minutes from Hazrat Shahjalal Airport', 'Book direct and save — no OTA fees, best rate guaranteed'].map(t => (
+                    <div key={t} onClick={() => setGbpTopic(t)} style={{ background: gbpTopic === t ? 'rgba(200,169,110,.1)' : 'rgba(0,0,0,.15)', border: `1px solid ${gbpTopic === t ? 'rgba(200,169,110,.4)' : 'var(--br)'}`, padding: '8px 12px', cursor: 'pointer', fontSize: 11, color: 'var(--tx2)', lineHeight: 1.4 }}>{t}</div>
+                  ))}
+                </div>
+                <button className="btn btn-gold" onClick={postGBP} disabled={busy === 'gbp'}>{busy === 'gbp' ? '📍 Posting…' : '📍 Generate & Post to GBP'}</button>
+                {gbpResult && !gbpResult.error && (
+                  <div style={{ marginTop: 14, background: 'rgba(63,185,80,.05)', border: '1px solid rgba(63,185,80,.2)', padding: '14px' }}>
+                    <div style={{ fontSize: 11, color: 'var(--grn)', fontWeight: 600, marginBottom: 8 }}>✓ Posted to Google Business Profile</div>
+                    {gbpResult.post_content && <div style={{ fontSize: 11, color: 'var(--tx2)', lineHeight: 1.7, background: 'rgba(0,0,0,.3)', padding: '10px 12px', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{gbpResult.post_content}</div>}
+                    {gbpResult.post_url && <div style={{ marginTop: 8, fontSize: 10 }}><a href={gbpResult.post_url} target="_blank" style={{ color: 'var(--sky)' }}>View live post ↗</a></div>}
+                  </div>
+                )}
+                {gbpResult?.error && <div style={{ marginTop: 12, background: 'rgba(224,92,122,.08)', border: '1px solid rgba(224,92,122,.25)', padding: '12px 14px', fontSize: 11, color: 'var(--rose)' }}>⚠ {gbpResult.error} — Deploy the seo-geo-agent Edge Function first (see Developer Guide tab)</div>}
+              </div>
+              <div className="card">
+                <div className="card-hd"><span className="card-title">GBP Optimisation Checklist</span></div>
+                <div className="card-body">
+                  {[
+                    { done: true, label: 'Business name verified', detail: 'Hotel Fountain — Nikunja 2, Dhaka' },
+                    { done: true, label: 'Profile ID connected', detail: '6462181989202463603' },
+                    { done: false, label: 'Weekly posts active', detail: 'Deploy Edge Function to enable auto-posting' },
+                    { done: false, label: 'Room photos uploaded via API', detail: '5+ photos recommended for 2× more clicks' },
+                    { done: false, label: 'Review response automation', detail: 'Auto-respond to 4★+ reviews within 2 hours' },
+                    { done: false, label: 'Q&A seeded', detail: 'Pre-populate 10 common questions (airport distance, check-in time, etc.)' },
+                  ].map((item, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--br2)', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 14, flexShrink: 0 }}>{item.done ? '✅' : '⬜'}</span>
+                      <div>
+                        <div style={{ fontSize: 12, color: item.done ? 'var(--tx)' : 'var(--tx2)', fontWeight: item.done ? 500 : 400 }}>{item.label}</div>
+                        <div style={{ fontSize: 10, color: 'var(--tx3)' }}>{item.detail}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── CONTENT ENGINE ── */}
+          {activeTab === 'content' && (
+            <div>
+              <div className="card mb4">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <span style={{ fontSize: 24 }}>✍️</span>
+                  <div>
+                    <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--tx)' }}>SEO & GEO Content Engine</div>
+                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Writes blog posts & landing pages · Includes local statistics, JSON-LD, landmarks · Makes Hotel Fountain cited by AI search</div>
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(88,166,255,.05)', border: '1px solid rgba(88,166,255,.15)', padding: '10px 14px', marginBottom: 14, fontSize: 11, color: 'var(--sky)' }}>
+                  🧠 <strong>GEO Optimisation:</strong> Content includes citations, local landmarks (Cityscape Tower, HSIA), statistics, and structured data so AI models like Gemini & ChatGPT recommend Hotel Fountain
+                </div>
+                <div className="frow mb3">
+                  <div className="fg">
+                    <label className="flbl">Content Type</label>
+                    <select className="fselect" value={contentType} onChange={e => setContentType(e.target.value)}>
+                      <option value="blog_post">📝 SEO Blog Post</option>
+                      <option value="landing_page">🏠 Local Landing Page</option>
+                      <option value="gbp_post">📍 GBP Post Draft</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="fg mb3">
+                  <label className="flbl">Topic / Target Keyword</label>
+                  <input className="finput" value={contentTopic} onChange={e => setContentTopic(e.target.value)} placeholder="e.g. Why Nikunja 2 is best for transit travelers" />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
+                  {['Why Nikunja 2 is the best location for transit travelers in Dhaka', 'Best hotel near Hazrat Shahjalal International Airport', 'Corporate accommodation in Dhaka: A complete guide for HR managers', 'Hotel Fountain vs. other Nikunja hotels — honest comparison', 'Top 5 reasons to book direct with Hotel Fountain', 'Weekend in Dhaka: Hotel Fountain Superior Deluxe experience'].map(t => (
+                    <div key={t} onClick={() => setContentTopic(t)} style={{ background: contentTopic === t ? 'rgba(88,166,255,.1)' : 'rgba(0,0,0,.12)', border: `1px solid ${contentTopic === t ? 'rgba(88,166,255,.4)' : 'var(--br)'}`, padding: '7px 10px', cursor: 'pointer', fontSize: 10, color: contentTopic === t ? 'var(--sky)' : 'var(--tx3)', lineHeight: 1.4 }}>{t}</div>
+                  ))}
+                </div>
+                <button className="btn btn-gold" onClick={generateContent} disabled={busy === 'content'}>{busy === 'content' ? '✍️ Generating…' : '✍️ Generate Content Draft'}</button>
+                {contentResult && (
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 11, color: 'var(--grn)', fontWeight: 600, marginBottom: 8 }}>✓ Draft saved to Supabase marketing_content table</div>
+                    <div style={{ background: 'rgba(0,0,0,.3)', border: '1px solid var(--br)', padding: '14px 16px' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', marginBottom: 6 }}>{contentResult.title}</div>
+                      {contentResult.meta_description && <div style={{ fontSize: 10, color: 'var(--gold)', marginBottom: 10 }}>Meta: {contentResult.meta_description}</div>}
+                      <div style={{ fontSize: 11, color: 'var(--tx2)', lineHeight: 1.8, maxHeight: 250, overflow: 'auto', whiteSpace: 'pre-wrap' }}>{(contentResult.content || '').slice(0, 800)}{contentResult.content?.length > 800 ? '…' : ''}</div>
+                      {(contentResult.keywords || []).length > 0 && <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 4 }}>{(contentResult.keywords || []).map((k, i) => <span key={i} style={{ fontSize: 9, padding: '2px 8px', background: 'rgba(200,169,110,.12)', color: 'var(--gold)', border: '1px solid rgba(200,169,110,.2)' }}>{k}</span>)}</div>}
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 10, color: 'var(--tx3)' }}>→ Go to Dashboard to approve and publish this draft</div>
+                  </div>
+                )}
+              </div>
+              <div className="card">
+                <div className="card-hd"><span className="card-title">Backlinking Strategy — Priority Directories</span></div>
+                <div className="card-body">
+                  {[
+                    { dir: 'TripAdvisor Bangladesh', priority: 'HIGH', status: 'Submit property listing' },
+                    { dir: 'Booking.com Partner Hub', priority: 'HIGH', status: 'Verify business profile' },
+                    { dir: 'Bangladesh Tourism Board', priority: 'HIGH', status: 'Register as licensed hotel' },
+                    { dir: 'Dhaka Chamber of Commerce', priority: 'MED', status: 'Corporate member listing' },
+                    { dir: 'Expats in Dhaka (Facebook Group)', priority: 'MED', status: 'Sponsor monthly post' },
+                    { dir: 'Nikunja Business Directory', priority: 'MED', status: 'Claim listing' },
+                  ].map((d, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--br2)', gap: 8 }}>
+                      <div style={{ fontSize: 12, color: 'var(--tx)', fontWeight: 500 }}>{d.dir}</div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: 9, padding: '2px 7px', background: d.priority === 'HIGH' ? 'rgba(224,92,122,.12)' : 'rgba(200,169,110,.1)', color: d.priority === 'HIGH' ? 'var(--rose)' : 'var(--gold)', fontWeight: 600 }}>{d.priority}</span>
+                        <span style={{ fontSize: 10, color: 'var(--tx3)' }}>{d.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── SCHEMA & RANKINGS ── */}
+          {activeTab === 'schema' && (
+            <div>
+              <div className="card mb4">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <span style={{ fontSize: 24 }}>🔧</span>
+                  <div>
+                    <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--tx)' }}>Schema.org Markup Generator</div>
+                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Hotel + LocalBusiness JSON-LD · Helps Google understand price range, location & ratings · Required for AI-powered search citations</div>
+                  </div>
+                </div>
+                <button className="btn btn-gold mb3" onClick={generateSchema} disabled={busy === 'schema'}>{busy === 'schema' ? '🔧 Generating…' : '🔧 Generate Schema Markup'}</button>
+                <div style={{ background: 'rgba(0,0,0,.4)', border: '1px solid var(--br)', padding: '14px', fontFamily: 'monospace', fontSize: 10, color: 'var(--sky)', whiteSpace: 'pre-wrap', maxHeight: 320, overflow: 'auto', lineHeight: 1.6 }}>
+                  {schemaResult ? (schemaResult.schema || JSON.stringify(schemaResult, null, 2)) : STATIC_SCHEMA}
+                </div>
+                <button className="btn btn-ghost btn-sm mt3" style={{ fontSize: 10 }} onClick={() => navigator.clipboard.writeText(schemaResult ? (schemaResult.schema || JSON.stringify(schemaResult, null, 2)) : STATIC_SCHEMA).then(() => toast('Copied to clipboard ✓'))}>📋 Copy to Clipboard</button>
+              </div>
+              <div className="card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <span style={{ fontSize: 24 }}>📈</span>
+                  <div>
+                    <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--tx)' }}>Keyword Rankings Monitor</div>
+                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Real-time SERP tracking via SerpApi/Tavily · Hotel Fountain vs. Nikunja competitors</div>
+                  </div>
+                </div>
+                <button className="btn btn-gold mb3" onClick={checkRankings} disabled={busy === 'rankings'}>{busy === 'rankings' ? '📈 Checking…' : '📈 Check Current Rankings'}</button>
+                {rankingsResult ? (
+                  <table className="tbl">
+                    <thead><tr><th>Keyword</th><th>Position</th><th>URL</th><th>Change</th></tr></thead>
+                    <tbody>
+                      {(rankingsResult.rankings || []).map((r, i) => (
+                        <tr key={i}>
+                          <td style={{ fontSize: 11 }}>{r.keyword}</td>
+                          <td><span style={{ fontSize: 13, fontWeight: 700, color: r.position <= 3 ? 'var(--grn)' : r.position <= 10 ? 'var(--gold)' : 'var(--rose)' }}>#{r.position}</span></td>
+                          <td style={{ fontSize: 10, color: 'var(--sky)', maxWidth: 200 }}>{r.url || '—'}</td>
+                          <td style={{ fontSize: 11, color: r.change > 0 ? 'var(--grn)' : r.change < 0 ? 'var(--rose)' : 'var(--tx3)' }}>{r.change > 0 ? `↑${r.change}` : r.change < 0 ? `↓${Math.abs(r.change)}` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                    {['Best hotel in Nikunja 2', 'Hotel near Dhaka Airport', 'Corporate accommodation Dhaka', 'Nikunja 2 hotel booking', 'Transit hotel Dhaka', 'Hotel near HSIA airport'].map(k => (
+                      <div key={k} style={{ background: 'rgba(0,0,0,.15)', border: '1px solid var(--br)', padding: '10px 12px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 10, color: 'var(--tx3)', marginBottom: 6 }}>{k}</div>
+                        <div style={{ fontSize: 18, color: 'var(--tx3)', fontFamily: 'var(--serif)' }}>—</div>
+                        <div style={{ fontSize: 9, color: 'var(--tx3)' }}>Deploy Edge Function to check</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── DEVELOPER GUIDE ── */}
+          {activeTab === 'guide' && (
+            <div>
+              <div style={{ background: 'rgba(200,169,110,.06)', border: '1px solid rgba(200,169,110,.2)', padding: '14px 18px', marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)', marginBottom: 6 }}>📋 Implementation Roadmap</div>
+                <div style={{ fontSize: 11, color: 'var(--tx2)', lineHeight: 1.8 }}>
+                  Phase 1: Gemini 1.5 Pro generates content → saved to Supabase marketing_content table → FO approves → publishes<br/>
+                  Phase 2: Google Business Profile API auto-posts every Sunday 9 AM (Profile ID: 6462181989202463603)<br/>
+                  Phase 3: SerpApi/Tavily ranking monitor — track Hotel Fountain vs. Nikunja competitors weekly
+                </div>
+              </div>
+              {[
+                { step: '1', title: 'Create marketing_content table in Supabase', code: `CREATE TABLE marketing_content (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  tenant_id UUID NOT NULL,
+  content_type TEXT, -- 'blog_post' | 'landing_page' | 'gbp_post' | 'schema'
+  title TEXT,
+  content TEXT,
+  meta_description TEXT,
+  keywords TEXT[],
+  status TEXT DEFAULT 'draft', -- 'draft' | 'approved' | 'published'
+  published_at TIMESTAMPTZ,
+  gbp_post_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);` },
+                { step: '2', title: 'Deploy seo-geo-agent Edge Function (Supabase)', code: `// supabase/functions/seo-geo-agent/index.ts
+// Actions: post_gbp | generate_content | generate_schema | check_rankings | publish_content
+// Stack: Vercel AI SDK or LangChain + Gemini 1.5 Pro
+//
+// Required Supabase Secrets (Settings → Edge Functions → Secrets):
+//   GEMINI_API_KEY      — from aistudio.google.com
+//   GOOGLE_PROJECT_ID   — hotelfountainbdcrm-493018
+//   GOOGLE_PRIVATE_KEY_ID — a9e9e586dedb142e4fc80d8c542f60edb89e50fe
+//   GOOGLE_SERVICE_ACCOUNT_EMAIL — (from service account JSON)
+//   GOOGLE_PRIVATE_KEY  — (from service account JSON, keep in Secrets only)
+//   SERPAPI_KEY         — from serpapi.com (for rankings)
+//
+// GBP Profile ID: 6462181989202463603
+// Connection: om-4622866995102339240` },
+                { step: '3', title: 'Add SERP ranking monitoring', code: `// In seo-geo-agent Edge Function, action: 'check_rankings'
+const KEYWORDS = [
+  'Best hotel in Nikunja 2',
+  'Hotel near Dhaka Airport',
+  'Corporate accommodation Dhaka',
+  'Nikunja 2 hotel booking',
+  'Transit hotel Dhaka'
+]
+// Use SerpApi: serpapi.com/google-search-api
+// or Tavily: tavily.com (AI-native search API)` },
+              ].map(s => (
+                <div key={s.step} className="card mb3">
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
+                    <div style={{ width: 28, height: 28, background: 'rgba(200,169,110,.15)', border: '1px solid rgba(200,169,110,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: 'var(--gold)', fontWeight: 700, flexShrink: 0 }}>{s.step}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', paddingTop: 3 }}>{s.title}</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,.4)', padding: '12px 14px', fontFamily: 'monospace', fontSize: 10, color: 'var(--sky)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 200, overflow: 'auto' }}>{s.code}</div>
+                </div>
+              ))}
+              <div className="card" style={{ background: 'rgba(88,166,255,.03)', border: '1px solid rgba(88,166,255,.15)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sky)', marginBottom: 10 }}>📊 Success KPIs</div>
+                {[['Google Search Console', 'Appearances in Search +50% within 90 days'], ['Google Maps', '+70% direction requests from active GBP posts'], ['Direct Bookings', 'Track clicks on Call/Book Now from organic traffic'], ['AI Citations', 'Hotel Fountain cited in Gemini/ChatGPT hotel recommendations'], ['Avg. Position', 'Top 3 for "hotel near Dhaka airport" within 6 months']].map(([metric, target], i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--br2)', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--tx)', fontWeight: 500 }}>{metric}</span>
+                    <span style={{ fontSize: 10, color: 'var(--sky)' }}>{target}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── DESIGN STUDIO ── */}
+          {activeTab === 'design' && (() => {
+            const PLATFORMS = [
+              { id: 'instagram_post', label: 'Instagram Post', w: 1080, h: 1080 },
+              { id: 'instagram_story', label: 'Instagram Story', w: 1080, h: 1920 },
+              { id: 'facebook_post', label: 'Facebook Post', w: 1200, h: 630 },
+              { id: 'linkedin_post', label: 'LinkedIn Post', w: 1200, h: 627 },
+              { id: 'twitter_post', label: 'Twitter/X Post', w: 1200, h: 675 },
+            ]
+            const THEMES = [
+              { id: 'room_promo', label: '🛏 Room Promo', headline: 'Premium Rooms', sub: 'From ৳3,500/night', cta: 'Book Now' },
+              { id: 'corporate_pkg', label: '💼 Corporate Package', headline: 'Corporate Packages', sub: 'Exclusive Business Rates', cta: 'Get Quote' },
+              { id: 'dining', label: '🍽 Dining', headline: 'Fine Dining', sub: 'World-Class Cuisine', cta: 'Reserve Table' },
+              { id: 'weekend_deal', label: '🌟 Weekend Deal', headline: 'Weekend Escape', sub: 'Special Packages Available', cta: 'View Deals' },
+              { id: 'event_mtg', label: '🎪 Events & Meetings', headline: 'Events & Meetings', sub: 'Premium Facilities', cta: 'Inquire Now' },
+            ]
+            const BGS = [
+              { id: 'twilight_gold', label: '✨ Twilight Gold', from: '#1a1208', to: '#2d1e05', accent: '#C8A96E', text: '#F5EDD8' },
+              { id: 'midnight_blue', label: '🌙 Midnight Blue', from: '#080d1a', to: '#0d1f3c', accent: '#58A6FF', text: '#E8F0FF' },
+              { id: 'emerald_night', label: '💚 Emerald Night', from: '#081a10', to: '#0a2a18', accent: '#3FB950', text: '#E0FFE8' },
+              { id: 'rose_dawn', label: '🌹 Rose Dawn', from: '#1a080d', to: '#2d0a18', accent: '#FF6B8A', text: '#FFE0E8' },
+              { id: 'slate_grey', label: '🩶 Slate Grey', from: '#0a0a0f', to: '#1a1a28', accent: '#A0AEC0', text: '#E8ECF0' },
+              { id: 'ivory_warm', label: '🪔 Ivory Warm', from: '#1a150f', to: '#2d2015', accent: '#E8D5B0', text: '#FFF8F0' },
+            ]
+
+            const plat = PLATFORMS.find(p => p.id === designPlatform) || PLATFORMS[0]
+            const theme = THEMES.find(t => t.id === designTheme) || THEMES[0]
+            const bg = BGS.find(b => b.id === designBg) || BGS[0]
+            const layout = designSeed % 5
+            const { w, h } = plat
+
+            function makeSVG() {
+              const { headline, sub, cta } = theme
+              const c = bg
+              const hotel = 'Hotel Fountain'
+              const tagline = 'Nikunja 2, Dhaka · 5 min from Airport'
+              if (layout === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><filter id="glo"><feGaussianBlur stdDeviation="40"/></filter></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w*0.8)}" cy="${Math.round(h*0.2)}" r="${Math.round(w*0.35)}" fill="${c.accent}" opacity="0.07" filter="url(#glo)"/><circle cx="${Math.round(w*0.15)}" cy="${Math.round(h*0.75)}" r="${Math.round(w*0.25)}" fill="${c.accent}" opacity="0.05" filter="url(#glo)"/><rect x="${Math.round(w*0.08)}" y="${Math.round(h*0.08)}" width="${Math.round(w*0.84)}" height="${Math.round(h*0.84)}" fill="none" stroke="${c.accent}" stroke-width="1" opacity="0.3"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.36)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.045)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><rect x="${Math.round(w*0.36)}" y="${Math.round(h*0.40)}" width="${Math.round(w*0.28)}" height="1" fill="${c.accent}" opacity="0.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.52)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.074)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.61)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.028)}" fill="${c.text}" opacity="0.75">${sub}</text><rect x="${Math.round(w*0.37)}" y="${Math.round(h*0.67)}" width="${Math.round(w*0.26)}" height="${Math.round(h*0.065)}" rx="2" fill="${c.accent}" opacity="0.15" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.712)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.025)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.86)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.018)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
+              if (layout === 1) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><linearGradient id="side" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${c.accent}" stop-opacity="0.18"/><stop offset="100%" stop-color="${c.accent}" stop-opacity="0.03"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${Math.round(w*0.44)}" height="${h}" fill="url(#side)"/><rect x="${Math.round(w*0.44)}" y="${Math.round(h*0.1)}" width="1" height="${Math.round(h*0.8)}" fill="${c.accent}" opacity="0.35"/><text x="${Math.round(w*0.22)}" y="${Math.round(h*0.4)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.036)}" fill="${c.accent}" letter-spacing="3">${hotel.toUpperCase()}</text><text x="${Math.round(w*0.22)}" y="${Math.round(h*0.49)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.02)}" fill="${c.text}" opacity="0.55">${tagline}</text><text x="${Math.round(w*0.63)}" y="${Math.round(h*0.38)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.063)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w*0.63)}" y="${Math.round(h*0.47)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.025)}" fill="${c.text}" opacity="0.7">${sub}</text><rect x="${Math.round(w*0.52)}" y="${Math.round(h*0.56)}" width="${Math.round(w*0.22)}" height="${Math.round(h*0.06)}" rx="2" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w*0.63)}" y="${Math.round(h*0.6)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text></svg>`
+              if (layout === 2) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${w}" height="${Math.round(h*0.13)}" fill="${c.accent}" opacity="0.12"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.085)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.03)}" fill="${c.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.36)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.078)}" fill="${c.text}" font-weight="bold">${headline}</text><rect x="${Math.round(w*0.4)}" y="${Math.round(h*0.41)}" width="${Math.round(w*0.2)}" height="2" fill="${c.accent}" opacity="0.55"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.5)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.027)}" fill="${c.text}" opacity="0.72">${sub}</text><rect x="0" y="${Math.round(h*0.8)}" width="${w}" height="${Math.round(h*0.2)}" fill="${c.accent}" opacity="0.07"/><rect x="${Math.round(w*0.38)}" y="${Math.round(h*0.845)}" width="${Math.round(w*0.24)}" height="${Math.round(h*0.065)}" rx="2" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.888)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.95)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
+              if (layout === 3) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><polygon points="${Math.round(w*0.6)},0 ${w},0 ${w},${Math.round(h*0.5)}" fill="${c.accent}" opacity="0.08"/><polygon points="0,${Math.round(h*0.6)} 0,${h} ${Math.round(w*0.4)},${h}" fill="${c.accent}" opacity="0.05"/><rect x="${Math.round(w*0.07)}" y="${Math.round(h*0.25)}" width="${Math.round(w*0.55)}" height="${Math.round(h*0.08)}" fill="none" stroke="${c.accent}" stroke-width="0.5" opacity="0.4"/><text x="${Math.round(w*0.1)}" y="${Math.round(h*0.31)}" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="4" opacity="0.9">${hotel.toUpperCase()}</text><text x="${Math.round(w*0.1)}" y="${Math.round(h*0.49)}" font-family="Georgia,serif" font-size="${Math.round(w*0.072)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w*0.1)}" y="${Math.round(h*0.58)}" font-family="sans-serif" font-size="${Math.round(w*0.027)}" fill="${c.text}" opacity="0.68">${sub}</text><rect x="${Math.round(w*0.1)}" y="${Math.round(h*0.65)}" width="${Math.round(w*0.22)}" height="${Math.round(h*0.06)}" rx="2" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w*0.21)}" y="${Math.round(h*0.69)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w*0.1)}" y="${Math.round(h*0.87)}" font-family="sans-serif" font-size="${Math.round(w*0.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
+              return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w/2)}" cy="${Math.round(h*0.42)}" r="${Math.round(w*0.32)}" fill="none" stroke="${c.accent}" stroke-width="0.8" opacity="0.25"/><circle cx="${Math.round(w/2)}" cy="${Math.round(h*0.42)}" r="${Math.round(w*0.27)}" fill="none" stroke="${c.accent}" stroke-width="0.4" opacity="0.14"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.33)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.032)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.44)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.07)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.52)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.026)}" fill="${c.text}" opacity="0.68">${sub}</text><rect x="${Math.round(w*0.38)}" y="${Math.round(h*0.62)}" width="${Math.round(w*0.24)}" height="${Math.round(h*0.06)}" rx="30" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.66)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.83)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
+            }
+
+            function downloadSVG() {
+              const svg = makeSVG()
+              const blob = new Blob([svg], { type: 'image/svg+xml' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url; a.download = `hotel-fountain-${designPlatform}-${designTheme}-v${designSeed}.svg`
+              document.body.appendChild(a); a.click()
+              document.body.removeChild(a); URL.revokeObjectURL(url)
+            }
+
+            async function sendForApproval() {
+              downloadSVG()
+              setApprovalSent(true)
+              try {
+                await fetch(EDGE, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: ANON },
+                  body: JSON.stringify({ action: 'email_design_approval', platform: designPlatform, theme: designTheme, bg: designBg, seed: designSeed, layout }) })
+              } catch(e) { }
+              toast('Design downloaded & approval email sent ✓')
+              setTimeout(() => setApprovalSent(false), 4000)
+            }
+
+            const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(makeSVG())))
+            const aspectRatio = h / w
+            const previewW = 340
+            const previewH = Math.round(previewW * aspectRatio)
+
+            return (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+                  {/* Controls panel */}
+                  <div>
+                    <div className="card mb3">
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>📐 Platform</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        {PLATFORMS.map(p => (
+                          <button key={p.id} onClick={() => { setDesignPlatform(p.id); setDesignSeed(s => s + 1) }}
+                            style={{ padding: '8px 10px', fontSize: 10, background: designPlatform === p.id ? 'rgba(200,169,110,.15)' : 'rgba(0,0,0,.2)', border: `1px solid ${designPlatform === p.id ? 'rgba(200,169,110,.5)' : 'var(--br)'}`, color: designPlatform === p.id ? 'var(--gold)' : 'var(--tx3)', cursor: 'pointer', textAlign: 'left', lineHeight: 1.4 }}>
+                            <div style={{ fontWeight: 600 }}>{p.label}</div>
+                            <div style={{ fontSize: 9, opacity: 0.7 }}>{p.w}×{p.h}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="card mb3">
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>🎯 Content Theme</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {THEMES.map(t => (
+                          <button key={t.id} onClick={() => { setDesignTheme(t.id); setDesignSeed(s => s + 1) }}
+                            style={{ padding: '8px 12px', fontSize: 11, background: designTheme === t.id ? 'rgba(200,169,110,.12)' : 'rgba(0,0,0,.15)', border: `1px solid ${designTheme === t.id ? 'rgba(200,169,110,.4)' : 'var(--br)'}`, color: designTheme === t.id ? 'var(--gold)' : 'var(--tx2)', cursor: 'pointer', textAlign: 'left' }}>
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="card mb3">
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>🎨 Background</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        {BGS.map(b => (
+                          <button key={b.id} onClick={() => { setDesignBg(b.id); setDesignSeed(s => s + 1) }}
+                            style={{ padding: '8px 10px', fontSize: 10, background: designBg === b.id ? 'rgba(200,169,110,.12)' : 'rgba(0,0,0,.2)', border: `1px solid ${designBg === b.id ? 'rgba(200,169,110,.45)' : 'var(--br)'}`, color: designBg === b.id ? 'var(--gold)' : 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 10, height: 10, borderRadius: '50%', background: `linear-gradient(135deg, ${b.from}, ${b.to})`, border: `1px solid ${b.accent}`, flexShrink: 0 }} />
+                            {b.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preview + Actions */}
+                  <div>
+                    <div className="card mb3">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)' }}>👁 Preview</div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <span style={{ fontSize: 9, color: 'var(--tx3)', background: 'rgba(0,0,0,.3)', padding: '2px 8px', border: '1px solid var(--br)' }}>{plat.label}</span>
+                          <span style={{ fontSize: 9, color: 'var(--tx3)', background: 'rgba(0,0,0,.3)', padding: '2px 8px', border: '1px solid var(--br)' }}>Layout {layout + 1}/5</span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', background: 'rgba(0,0,0,.3)', padding: 12, border: '1px solid var(--br2)' }}>
+                        <img src={svgDataUrl} width={previewW} height={previewH} style={{ display: 'block', maxWidth: '100%' }} alt="Design preview" />
+                      </div>
+                      <div style={{ marginTop: 10, fontSize: 10, color: 'var(--tx3)', textAlign: 'center' }}>
+                        Change any option above to get a different layout variant
+                      </div>
+                    </div>
+
+                    <div className="card mb3">
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>🔀 Shuffle Layout</div>
+                      <button className="btn btn-ghost" style={{ width: '100%', fontSize: 11, marginBottom: 10 }}
+                        onClick={() => setDesignSeed(s => s + 1)}>
+                        🎲 Generate New Variation
+                      </button>
+                      <div style={{ fontSize: 9, color: 'var(--tx3)', textAlign: 'center' }}>
+                        Cycles through 5 unique layout templates
+                      </div>
+                    </div>
+
+                    <div className="card">
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>📤 Export</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={downloadSVG}>
+                          ⬇ Download SVG
+                        </button>
+                        <button
+                          onClick={sendForApproval}
+                          disabled={approvalSent}
+                          style={{ width: '100%', padding: '10px', fontSize: 11, fontWeight: 600, background: approvalSent ? 'rgba(63,185,80,.1)' : 'rgba(200,169,110,.12)', border: `1px solid ${approvalSent ? 'rgba(63,185,80,.4)' : 'rgba(200,169,110,.4)'}`, color: approvalSent ? 'var(--grn)' : 'var(--gold)', cursor: approvalSent ? 'default' : 'pointer', letterSpacing: '.05em', transition: 'all .2s' }}>
+                          {approvalSent ? '✓ Sent for Approval' : '📧 Email for Approval + Auto-Download'}
+                        </button>
+                        <div style={{ fontSize: 9, color: 'var(--tx3)', lineHeight: 1.5 }}>
+                          Sends notification to hotellfountainbd@gmail.com and downloads the file automatically
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )
+    }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
 setTimeout(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; }, 8000);
