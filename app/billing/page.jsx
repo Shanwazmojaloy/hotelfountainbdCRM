@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import BillingCard from "@/components/BillingCard";
-import ProgressRing from "../../components/ProgressRing";
+import ProgressRing from "@/components/ProgressRing";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
