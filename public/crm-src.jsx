@@ -5053,6 +5053,16 @@ function App() {
       const [debateClient,  setDebateClient]  = useState('Hotel Fountain')
       const [focusAgent,    setFocusAgent]    = useState(null)
       const [clientBrains,  setClientBrains]  = useState({})
+      const [clients,       setClients]       = useState([{id:'hotel-fountain',name:'Hotel Fountain'}])
+      useEffect(()=>{
+        fetch(`${SB_URL}/rest/v1/leads?select=id,company&tenant_id=eq.${TENANT}&company=not.is.null&order=company.asc&limit=100`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}})
+          .then(r=>r.json()).then(d=>{
+            if(!Array.isArray(d)||!d.length) return
+            const seen=new Set(); const list=[{id:'hotel-fountain',name:'Hotel Fountain'}]
+            d.forEach(r=>{ if(r.company&&!seen.has(r.company)){seen.add(r.company);list.push({id:r.id,name:r.company})} })
+            setClients(list)
+          }).catch(()=>{})
+      },[])
       const [canvasBrief,   setCanvasBrief]   = useState(null)
       const [selectedPhoto, setSelectedPhoto] = useState('1skrxB3Gb7R5m3VCUTblkSRzvDT7xN0eZ')
       const [canvasDesignType, setCanvasDesignType] = useState('poster')
