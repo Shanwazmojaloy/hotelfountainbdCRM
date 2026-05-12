@@ -5047,6 +5047,11 @@ function App() {
       const [canvasDesignType, setCanvasDesignType] = useState('poster')
       const [canvasResults, setCanvasResults] = useState([])
       const [canvasStudioOpen, setCanvasStudioOpen] = useState(false)
+      const [photoSource,    setPhotoSource]    = useState('drive')
+      const [uploadedPhotoUrl,setUploadedPhotoUrl]=useState(null)
+      const [uploadingPhoto, setUploadingPhoto] = useState(false)
+      const [selectedDesignId,setSelectedDesignId]=useState('DAHJcIRAgZ4')
+      const [applyingPhoto,  setApplyingPhoto]  = useState(false)
 
 
 
@@ -5136,6 +5141,13 @@ function App() {
         {id:'18XOOjbwX5_wwzxAYSnUtMbAt6VGwMQ5q',name:'AI Room 1'},
         {id:'1ZHCSKuA-PGDevQpxT2MmcNWObgbSIN-L',name:'Poster Design'},
       ]
+      const SAVED_DESIGNS=[
+        {id:'DAHJcIRAgZ4',title:'The Airport Hotel',editUrl:'https://www.canva.com/d/2c-INOckzDhwzqg',thumb:'https://design.canva.ai/Z_xnyCNN_YiJaMX'},
+        {id:'DAHJcDvtcyc',title:'Editorial Poster',editUrl:'https://www.canva.com/d/gcMVC8soSDrmqkw',thumb:'https://design.canva.ai/S1MyzE8T6qidod6'},
+        {id:'DAHJcO2nWgM',title:'Premium Features',editUrl:'https://www.canva.com/d/RxIKe5B0dazOAhJ',thumb:'https://design.canva.ai/ZBmfH8mybfdOwEI'},
+        {id:'DAHJcA4iDyI',title:'Ivory & Gold',editUrl:'https://www.canva.com/d/BfQ6F_RSUZuK7BV',thumb:'https://design.canva.ai/wVQFs-whB-V8Hfb'},
+      ]
+
       const COMPETITOR_CONTEXT=`Hotel competitors in Dhaka to research:
 1. Pan Pacific Sonargaon Dhaka — luxury 5-star, business travelers, Kazi Nazrul Islam Ave
 2. Le Méridien Dhaka — 5-star Marriott brand, premium corporate, Airport Road
@@ -5144,6 +5156,25 @@ function App() {
 5. Amari Dhaka — 5-star Minor Hotels, Gulshan 2
 
 Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airport, personal service, competitive pricing from ৳3500/night, Halal dining.`
+
+      async function uploadPhotoToStorage(file){
+        setUploadingPhoto(true)
+        try {
+          const ext=(file.name.split('.').pop()||'jpg').toLowerCase()
+          const path=`hotel-photos/${Date.now()}.${ext}`
+          const r=await fetch(`${SB_URL}/storage/v1/object/crm-assets/${path}`,{
+            method:'POST',
+            headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':file.type||'image/jpeg','x-upsert':'true','Cache-Control':'3600'},
+            body:file
+          })
+          if(!r.ok) throw new Error('Upload failed ('+r.status+')')
+          const url=`${SB_URL}/storage/v1/object/public/crm-assets/${path}`
+          setUploadedPhotoUrl(url)
+          toast('📸 Photo uploaded to storage ✓')
+          return url
+        }catch(e){ toast(e.message,'error'); return null }
+        finally{ setUploadingPhoto(false) }
+      }
 
       async function callAgent(agentId, extra=''){
         const ag=AGENTS.find(a=>a.id===agentId); if(!ag) return
@@ -5410,83 +5441,150 @@ Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airp
           </div>
           {/* CANVAS STUDIO — full width below 3-col grid */}
           {canvasStudioOpen&&(
-            <div style={{marginTop:16,background:'rgba(0,196,204,.04)',border:'1px solid rgba(0,196,204,.2)',borderRadius:8,padding:16}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                <div style={{fontSize:13,fontWeight:700,color:'#00C4CC',fontFamily:'Georgia,serif'}}>🎨 Canvas Design Studio</div>
-                <div style={{fontSize:9,color:'var(--tx3)'}}>Powered by canvas-design + Canva AI</div>
-              </div>
-              {/* Design type + brief */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-                <div>
-                  <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:5}}>Design Format</div>
-                  <select value={canvasDesignType} onChange={e=>setCanvasDesignType(e.target.value)} style={{width:'100%',padding:'6px 8px',fontSize:11,background:'rgba(255,255,255,.06)',border:'1px solid var(--br)',color:'var(--tx)',borderRadius:4}}>
-                    <option value="poster">🖼 Poster (A4)</option>
-                    <option value="instagram_post">📸 Instagram Post</option>
-                    <option value="facebook_post">📘 Facebook Post</option>
-                    <option value="flyer">📄 Flyer</option>
-                    <option value="your_story">📱 Story (IG/FB)</option>
-                  </select>
+            <div style={{marginTop:16,background:'rgba(0,196,204,.04)',border:'1px solid rgba(0,196,204,.25)',borderRadius:10,padding:18,backdropFilter:'blur(4px)'}}>
+              {/* Header */}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+                <div style={{fontSize:14,fontWeight:700,color:'#00C4CC',fontFamily:'Georgia,serif'}}>🎨 Canvas Design Studio</div>
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <span style={{fontSize:9,color:'var(--tx3)'}}>canvas-design · theme-factory · Canva AI</span>
                 </div>
+              </div>
+
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+                {/* LEFT — Photo Source */}
                 <div>
-                  <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:5}}>Style Theme</div>
-                  <div style={{padding:'6px 8px',fontSize:10,background:'rgba(200,169,110,.06)',border:'1px solid rgba(200,169,110,.2)',borderRadius:4,color:'var(--gold)'}}>
-                    {canvasBrief?.philosophy||'Gilded Transit'} · {canvasBrief?.mood||'editorial'}
+                  {/* Source tabs */}
+                  <div style={{display:'flex',gap:0,marginBottom:10,borderRadius:5,overflow:'hidden',border:'1px solid var(--br)'}}>
+                    {[['drive','📁 Google Drive'],['desktop','💻 Desktop']].map(([src2,label])=>(
+                      <button key={src2} onClick={()=>setPhotoSource(src2)}
+                        style={{flex:1,padding:'6px',fontSize:10,background:photoSource===src2?'rgba(0,196,204,.15)':'transparent',color:photoSource===src2?'#00C4CC':'var(--tx3)',border:'none',cursor:'pointer',fontWeight:photoSource===src2?700:400,transition:'all .2s'}}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Drive grid */}
+                  {photoSource==='drive'&&(
+                    <div>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:4}}>
+                        {HOTEL_PHOTOS.map(p=>(
+                          <div key={p.id} onClick={()=>{setSelectedPhoto(p.id);setUploadedPhotoUrl(null)}}
+                            style={{position:'relative',aspectRatio:'1',cursor:'pointer',borderRadius:5,overflow:'hidden',border:`2px solid ${selectedPhoto===p.id&&!uploadedPhotoUrl?'#00C4CC':'transparent'}`,transition:'border-color .15s'}}>
+                            <img src={`https://drive.google.com/thumbnail?id=${p.id}&sz=w200`} alt={p.name}
+                              style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
+                              onError={e=>{e.target.style.display='none';e.target.parentNode.style.background='#222'}}/>
+                            {selectedPhoto===p.id&&!uploadedPhotoUrl&&(
+                              <div style={{position:'absolute',inset:0,background:'rgba(0,196,204,.15)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                <div style={{width:16,height:16,borderRadius:'50%',background:'#00C4CC',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'#000',fontWeight:700}}>✓</div>
+                              </div>
+                            )}
+                            <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'2px 3px',fontSize:7,background:'rgba(0,0,0,.7)',color:'#fff',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{p.name}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{marginTop:6,fontSize:9,color:'var(--tx3)',textAlign:'center'}}>{HOTEL_PHOTOS.length} photos from your Google Drive</div>
+                    </div>
+                  )}
+
+                  {/* Desktop upload */}
+                  {photoSource==='desktop'&&(
+                    <div>
+                      <label htmlFor="photo-upload-input"
+                        style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6,padding:'20px 12px',border:'2px dashed rgba(0,196,204,.35)',borderRadius:7,cursor:'pointer',background:uploadingPhoto?'rgba(0,196,204,.08)':'rgba(255,255,255,.02)',transition:'all .2s',minHeight:100}}>
+                        {uploadingPhoto?(
+                          <><div style={{fontSize:20}}>⏳</div><div style={{fontSize:10,color:'#00C4CC'}}>Uploading...</div></>
+                        ):(
+                          <><div style={{fontSize:24}}>📸</div>
+                          <div style={{fontSize:11,color:'var(--tx2)',fontWeight:600}}>Drop photo here or click to browse</div>
+                          <div style={{fontSize:9,color:'var(--tx3)'}}>JPG, PNG, WEBP · Max 10MB</div></>
+                        )}
+                      </label>
+                      <input id="photo-upload-input" type="file" accept="image/*" style={{display:'none'}}
+                        onChange={async e=>{
+                          const file=e.target.files?.[0]; if(!file) return
+                          if(file.size>10*1024*1024){toast('Max 10MB','error');return}
+                          await uploadPhotoToStorage(file)
+                          e.target.value=''
+                        }}/>
+                      {uploadedPhotoUrl&&(
+                        <div style={{marginTop:8,borderRadius:5,overflow:'hidden',position:'relative'}}>
+                          <img src={uploadedPhotoUrl} alt="Uploaded" style={{width:'100%',maxHeight:120,objectFit:'cover',display:'block'}}/>
+                          <button onClick={()=>setUploadedPhotoUrl(null)}
+                            style={{position:'absolute',top:4,right:4,width:18,height:18,borderRadius:'50%',background:'rgba(0,0,0,.7)',color:'#fff',border:'none',cursor:'pointer',fontSize:10,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+                          <div style={{padding:'4px 6px',background:'rgba(0,196,204,.1)',fontSize:8,color:'#00C4CC',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{uploadedPhotoUrl.split('/').pop()}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* RIGHT — Design selector + Apply */}
+                <div>
+                  <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:8}}>Apply Photo To Design</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:10}}>
+                    {SAVED_DESIGNS.map(d=>(
+                      <div key={d.id} onClick={()=>setSelectedDesignId(d.id)}
+                        style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:5,cursor:'pointer',border:`1px solid ${selectedDesignId===d.id?'rgba(0,196,204,.5)':'rgba(255,255,255,.07)'}`,background:selectedDesignId===d.id?'rgba(0,196,204,.08)':'rgba(255,255,255,.02)',transition:'all .15s'}}>
+                        <img src={d.thumb} alt={d.title} style={{width:36,height:36,objectFit:'cover',borderRadius:3,flexShrink:0}}
+                          onError={e=>{e.target.style.background='#333';e.target.style.minWidth='36px'}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:10,color:'var(--tx)',fontWeight:selectedDesignId===d.id?600:400,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.title}</div>
+                          <a href={d.editUrl} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:8,color:'#00C4CC',textDecoration:'none'}}>Edit in Canva ↗</a>
+                        </div>
+                        {selectedDesignId===d.id&&<div style={{width:14,height:14,borderRadius:'50%',background:'#00C4CC',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'#000',fontWeight:700,flexShrink:0}}>✓</div>}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Design type */}
+                  <div style={{marginBottom:10}}>
+                    <div style={{fontSize:9,color:'var(--tx3)',marginBottom:4}}>Generate New Format</div>
+                    <select value={canvasDesignType} onChange={e=>setCanvasDesignType(e.target.value)}
+                      style={{width:'100%',padding:'5px 8px',fontSize:10,background:'rgba(255,255,255,.05)',border:'1px solid var(--br)',color:'var(--tx)',borderRadius:4}}>
+                      <option value="poster">🖼 Poster (A4)</option>
+                      <option value="instagram_post">📸 Instagram Post</option>
+                      <option value="facebook_post">📘 Facebook Post</option>
+                      <option value="flyer">📄 Flyer</option>
+                      <option value="your_story">📱 Story (IG/FB)</option>
+                    </select>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                    <button onClick={async()=>{
+                      const photoUrl=uploadedPhotoUrl||(selectedPhoto?`https://drive.google.com/thumbnail?id=${selectedPhoto}&sz=w2000`:null)
+                      if(!photoUrl){toast('Select or upload a photo first','error');return}
+                      const design=SAVED_DESIGNS.find(d=>d.id===selectedDesignId)
+                      const brief=canvasBrief||{title:'The Airport Hotel. Finally.',cta:'Book Now',palette:['#F5F0E8','#C8A96E'],philosophy:'Gilded Transit'}
+                      const msg=`Apply this hotel photo to the Canva design:
+Photo URL: ${photoUrl}
+Design: ${design?.title} (${design?.editUrl})
+Design ID: ${selectedDesignId}
+Style: ${brief.philosophy||'Gilded Transit'} · warm ivory + deep gold
+Headline: "${brief.title}"
+CTA: "${brief.cta||'Book Now'}"`
+                      try{await navigator.clipboard.writeText(msg)}catch(e){}
+                      setApplyingPhoto(true)
+                      setTimeout(()=>setApplyingPhoto(false),3000)
+                      toast('📋 Request copied — paste to Claude or ask: "Apply photo to design" ✓')
+                    }}
+                    style={{width:'100%',padding:'9px',fontSize:11,background:`linear-gradient(135deg,rgba(0,196,204,.2),rgba(122,89,255,.12))`,border:'1px solid rgba(0,196,204,.4)',color:'#00C4CC',borderRadius:5,cursor:'pointer',fontWeight:700}}>
+                      {applyingPhoto?'✓ Request Copied!':'🎨 Apply Photo to Design'}
+                    </button>
+                    <button onClick={()=>{
+                      const brief=canvasBrief||{title:'The Airport Hotel. Finally.',subtitle:'Nikunja 2, Dhaka',cta:'Book Now',palette:['#F5F0E8','#C8A96E'],mood:'editorial luxury',philosophy:'Gilded Transit'}
+                      const photoUrl=uploadedPhotoUrl||(selectedPhoto?`https://drive.google.com/thumbnail?id=${selectedPhoto}&sz=w2000`:'')
+                      const prompt=`Hotel Fountain Dhaka ${canvasDesignType}. Philosophy: "${brief.philosophy||'Gilded Transit'}". Warm ivory + deep gold. Headline: "${brief.title}". Sub: "${brief.subtitle||'5 min from Dhaka Airport'}". CTA: "${brief.cta||'Book Now'}". Rate: "৳3,500/night". Libre Baskerville + DM Sans. Magazine quality.${photoUrl?' Use this photo: '+photoUrl:''}`
+                      navigator.clipboard.writeText(prompt).catch(()=>{})
+                      window.open('https://www.canva.com/create/','_blank')
+                      toast('📋 Brief copied + Canva opened ✓')
+                    }}
+                    style={{width:'100%',padding:'7px',fontSize:10,background:'rgba(200,169,110,.08)',border:'1px solid rgba(200,169,110,.25)',color:'var(--gold)',borderRadius:5,cursor:'pointer'}}>
+                      ✨ Generate New Design
+                    </button>
                   </div>
                 </div>
               </div>
-              {/* Hotel Photo Gallery */}
-              <div style={{marginBottom:12}}>
-                <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:6}}>Hero Photo <span style={{color:'var(--tx3)',fontWeight:400}}>(from your Google Drive)</span></div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:4}}>
-                  {HOTEL_PHOTOS.map(p=>(
-                    <div key={p.id} onClick={()=>setSelectedPhoto(p.id)}
-                      style={{position:'relative',aspectRatio:'1',cursor:'pointer',borderRadius:4,overflow:'hidden',border:`2px solid ${selectedPhoto===p.id?'#00C4CC':'transparent'}`,outline:selectedPhoto===p.id?'1px solid rgba(0,196,204,.4)':'none'}}>
-                      <img src={`https://drive.google.com/thumbnail?id=${p.id}&sz=w200`} alt={p.name}
-                        style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
-                        onError={e=>{e.target.style.display='none';e.target.parentNode.style.background='rgba(255,255,255,.05)'}}/>
-                      {selectedPhoto===p.id&&<div style={{position:'absolute',top:2,right:2,width:14,height:14,borderRadius:'50%',background:'#00C4CC',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'#000',fontWeight:700}}>✓</div>}
-                      <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'2px 3px',fontSize:7,background:'rgba(0,0,0,.6)',color:'#fff',textAlign:'center',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{p.name}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Brief preview */}
-              {canvasBrief&&(
-                <div style={{marginBottom:12,padding:'8px 10px',background:'rgba(255,255,255,.03)',border:'1px solid var(--br)',borderRadius:5}}>
-                  <div style={{fontSize:9,fontWeight:600,color:'var(--gold)',marginBottom:4}}>Creative Brief from Director</div>
-                  <div style={{fontSize:10,color:'var(--tx2)',fontWeight:600}}>{canvasBrief.title}</div>
-                  <div style={{fontSize:9,color:'var(--tx3)'}}>{canvasBrief.subtitle}</div>
-                  <div style={{display:'flex',gap:6,marginTop:4,flexWrap:'wrap'}}>
-                    {(canvasBrief.palette||[]).map((c,i)=>(<span key={i} style={{display:'inline-block',width:12,height:12,borderRadius:2,background:c,border:'1px solid rgba(255,255,255,.15)'}}/>))}
-                    <span style={{fontSize:8,color:'var(--tx3)',alignSelf:'center'}}>{canvasBrief.style} · {canvasBrief.font_headline}</span>
-                  </div>
-                </div>
-              )}
-              {/* Generate button */}
-              <button onClick={()=>{
-                const brief=canvasBrief||{title:'The Airport Hotel. Finally.',subtitle:'Nikunja 2, Dhaka — 5 min from Airport',style:'luxury',cta:'Book Now',palette:['#F5F0E8','#C8A96E','#1A1A2E'],mood:'editorial warm aspirational',philosophy:'Gilded Transit'}
-                const photoUrl=`https://drive.google.com/thumbnail?id=${selectedPhoto}&sz=w2000`
-                const prompt=`Hotel Fountain Dhaka ${canvasDesignType} design. Philosophy: "${brief.philosophy||'Gilded Transit'}". Style: warm ivory + deep gold editorial. Headline: "${brief.title}". Subheadline: "${brief.subtitle}". CTA: "${brief.cta||'Book Now'}". Rate: "From ৳3,500/night". Footer: "+880-1319407384 · hotelfountainbd.com". Mood: ${brief.mood||'editorial luxury aspirational'}. Photo: ${photoUrl}. Libre Baskerville headlines, DM Sans body, IBM Plex Mono rates. Magazine quality, minimal text, white space is luxury.`
-                navigator.clipboard.writeText(prompt).catch(()=>{})
-                const req={type:canvasDesignType,brief,photoId:selectedPhoto,prompt,ts:Date.now()}
-                setCanvasResults(prev=>[req,...prev.slice(0,4)])
-                window.open('https://www.canva.com/create/','_blank')
-                toast('📋 Design brief copied + Canva opened. Paste brief into Canva AI or ask Claude to generate ✓')
-              }} style={{width:'100%',padding:'10px',fontSize:12,background:'linear-gradient(135deg,rgba(0,196,204,.2),rgba(122,89,255,.15))',border:'1px solid rgba(0,196,204,.5)',color:'#00C4CC',borderRadius:5,cursor:'pointer',fontWeight:700,letterSpacing:.3}}>
-                🎨 Generate in Canva
-              </button>
-              {/* Previous results */}
-              {canvasResults.length>0&&(
-                <div style={{marginTop:10}}>
-                  <div style={{fontSize:9,fontWeight:600,color:'var(--tx3)',marginBottom:5}}>Recent Requests</div>
-                  {canvasResults.slice(0,3).map((r,i)=>(
-                    <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 6px',background:'rgba(255,255,255,.03)',borderRadius:3,marginBottom:3}}>
-                      <span style={{fontSize:9,color:'var(--tx2)'}}>{r.type} · {new Date(r.ts).toLocaleTimeString()}</span>
-                      <button onClick={()=>{navigator.clipboard.writeText(r.prompt).catch(()=>{});toast('Brief copied ✓')}} style={{fontSize:8,padding:'2px 6px',background:'rgba(0,196,204,.1)',border:'1px solid rgba(0,196,204,.3)',color:'#00C4CC',borderRadius:3,cursor:'pointer'}}>Copy Brief</button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
