@@ -5146,6 +5146,7 @@ function App() {
       const [debateClient,  setDebateClient]  = useState('Hotel Fountain')
       const [focusAgent,    setFocusAgent]    = useState(null)
       const [posterOpen,    setPosterOpen]    = useState(false)
+      const [canvasBrief,   setCanvasBrief]   = useState(null)
 
       const [pImageData,   setPImageData]   = useState(null)
       const [pImageColors, setPImageColors] = useState(null)
@@ -5434,6 +5435,49 @@ function App() {
         document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
       }
 
+      function downloadAsPNG(){
+        const svg=makePosterSVG()
+        const svgBlob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'})
+        const svgObjUrl=URL.createObjectURL(svgBlob)
+        const img=new window.Image(); img.crossOrigin='anonymous'
+        img.onload=()=>{
+          const sz=PS_SIZES.find(s=>s.id===pSize)||PS_SIZES[0]
+          const canvas=document.createElement('canvas')
+          canvas.width=sz.w; canvas.height=sz.h
+          const ctx=canvas.getContext('2d')
+          ctx.drawImage(img,0,0,sz.w,sz.h)
+          URL.revokeObjectURL(svgObjUrl)
+          canvas.toBlob(blob=>{
+            const url=URL.createObjectURL(blob)
+            const a=document.createElement('a')
+            a.href=url; a.download=`poster-${pStyle}-${pSize}-${pClient.replace(/ /g,'_')}.png`
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+            toast('PNG downloaded ✓')
+          },'image/png',0.96)
+        }
+        img.onerror=()=>{ URL.revokeObjectURL(svgObjUrl); toast('PNG export failed — try SVG','error') }
+        img.src=svgObjUrl
+      }
+
+      function openInCanva(){
+        const brief=canvasBrief||{title:pTitle,subtitle:pSub,style:pStyle,cta:pCTA,palette:[]}
+        const briefText=`Hotel Fountain Dhaka — Canvas Design Brief
+
+Title: ${brief.title||pTitle}
+Subtitle: ${brief.subtitle||pSub}
+Style: ${brief.style||pStyle}
+CTA: ${brief.cta||pCTA}
+Mood: ${brief.mood||'editorial, warm, aspirational'}
+Philosophy: ${brief.philosophy||'Gilded Transit'}
+Palette: ${(brief.palette||[]).join(' · ')}
+Font Headline: ${brief.font_headline||'Libre Baskerville'}
+Font Body: ${brief.font_body||'DM Sans'}
+
+Client: ${pClient} · Size: ${brief.size||pSize}`
+        try{ navigator.clipboard.writeText(briefText); toast('📋 Brief copied to clipboard — paste into Canva ✓') }catch(e){ toast('Brief ready — opening Canva') }
+        window.open('https://www.canva.com/design/new','_blank')
+      }
+
       async function sendPosterApproval(){
         dlPoster(); setPApproval(true)
         try { await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({action:'email_design_approval',type:'poster',style:pStyle,size:pSize,client:pClient})}) } catch(e){}
@@ -5533,7 +5577,7 @@ Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airp
           const d=await r.json()
           content=d.caption||d.content||d.response||''
         } catch(e){}
-        if(!content) content=agentId==='researcher'?`📊 Competitor Research (baseline):\n\n• Pan Pacific leads on corporate packages (৳12,000+/night) targeting MNCs. Their weakness: impersonal service, no airport proximity messaging.\n• Le Méridien dominates LinkedIn with B2B event content. Gap: they ignore transit passengers entirely.\n• Radisson Blu focuses on weddings/events. Rarely targets corporate solo travelers.\n\n🎯 Hotel Fountain Gaps to Exploit:\n1. "5-minute airport" — none of the big hotels own this positioning\n2. Boutique personalisation vs corporate coldness\n3. Price-value: same proximity, 70% lower rate than 5-star competitors`:agentId==='strategist'?`🧠 Strategy Recommendation:\n\nBased on competitor gaps, I recommend a 3-pillar campaign:\n\n1. OWN "The Airport Hotel" positioning — make 5-min proximity the hero message across all channels\n2. CORPORATE COMFORT — target "road warriors" with monthly corporate rate packages, LinkedIn-first\n3. PERSONAL LUXURY — contrast boutique warmth vs cold 5-star chains on Instagram\n\nPriority: LinkedIn for corporate leads, Instagram for aspirational, Facebook for local market.\nBudget split: 50% LinkedIn ads / 30% Instagram / 20% Facebook retargeting.`:agentId==='copywriter'?`✍️ Draft Copy Lines:\n\n**LinkedIn:** "While others check in to a hotel, our guests arrive home. 5 minutes from Dhaka airport, Hotel Fountain offers what 5-star chains can't — your name remembered."\n\n**Instagram:** "✈️ Land. Shower. Meeting-ready in 45 minutes. That's the Hotel Fountain promise. #DhakaAirportHotel #BusinessTravel"\n\n**Facebook:** "Corporate rate from ৳3,500/night. Free airport transfer. Conference room included. Your Dhaka base camp."\n\n**Challenge to Strategist:** "Airport Hotel" is correct but we need an emotional hook — I suggest "Dhaka's most convenient luxury" as the brand line.`:agentId==='creative'?`🎨 Creative Direction:\n\nVisual Brief — "The 5-Minute Promise" Campaign:\n\n• **Hero image:** Aerial shot of hotel with airport visible in background. Overlay: "5 min ✈️"\n• **Color palette:** Warm ivory + deep gold (trust + luxury) against Dhaka night skyline\n• **Typography:** Libre Baskerville for headlines (editorial authority), DM Sans for body\n• **Content series:** "From gate to great" — time-lapse style: plane lands → taxi → hotel lobby → fresh coffee\n\n📌 Poster brief: Full-bleed hotel room photo, Luxury Editorial style, headline "The Airport Hotel. Finally." CTA: "Book Your Room"\n\n**Challenge to Copywriter:** "Your name remembered" is strong but unverifiable. Suggest "Your preferences remembered" — more credible.`:agentId==='analyst'?`📊 Performance Framework:\n\nKPIs I want tracked before approving this campaign:\n\n**Awareness:** Impressions target 50,000/month LinkedIn + 80,000 Instagram\n**Engagement:** CTR >2.5% on corporate posts (industry avg 1.8%)\n**Conversion:** Cost per booking inquiry <৳850\n**Revenue:** Target 40% occupancy uplift in corporate segment (currently ~28%)\n\nRecommendations:\n1. A/B test "5-minute airport" vs "boutique luxury" as hero message — run 2 weeks each\n2. LinkedIn InMail to Dhaka-based MNCs (50-200 employees) — highest ROI channel\n3. Track booking source in PMS to attribute social ROI\n\n**Challenge to Strategist:** 50% LinkedIn budget is justified only if corporate segment is >40% of revenue. What's the current mix?`:'[Agent offline — please try again]'
+        if(!content) content=agentId==='researcher'?`📊 Competitor Research (baseline):\n\n• Pan Pacific leads on corporate packages (৳12,000+/night) targeting MNCs. Their weakness: impersonal service, no airport proximity messaging.\n• Le Méridien dominates LinkedIn with B2B event content. Gap: they ignore transit passengers entirely.\n• Radisson Blu focuses on weddings/events. Rarely targets corporate solo travelers.\n\n🎯 Hotel Fountain Gaps to Exploit:\n1. "5-minute airport" — none of the big hotels own this positioning\n2. Boutique personalisation vs corporate coldness\n3. Price-value: same proximity, 70% lower rate than 5-star competitors`:agentId==='strategist'?`🧠 Strategy Recommendation:\n\nBased on competitor gaps, I recommend a 3-pillar campaign:\n\n1. OWN "The Airport Hotel" positioning — make 5-min proximity the hero message across all channels\n2. CORPORATE COMFORT — target "road warriors" with monthly corporate rate packages, LinkedIn-first\n3. PERSONAL LUXURY — contrast boutique warmth vs cold 5-star chains on Instagram\n\nPriority: LinkedIn for corporate leads, Instagram for aspirational, Facebook for local market.\nBudget split: 50% LinkedIn ads / 30% Instagram / 20% Facebook retargeting.`:agentId==='copywriter'?`✍️ Draft Copy Lines:\n\n**LinkedIn:** "While others check in to a hotel, our guests arrive home. 5 minutes from Dhaka airport, Hotel Fountain offers what 5-star chains can't — your name remembered."\n\n**Instagram:** "✈️ Land. Shower. Meeting-ready in 45 minutes. That's the Hotel Fountain promise. #DhakaAirportHotel #BusinessTravel"\n\n**Facebook:** "Corporate rate from ৳3,500/night. Free airport transfer. Conference room included. Your Dhaka base camp."\n\n**Challenge to Strategist:** "Airport Hotel" is correct but we need an emotional hook — I suggest "Dhaka's most convenient luxury" as the brand line.`:agentId==='creative'?`🎨 Creative Direction — Canvas Design Brief:\n\n**Philosophy: "Gilded Transit"** — Warm ivory meets deep gold. The grammar of movement (runways, corridors, thresholds) expressed in editorial stillness. Every frame should feel like a magazine cover that stopped time.\n\n• **Hero image:** Full-bleed room at golden hour, airport visible through floor-to-ceiling glass. Rule-of-thirds, subject-left, negative space right for type.\n• **Color palette:** Ivory #F5F0E8 · Deep Gold #C8A96E · Charcoal #1A1A2E · Accent #58A6FF\n• **Typography:** Libre Baskerville (headlines) / DM Sans (body) / IBM Plex Mono (rates)\n• **Visual rhythm:** Sparse. One dominant image. One headline. One CTA. White space is luxury.\n\nCANVAS_BRIEF:\n{\"title\":\"The Airport Hotel. Finally.\",\"subtitle\":\"Nikunja 2, Dhaka — 5 min from Hazrat Shahjalal\",\"style\":\"luxury\",\"palette\":[\"#F5F0E8\",\"#C8A96E\",\"#1A1A2E\",\"#58A6FF\"],\"mood\":\"editorial, warm, aspirational\",\"cta\":\"Book Your Room\",\"font_headline\":\"Libre Baskerville\",\"philosophy\":\"Gilded Transit\",\"size\":\"a4p\"}\n\n**Challenge to Copywriter:** Pair \"Your name remembered\" with a visual of a personalised welcome card — makes the promise credible.`:agentId==='analyst'?`📊 Performance Framework:\n\nKPIs I want tracked before approving this campaign:\n\n**Awareness:** Impressions target 50,000/month LinkedIn + 80,000 Instagram\n**Engagement:** CTR >2.5% on corporate posts (industry avg 1.8%)\n**Conversion:** Cost per booking inquiry <৳850\n**Revenue:** Target 40% occupancy uplift in corporate segment (currently ~28%)\n\nRecommendations:\n1. A/B test "5-minute airport" vs "boutique luxury" as hero message — run 2 weeks each\n2. LinkedIn InMail to Dhaka-based MNCs (50-200 employees) — highest ROI channel\n3. Track booking source in PMS to attribute social ROI\n\n**Challenge to Strategist:** 50% LinkedIn budget is justified only if corporate segment is >40% of revenue. What's the current mix?`:'[Agent offline — please try again]'
         const newMsg={id:Date.now(),agent:agentId,content,accepted:false,ts:new Date().toLocaleTimeString()}
         setAgentMsgs(prev=>[...prev,newMsg])
         setAgentRunning(null)
@@ -5554,6 +5598,21 @@ Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airp
         setAcceptedOuts(prev=>[...prev,msg])
         setAgentScores(prev=>({...prev,[msg.agent]:Math.min(99,prev[msg.agent]+3)}))
         setAgentAccepted(prev=>({...prev,[msg.agent]:(prev[msg.agent]||0)+1}))
+        // Parse CANVAS_BRIEF if creative agent
+        if(msg.agent==='creative'){
+          try{
+            const m=msg.content.match(/CANVAS_BRIEF:\s*(\{[\s\S]*?\})/);
+            if(m){ const brief=JSON.parse(m[1]); setCanvasBrief(brief)
+              // Auto-fill poster fields from brief
+              if(brief.title) setPTitle(brief.title)
+              if(brief.subtitle) setPSub(brief.subtitle)
+              if(brief.cta) setPCTA(brief.cta)
+              if(brief.style) setPStyle(brief.style)
+              if(brief.size) setPSize(brief.size)
+              toast('🎨 Canvas brief extracted — Poster Studio auto-filled ✓')
+            }
+          }catch(e){}
+        }
         // Save to client brain
         const cl=clients.find(c=>c.name===debateClient)
         if(cl) setClientBrains(prev=>({...prev,[cl.id]:{...(prev[cl.id]||{}),lastAccepted:msg.content.slice(0,300)}}))
@@ -5625,10 +5684,15 @@ Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airp
                     Ask {ag.name.split(' ')[0]}
                   </button>
                   {ag.id==='creative'&&(
-                    <button onClick={e=>{e.stopPropagation();setPosterOpen(p=>!p)}}
-                      style={{marginTop:5,width:'100%',padding:'5px',fontSize:10,background:'rgba(255,107,138,.1)',border:'1px solid rgba(255,107,138,.4)',color:'#FF6B8A',borderRadius:4,cursor:'pointer'}}>
-                      {posterOpen?'Close':'🖼 Poster Studio'}
-                    </button>
+                    <>
+                      <button onClick={e=>{e.stopPropagation();setPosterOpen(p=>!p)}}
+                        style={{marginTop:5,width:'100%',padding:'5px',fontSize:10,background:'rgba(255,107,138,.1)',border:'1px solid rgba(255,107,138,.4)',color:'#FF6B8A',borderRadius:4,cursor:'pointer'}}>
+                        {posterOpen?'✕ Close Studio':'🖼 Canvas Studio'}
+                      </button>
+                      {canvasBrief&&(
+                        <button onClick={openInCanva} style={{marginTop:4,width:'100%',padding:'5px',fontSize:9,background:'linear-gradient(135deg,rgba(0,196,204,.15),rgba(122,89,255,.15))',border:'1px solid rgba(0,196,204,.4)',color:'#00C4CC',borderRadius:4,cursor:'pointer',fontWeight:600}}>🎨 Open in Canva ✓</button>
+                      )}
+                    </>
                   )}
                 </div>
               ))}
@@ -5902,8 +5966,12 @@ Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airp
                   <div>
                     <div className="card mb3">
                       <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>⬇ Export</div>
-                      <button onClick={dlPoster} style={{width:'100%',padding:'9px',fontSize:11,background:'rgba(200,169,110,.12)',border:'1px solid rgba(200,169,110,.4)',color:'var(--gold)',borderRadius:5,cursor:'pointer',marginBottom:8,fontWeight:600}}>
-                        ⬇ DOWNLOAD SVG
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
+                        <button onClick={dlPoster} style={{padding:'8px',fontSize:10,background:'rgba(200,169,110,.12)',border:'1px solid rgba(200,169,110,.4)',color:'var(--gold)',borderRadius:5,cursor:'pointer',fontWeight:600}}>⬇ SVG</button>
+                        <button onClick={downloadAsPNG} style={{padding:'8px',fontSize:10,background:'rgba(88,166,255,.1)',border:'1px solid rgba(88,166,255,.35)',color:'#58A6FF',borderRadius:5,cursor:'pointer',fontWeight:600}}>🖼 PNG</button>
+                      </div>
+                      <button onClick={openInCanva} style={{width:'100%',padding:'9px',fontSize:11,background:'linear-gradient(135deg,rgba(0,196,204,.12),rgba(122,89,255,.12))',border:'1px solid rgba(0,196,204,.4)',color:'#00C4CC',borderRadius:5,cursor:'pointer',marginBottom:8,fontWeight:600,letterSpacing:.3}}>
+                        🎨 Create in Canva {canvasBrief?'· Brief Ready ✓':''}
                       </button>
                       <button onClick={sendPosterApproval} disabled={pApproval} style={{width:'100%',padding:'9px',fontSize:11,background:pApproval?'rgba(63,185,80,.1)':'rgba(255,255,255,.05)',border:`1px solid ${pApproval?'rgba(63,185,80,.4)':'var(--br)'}`,color:pApproval?'#3FB950':'var(--tx2)',borderRadius:5,cursor:'pointer'}}>
                         {pApproval?'✓ Sent':'📧 Send for Approval'}
