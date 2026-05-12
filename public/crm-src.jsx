@@ -5111,6 +5111,13 @@ function App() {
         toast(status === 'scheduled' ? 'Post scheduled ✓' : 'Draft saved ✓')
       }
 
+      const PLATFORM_CFG={
+        linkedin:  {limit:3000,  label:'LinkedIn',  icon:'💼', color:'#0A66C2'},
+        instagram: {limit:2200,  label:'Instagram', icon:'📸', color:'#E1306C'},
+        facebook:  {limit:63206, label:'Facebook',  icon:'📘', color:'#1877F2'},
+        twitter:   {limit:280,   label:'Twitter/X', icon:'🐦', color:'#1DA1F2'},
+        tiktok:    {limit:2200,  label:'TikTok',    icon:'🎵', color:'#FF0050'},
+      }
       const platCfg  = PLATFORM_CFG[cPlatform]
       const charLimit = platCfg?.limit || 2200
       const charLeft  = charLimit - cCaption.length
