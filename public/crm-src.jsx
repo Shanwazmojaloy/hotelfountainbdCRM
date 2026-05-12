@@ -5838,7 +5838,8 @@ function App() {
           {/* ════════ POSTER STUDIO ════════ */}
           {tab==='poster' && (()=>{
             const sz=_psz; const bg=_pbg; const w=_pw; const h=_ph; const variant=_pvar
-
+            const svgUrl='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(makePosterSVG())))
+            const prevW=280; const prevH=Math.round(prevW*(h/w))
 
             return (
               <div style={{display:'grid',gridTemplateColumns:'260px 1fr',gap:16,alignItems:'start'}}>
