@@ -96,13 +96,7 @@ function buildOutreachText(company: string, contactName: string | null): string 
   ].join('\n');
 }
 
-export async function GET(req: Request) {
-  // Auth: Vercel cron sends Bearer CRON_SECRET
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+async function runOutreachBot() {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -115,10 +109,10 @@ export async function GET(req: Request) {
     .eq('tenant_id', TENANT)
     .eq('status', 'pending')
     .not('contact_email', 'is', null)
-    .order('priority', { ascending: false }) // high first
+    .order('priority', { ascending: false })
     .limit(MAX_PER_RUN);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return { ok: false, error: error.message };
 
   const results: Array<Record<string, unknown>> = [];
 
@@ -145,7 +139,6 @@ export async function GET(req: Request) {
       const ok = brevoRes.ok;
       const brevoData = await brevoRes.json().catch(() => ({}));
 
-      // Log outbound email
       await supabase.from('outreach_log').insert({
         tenant_id: TENANT,
         lead_id: lead.id,
@@ -156,7 +149,6 @@ export async function GET(req: Request) {
         sent_at: new Date().toISOString(),
       });
 
-      // Update lead status
       await supabase
         .from('corporate_leads')
         .update({
@@ -172,11 +164,21 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({
+  return {
     ok: true,
     agent: 'outreach-bot',
     processed: results.length,
     timestamp: new Date().toISOString(),
     results,
-  });
+  };
 }
+
+// GET — Vercel cron (requires CRON_SECRET)
+export async function GET(req: Request) {
+  const auth = req.headers.get('authorization');
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const result = await runOutreachBot();
+  if (!result.ok) return NextResponse.js

@@ -103,41 +103,4 @@ export async function GET(req: Request) {
       tier === 'VIP'
         ? `Dear ${guest.name}, as one of our most valued guests, we'd love to welcome you back to Hotel Fountain. Enjoy a complimentary room upgrade on your next stay. Book via WhatsApp or call us directly.`
         : tier === 'Lapsed'
-        ? `Dear ${guest.name}, we miss you at Hotel Fountain! Return this month and enjoy a special discount. Reply YES for details.`
-        : `Dear ${guest.name}, thank you for choosing Hotel Fountain. We hope to see you again soon — your preferred room is ready for you.`;
-
-    try {
-      await dbPost('review_queue', {
-        tenant_id: TENANT,
-        type: 'retention_outreach',
-        guest_id: guest.id,
-        content: message,
-        tier,
-        channel,
-        status: 'pending_approval',
-        auto_send: false,
-        created_at: new Date().toISOString(),
-      });
-    } catch { /* non-fatal — queue may not exist yet */ }
-
-    try {
-      await dbPatch('guests', `id=eq.${guest.id}`, {
-        last_contacted: new Date().toISOString(),
-      });
-    } catch { /* non-fatal */ }
-
-    queued.push({ guest: guest.name, tier, channel });
-  }
-
-  try {
-    await dbPost('notifications_log', {
-      tenant_id: TENANT,
-      workflow: 'guest-retention',
-      body: `Retention run complete: ${queued.length} drafts queued for approval.`,
-      status: 'success',
-      triggered_by: 'cron:weekly-retention',
-    });
-  } catch { /* non-fatal */ }
-
-  return NextResponse.json({ ok: true, queued_count: queued.length, guests: queued });
-}
+        ? `Dear ${guest.name}, we miss you at Hotel Fountain! Return this month and enjoy a 

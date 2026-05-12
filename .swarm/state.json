@@ -1,8 +1,0 @@
-{
-  "id": "swarm-1777608496406-uodq6e",
-  "topology": "hierarchical",
-  "maxAgents": 16,
-  "strategy": "specialized",
-  "initializedAt": "2026-05-01T04:08:16.406Z",
-  "status": "ready"
-}
