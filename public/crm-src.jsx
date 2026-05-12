@@ -5231,23 +5231,135 @@ function App() {
       }
 
       function makeImagePosterSVG(){
-        const ic=pImageColors||{isDark:true,accent:'#C8A96E',text:'#FFFFFF',sub:'rgba(255,255,255,0.75)',scrim:'rgba(0,0,0,0.52)',panel:'rgba(0,0,0,0.72)'}
+        const ic=pImageColors||{isDark:true,accent:'#C8A96E',text:'#FFFFFF',sub:'rgba(255,255,255,0.75)',scrim:'rgba(0,0,0,0.52)',panel:'rgba(0,0,0,0.72)',avg:'#332211'}
         const w=_pw; const h=_ph; const hotel=pClient||'Hotel Fountain'
-        const titleLines=wrapText(pTitle,w*0.78,Math.round(w*0.063))
-        const bodyLines=wrapText(pBody,w*0.65,Math.round(w*0.028))
-        const imgTag=`<image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>`
-        const halfImgL=`<clipPath id="cl"><rect x="0" y="0" width="${Math.round(w*.5)}" height="${h}"/></clipPath><image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#cl)"/>`
-        const halfImgR=`<clipPath id="cr"><rect x="${Math.round(w*.5)}" y="0" width="${Math.round(w*.5)}" height="${h}"/></clipPath><image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#cr)"/>`
+        const s=pStyle; const a=ic.accent; const tx=ic.text; const sb=ic.sub
 
-        if(pPlacement==='full_bleed') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="scr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(0,0,0,0.1)"/><stop offset="60%" stop-color="${ic.scrim}"/><stop offset="100%" stop-color="rgba(0,0,0,0.85)"/></linearGradient></defs>${imgTag}<rect width="${w}" height="${h}" fill="url(#scr)"/><text x="${Math.round(w/2)}" y="${Math.round(h*.08)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${ic.accent}" letter-spacing="7" opacity="0.95">${hotel.toUpperCase()}</text><line x1="${Math.round(w*.1)}" y1="${Math.round(h*.11)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.11)}" stroke="${ic.accent}" stroke-width="0.6" opacity="0.5"/>${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.42+i*Math.round(w*.075))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.065)}" fill="${ic.text}" font-weight="bold" style="text-shadow:0 2px 8px rgba(0,0,0,0.8)">${l}</text>`).join('')}<text x="${Math.round(w/2)}" y="${Math.round(h*.57)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${ic.accent}">${pSub}</text><line x1="${Math.round(w*.25)}" y1="${Math.round(h*.6)}" x2="${Math.round(w*.75)}" y2="${Math.round(h*.6)}" stroke="${ic.accent}" stroke-width="0.5" opacity="0.5"/>${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.66+i*Math.round(w*.036))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${ic.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.3)}" y="${Math.round(h*.8)}" width="${Math.round(w*.4)}" height="${Math.round(h*.065)}" rx="2" fill="${ic.accent}" opacity="0.18" stroke="${ic.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.843)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.025)}" fill="${ic.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text><line x1="${Math.round(w*.1)}" y1="${Math.round(h*.91)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.91)}" stroke="${ic.accent}" stroke-width="0.5" opacity="0.4"/><text x="${Math.round(w/2)}" y="${Math.round(h*.955)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.019)}" fill="${ic.sub}" opacity="0.8">${pFooter}</text></svg>`
+        // Font choices by style
+        const hFont = (s==='luxury'||s==='festive') ? 'Georgia,serif' : s==='minimal' ? 'Georgia,serif' : 'Arial,sans-serif'
+        const bFont = 'Arial,sans-serif'
+        const hSize = Math.round(w*(s==='modern'?0.072:0.063))
+        const bSize = Math.round(w*0.026)
+        const lsHotel = s==='luxury'?'8':s==='corporate'?'5':s==='modern'?'6':'4'
 
-        if(pPlacement==='half_left') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs>${halfImgL.replace('<clipPath','<clipPath ').split('<image')[0]}</defs>${halfImgL.split('</clipPath>')[1]}<rect x="${Math.round(w*.5)}" y="0" width="${Math.round(w*.5)}" height="${h}" fill="${ic.panel}"/><line x1="${Math.round(w*.5)}" y1="${Math.round(h*.08)}" x2="${Math.round(w*.5)}" y2="${Math.round(h*.92)}" stroke="${ic.accent}" stroke-width="1.5" opacity="0.4"/><text x="${Math.round(w*.75)}" y="${Math.round(h*.12)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${ic.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><line x1="${Math.round(w*.55)}" y1="${Math.round(h*.16)}" x2="${Math.round(w*.95)}" y2="${Math.round(h*.16)}" stroke="${ic.accent}" stroke-width="0.5" opacity="0.4"/>${titleLines.map((l,i)=>`<text x="${Math.round(w*.75)}" y="${Math.round(h*.34+i*Math.round(w*.08))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.066)}" fill="${ic.text}" font-weight="bold">${l}</text>`).join('')}<text x="${Math.round(w*.75)}" y="${Math.round(h*.54)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.024)}" fill="${ic.accent}">${pSub}</text>${bodyLines.map((l,i)=>`<text x="${Math.round(w*.75)}" y="${Math.round(h*.63+i*Math.round(w*.036))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.024)}" fill="${ic.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.58)}" y="${Math.round(h*.78)}" width="${Math.round(w*.34)}" height="${Math.round(h*.065)}" fill="${ic.accent}" opacity="0.2" stroke="${ic.accent}" stroke-width="1.2"/><text x="${Math.round(w*.75)}" y="${Math.round(h*.822)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.023)}" fill="${ic.accent}" letter-spacing="2" font-weight="600">${pCTA.toUpperCase()}</text><text x="${Math.round(w*.75)}" y="${Math.round(h*.93)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.017)}" fill="${ic.sub}" opacity="0.7">${pFooter}</text></svg>`
+        // Text wrap
+        const tW = pPlacement==='full_bleed' ? w*0.78 : w*0.44
+        const titleLines=wrapText(pTitle,tW,hSize)
+        const bodyLines=wrapText(pBody,tW*0.9,bSize)
 
-        // half_right — image right, text panel left
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs>${halfImgR.replace('<clipPath','<clipPath ').split('<image')[0]}</defs>${halfImgR.split('</clipPath>')[1]}<rect x="0" y="0" width="${Math.round(w*.5)}" height="${h}" fill="${ic.panel}"/><line x1="${Math.round(w*.5)}" y1="${Math.round(h*.08)}" x2="${Math.round(w*.5)}" y2="${Math.round(h*.92)}" stroke="${ic.accent}" stroke-width="1.5" opacity="0.4"/><text x="${Math.round(w*.25)}" y="${Math.round(h*.12)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${ic.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><line x1="${Math.round(w*.05)}" y1="${Math.round(h*.16)}" x2="${Math.round(w*.45)}" y2="${Math.round(h*.16)}" stroke="${ic.accent}" stroke-width="0.5" opacity="0.4"/>${titleLines.map((l,i)=>`<text x="${Math.round(w*.25)}" y="${Math.round(h*.34+i*Math.round(w*.08))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.066)}" fill="${ic.text}" font-weight="bold">${l}</text>`).join('')}<text x="${Math.round(w*.25)}" y="${Math.round(h*.54)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.024)}" fill="${ic.accent}">${pSub}</text>${bodyLines.map((l,i)=>`<text x="${Math.round(w*.25)}" y="${Math.round(h*.63+i*Math.round(w*.036))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.024)}" fill="${ic.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.08)}" y="${Math.round(h*.78)}" width="${Math.round(w*.34)}" height="${Math.round(h*.065)}" fill="${ic.accent}" opacity="0.2" stroke="${ic.accent}" stroke-width="1.2"/><text x="${Math.round(w*.25)}" y="${Math.round(h*.822)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.023)}" fill="${ic.accent}" letter-spacing="2" font-weight="600">${pCTA.toUpperCase()}</text><text x="${Math.round(w*.25)}" y="${Math.round(h*.93)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.017)}" fill="${ic.sub}" opacity="0.7">${pFooter}</text></svg>`
+        // Image elements
+        const fullImg=`<image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>`
+        const halfLDefs=`<clipPath id="cpl"><rect x="0" y="0" width="${Math.round(w*.5)}" height="${h}"/></clipPath>`
+        const halfLImg=`<image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#cpl)"/>`
+        const halfRDefs=`<clipPath id="cpr"><rect x="${Math.round(w*.5)}" y="0" width="${Math.round(w*.5)}" height="${h}"/></clipPath>`
+        const halfRImg=`<image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#cpr)"/>`
+
+        // Style decorator — given text panel origin (tx0,ty0) and dimensions (pw,ph)
+        function styleLayer(tx0, ty0, pw, ph) {
+          const cx = tx0+pw/2; const mid = ty0+ph/2
+          if (s==='luxury') return [
+            `<rect x="${Math.round(tx0+pw*.04)}" y="${Math.round(ty0+ph*.03)}" width="${Math.round(pw*.92)}" height="${Math.round(ph*.94)}" fill="none" stroke="${a}" stroke-width="1.2" opacity="0.35"/>`,
+            `<rect x="${Math.round(tx0+pw*.055)}" y="${Math.round(ty0+ph*.045)}" width="${Math.round(pw*.89)}" height="${Math.round(ph*.91)}" fill="none" stroke="${a}" stroke-width="0.4" opacity="0.18"/>`,
+          ].join('')
+          if (s==='modern') return [
+            `<rect x="${Math.round(tx0)}" y="${Math.round(ty0)}" width="${Math.round(pw*.055)}" height="${Math.round(ph)}" fill="${a}" opacity="0.85"/>`,
+          ].join('')
+          if (s==='corporate') return [
+            `<rect x="${Math.round(tx0)}" y="${Math.round(ty0)}" width="${Math.round(pw)}" height="${Math.round(ph*.14)}" fill="${a}" opacity="0.14"/>`,
+            `<rect x="${Math.round(tx0)}" y="${Math.round(ty0+ph*.14)}" width="${Math.round(pw)}" height="2" fill="${a}" opacity="0.5"/>`,
+            `<rect x="${Math.round(tx0)}" y="${Math.round(ty0+ph*.86)}" width="${Math.round(pw)}" height="${Math.round(ph*.14)}" fill="${a}" opacity="0.1"/>`,
+          ].join('')
+          if (s==='festive') return [
+            `<circle cx="${Math.round(tx0+pw*.15)}" cy="${Math.round(ty0+ph*.15)}" r="${Math.round(pw*.22)}" fill="${a}" opacity="0.07" filter="url(#glo)"/>`,
+            `<circle cx="${Math.round(tx0+pw*.85)}" cy="${Math.round(ty0+ph*.82)}" r="${Math.round(pw*.2)}" fill="${a}" opacity="0.05" filter="url(#glo)"/>`,
+            `<rect x="${Math.round(tx0+pw*.06)}" y="${Math.round(ty0+ph*.05)}" width="${Math.round(pw*.88)}" height="${Math.round(ph*.9)}" fill="none" stroke="${a}" stroke-width="1.8" opacity="0.3" rx="4"/>`,
+          ].join('')
+          // minimal
+          return [
+            `<rect x="${Math.round(tx0+pw*.07)}" y="${Math.round(ty0+ph*.12)}" width="4" height="${Math.round(ph*.15)}" fill="${a}"/>`,
+          ].join('')
+        }
+
+        // Hotel name + dividers by style — given anchor x, y, width
+        function hotelName(cx, y, pw) {
+          const nm=`<text x="${Math.round(cx)}" y="${Math.round(y)}" text-anchor="middle" font-family="${hFont}" font-size="${Math.round(pw*.023)}" fill="${a}" letter-spacing="${lsHotel}" opacity="0.95">${hotel.toUpperCase()}</text>`
+          if (s==='luxury') return nm+`<line x1="${Math.round(cx-pw*.38)}" y1="${Math.round(y+pw*.02)}" x2="${Math.round(cx+pw*.38)}" y2="${Math.round(y+pw*.02)}" stroke="${a}" stroke-width="0.6" opacity="0.45"/>`
+          if (s==='modern') return `<text x="${Math.round(cx)}" y="${Math.round(y)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.02)}" fill="${a}" letter-spacing="6" font-weight="300">${hotel.toUpperCase()}</text>`
+          if (s==='corporate') return nm
+          if (s==='festive') return `<text x="${Math.round(cx)}" y="${Math.round(y)}" text-anchor="middle" font-family="${hFont}" font-size="${Math.round(pw*.023)}" fill="${a}" letter-spacing="5" font-style="italic">${hotel}</text>`
+          return `<text x="${Math.round(cx-pw*.43)}" y="${Math.round(y)}" font-family="${bFont}" font-size="${Math.round(pw*.016)}" fill="${a}" letter-spacing="5">${hotel.toUpperCase()}</text>`
+        }
+
+        // Title block — given anchor x, start y, panel width
+        function titleBlock(cx, y0, pw) {
+          const fStyle = (s==='festive') ? ' font-style="italic"' : ''
+          return titleLines.map((l,i)=>`<text x="${Math.round(cx)}" y="${Math.round(y0+i*Math.round(hSize*1.18))}" text-anchor="middle" font-family="${hFont}" font-size="${hSize}" fill="${tx}" font-weight="bold"${fStyle}>${l}</text>`).join('')
+        }
+
+        // Sub + body block
+        function bodyBlock(cx, y0, pw) {
+          const sub=`<text x="${Math.round(cx)}" y="${Math.round(y0)}" text-anchor="middle" font-family="${bFont}" font-size="${bSize}" fill="${a}">${pSub}</text>`
+          const div = (s==='luxury'||s==='minimal') ? `<line x1="${Math.round(cx-pw*.28)}" y1="${Math.round(y0+pw*.025)}" x2="${Math.round(cx+pw*.28)}" y2="${Math.round(y0+pw*.025)}" stroke="${a}" stroke-width="0.5" opacity="0.45"/>` : ''
+          const bod = bodyLines.map((l,i)=>`<text x="${Math.round(cx)}" y="${Math.round(y0+pw*.06+i*Math.round(bSize*1.4))}" text-anchor="middle" font-family="${bFont}" font-size="${bSize}" fill="${sb}">${l}</text>`).join('')
+          return sub+div+bod
+        }
+
+        // CTA button by style
+        function ctaBtn(cx, y0, pw) {
+          const bw=Math.round(pw*.42); const bh=Math.round(pw*.068); const bx=Math.round(cx-bw/2)
+          if (s==='luxury') return `<rect x="${bx}" y="${Math.round(y0)}" width="${bw}" height="${bh}" rx="2" fill="${a}" opacity="0.15" stroke="${a}" stroke-width="1.5"/><text x="${Math.round(cx)}" y="${Math.round(y0+bh*.68)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.025)}" fill="${a}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text>`
+          if (s==='modern') return `<rect x="${bx}" y="${Math.round(y0)}" width="${bw}" height="${bh}" fill="${a}"/><text x="${Math.round(cx)}" y="${Math.round(y0+bh*.68)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.025)}" fill="${ic.isDark?'#000':'#FFF'}" font-weight="700">${pCTA.toUpperCase()}</text>`
+          if (s==='corporate') return `<rect x="${bx}" y="${Math.round(y0)}" width="${bw}" height="${bh}" fill="none" stroke="${a}" stroke-width="1.5"/><text x="${Math.round(cx)}" y="${Math.round(y0+bh*.68)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.025)}" fill="${a}" letter-spacing="2" font-weight="600">${pCTA.toUpperCase()}</text>`
+          if (s==='festive') return `<rect x="${bx}" y="${Math.round(y0)}" width="${bw}" height="${bh}" rx="${Math.round(bh/2)}" fill="${a}" opacity="0.18" stroke="${a}" stroke-width="1.5"/><text x="${Math.round(cx)}" y="${Math.round(y0+bh*.68)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.025)}" fill="${a}" letter-spacing="3">${pCTA.toUpperCase()}</text>`
+          return `<text x="${Math.round(bx)}" y="${Math.round(y0+bh*.68)}" font-family="${bFont}" font-size="${Math.round(pw*.024)}" fill="${a}" font-weight="600" letter-spacing="2">${pCTA.toUpperCase()} →</text>`
+        }
+
+        function footer(cx, y, pw) {
+          return `<text x="${Math.round(cx)}" y="${Math.round(y)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.018)}" fill="${sb}" opacity="0.75">${pFooter}</text>`
+        }
+
+        // ── FULL BLEED ───────────────────────────────────────────────────────
+        if (pPlacement==='full_bleed') {
+          const cx=w/2; const pw=w
+          const scrimColor = ic.isDark ? 'rgba(0,0,0' : 'rgba(20,15,10'
+          const defs=`<defs><linearGradient id="scr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${scrimColor},0.05)"/><stop offset="55%" stop-color="${scrimColor},0.5)"/><stop offset="100%" stop-color="${scrimColor},0.88)"/></linearGradient><filter id="glo"><feGaussianBlur stdDeviation="55"/></filter></defs>`
+          const layer=styleLayer(0,0,w,h)
+          const hn=hotelName(cx,h*.08,pw)
+          const tB=titleBlock(cx,h*.36,pw)
+          const bB=bodyBlock(cx,h*.55,pw)
+          const cta=ctaBtn(cx,h*.78,pw)
+          const ft=footer(cx,h*.955,pw)
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${defs}${fullImg}<rect width="${w}" height="${h}" fill="url(#scr)"/>${layer}${hn}${tB}${bB}${cta}${ft}</svg>`
+        }
+
+        // ── HALF LEFT (image left, text right) ───────────────────────────────
+        if (pPlacement==='half_left') {
+          const px0=Math.round(w*.5); const pw=Math.round(w*.5); const cx=px0+pw/2
+          const defs=`<defs>${halfLDefs}<filter id="glo"><feGaussianBlur stdDeviation="40"/></filter></defs>`
+          const layer=styleLayer(px0,0,pw,h)
+          const hn=hotelName(cx,h*.1,pw)
+          const tB=titleBlock(cx,h*.3,pw)
+          const bB=bodyBlock(cx,h*.52,pw)
+          const cta=ctaBtn(cx,h*.78,pw)
+          const ft=footer(cx,h*.93,pw)
+          const sep=`<line x1="${px0}" y1="${Math.round(h*.06)}" x2="${px0}" y2="${Math.round(h*.94)}" stroke="${a}" stroke-width="1.2" opacity="0.35"/>`
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${defs}${halfLImg}<rect x="${px0}" y="0" width="${pw}" height="${h}" fill="${ic.panel}"/>${sep}${layer}${hn}${tB}${bB}${cta}${ft}</svg>`
+        }
+
+        // ── HALF RIGHT (text left, image right) ──────────────────────────────
+        const px0=0; const pw=Math.round(w*.5); const cx=pw/2
+        const defs=`<defs>${halfRDefs}<filter id="glo"><feGaussianBlur stdDeviation="40"/></filter></defs>`
+        const layer=styleLayer(0,0,pw,h)
+        const hn=hotelName(cx,h*.1,pw)
+        const tB=titleBlock(cx,h*.3,pw)
+        const bB=bodyBlock(cx,h*.52,pw)
+        const cta=ctaBtn(cx,h*.78,pw)
+        const ft=footer(cx,h*.93,pw)
+        const sep=`<line x1="${pw}" y1="${Math.round(h*.06)}" x2="${pw}" y2="${Math.round(h*.94)}" stroke="${a}" stroke-width="1.2" opacity="0.35"/>`
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${defs}<rect x="0" y="0" width="${pw}" height="${h}" fill="${ic.panel}"/>${halfRImg}${sep}${layer}${hn}${tB}${bB}${cta}${ft}</svg>`
       }
 
-            function dlPoster(){
+                  function dlPoster(){
         const svg=makePosterSVG(); const blob=new Blob([svg],{type:'image/svg+xml'})
         const url=URL.createObjectURL(blob); const a=document.createElement('a')
         a.href=url; a.download=`poster-${pStyle}-${pSize}-${pClient.replace(/ /g,'_')}.svg`
