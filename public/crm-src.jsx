@@ -4640,18 +4640,10 @@ function LeadPipelinePage() {
   const [runningBot, setRunningBot] = React.useState(false)
   const [botResult, setBotResult]   = React.useState(null)
 
-  const SUPABASE_URL = window.__ENV__?.SUPABASE_URL || ''
-  const SUPABASE_KEY = window.__ENV__?.SUPABASE_ANON_KEY || ''
-
-  const dbFetch = (table, qs='') =>
-    fetch(`${SUPABASE_URL}/rest/v1/${table}${qs}`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-    }).then(r => r.json())
-
   React.useEffect(() => {
     Promise.all([
-      dbFetch('corporate_leads', '?select=*&order=priority.desc,created_at.asc'),
-      dbFetch('outreach_log', '?select=*&order=sent_at.desc&limit=50'),
+      db('corporate_leads', '?select=*&order=priority.desc,created_at.asc'),
+      db('outreach_log', '?select=*&order=sent_at.desc&limit=50'),
     ]).then(([l, og]) => {
       setLeads(Array.isArray(l) ? l : [])
       setLog(Array.isArray(og) ? og : [])
