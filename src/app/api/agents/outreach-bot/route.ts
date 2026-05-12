@@ -181,4 +181,13 @@ export async function GET(req: Request) {
   }
 
   const result = await runOutreachBot();
-  if (!result.ok) return NextResponse.js
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
+  return NextResponse.json(result);
+}
+
+// POST â CRM manual trigger (no auth required; CRM-internal use only)
+export async function POST() {
+  const result = await runOutreachBot();
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
+  return NextResponse.json(result);
+}
