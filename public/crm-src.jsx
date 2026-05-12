@@ -46,8 +46,8 @@ const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?
 const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
 
 const ROLES = {
-  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','settings','seo']},
-  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','seo']},
+  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','settings','social']},
+  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','social']},
   receptionist: {label:'Receptionist',       color:'#58A6FF', pages:['dashboard','rooms','reservations','guests','billing']},
   housekeeping: {label:'Housekeeping Staff', color:'#F0A500', pages:['dashboard','rooms','housekeeping','billing']},
   accountant:   {label:'Accountant',         color:'#3FB950', pages:['dashboard','billing','reports']},
@@ -4753,12 +4753,12 @@ function App() {
     {id:'guests',    ico:'◉', label:'Guests & CRM'},
     {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
     {id:'billing',   ico:'◎', label:'Billing & Invoices'},
-    {id:'seo',       ico:'🔍', label:'SEO & GEO Agent',  sect:'MARKETING'},
+    {id:'social',    ico:'📱', label:'Social Agency',      sect:'MARKETING'},
     {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
     {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
   ].filter(n=>allowed.includes(n.id))
 
-  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings',seo:'SEO & GEO Agent'}
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings',social:'Social Agency'}
   const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
   const _p = k => bdParts.find(p=>p.type===k)?.value || ''
   const clockStr=(()=>{
@@ -5012,7 +5012,7 @@ function App() {
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
-            {cur==='seo'          &&<SEOGEOPage toast={toast} rooms={data.rooms}/>}
+            {cur==='social'       &&<SocialAgencyPage toast={toast}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests}/>}
           </div>
         </main>
@@ -5023,620 +5023,1023 @@ function App() {
   )
 }
 
-    function SEOGEOPage({ toast, rooms }) {
+
+
+    function SocialAgencyPage({ toast }) {
       const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/seo-geo-agent'
       const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
 
-      const [activeTab, setActiveTab] = useState('dashboard')
-      const [busy, setBusy] = useState(null)
-      const [drafts, setDrafts] = useState([])
-      const [loadingDrafts, setLoadingDrafts] = useState(true)
-      const [gbpTopic, setGbpTopic] = useState('New premium rooms available in Nikunja 2')
-      const [gbpResult, setGbpResult] = useState(null)
-      const [contentTopic, setContentTopic] = useState('Why Nikunja 2 is the best location for transit travelers in Dhaka')
-      const [contentType, setContentType] = useState('blog_post')
-      const [contentResult, setContentResult] = useState(null)
-      const [schemaResult, setSchemaResult] = useState(null)
-      const [rankingsResult, setRankingsResult] = useState(null)
-      const [designPlatform, setDesignPlatform] = useState('instagram_post')
-      const [designTheme, setDesignTheme] = useState('room_promo')
-      const [designBg, setDesignBg] = useState('twilight_gold')
-      const [designSeed, setDesignSeed] = useState(1)
+      const PLATFORM_CFG = {
+        instagram: { icon: '📷', color: '#E1306C', limit: 2200,  label: 'Instagram' },
+        facebook:  { icon: '👍', color: '#1877F2', limit: 63206, label: 'Facebook'  },
+        linkedin:  { icon: '💼', color: '#0A66C2', limit: 3000,  label: 'LinkedIn'  },
+        twitter:   { icon: '🐦', color: '#1DA1F2', limit: 280,   label: 'Twitter/X' },
+      }
+
+      const INIT_CLIENTS = [
+        { id:1, name:'Hotel Fountain',  ini:'HF', color:'#C8A96E', industry:'Hospitality',     platforms:['instagram','facebook','linkedin','twitter'] },
+        { id:2, name:'WeekendWipe BD',  ini:'WW', color:'#58A6FF', industry:'Cleaning Services',platforms:['instagram','facebook'] },
+        { id:3, name:'NekoNest',        ini:'NN', color:'#3FB950', industry:'Pet Services',     platforms:['instagram','twitter'] },
+      ]
+
+      const INIT_CAMPAIGNS = [
+        { id:1, client:'Hotel Fountain', name:'Eid Special 2026',     goal:'Bookings', budget:25000, spent:18400, posts:12, target:50, reached:38, status:'active',    end:'2026-06-15' },
+        { id:2, client:'Hotel Fountain', name:'Corporate B2B Outreach',goal:'Leads',    budget:15000, spent:6200,  posts:8,  target:20, reached:9,  status:'active',    end:'2026-07-01' },
+        { id:3, client:'WeekendWipe BD', name:'Summer Launch',         goal:'Awareness',budget:8000,  spent:8000,  posts:6,  target:30, reached:31, status:'completed', end:'2026-05-01' },
+      ]
+
+      const SEED_POSTS = [
+        { id:'s1', client_name:'Hotel Fountain', platform:'instagram', caption:'Experience luxury at its finest. Nikunja 2, Dhaka. 🌟 #HotelFountain #Dhaka #Travel', status:'scheduled', scheduled_at: new Date(Date.now()+86400000).toISOString() },
+        { id:'s2', client_name:'Hotel Fountain', platform:'linkedin',  caption:'We offer exclusive corporate packages for businesses in Dhaka. Premium facilities, 5 min from airport. Contact us today.', status:'draft', scheduled_at: new Date(Date.now()+172800000).toISOString() },
+        { id:'s3', client_name:'WeekendWipe BD', platform:'facebook',  caption:'Sparkling clean homes, every weekend. Book your slot now! 🧹 Dhaka-wide service.', status:'published', scheduled_at: new Date(Date.now()-86400000).toISOString() },
+      ]
+
+      // ── State ──────────────────────────────────────────────────────────────
+      const [tab, setTab]               = useState('clients')
+      const [clients, setClients]       = useState(INIT_CLIENTS)
+      const [posts, setPosts]           = useState(SEED_POSTS)
+      const [campaigns, setCampaigns]   = useState(INIT_CAMPAIGNS)
+      const [loadingPosts, setLoadingPosts] = useState(false)
+
+      // Composer
+      const [cClient,   setCClient]   = useState('Hotel Fountain')
+      const [cPlatform, setCPlatform] = useState('instagram')
+      const [cTopic,    setCTopic]    = useState('')
+      const [cCaption,  setCCaption]  = useState('')
+      const [cSchedule, setCSchedule] = useState('')
+      const [aiLoading, setAiLoading] = useState(false)
+
+      // Add client form
+      const [showAddClient,  setShowAddClient]  = useState(false)
+      const [newName,        setNewName]        = useState('')
+      const [newIndustry,    setNewIndustry]    = useState('')
+      const [newPlats,       setNewPlats]       = useState([])
+
+      // Add campaign form
+      const [showAddCamp,  setShowAddCamp]  = useState(false)
+      const [campName,     setCampName]     = useState('')
+      const [campClient,   setCampClient]   = useState('Hotel Fountain')
+      const [campGoal,     setCampGoal]     = useState('Bookings')
+      const [campBudget,   setCampBudget]   = useState('')
+      const [campEnd,      setCampEnd]      = useState('')
+
+      // Design Studio
+      const [dPlatform,    setDPlatform]    = useState('instagram_post')
+      const [dTheme,       setDTheme]       = useState('room_promo')
+      const [dBg,          setDBg]          = useState('twilight_gold')
+      const [dSeed,        setDSeed]        = useState(1)
       const [approvalSent, setApprovalSent] = useState(false)
 
-      useEffect(() => { loadDrafts() }, [])
+      // Analytics
+      const [aClient, setAClient] = useState('Hotel Fountain')
+      const [schedFilter, setSchedFilter] = useState('all')
+      const [clientBrains, setClientBrains] = useState({
+        1:{voice:'Warm, professional, aspirational. Never pushy. Serif elegance.',icp:'Corporate travelers, Japanese expats, transit passengers, MICE organizers',pillars:'Airport proximity,Premium comfort,Corporate packages,Halal dining,Event facilities',competitors:'Pan Pacific,Le Méridien,Radisson Blu'},
+        2:{voice:'Friendly, reliable, clean-focused. Simple language.',icp:'Dhaka households, working couples, busy professionals',pillars:'Speed,Reliability,Affordable quality,Eco products',competitors:''},
+        3:{voice:'Playful, caring, community-driven.',icp:'Pet owners aged 22-40, urban Dhaka',pillars:'Pet care tips,Products,Grooming,Adoption',competitors:''},
+      })
+      const [showBrain,    setShowBrain]    = useState(null)
+      const [savingBrain,  setSavingBrain]  = useState(false)
 
-      async function call(body) {
-        const r = await fetch(EDGE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON }, body: JSON.stringify(body) })
-        return r.json()
-      }
+      useEffect(() => { loadPosts() }, [])
 
-      async function loadDrafts() {
-        setLoadingDrafts(true)
+      async function loadPosts() {
+        setLoadingPosts(true)
         try {
-          const r = await fetch(`${SB_URL}/rest/v1/marketing_content?tenant_id=eq.${TENANT}&order=created_at.desc&limit=30`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } })
+          const r = await fetch(`${SB_URL}/rest/v1/social_posts?tenant_id=eq.${TENANT}&order=scheduled_at.asc&limit=200`, {
+            headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+          })
           const d = await r.json()
-          setDrafts(Array.isArray(d) ? d : [])
-        } catch (e) { }
-        finally { setLoadingDrafts(false) }
+          if (Array.isArray(d) && d.length > 0) setPosts(d)
+        } catch(e) {}
+        finally { setLoadingPosts(false) }
       }
 
-      async function postGBP() {
-        setBusy('gbp'); setGbpResult(null)
+      async function generateCaption() {
+        if (!cTopic.trim()) { toast('Enter a topic first', 'error'); return }
+        setAiLoading(true)
         try {
-          const res = await call({ action: 'post_gbp', topic: gbpTopic })
-          if (res.error) { toast(res.error.includes('not deployed') || res.error.includes('GEMINI') ? 'Edge function not deployed — see Developer Guide' : res.error, 'error'); setGbpResult({ error: res.error }); return }
-          setGbpResult(res); toast('GBP post published ✓'); loadDrafts()
-        } catch (e) { toast(e.message, 'error') }
-        finally { setBusy(null) }
+          const r = await fetch(EDGE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: ANON },
+            body: JSON.stringify((() => {
+            const cl = clients.find(c=>c.name===cClient)
+            const brain = cl ? (clientBrains[cl.id]||{}) : {}
+            return { action:'generate_social_caption', topic:cTopic, platform:cPlatform, client:cClient,
+              brand_voice:brain.voice||'', icp:brain.icp||'', pillars:brain.pillars||'',
+              competitors:brain.competitors||'', variation:Math.floor(Math.random()*5), seed:Date.now() }
+          })())
+          })
+          const d = await r.json()
+          if (d.caption)      setCCaption(d.caption)
+          else if (d.content) setCCaption(d.content)
+          else {
+            const tags = { instagram:'#HotelFountain #Dhaka #Travel #Luxury', facebook:'#HotelFountain #DhakaHotel', linkedin:'#HospitalityBD #CorporateTravel #Dhaka', twitter:'#HotelFountain #Dhaka' }
+            setCCaption(`✨ ${cTopic}\n\nExperience the best of Dhaka hospitality at ${cClient}.\n\n${tags[cPlatform]||''}`)
+            if (d.error) toast('Edge fn offline — local fallback used', 'error')
+          }
+        } catch(e) { toast(e.message, 'error') }
+        finally { setAiLoading(false) }
       }
 
-      async function generateContent() {
-        setBusy('content'); setContentResult(null)
+      async function savePost(status) {
+        if (!cCaption.trim()) { toast('Caption is empty', 'error'); return }
+        const post = { id: Date.now(), tenant_id: TENANT, client_name: cClient, platform: cPlatform, caption: cCaption, topic: cTopic, status, scheduled_at: cSchedule || new Date(Date.now()+3600000).toISOString() }
         try {
-          const res = await call({ action: 'generate_content', topic: contentTopic, type: contentType, platform: designPlatform, variation: Math.floor(Math.random() * 5), seed: Date.now() })
-          if (res.error) { toast(res.error, 'error'); return }
-          setContentResult(res); toast('Content draft saved ✓'); loadDrafts()
-        } catch (e) { toast(e.message, 'error') }
-        finally { setBusy(null) }
+          await fetch(`${SB_URL}/rest/v1/social_posts`, {
+            method: 'POST',
+            headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+            body: JSON.stringify(post)
+          })
+        } catch(e) {}
+        setPosts(p => [post, ...p])
+        setCCaption(''); setCTopic(''); setCSchedule('')
+        toast(status === 'scheduled' ? 'Post scheduled ✓' : 'Draft saved ✓')
       }
 
-      async function generateSchema() {
-        setBusy('schema'); setSchemaResult(null)
-        try {
-          const res = await call({ action: 'generate_schema', rooms })
-          if (res.error) { toast(res.error, 'error'); return }
-          setSchemaResult(res); toast('Schema.org JSON-LD generated ✓')
-        } catch (e) { toast(e.message, 'error') }
-        finally { setBusy(null) }
-      }
+      const platCfg  = PLATFORM_CFG[cPlatform]
+      const charLimit = platCfg?.limit || 2200
+      const charLeft  = charLimit - cCaption.length
+      const charPct   = Math.min(100, (cCaption.length / charLimit) * 100)
 
-      async function checkRankings() {
-        setBusy('rankings'); setRankingsResult(null)
-        try {
-          const res = await call({ action: 'check_rankings' })
-          if (res.error) { toast(res.error, 'error'); return }
-          setRankingsResult(res); toast('Rankings fetched ✓')
-        } catch (e) { toast(e.message, 'error') }
-        finally { setBusy(null) }
-      }
-
-      async function approveDraft(id) {
-        try {
-          await fetch(`${SB_URL}/rest/v1/marketing_content?id=eq.${id}`, { method: 'PATCH', headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'approved' }) })
-          toast('Draft approved ✓'); loadDrafts()
-        } catch (e) { toast(e.message, 'error') }
-      }
-
-      async function publishDraft(id) {
-        setBusy(`publish:${id}`)
-        try {
-          const res = await call({ action: 'publish_content', content_id: id })
-          if (res.error) { toast(res.error, 'error'); return }
-          toast('Content published ✓'); loadDrafts()
-        } catch (e) { toast(e.message, 'error') }
-        finally { setBusy(null) }
-      }
-
-      const statusColor = s => s === 'published' ? 'var(--grn)' : s === 'approved' ? 'var(--gold)' : 'var(--sky)'
-      const statusBg = s => s === 'published' ? 'rgba(63,185,80,.12)' : s === 'approved' ? 'rgba(200,169,110,.12)' : 'rgba(88,166,255,.08)'
-      const typeIcon = t => t === 'blog_post' ? '📝' : t === 'landing_page' ? '🏠' : t === 'gbp_post' ? '📍' : t === 'schema' ? '🔧' : '📄'
-
-      const STATIC_SCHEMA = `{
-  "@context": "https://schema.org",
-  "@type": ["Hotel", "LocalBusiness"],
-  "name": "Hotel Fountain",
-  "description": "Premium hotel in Nikunja 2, Dhaka — 5 min from Hazrat Shahjalal Airport",
-  "url": "https://hotelfountainbd-crm.vercel.app",
-  "telephone": "+880-1319407384",
-  "address": {
-    "@type": "PostalAddress",
-    "streetAddress": "Nikunja 2",
-    "addressLocality": "Dhaka",
-    "addressCountry": "BD"
-  },
-  "priceRange": "৳3,500 – ৳9,000",
-  "starRating": { "@type": "Rating", "ratingValue": "4.8" },
-  "numberOfRooms": 28
-}
-(Agent auto-fills amenityFeature from rooms table when deployed)`
-
+      // ── Render ─────────────────────────────────────────────────────────────
       return (
         <div>
-          {/* Header */}
-          <div style={{ background: 'linear-gradient(135deg,rgba(200,169,110,.08),rgba(88,166,255,.04))', border: '1px solid rgba(200,169,110,.2)', padding: '14px 18px', marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          {/* ── Header ── */}
+          <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.08),rgba(200,169,110,.04))',border:'1px solid rgba(88,166,255,.2)',padding:'14px 18px',marginBottom:20}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div>
-                <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--gold)' }}>🔍 SEO & GEO Specialist Agent</div>
-                <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>Local Authority Engine · Google Business Profile · Generative Engine Optimization · Schema.org · Content Marketing</div>
+                <div style={{fontFamily:'var(--serif)',fontSize:20,color:'var(--sky)'}}>📱 Social Media Agency</div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginTop:4}}>
+                  {clients.length} clients &nbsp;·&nbsp; {posts.filter(p=>p.status==='scheduled').length} scheduled &nbsp;·&nbsp; {campaigns.filter(c=>c.status==='active').length} active campaigns
+                </div>
               </div>
-              <div style={{ background: 'rgba(63,185,80,.06)', border: '1px solid rgba(63,185,80,.15)', padding: '8px 12px', fontSize: 10, color: 'var(--tx3)', flexShrink: 0, lineHeight: 1.8 }}>
-                <div style={{ color: 'var(--grn)', fontWeight: 600, marginBottom: 4 }}>TARGET KEYWORDS</div>
-                <div>Best hotel in Nikunja 2</div>
-                <div>Hotel near Dhaka Airport</div>
-                <div>Corporate accommodation Dhaka</div>
+              <div style={{display:'flex',gap:8}}>
+                {Object.entries(PLATFORM_CFG).map(([k,v])=>(
+                  <span key={k} style={{fontSize:20,opacity:.8}} title={v.label}>{v.icon}</span>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Sub-tabs */}
+          {/* ── Tab Bar ── */}
           <div className="tabs mb4">
-            {[['dashboard', '📊 Dashboard'], ['gbp', '📍 GBP Manager'], ['content', '✍️ Content Engine'], ['schema', '🔧 Schema & Rankings'], ['guide', '📋 Developer Guide'], ['design', '🎨 Design Studio']].map(([v, l]) => (
-              <button key={v} className={`tab${activeTab === v ? ' on' : ''}`} onClick={() => setActiveTab(v)}>{l}</button>
+            {[['clients','🏢 Clients'],['composer','✍️ Composer'],['schedule','📅 Schedule'],['design','🎨 Design'],['analytics','📊 Analytics'],['campaigns','🎯 Campaigns'],['poster','🖼 Poster Studio']].map(([v,l])=>(
+              <button key={v} className={`tab${tab===v?' on':''}`} onClick={()=>setTab(v)}>{l}</button>
             ))}
           </div>
 
-          {/* ── DASHBOARD ── */}
-          {activeTab === 'dashboard' && (
+          {/* ════════ CLIENTS ════════ */}
+          {tab==='clients' && (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 16 }}>
-                {[['Content Drafts', drafts.filter(d => d.status === 'draft').length, 'var(--sky)'], ['Approved', drafts.filter(d => d.status === 'approved').length, 'var(--gold)'], ['Published', drafts.filter(d => d.status === 'published').length, 'var(--grn)'], ['GBP Posts', drafts.filter(d => d.content_type === 'gbp_post').length, 'var(--teal)']].map(([l, v, c], i) => (
-                  <div key={i} style={{ background: 'rgba(0,0,0,.2)', border: '1px solid var(--br)', padding: '14px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 4 }}>{l}</div>
-                    <div style={{ fontSize: 28, color: c, fontFamily: 'var(--serif)', fontWeight: 600 }}>{v}</div>
-                  </div>
-                ))}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+                <div style={{fontSize:12,color:'var(--tx3)'}}>{clients.length} client brands</div>
+                <button className="btn btn-gold btn-sm" onClick={()=>setShowAddClient(s=>!s)}>+ Add Client</button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                {[
-                  { icon: '📍', title: 'Post GBP Update', desc: 'Publish a Google Business Profile post to boost local visibility', tab: 'gbp', color: 'var(--gold)' },
-                  { icon: '✍️', title: 'Generate SEO Content', desc: 'Write a GEO-optimized blog post or landing page', tab: 'content', color: 'var(--sky)' },
-                  { icon: '🔧', title: 'Generate Schema Markup', desc: 'Create Hotel & LocalBusiness JSON-LD for every page', tab: 'schema', color: 'var(--teal)' },
-                  { icon: '📈', title: 'Check Rankings', desc: 'Monitor real-time search rankings vs. competitors in Nikunja', tab: 'schema', color: 'var(--pur)' },
-                ].map((a, i) => (
-                  <div key={i} onClick={() => setActiveTab(a.tab)}
-                    style={{ background: 'rgba(0,0,0,.15)', border: '1px solid var(--br)', padding: '14px 16px', cursor: 'pointer', display: 'flex', gap: 12, alignItems: 'flex-start' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(200,169,110,.4)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--br)'}>
-                    <span style={{ fontSize: 22, flexShrink: 0 }}>{a.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: a.color, marginBottom: 3 }}>{a.title}</div>
-                      <div style={{ fontSize: 10, color: 'var(--tx3)', lineHeight: 1.5 }}>{a.desc}</div>
+
+              {showAddClient && (
+                <div className="card mb3" style={{background:'rgba(200,169,110,.04)',border:'1px solid rgba(200,169,110,.2)'}}>
+                  <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>New Client Brand</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                    <div className="fg">
+                      <label className="flbl">Brand Name</label>
+                      <input className="finput" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="e.g. Mondol Group" />
+                    </div>
+                    <div className="fg">
+                      <label className="flbl">Industry</label>
+                      <input className="finput" value={newIndustry} onChange={e=>setNewIndustry(e.target.value)} placeholder="e.g. Manufacturing" />
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="card">
-                <div className="card-hd">
-                  <span className="card-title">Content Drafts — Awaiting Approval</span>
-                  <button className="btn btn-ghost btn-sm" onClick={loadDrafts}>↻ Refresh</button>
-                </div>
-                {loadingDrafts ? (
-                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--tx3)', fontSize: 12 }}>Loading…</div>
-                ) : drafts.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '24px', color: 'var(--tx3)', fontSize: 12 }}>No content yet — generate your first post in the Content Engine or GBP Manager</div>
-                ) : (
-                  <table className="tbl">
-                    <thead><tr><th>Type</th><th>Title</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
-                    <tbody>
-                      {drafts.map(d => (
-                        <tr key={d.id}>
-                          <td><span style={{ fontSize: 15, marginRight: 4 }}>{typeIcon(d.content_type)}</span><span className="xs muted">{(d.content_type || 'draft').replace(/_/g, ' ')}</span></td>
-                          <td style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx)' }}>{d.title || '—'}</td>
-                          <td><span style={{ fontSize: 9, padding: '2px 8px', background: statusBg(d.status), color: statusColor(d.status), letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 600 }}>{d.status || 'draft'}</span></td>
-                          <td className="xs muted">{d.created_at ? new Date(d.created_at).toLocaleDateString('en', { day: 'numeric', month: 'short' }) : '—'}</td>
-                          <td>
-                            {d.status === 'draft' && <button className="btn btn-gold btn-sm" style={{ fontSize: 9, padding: '3px 8px' }} onClick={() => approveDraft(d.id)}>✓ Approve</button>}
-                            {d.status === 'approved' && <button className="btn btn-sm" style={{ fontSize: 9, padding: '3px 8px', background: 'rgba(63,185,80,.1)', color: 'var(--grn)', border: '1px solid rgba(63,185,80,.3)' }} disabled={busy === `publish:${d.id}`} onClick={() => publishDraft(d.id)}>{busy === `publish:${d.id}` ? 'Publishing…' : '🚀 Publish'}</button>}
-                            {d.status === 'published' && <span style={{ fontSize: 9, color: 'var(--grn)' }}>✓ Live</span>}
-                          </td>
-                        </tr>
+                  <div style={{marginBottom:12}}>
+                    <label className="flbl" style={{display:'block',marginBottom:6}}>Platforms</label>
+                    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                      {Object.entries(PLATFORM_CFG).map(([k,v])=>(
+                        <button key={k} onClick={()=>setNewPlats(p=>p.includes(k)?p.filter(x=>x!==k):[...p,k])}
+                          style={{padding:'6px 14px',fontSize:11,background:newPlats.includes(k)?v.color+'22':'rgba(0,0,0,.2)',border:`1px solid ${newPlats.includes(k)?v.color:'var(--br)'}`,color:newPlats.includes(k)?v.color:'var(--tx3)',cursor:'pointer'}}>
+                          {v.icon} {v.label}
+                        </button>
                       ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          )}
+                    </div>
+                  </div>
+                  <div style={{display:'flex',gap:8}}>
+                    <button className="btn btn-gold btn-sm" onClick={()=>{
+                      if(!newName.trim()) return
+                      const palette=['#C8A96E','#58A6FF','#3FB950','#FF6B8A','#A0AEC0','#2EC4B6']
+                      const c={id:Date.now(),name:newName,ini:newName.slice(0,2).toUpperCase(),color:palette[clients.length%palette.length],industry:newIndustry||'General',platforms:newPlats.length?newPlats:['instagram']}
+                      setClients(p=>[...p,c]); setNewName(''); setNewIndustry(''); setNewPlats([]); setShowAddClient(false); toast(`${c.name} added ✓`)
+                    }}>Save Client</button>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>setShowAddClient(false)}>Cancel</button>
+                  </div>
+                </div>
+              )}
 
-          {/* ── GBP MANAGER ── */}
-          {activeTab === 'gbp' && (
-            <div>
-              <div className="card mb4">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <span style={{ fontSize: 24 }}>📍</span>
-                  <div>
-                    <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--tx)' }}>Google Business Profile Manager</div>
-                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Posts weekly updates · Uploads room photos · Profile ID: 6462181989202463603</div>
-                  </div>
-                </div>
-                <div style={{ background: 'rgba(200,169,110,.05)', border: '1px solid rgba(200,169,110,.15)', padding: '10px 14px', marginBottom: 14, fontSize: 11, color: 'var(--gold)' }}>
-                  💡 <strong>Why GBP matters:</strong> Hotels with active GBP profiles get 70% more direction requests and appear in "Hotels near me" on Google Maps
-                </div>
-                <div className="fg mb3">
-                  <label className="flbl">Post Topic / Update</label>
-                  <input className="finput" value={gbpTopic} onChange={e => setGbpTopic(e.target.value)} placeholder="e.g. New premium rooms available in Nikunja 2" />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
-                  {['New premium rooms available in Nikunja 2', 'Special corporate rate — ৳3,500/night this week', 'Hotel Fountain: 5 minutes from Hazrat Shahjalal Airport', 'Book direct and save — no OTA fees, best rate guaranteed'].map(t => (
-                    <div key={t} onClick={() => setGbpTopic(t)} style={{ background: gbpTopic === t ? 'rgba(200,169,110,.1)' : 'rgba(0,0,0,.15)', border: `1px solid ${gbpTopic === t ? 'rgba(200,169,110,.4)' : 'var(--br)'}`, padding: '8px 12px', cursor: 'pointer', fontSize: 11, color: 'var(--tx2)', lineHeight: 1.4 }}>{t}</div>
-                  ))}
-                </div>
-                <button className="btn btn-gold" onClick={postGBP} disabled={busy === 'gbp'}>{busy === 'gbp' ? '📍 Posting…' : '📍 Generate & Post to GBP'}</button>
-                {gbpResult && !gbpResult.error && (
-                  <div style={{ marginTop: 14, background: 'rgba(63,185,80,.05)', border: '1px solid rgba(63,185,80,.2)', padding: '14px' }}>
-                    <div style={{ fontSize: 11, color: 'var(--grn)', fontWeight: 600, marginBottom: 8 }}>✓ Posted to Google Business Profile</div>
-                    {gbpResult.post_content && <div style={{ fontSize: 11, color: 'var(--tx2)', lineHeight: 1.7, background: 'rgba(0,0,0,.3)', padding: '10px 12px', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{gbpResult.post_content}</div>}
-                    {gbpResult.post_url && <div style={{ marginTop: 8, fontSize: 10 }}><a href={gbpResult.post_url} target="_blank" style={{ color: 'var(--sky)' }}>View live post ↗</a></div>}
-                  </div>
-                )}
-                {gbpResult?.error && <div style={{ marginTop: 12, background: 'rgba(224,92,122,.08)', border: '1px solid rgba(224,92,122,.25)', padding: '12px 14px', fontSize: 11, color: 'var(--rose)' }}>⚠ {gbpResult.error} — Deploy the seo-geo-agent Edge Function first (see Developer Guide tab)</div>}
-              </div>
-              <div className="card">
-                <div className="card-hd"><span className="card-title">GBP Optimisation Checklist</span></div>
-                <div className="card-body">
-                  {[
-                    { done: true, label: 'Business name verified', detail: 'Hotel Fountain — Nikunja 2, Dhaka' },
-                    { done: true, label: 'Profile ID connected', detail: '6462181989202463603' },
-                    { done: false, label: 'Weekly posts active', detail: 'Deploy Edge Function to enable auto-posting' },
-                    { done: false, label: 'Room photos uploaded via API', detail: '5+ photos recommended for 2× more clicks' },
-                    { done: false, label: 'Review response automation', detail: 'Auto-respond to 4★+ reviews within 2 hours' },
-                    { done: false, label: 'Q&A seeded', detail: 'Pre-populate 10 common questions (airport distance, check-in time, etc.)' },
-                  ].map((item, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--br2)', alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: 14, flexShrink: 0 }}>{item.done ? '✅' : '⬜'}</span>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+                {clients.map(c=>(
+                  <div key={c.id} className="card" style={{borderColor:'var(--br)',transition:'border-color .2s'}}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=c.color+'55'}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor='var(--br)'}>
+                    <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+                      <div style={{width:42,height:42,borderRadius:'50%',background:c.color+'20',border:`2px solid ${c.color}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:c.color,flexShrink:0}}>{c.ini}</div>
                       <div>
-                        <div style={{ fontSize: 12, color: item.done ? 'var(--tx)' : 'var(--tx2)', fontWeight: item.done ? 500 : 400 }}>{item.label}</div>
-                        <div style={{ fontSize: 10, color: 'var(--tx3)' }}>{item.detail}</div>
+                        <div style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{c.name}</div>
+                        <div style={{fontSize:10,color:'var(--tx3)'}}>{c.industry}</div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── CONTENT ENGINE ── */}
-          {activeTab === 'content' && (
-            <div>
-              <div className="card mb4">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <span style={{ fontSize: 24 }}>✍️</span>
-                  <div>
-                    <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--tx)' }}>SEO & GEO Content Engine</div>
-                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Writes blog posts & landing pages · Includes local statistics, JSON-LD, landmarks · Makes Hotel Fountain cited by AI search</div>
-                  </div>
-                </div>
-                <div style={{ background: 'rgba(88,166,255,.05)', border: '1px solid rgba(88,166,255,.15)', padding: '10px 14px', marginBottom: 14, fontSize: 11, color: 'var(--sky)' }}>
-                  🧠 <strong>GEO Optimisation:</strong> Content includes citations, local landmarks (Cityscape Tower, HSIA), statistics, and structured data so AI models like Gemini & ChatGPT recommend Hotel Fountain
-                </div>
-                <div className="frow mb3">
-                  <div className="fg">
-                    <label className="flbl">Content Type</label>
-                    <select className="fselect" value={contentType} onChange={e => setContentType(e.target.value)}>
-                      <option value="blog_post">📝 SEO Blog Post</option>
-                      <option value="landing_page">🏠 Local Landing Page</option>
-                      <option value="gbp_post">📍 GBP Post Draft</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="fg mb3">
-                  <label className="flbl">Topic / Target Keyword</label>
-                  <input className="finput" value={contentTopic} onChange={e => setContentTopic(e.target.value)} placeholder="e.g. Why Nikunja 2 is best for transit travelers" />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
-                  {['Why Nikunja 2 is the best location for transit travelers in Dhaka', 'Best hotel near Hazrat Shahjalal International Airport', 'Corporate accommodation in Dhaka: A complete guide for HR managers', 'Hotel Fountain vs. other Nikunja hotels — honest comparison', 'Top 5 reasons to book direct with Hotel Fountain', 'Weekend in Dhaka: Hotel Fountain Superior Deluxe experience'].map(t => (
-                    <div key={t} onClick={() => setContentTopic(t)} style={{ background: contentTopic === t ? 'rgba(88,166,255,.1)' : 'rgba(0,0,0,.12)', border: `1px solid ${contentTopic === t ? 'rgba(88,166,255,.4)' : 'var(--br)'}`, padding: '7px 10px', cursor: 'pointer', fontSize: 10, color: contentTopic === t ? 'var(--sky)' : 'var(--tx3)', lineHeight: 1.4 }}>{t}</div>
-                  ))}
-                </div>
-                <button className="btn btn-gold" onClick={generateContent} disabled={busy === 'content'}>{busy === 'content' ? '✍️ Generating…' : '✍️ Generate Content Draft'}</button>
-                {contentResult && (
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 11, color: 'var(--grn)', fontWeight: 600, marginBottom: 8 }}>✓ Draft saved to Supabase marketing_content table</div>
-                    <div style={{ background: 'rgba(0,0,0,.3)', border: '1px solid var(--br)', padding: '14px 16px' }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', marginBottom: 6 }}>{contentResult.title}</div>
-                      {contentResult.meta_description && <div style={{ fontSize: 10, color: 'var(--gold)', marginBottom: 10 }}>Meta: {contentResult.meta_description}</div>}
-                      <div style={{ fontSize: 11, color: 'var(--tx2)', lineHeight: 1.8, maxHeight: 250, overflow: 'auto', whiteSpace: 'pre-wrap' }}>{(contentResult.content || '').slice(0, 800)}{contentResult.content?.length > 800 ? '…' : ''}</div>
-                      {(contentResult.keywords || []).length > 0 && <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 4 }}>{(contentResult.keywords || []).map((k, i) => <span key={i} style={{ fontSize: 9, padding: '2px 8px', background: 'rgba(200,169,110,.12)', color: 'var(--gold)', border: '1px solid rgba(200,169,110,.2)' }}>{k}</span>)}</div>}
-                    </div>
-                    <div style={{ marginTop: 8, fontSize: 10, color: 'var(--tx3)' }}>→ Go to Dashboard to approve and publish this draft</div>
-                  </div>
-                )}
-              </div>
-              <div className="card">
-                <div className="card-hd"><span className="card-title">Backlinking Strategy — Priority Directories</span></div>
-                <div className="card-body">
-                  {[
-                    { dir: 'TripAdvisor Bangladesh', priority: 'HIGH', status: 'Submit property listing' },
-                    { dir: 'Booking.com Partner Hub', priority: 'HIGH', status: 'Verify business profile' },
-                    { dir: 'Bangladesh Tourism Board', priority: 'HIGH', status: 'Register as licensed hotel' },
-                    { dir: 'Dhaka Chamber of Commerce', priority: 'MED', status: 'Corporate member listing' },
-                    { dir: 'Expats in Dhaka (Facebook Group)', priority: 'MED', status: 'Sponsor monthly post' },
-                    { dir: 'Nikunja Business Directory', priority: 'MED', status: 'Claim listing' },
-                  ].map((d, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--br2)', gap: 8 }}>
-                      <div style={{ fontSize: 12, color: 'var(--tx)', fontWeight: 500 }}>{d.dir}</div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: 9, padding: '2px 7px', background: d.priority === 'HIGH' ? 'rgba(224,92,122,.12)' : 'rgba(200,169,110,.1)', color: d.priority === 'HIGH' ? 'var(--rose)' : 'var(--gold)', fontWeight: 600 }}>{d.priority}</span>
-                        <span style={{ fontSize: 10, color: 'var(--tx3)' }}>{d.status}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── SCHEMA & RANKINGS ── */}
-          {activeTab === 'schema' && (
-            <div>
-              <div className="card mb4">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <span style={{ fontSize: 24 }}>🔧</span>
-                  <div>
-                    <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--tx)' }}>Schema.org Markup Generator</div>
-                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Hotel + LocalBusiness JSON-LD · Helps Google understand price range, location & ratings · Required for AI-powered search citations</div>
-                  </div>
-                </div>
-                <button className="btn btn-gold mb3" onClick={generateSchema} disabled={busy === 'schema'}>{busy === 'schema' ? '🔧 Generating…' : '🔧 Generate Schema Markup'}</button>
-                <div style={{ background: 'rgba(0,0,0,.4)', border: '1px solid var(--br)', padding: '14px', fontFamily: 'monospace', fontSize: 10, color: 'var(--sky)', whiteSpace: 'pre-wrap', maxHeight: 320, overflow: 'auto', lineHeight: 1.6 }}>
-                  {schemaResult ? (schemaResult.schema || JSON.stringify(schemaResult, null, 2)) : STATIC_SCHEMA}
-                </div>
-                <button className="btn btn-ghost btn-sm mt3" style={{ fontSize: 10 }} onClick={() => navigator.clipboard.writeText(schemaResult ? (schemaResult.schema || JSON.stringify(schemaResult, null, 2)) : STATIC_SCHEMA).then(() => toast('Copied to clipboard ✓'))}>📋 Copy to Clipboard</button>
-              </div>
-              <div className="card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <span style={{ fontSize: 24 }}>📈</span>
-                  <div>
-                    <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--tx)' }}>Keyword Rankings Monitor</div>
-                    <div style={{ fontSize: 10, color: 'var(--tx3)' }}>Real-time SERP tracking via SerpApi/Tavily · Hotel Fountain vs. Nikunja competitors</div>
-                  </div>
-                </div>
-                <button className="btn btn-gold mb3" onClick={checkRankings} disabled={busy === 'rankings'}>{busy === 'rankings' ? '📈 Checking…' : '📈 Check Current Rankings'}</button>
-                {rankingsResult ? (
-                  <table className="tbl">
-                    <thead><tr><th>Keyword</th><th>Position</th><th>URL</th><th>Change</th></tr></thead>
-                    <tbody>
-                      {(rankingsResult.rankings || []).map((r, i) => (
-                        <tr key={i}>
-                          <td style={{ fontSize: 11 }}>{r.keyword}</td>
-                          <td><span style={{ fontSize: 13, fontWeight: 700, color: r.position <= 3 ? 'var(--grn)' : r.position <= 10 ? 'var(--gold)' : 'var(--rose)' }}>#{r.position}</span></td>
-                          <td style={{ fontSize: 10, color: 'var(--sky)', maxWidth: 200 }}>{r.url || '—'}</td>
-                          <td style={{ fontSize: 11, color: r.change > 0 ? 'var(--grn)' : r.change < 0 ? 'var(--rose)' : 'var(--tx3)' }}>{r.change > 0 ? `↑${r.change}` : r.change < 0 ? `↓${Math.abs(r.change)}` : '—'}</td>
-                        </tr>
+                    <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
+                      {c.platforms.map(p=>(
+                        <span key={p} title={PLATFORM_CFG[p]?.label} style={{fontSize:16,opacity:.8}}>{PLATFORM_CFG[p]?.icon}</span>
                       ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-                    {['Best hotel in Nikunja 2', 'Hotel near Dhaka Airport', 'Corporate accommodation Dhaka', 'Nikunja 2 hotel booking', 'Transit hotel Dhaka', 'Hotel near HSIA airport'].map(k => (
-                      <div key={k} style={{ background: 'rgba(0,0,0,.15)', border: '1px solid var(--br)', padding: '10px 12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 10, color: 'var(--tx3)', marginBottom: 6 }}>{k}</div>
-                        <div style={{ fontSize: 18, color: 'var(--tx3)', fontFamily: 'var(--serif)' }}>—</div>
-                        <div style={{ fontSize: 9, color: 'var(--tx3)' }}>Deploy Edge Function to check</div>
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+                      {[['Posts', posts.filter(p=>p.client_name===c.name).length || 0],
+                        ['Campaigns', campaigns.filter(cp=>cp.client===c.name).length || 0]].map(([l,v])=>(
+                        <div key={l} style={{background:'rgba(0,0,0,.2)',padding:'8px',textAlign:'center'}}>
+                          <div style={{fontSize:20,fontWeight:600,color:c.color,fontFamily:'var(--mono)'}}>{v}</div>
+                          <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.08em'}}>{l}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{display:'flex',gap:6,marginTop:0}}>
+                      <button className="btn btn-ghost btn-sm" style={{flex:1,fontSize:10}}
+                        onClick={()=>{setCClient(c.name); setTab('composer')}}>✍️ Compose</button>
+                      <button onClick={()=>setShowBrain(showBrain===c.id?null:c.id)}
+                        style={{flex:1,padding:'5px 8px',fontSize:10,background:showBrain===c.id?'rgba(88,166,255,.12)':'rgba(0,0,0,.2)',border:`1px solid ${showBrain===c.id?'rgba(88,166,255,.4)':'var(--br)'}`,color:showBrain===c.id?'var(--sky)':'var(--tx3)',cursor:'pointer'}}>
+                        🧠 Brain
+                      </button>
+                    </div>
+                    {showBrain===c.id&&(
+                      <div style={{marginTop:10,padding:'12px',background:'rgba(88,166,255,.04)',border:'1px solid rgba(88,166,255,.15)'}}>
+                        <div style={{fontSize:11,fontWeight:600,color:'var(--sky)',marginBottom:10}}>🧠 Brand Brain — {c.name}</div>
+                        <div className="fg mb2">
+                          <label className="flbl">Brand Voice & Tone</label>
+                          <textarea className="finput" rows={2} style={{fontSize:11}}
+                            value={(clientBrains[c.id]||{}).voice||''}
+                            onChange={e=>setClientBrains(b=>({...b,[c.id]:{...(b[c.id]||{}),voice:e.target.value}}))}
+                            placeholder="Warm, professional. Never pushy. Aspirational tone."/>
+                        </div>
+                        <div className="fg mb2">
+                          <label className="flbl">ICP — Ideal Customer Profile</label>
+                          <textarea className="finput" rows={2} style={{fontSize:11}}
+                            value={(clientBrains[c.id]||{}).icp||''}
+                            onChange={e=>setClientBrains(b=>({...b,[c.id]:{...(b[c.id]||{}),icp:e.target.value}}))}
+                            placeholder="Corporate travelers, Japanese expats, transit passengers"/>
+                        </div>
+                        <div className="fg mb2">
+                          <label className="flbl">Content Pillars (comma-separated)</label>
+                          <input className="finput" style={{fontSize:11}}
+                            value={(clientBrains[c.id]||{}).pillars||''}
+                            onChange={e=>setClientBrains(b=>({...b,[c.id]:{...(b[c.id]||{}),pillars:e.target.value}}))}
+                            placeholder="Airport proximity,Corporate packages,Premium comfort"/>
+                        </div>
+                        <div className="fg mb2">
+                          <label className="flbl">Competitors to outperform</label>
+                          <input className="finput" style={{fontSize:11}}
+                            value={(clientBrains[c.id]||{}).competitors||''}
+                            onChange={e=>setClientBrains(b=>({...b,[c.id]:{...(b[c.id]||{}),competitors:e.target.value}}))}
+                            placeholder="Pan Pacific, Le Méridien, Radisson Blu"/>
+                        </div>
+                        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                          <button className="btn btn-sm" style={{background:'rgba(88,166,255,.12)',border:'1px solid rgba(88,166,255,.3)',color:'var(--sky)',fontSize:10}}
+                            onClick={async()=>{
+                              setSavingBrain(true)
+                              try { await fetch(`${SB_URL}/rest/v1/social_clients?id=eq.${c.id}&tenant_id=eq.${TENANT}`,{method:'PATCH',headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({brand_voice:clientBrains[c.id]})}) } catch(e){}
+                              setSavingBrain(false); toast(`Brain saved for ${c.name} ✓`)
+                            }}>
+                            {savingBrain?'Saving…':'💾 Save Brain'}
+                          </button>
+                          <div style={{fontSize:9,color:'var(--tx3)'}}>Used by AI caption generator automatically</div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── DEVELOPER GUIDE ── */}
-          {activeTab === 'guide' && (
-            <div>
-              <div style={{ background: 'rgba(200,169,110,.06)', border: '1px solid rgba(200,169,110,.2)', padding: '14px 18px', marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)', marginBottom: 6 }}>📋 Implementation Roadmap</div>
-                <div style={{ fontSize: 11, color: 'var(--tx2)', lineHeight: 1.8 }}>
-                  Phase 1: Gemini 1.5 Pro generates content → saved to Supabase marketing_content table → FO approves → publishes<br/>
-                  Phase 2: Google Business Profile API auto-posts every Sunday 9 AM (Profile ID: 6462181989202463603)<br/>
-                  Phase 3: SerpApi/Tavily ranking monitor — track Hotel Fountain vs. Nikunja competitors weekly
-                </div>
-              </div>
-              {[
-                { step: '1', title: 'Create marketing_content table in Supabase', code: `CREATE TABLE marketing_content (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  tenant_id UUID NOT NULL,
-  content_type TEXT, -- 'blog_post' | 'landing_page' | 'gbp_post' | 'schema'
-  title TEXT,
-  content TEXT,
-  meta_description TEXT,
-  keywords TEXT[],
-  status TEXT DEFAULT 'draft', -- 'draft' | 'approved' | 'published'
-  published_at TIMESTAMPTZ,
-  gbp_post_id TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);` },
-                { step: '2', title: 'Deploy seo-geo-agent Edge Function (Supabase)', code: `// supabase/functions/seo-geo-agent/index.ts
-// Actions: post_gbp | generate_content | generate_schema | check_rankings | publish_content
-// Stack: Vercel AI SDK or LangChain + Gemini 1.5 Pro
-//
-// Required Supabase Secrets (Settings → Edge Functions → Secrets):
-//   GEMINI_API_KEY      — from aistudio.google.com
-//   GOOGLE_PROJECT_ID   — hotelfountainbdcrm-493018
-//   GOOGLE_PRIVATE_KEY_ID — a9e9e586dedb142e4fc80d8c542f60edb89e50fe
-//   GOOGLE_SERVICE_ACCOUNT_EMAIL — (from service account JSON)
-//   GOOGLE_PRIVATE_KEY  — (from service account JSON, keep in Secrets only)
-//   SERPAPI_KEY         — from serpapi.com (for rankings)
-//
-// GBP Profile ID: 6462181989202463603
-// Connection: om-4622866995102339240` },
-                { step: '3', title: 'Add SERP ranking monitoring', code: `// In seo-geo-agent Edge Function, action: 'check_rankings'
-const KEYWORDS = [
-  'Best hotel in Nikunja 2',
-  'Hotel near Dhaka Airport',
-  'Corporate accommodation Dhaka',
-  'Nikunja 2 hotel booking',
-  'Transit hotel Dhaka'
-]
-// Use SerpApi: serpapi.com/google-search-api
-// or Tavily: tavily.com (AI-native search API)` },
-              ].map(s => (
-                <div key={s.step} className="card mb3">
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
-                    <div style={{ width: 28, height: 28, background: 'rgba(200,169,110,.15)', border: '1px solid rgba(200,169,110,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: 'var(--gold)', fontWeight: 700, flexShrink: 0 }}>{s.step}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', paddingTop: 3 }}>{s.title}</div>
-                  </div>
-                  <div style={{ background: 'rgba(0,0,0,.4)', padding: '12px 14px', fontFamily: 'monospace', fontSize: 10, color: 'var(--sky)', whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 200, overflow: 'auto' }}>{s.code}</div>
-                </div>
-              ))}
-              <div className="card" style={{ background: 'rgba(88,166,255,.03)', border: '1px solid rgba(88,166,255,.15)' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sky)', marginBottom: 10 }}>📊 Success KPIs</div>
-                {[['Google Search Console', 'Appearances in Search +50% within 90 days'], ['Google Maps', '+70% direction requests from active GBP posts'], ['Direct Bookings', 'Track clicks on Call/Book Now from organic traffic'], ['AI Citations', 'Hotel Fountain cited in Gemini/ChatGPT hotel recommendations'], ['Avg. Position', 'Top 3 for "hotel near Dhaka airport" within 6 months']].map(([metric, target], i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--br2)', gap: 8 }}>
-                    <span style={{ fontSize: 11, color: 'var(--tx)', fontWeight: 500 }}>{metric}</span>
-                    <span style={{ fontSize: 10, color: 'var(--sky)' }}>{target}</span>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* ── DESIGN STUDIO ── */}
-          {activeTab === 'design' && (() => {
-            const PLATFORMS = [
-              { id: 'instagram_post', label: 'Instagram Post', w: 1080, h: 1080 },
-              { id: 'instagram_story', label: 'Instagram Story', w: 1080, h: 1920 },
-              { id: 'facebook_post', label: 'Facebook Post', w: 1200, h: 630 },
-              { id: 'linkedin_post', label: 'LinkedIn Post', w: 1200, h: 627 },
-              { id: 'twitter_post', label: 'Twitter/X Post', w: 1200, h: 675 },
-            ]
-            const THEMES = [
-              { id: 'room_promo', label: '🛏 Room Promo', headline: 'Premium Rooms', sub: 'From ৳3,500/night', cta: 'Book Now' },
-              { id: 'corporate_pkg', label: '💼 Corporate Package', headline: 'Corporate Packages', sub: 'Exclusive Business Rates', cta: 'Get Quote' },
-              { id: 'dining', label: '🍽 Dining', headline: 'Fine Dining', sub: 'World-Class Cuisine', cta: 'Reserve Table' },
-              { id: 'weekend_deal', label: '🌟 Weekend Deal', headline: 'Weekend Escape', sub: 'Special Packages Available', cta: 'View Deals' },
-              { id: 'event_mtg', label: '🎪 Events & Meetings', headline: 'Events & Meetings', sub: 'Premium Facilities', cta: 'Inquire Now' },
-            ]
-            const BGS = [
-              { id: 'twilight_gold', label: '✨ Twilight Gold', from: '#1a1208', to: '#2d1e05', accent: '#C8A96E', text: '#F5EDD8' },
-              { id: 'midnight_blue', label: '🌙 Midnight Blue', from: '#080d1a', to: '#0d1f3c', accent: '#58A6FF', text: '#E8F0FF' },
-              { id: 'emerald_night', label: '💚 Emerald Night', from: '#081a10', to: '#0a2a18', accent: '#3FB950', text: '#E0FFE8' },
-              { id: 'rose_dawn', label: '🌹 Rose Dawn', from: '#1a080d', to: '#2d0a18', accent: '#FF6B8A', text: '#FFE0E8' },
-              { id: 'slate_grey', label: '🩶 Slate Grey', from: '#0a0a0f', to: '#1a1a28', accent: '#A0AEC0', text: '#E8ECF0' },
-              { id: 'ivory_warm', label: '🪔 Ivory Warm', from: '#1a150f', to: '#2d2015', accent: '#E8D5B0', text: '#FFF8F0' },
-            ]
+          {/* ════════ COMPOSER ════════ */}
+          {tab==='composer' && (
+            <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:16}}>
+              <div>
+                <div className="card mb3">
+                  <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:14}}>✍️ Compose Post</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+                    <div className="fg">
+                      <label className="flbl">Client</label>
+                      <select className="finput" value={cClient} onChange={e=>setCClient(e.target.value)}>
+                        {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="fg">
+                      <label className="flbl">Schedule</label>
+                      <input className="finput" type="datetime-local" value={cSchedule} onChange={e=>setCSchedule(e.target.value)}/>
+                    </div>
+                  </div>
 
-            const plat = PLATFORMS.find(p => p.id === designPlatform) || PLATFORMS[0]
-            const theme = THEMES.find(t => t.id === designTheme) || THEMES[0]
-            const bg = BGS.find(b => b.id === designBg) || BGS[0]
-            const layout = designSeed % 5
-            const { w, h } = plat
+                  <div style={{marginBottom:12}}>
+                    <label className="flbl" style={{display:'block',marginBottom:6}}>Platform</label>
+                    <div style={{display:'flex',gap:8}}>
+                      {Object.entries(PLATFORM_CFG).map(([k,v])=>(
+                        <button key={k} onClick={()=>setCPlatform(k)}
+                          style={{flex:1,padding:'9px 6px',fontSize:10,textAlign:'center',background:cPlatform===k?v.color+'20':'rgba(0,0,0,.2)',border:`1px solid ${cPlatform===k?v.color:'var(--br)'}`,color:cPlatform===k?v.color:'var(--tx3)',cursor:'pointer',transition:'all .15s'}}>
+                          <div style={{fontSize:18,marginBottom:3}}>{v.icon}</div>
+                          <div style={{fontWeight:cPlatform===k?600:400}}>{v.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-            function makeSVG() {
-              const { headline, sub, cta } = theme
-              const c = bg
-              const hotel = 'Hotel Fountain'
-              const tagline = 'Nikunja 2, Dhaka · 5 min from Airport'
-              if (layout === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><filter id="glo"><feGaussianBlur stdDeviation="40"/></filter></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w*0.8)}" cy="${Math.round(h*0.2)}" r="${Math.round(w*0.35)}" fill="${c.accent}" opacity="0.07" filter="url(#glo)"/><circle cx="${Math.round(w*0.15)}" cy="${Math.round(h*0.75)}" r="${Math.round(w*0.25)}" fill="${c.accent}" opacity="0.05" filter="url(#glo)"/><rect x="${Math.round(w*0.08)}" y="${Math.round(h*0.08)}" width="${Math.round(w*0.84)}" height="${Math.round(h*0.84)}" fill="none" stroke="${c.accent}" stroke-width="1" opacity="0.3"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.36)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.045)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><rect x="${Math.round(w*0.36)}" y="${Math.round(h*0.40)}" width="${Math.round(w*0.28)}" height="1" fill="${c.accent}" opacity="0.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.52)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.074)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.61)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.028)}" fill="${c.text}" opacity="0.75">${sub}</text><rect x="${Math.round(w*0.37)}" y="${Math.round(h*0.67)}" width="${Math.round(w*0.26)}" height="${Math.round(h*0.065)}" rx="2" fill="${c.accent}" opacity="0.15" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.712)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.025)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.86)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.018)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
-              if (layout === 1) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><linearGradient id="side" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${c.accent}" stop-opacity="0.18"/><stop offset="100%" stop-color="${c.accent}" stop-opacity="0.03"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${Math.round(w*0.44)}" height="${h}" fill="url(#side)"/><rect x="${Math.round(w*0.44)}" y="${Math.round(h*0.1)}" width="1" height="${Math.round(h*0.8)}" fill="${c.accent}" opacity="0.35"/><text x="${Math.round(w*0.22)}" y="${Math.round(h*0.4)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.036)}" fill="${c.accent}" letter-spacing="3">${hotel.toUpperCase()}</text><text x="${Math.round(w*0.22)}" y="${Math.round(h*0.49)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.02)}" fill="${c.text}" opacity="0.55">${tagline}</text><text x="${Math.round(w*0.63)}" y="${Math.round(h*0.38)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.063)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w*0.63)}" y="${Math.round(h*0.47)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.025)}" fill="${c.text}" opacity="0.7">${sub}</text><rect x="${Math.round(w*0.52)}" y="${Math.round(h*0.56)}" width="${Math.round(w*0.22)}" height="${Math.round(h*0.06)}" rx="2" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w*0.63)}" y="${Math.round(h*0.6)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text></svg>`
-              if (layout === 2) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${w}" height="${Math.round(h*0.13)}" fill="${c.accent}" opacity="0.12"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.085)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.03)}" fill="${c.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.36)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.078)}" fill="${c.text}" font-weight="bold">${headline}</text><rect x="${Math.round(w*0.4)}" y="${Math.round(h*0.41)}" width="${Math.round(w*0.2)}" height="2" fill="${c.accent}" opacity="0.55"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.5)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.027)}" fill="${c.text}" opacity="0.72">${sub}</text><rect x="0" y="${Math.round(h*0.8)}" width="${w}" height="${Math.round(h*0.2)}" fill="${c.accent}" opacity="0.07"/><rect x="${Math.round(w*0.38)}" y="${Math.round(h*0.845)}" width="${Math.round(w*0.24)}" height="${Math.round(h*0.065)}" rx="2" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.888)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.95)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
-              if (layout === 3) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><polygon points="${Math.round(w*0.6)},0 ${w},0 ${w},${Math.round(h*0.5)}" fill="${c.accent}" opacity="0.08"/><polygon points="0,${Math.round(h*0.6)} 0,${h} ${Math.round(w*0.4)},${h}" fill="${c.accent}" opacity="0.05"/><rect x="${Math.round(w*0.07)}" y="${Math.round(h*0.25)}" width="${Math.round(w*0.55)}" height="${Math.round(h*0.08)}" fill="none" stroke="${c.accent}" stroke-width="0.5" opacity="0.4"/><text x="${Math.round(w*0.1)}" y="${Math.round(h*0.31)}" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="4" opacity="0.9">${hotel.toUpperCase()}</text><text x="${Math.round(w*0.1)}" y="${Math.round(h*0.49)}" font-family="Georgia,serif" font-size="${Math.round(w*0.072)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w*0.1)}" y="${Math.round(h*0.58)}" font-family="sans-serif" font-size="${Math.round(w*0.027)}" fill="${c.text}" opacity="0.68">${sub}</text><rect x="${Math.round(w*0.1)}" y="${Math.round(h*0.65)}" width="${Math.round(w*0.22)}" height="${Math.round(h*0.06)}" rx="2" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w*0.21)}" y="${Math.round(h*0.69)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w*0.1)}" y="${Math.round(h*0.87)}" font-family="sans-serif" font-size="${Math.round(w*0.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
-              return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w/2)}" cy="${Math.round(h*0.42)}" r="${Math.round(w*0.32)}" fill="none" stroke="${c.accent}" stroke-width="0.8" opacity="0.25"/><circle cx="${Math.round(w/2)}" cy="${Math.round(h*0.42)}" r="${Math.round(w*0.27)}" fill="none" stroke="${c.accent}" stroke-width="0.4" opacity="0.14"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.33)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.032)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.44)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*0.07)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.52)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.026)}" fill="${c.text}" opacity="0.68">${sub}</text><rect x="${Math.round(w*0.38)}" y="${Math.round(h*0.62)}" width="${Math.round(w*0.24)}" height="${Math.round(h*0.06)}" rx="30" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*0.66)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*0.83)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*0.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
+                  <div className="fg mb3">
+                    <label className="flbl">Topic / Brief (for AI)</label>
+                    <input className="finput" value={cTopic} onChange={e=>setCTopic(e.target.value)} placeholder={`e.g. Promote weekend room deals for ${cClient}`}/>
+                  </div>
+
+                  <button className="btn btn-gold" style={{width:'100%',marginBottom:14}} disabled={aiLoading} onClick={generateCaption}>
+                    {aiLoading?<><span className="spinner" style={{width:12,height:12}}/>{' '}Generating AI Caption…</>:'✨ Generate AI Caption'}
+                  </button>
+
+                  <div className="fg">
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                      <label className="flbl" style={{margin:0}}>Caption</label>
+                      <span style={{fontSize:10,color:charLeft<50?'var(--rose)':charLeft<200?'var(--gold)':'var(--tx3)',fontFamily:'var(--mono)'}}>{charLeft.toLocaleString()} left</span>
+                    </div>
+                    <textarea className="finput" rows={8} value={cCaption} onChange={e=>setCCaption(e.target.value)}
+                      placeholder="Write your caption or hit Generate AI Caption above…"
+                      style={{resize:'vertical',fontFamily:'var(--sans)',lineHeight:1.7}}/>
+                    <div style={{height:3,background:'rgba(0,0,0,.3)',borderRadius:2,overflow:'hidden',marginTop:4}}>
+                      <div style={{height:'100%',width:`${charPct}%`,background:charPct>90?'var(--rose)':charPct>70?'var(--gold)':'var(--grn)',borderRadius:2,transition:'width .2s'}}/>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{display:'flex',gap:8}}>
+                  <button className="btn btn-ghost" style={{flex:1}} onClick={()=>savePost('draft')}>💾 Save Draft</button>
+                  <button className="btn btn-gold" style={{flex:2}} onClick={()=>savePost('scheduled')}>📅 Schedule Post</button>
+                </div>
+              </div>
+
+              {/* Preview + recent drafts */}
+              <div>
+                <div className="card mb3">
+                  <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>👁 PREVIEW</div>
+                  <div style={{background:'rgba(0,0,0,.35)',border:'1px solid var(--br)',borderRadius:6,overflow:'hidden'}}>
+                    <div style={{background:(platCfg?.color||'#888')+'18',padding:'10px 12px',display:'flex',alignItems:'center',gap:8,borderBottom:'1px solid var(--br)'}}>
+                      <span style={{fontSize:20}}>{platCfg?.icon}</span>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:600,color:'var(--tx)'}}>{cClient}</div>
+                        <div style={{fontSize:9,color:'var(--tx3)'}}>
+                          {cSchedule?new Date(cSchedule).toLocaleString('en',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Now'}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{padding:'12px',fontSize:12,color:'var(--tx2)',lineHeight:1.75,minHeight:100,whiteSpace:'pre-wrap'}}>
+                      {cCaption||<span style={{color:'var(--tx3)',fontStyle:'italic'}}>Caption preview…</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div style={{fontSize:10,fontWeight:600,color:'var(--tx3)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.1em'}}>Recent Drafts</div>
+                  {posts.filter(p=>p.status==='draft').slice(0,4).map((p,i)=>(
+                    <div key={i} onClick={()=>{setCCaption(p.caption);setCClient(p.client_name);setCPlatform(p.platform)}}
+                      style={{padding:'8px 0',borderBottom:'1px solid var(--br2)',cursor:'pointer'}}>
+                      <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:2}}>
+                        <span style={{fontSize:14}}>{PLATFORM_CFG[p.platform]?.icon}</span>
+                        <span style={{fontSize:9,color:'var(--tx3)'}}>{p.client_name}</span>
+                      </div>
+                      <div style={{fontSize:11,color:'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.caption}</div>
+                    </div>
+                  ))}
+                  {!posts.filter(p=>p.status==='draft').length&&<div style={{fontSize:11,color:'var(--tx3)',textAlign:'center',padding:'10px 0'}}>No drafts yet</div>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════ SCHEDULE ════════ */}
+          {tab==='schedule' && (
+            <div>
+              <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
+                <span style={{fontSize:11,color:'var(--tx3)'}}>Filter:</span>
+                {[['all','All'],['scheduled','📅 Scheduled'],['draft','📝 Drafts'],['published','✓ Published']].map(([v,l])=>(
+                  <button key={v} onClick={()=>setSchedFilter(v)}
+                    className={`btn btn-ghost btn-sm`}
+                    style={{fontSize:10,background:schedFilter===v?'rgba(200,169,110,.12)':'',borderColor:schedFilter===v?'rgba(200,169,110,.4)':'var(--br)',color:schedFilter===v?'var(--gold)':'var(--tx3)'}}>
+                    {l}
+                  </button>
+                ))}
+                <span style={{marginLeft:'auto',fontSize:10,color:'var(--tx3)'}}>
+                  {posts.filter(p=>schedFilter==='all'||p.status===schedFilter).length} posts
+                </span>
+              </div>
+
+              {loadingPosts&&<div style={{textAlign:'center',padding:24,color:'var(--tx3)',fontSize:12}}>Loading…</div>}
+
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                {posts.filter(p=>schedFilter==='all'||p.status===schedFilter)
+                  .sort((a,b)=>new Date(b.scheduled_at)-new Date(a.scheduled_at))
+                  .map((p,i)=>{
+                    const sc={scheduled:'var(--gold)',draft:'var(--sky)',published:'var(--grn)'}[p.status]||'var(--tx3)'
+                    return (
+                      <div key={p.id||i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'12px 14px',display:'flex',alignItems:'flex-start',gap:12}}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(200,169,110,.3)'}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor='var(--br)'}>
+                        <span style={{fontSize:22,flexShrink:0,marginTop:2}}>{PLATFORM_CFG[p.platform]?.icon||'📄'}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap'}}>
+                            <span style={{fontSize:11,fontWeight:600,color:'var(--tx)'}}>{p.client_name}</span>
+                            <span style={{fontSize:9,color:PLATFORM_CFG[p.platform]?.color||'var(--tx3)',background:(PLATFORM_CFG[p.platform]?.color||'#888')+'15',padding:'1px 7px',border:`1px solid ${(PLATFORM_CFG[p.platform]?.color||'#888')}33`}}>
+                              {PLATFORM_CFG[p.platform]?.label}
+                            </span>
+                            <span style={{fontSize:9,color:sc,background:sc+'15',padding:'1px 7px',border:`1px solid ${sc}33`,textTransform:'uppercase',letterSpacing:'.06em'}}>{p.status}</span>
+                          </div>
+                          <div style={{fontSize:12,color:'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.caption}</div>
+                        </div>
+                        <div style={{fontSize:9,color:'var(--tx3)',flexShrink:0,textAlign:'right',lineHeight:1.8}}>
+                          {p.scheduled_at?new Date(p.scheduled_at).toLocaleDateString('en',{month:'short',day:'numeric'}):'—'}
+                          <br/>{p.scheduled_at?new Date(p.scheduled_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}):''}
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+
+              {!posts.filter(p=>schedFilter==='all'||p.status===schedFilter).length&&(
+                <div style={{textAlign:'center',padding:'40px',color:'var(--tx3)'}}>
+                  <div style={{fontSize:32,marginBottom:12}}>📭</div>
+                  <div style={{fontSize:13}}>No posts yet — go to Composer to create one</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ════════ DESIGN STUDIO ════════ */}
+          {tab==='design' && (()=>{
+            const DS_PLATFORMS=[
+              {id:'instagram_post',  label:'Instagram Post',  w:1080,h:1080},
+              {id:'instagram_story', label:'Instagram Story', w:1080,h:1920},
+              {id:'facebook_post',   label:'Facebook Post',   w:1200,h:630},
+              {id:'linkedin_post',   label:'LinkedIn Post',   w:1200,h:627},
+              {id:'twitter_post',    label:'Twitter/X Post',  w:1200,h:675},
+            ]
+            const DS_THEMES=[
+              {id:'room_promo',   label:'🛏 Room Promo',       headline:'Premium Rooms',     sub:'From ৳3,500/night',        cta:'Book Now'},
+              {id:'corporate_pkg',label:'💼 Corporate Package', headline:'Corporate Packages', sub:'Exclusive Business Rates',     cta:'Get Quote'},
+              {id:'dining',       label:'🍽 Dining',            headline:'Fine Dining',        sub:'World-Class Cuisine',           cta:'Reserve Table'},
+              {id:'weekend_deal', label:'🌟 Weekend Deal',      headline:'Weekend Escape',     sub:'Special Packages Available',    cta:'View Deals'},
+              {id:'event_mtg',    label:'🎪 Events & Meetings', headline:'Events & Meetings',  sub:'Premium Facilities',            cta:'Inquire Now'},
+            ]
+            const DS_BGS=[
+              {id:'twilight_gold',label:'✨ Twilight Gold', from:'#1a1208',to:'#2d1e05',accent:'#C8A96E',text:'#F5EDD8'},
+              {id:'midnight_blue',label:'🌙 Midnight Blue',from:'#080d1a',to:'#0d1f3c',accent:'#58A6FF',text:'#E8F0FF'},
+              {id:'emerald_night',label:'💚 Emerald Night',from:'#081a10',to:'#0a2a18',accent:'#3FB950',text:'#E0FFE8'},
+              {id:'rose_dawn',    label:'🌹 Rose Dawn',  from:'#1a080d',to:'#2d0a18',accent:'#FF6B8A',text:'#FFE0E8'},
+              {id:'slate_grey',   label:'🩶 Slate Grey', from:'#0a0a0f',to:'#1a1a28',accent:'#A0AEC0',text:'#E8ECF0'},
+              {id:'ivory_warm',   label:'🪔 Ivory Warm', from:'#1a150f',to:'#2d2015',accent:'#E8D5B0',text:'#FFF8F0'},
+            ]
+            const plat  = DS_PLATFORMS.find(p=>p.id===dPlatform)||DS_PLATFORMS[0]
+            const theme = DS_THEMES.find(t=>t.id===dTheme)||DS_THEMES[0]
+            const bg    = DS_BGS.find(b=>b.id===dBg)||DS_BGS[0]
+            const layout= dSeed%5
+            const {w,h} = plat
+            const hotel  = 'Hotel Fountain'
+            const tagline= 'Nikunja 2, Dhaka · 5 min from Airport'
+
+            function makeSVG(){
+              const {headline,sub,cta}=theme; const c=bg
+              if(layout===0) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><filter id="glo"><feGaussianBlur stdDeviation="40"/></filter></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w*.8)}" cy="${Math.round(h*.2)}" r="${Math.round(w*.35)}" fill="${c.accent}" opacity="0.07" filter="url(#glo)"/><circle cx="${Math.round(w*.15)}" cy="${Math.round(h*.75)}" r="${Math.round(w*.25)}" fill="${c.accent}" opacity="0.05" filter="url(#glo)"/><rect x="${Math.round(w*.08)}" y="${Math.round(h*.08)}" width="${Math.round(w*.84)}" height="${Math.round(h*.84)}" fill="none" stroke="${c.accent}" stroke-width="1" opacity="0.3"/><text x="${Math.round(w/2)}" y="${Math.round(h*.36)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.045)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><rect x="${Math.round(w*.36)}" y="${Math.round(h*.40)}" width="${Math.round(w*.28)}" height="1" fill="${c.accent}" opacity="0.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.52)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.074)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.61)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.text}" opacity="0.75">${sub}</text><rect x="${Math.round(w*.37)}" y="${Math.round(h*.67)}" width="${Math.round(w*.26)}" height="${Math.round(h*.065)}" rx="2" fill="${c.accent}" opacity="0.15" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w/2)}" y="${Math.round(h*.712)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.025)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.86)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
+              if(layout===1) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><linearGradient id="side" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${c.accent}" stop-opacity="0.18"/><stop offset="100%" stop-color="${c.accent}" stop-opacity="0.03"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${Math.round(w*.44)}" height="${h}" fill="url(#side)"/><rect x="${Math.round(w*.44)}" y="${Math.round(h*.1)}" width="1" height="${Math.round(h*.8)}" fill="${c.accent}" opacity="0.35"/><text x="${Math.round(w*.22)}" y="${Math.round(h*.4)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.036)}" fill="${c.accent}" letter-spacing="3">${hotel.toUpperCase()}</text><text x="${Math.round(w*.22)}" y="${Math.round(h*.49)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.text}" opacity="0.55">${tagline}</text><text x="${Math.round(w*.63)}" y="${Math.round(h*.38)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.063)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w*.63)}" y="${Math.round(h*.47)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.025)}" fill="${c.text}" opacity="0.7">${sub}</text><rect x="${Math.round(w*.52)}" y="${Math.round(h*.56)}" width="${Math.round(w*.22)}" height="${Math.round(h*.06)}" rx="2" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w*.63)}" y="${Math.round(h*.6)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text></svg>`
+              if(layout===2) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${w}" height="${Math.round(h*.13)}" fill="${c.accent}" opacity="0.12"/><text x="${Math.round(w/2)}" y="${Math.round(h*.085)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.03)}" fill="${c.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.36)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.078)}" fill="${c.text}" font-weight="bold">${headline}</text><rect x="${Math.round(w*.4)}" y="${Math.round(h*.41)}" width="${Math.round(w*.2)}" height="2" fill="${c.accent}" opacity="0.55"/><text x="${Math.round(w/2)}" y="${Math.round(h*.5)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.027)}" fill="${c.text}" opacity="0.72">${sub}</text><rect x="0" y="${Math.round(h*.8)}" width="${w}" height="${Math.round(h*.2)}" fill="${c.accent}" opacity="0.07"/><rect x="${Math.round(w*.38)}" y="${Math.round(h*.845)}" width="${Math.round(w*.24)}" height="${Math.round(h*.065)}" rx="2" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.888)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.95)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
+              if(layout===3) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><polygon points="${Math.round(w*.6)},0 ${w},0 ${w},${Math.round(h*.5)}" fill="${c.accent}" opacity="0.08"/><polygon points="0,${Math.round(h*.6)} 0,${h} ${Math.round(w*.4)},${h}" fill="${c.accent}" opacity="0.05"/><rect x="${Math.round(w*.07)}" y="${Math.round(h*.25)}" width="${Math.round(w*.55)}" height="${Math.round(h*.08)}" fill="none" stroke="${c.accent}" stroke-width="0.5" opacity="0.4"/><text x="${Math.round(w*.1)}" y="${Math.round(h*.31)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="4" opacity="0.9">${hotel.toUpperCase()}</text><text x="${Math.round(w*.1)}" y="${Math.round(h*.49)}" font-family="Georgia,serif" font-size="${Math.round(w*.072)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w*.1)}" y="${Math.round(h*.58)}" font-family="sans-serif" font-size="${Math.round(w*.027)}" fill="${c.text}" opacity="0.68">${sub}</text><rect x="${Math.round(w*.1)}" y="${Math.round(h*.65)}" width="${Math.round(w*.22)}" height="${Math.round(h*.06)}" rx="2" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w*.21)}" y="${Math.round(h*.69)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w*.1)}" y="${Math.round(h*.87)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
+              return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w/2)}" cy="${Math.round(h*.42)}" r="${Math.round(w*.32)}" fill="none" stroke="${c.accent}" stroke-width="0.8" opacity="0.25"/><circle cx="${Math.round(w/2)}" cy="${Math.round(h*.42)}" r="${Math.round(w*.27)}" fill="none" stroke="${c.accent}" stroke-width="0.4" opacity="0.14"/><text x="${Math.round(w/2)}" y="${Math.round(h*.33)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.032)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.44)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.07)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.52)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.text}" opacity="0.68">${sub}</text><rect x="${Math.round(w*.38)}" y="${Math.round(h*.62)}" width="${Math.round(w*.24)}" height="${Math.round(h*.06)}" rx="30" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.66)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.83)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
             }
 
-            function downloadSVG() {
-              const svg = makeSVG()
-              const blob = new Blob([svg], { type: 'image/svg+xml' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url; a.download = `hotel-fountain-${designPlatform}-${designTheme}-v${designSeed}.svg`
-              document.body.appendChild(a); a.click()
-              document.body.removeChild(a); URL.revokeObjectURL(url)
+            function downloadSVG(){
+              const svg=makeSVG(); const blob=new Blob([svg],{type:'image/svg+xml'})
+              const url=URL.createObjectURL(blob); const a=document.createElement('a')
+              a.href=url; a.download=`social-${dPlatform}-${dTheme}-v${dSeed}.svg`
+              document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
             }
 
-            async function sendForApproval() {
-              downloadSVG()
-              setApprovalSent(true)
-              try {
-                await fetch(EDGE, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: ANON },
-                  body: JSON.stringify({ action: 'email_design_approval', platform: designPlatform, theme: designTheme, bg: designBg, seed: designSeed, layout }) })
-              } catch(e) { }
-              toast('Design downloaded & approval email sent ✓')
-              setTimeout(() => setApprovalSent(false), 4000)
+            async function sendApproval(){
+              downloadSVG(); setApprovalSent(true)
+              try { await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({action:'email_design_approval',platform:dPlatform,theme:dTheme,bg:dBg,seed:dSeed,layout})}) } catch(e){}
+              toast('Design downloaded & approval sent ✓')
+              setTimeout(()=>setApprovalSent(false),4000)
             }
 
-            const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(makeSVG())))
-            const aspectRatio = h / w
-            const previewW = 340
-            const previewH = Math.round(previewW * aspectRatio)
+            const svgUrl='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(makeSVG())))
+            const prevW=320; const prevH=Math.round(prevW*(h/w))
 
             return (
-              <div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
-                  {/* Controls panel */}
-                  <div>
-                    <div className="card mb3">
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>📐 Platform</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                        {PLATFORMS.map(p => (
-                          <button key={p.id} onClick={() => { setDesignPlatform(p.id); setDesignSeed(s => s + 1) }}
-                            style={{ padding: '8px 10px', fontSize: 10, background: designPlatform === p.id ? 'rgba(200,169,110,.15)' : 'rgba(0,0,0,.2)', border: `1px solid ${designPlatform === p.id ? 'rgba(200,169,110,.5)' : 'var(--br)'}`, color: designPlatform === p.id ? 'var(--gold)' : 'var(--tx3)', cursor: 'pointer', textAlign: 'left', lineHeight: 1.4 }}>
-                            <div style={{ fontWeight: 600 }}>{p.label}</div>
-                            <div style={{ fontSize: 9, opacity: 0.7 }}>{p.w}×{p.h}</div>
-                          </button>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,alignItems:'start'}}>
+                <div>
+                  <div className="card mb3">
+                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>📐 Platform</div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                      {DS_PLATFORMS.map(p=>(
+                        <button key={p.id} onClick={()=>{setDPlatform(p.id);setDSeed(s=>s+1)}}
+                          style={{padding:'8px 10px',fontSize:10,background:dPlatform===p.id?'rgba(200,169,110,.15)':'rgba(0,0,0,.2)',border:`1px solid ${dPlatform===p.id?'rgba(200,169,110,.5)':'var(--br)'}`,color:dPlatform===p.id?'var(--gold)':'var(--tx3)',cursor:'pointer',textAlign:'left',lineHeight:1.5}}>
+                          <div style={{fontWeight:600}}>{p.label}</div>
+                          <div style={{fontSize:9,opacity:.7}}>{p.w}×{p.h}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="card mb3">
+                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>🎯 Content Theme</div>
+                    <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                      {DS_THEMES.map(t=>(
+                        <button key={t.id} onClick={()=>{setDTheme(t.id);setDSeed(s=>s+1)}}
+                          style={{padding:'8px 12px',fontSize:11,background:dTheme===t.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.15)',border:`1px solid ${dTheme===t.id?'rgba(200,169,110,.4)':'var(--br)'}`,color:dTheme===t.id?'var(--gold)':'var(--tx2)',cursor:'pointer',textAlign:'left'}}>
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="card">
+                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>🎨 Background</div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                      {DS_BGS.map(b=>(
+                        <button key={b.id} onClick={()=>{setDBg(b.id);setDSeed(s=>s+1)}}
+                          style={{padding:'8px 10px',fontSize:10,background:dBg===b.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.2)',border:`1px solid ${dBg===b.id?'rgba(200,169,110,.45)':'var(--br)'}`,color:dBg===b.id?'var(--gold)':'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',gap:7}}>
+                          <span style={{width:10,height:10,borderRadius:'50%',background:`linear-gradient(135deg,${b.from},${b.to})`,border:`1px solid ${b.accent}`,flexShrink:0}}/>
+                          {b.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="card mb3">
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                      <div style={{fontSize:12,fontWeight:600,color:'var(--gold)'}}>👁 Preview</div>
+                      <div style={{display:'flex',gap:6}}>
+                        <span style={{fontSize:9,color:'var(--tx3)',background:'rgba(0,0,0,.3)',padding:'2px 8px',border:'1px solid var(--br)'}}>{plat.label}</span>
+                        <span style={{fontSize:9,color:'var(--tx3)',background:'rgba(0,0,0,.3)',padding:'2px 8px',border:'1px solid var(--br)'}}>Layout {layout+1}/5</span>
+                      </div>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'center',background:'rgba(0,0,0,.3)',padding:12,border:'1px solid var(--br2)'}}>
+                      <img src={svgUrl} width={prevW} height={prevH} style={{display:'block',maxWidth:'100%'}} alt="Design preview"/>
+                    </div>
+                  </div>
+                  <div className="card mb3">
+                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🔀 Shuffle</div>
+                    <button className="btn btn-ghost" style={{width:'100%',fontSize:11,marginBottom:8}} onClick={()=>setDSeed(s=>s+1)}>
+                      🎲 New Variation
+                    </button>
+                    <div style={{fontSize:9,color:'var(--tx3)',textAlign:'center'}}>Cycles through 5 unique layout templates</div>
+                  </div>
+                  <div className="card">
+                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>📤 Export</div>
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      <button className="btn btn-ghost" style={{fontSize:11}} onClick={downloadSVG}>⬇ Download SVG</button>
+                      <button onClick={sendApproval} disabled={approvalSent}
+                        style={{width:'100%',padding:'10px',fontSize:11,fontWeight:600,background:approvalSent?'rgba(63,185,80,.1)':'rgba(200,169,110,.12)',border:`1px solid ${approvalSent?'rgba(63,185,80,.4)':'rgba(200,169,110,.4)'}`,color:approvalSent?'var(--grn)':'var(--gold)',cursor:approvalSent?'default':'pointer',transition:'all .2s'}}>
+                        {approvalSent?'✓ Sent for Approval':'📧 Email for Approval + Auto-Download'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* ════════ ANALYTICS ════════ */}
+          {tab==='analytics' && (
+            <div>
+              <div style={{display:'flex',gap:8,marginBottom:16,alignItems:'center'}}>
+                <span style={{fontSize:11,color:'var(--tx3)'}}>Client:</span>
+                <select className="finput" style={{width:'auto',fontSize:11,padding:'5px 10px'}} value={aClient} onChange={e=>setAClient(e.target.value)}>
+                  {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+                <span style={{marginLeft:'auto',fontSize:9,color:'var(--tx3)',background:'rgba(88,166,255,.06)',border:'1px solid rgba(88,166,255,.2)',padding:'4px 10px'}}>
+                  💡 Demo data — connect Meta/LinkedIn API for live metrics
+                </span>
+              </div>
+
+              <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:12,marginBottom:16}}>
+                {[
+                  {k:'instagram', data:{followers:'2.4K',reach:'18.2K',engagement:'4.8%',posts:12,trend:'+12%'}},
+                  {k:'facebook',  data:{followers:'1.1K',reach:'9.4K', engagement:'2.3%',posts:8, trend:'+5%'}},
+                  {k:'linkedin',  data:{followers:'456', reach:'3.8K', engagement:'3.1%',posts:5, trend:'+22%'}},
+                  {k:'twitter',   data:{followers:'312', reach:'2.1K', engagement:'1.9%',posts:4, trend:'+3%'}},
+                ].map(({k,data})=>{
+                  const v=PLATFORM_CFG[k]
+                  return (
+                    <div key={k} className="card" style={{border:`1px solid ${v.color}33`}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,paddingBottom:10,borderBottom:'1px solid var(--br2)'}}>
+                        <span style={{fontSize:24}}>{v.icon}</span>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:600,color:v.color}}>{v.label}</div>
+                          <div style={{fontSize:9,color:'var(--grn)'}}>{data.trend} this month</div>
+                        </div>
+                      </div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                        {[['Followers',data.followers],['Reach',data.reach],['Engagement',data.engagement],['Posts/mo',data.posts]].map(([l,val])=>(
+                          <div key={l} style={{background:'rgba(0,0,0,.2)',padding:'9px 10px'}}>
+                            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:3}}>{l}</div>
+                            <div style={{fontSize:20,fontWeight:600,color:v.color,fontFamily:'var(--mono)'}}>{val}</div>
+                          </div>
                         ))}
                       </div>
                     </div>
-                    <div className="card mb3">
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>🎯 Content Theme</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        {THEMES.map(t => (
-                          <button key={t.id} onClick={() => { setDesignTheme(t.id); setDesignSeed(s => s + 1) }}
-                            style={{ padding: '8px 12px', fontSize: 11, background: designTheme === t.id ? 'rgba(200,169,110,.12)' : 'rgba(0,0,0,.15)', border: `1px solid ${designTheme === t.id ? 'rgba(200,169,110,.4)' : 'var(--br)'}`, color: designTheme === t.id ? 'var(--gold)' : 'var(--tx2)', cursor: 'pointer', textAlign: 'left' }}>
-                            {t.label}
-                          </button>
+                  )
+                })}
+              </div>
+
+              <div className="card" style={{background:'rgba(200,169,110,.03)',border:'1px solid rgba(200,169,110,.15)'}}>
+                <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>📈 Top Performing Posts — {aClient}</div>
+                {posts.filter(p=>p.client_name===aClient&&p.status==='published').slice(0,3).map((p,i)=>(
+                  <div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'8px 0',borderBottom:'1px solid var(--br2)'}}>
+                    <span style={{fontSize:18,flexShrink:0}}>{PLATFORM_CFG[p.platform]?.icon}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:11,color:'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.caption}</div>
+                      <div style={{fontSize:9,color:'var(--tx3)',marginTop:2}}>Published · {PLATFORM_CFG[p.platform]?.label}</div>
+                    </div>
+                    <div style={{fontSize:10,color:'var(--grn)',flexShrink:0}}>↑ {Math.floor(Math.random()*500+100)} reach</div>
+                  </div>
+                ))}
+                {!posts.filter(p=>p.client_name===aClient&&p.status==='published').length&&(
+                  <div style={{fontSize:11,color:'var(--tx3)',textAlign:'center',padding:'12px 0'}}>No published posts for {aClient} yet</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ════════ CAMPAIGNS ════════ */}
+          {tab==='campaigns' && (
+            <div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+                <div style={{fontSize:12,color:'var(--tx3)'}}>
+                  {campaigns.length} campaigns &nbsp;·&nbsp; {campaigns.filter(c=>c.status==='active').length} active
+                </div>
+                <button className="btn btn-gold btn-sm" onClick={()=>setShowAddCamp(s=>!s)}>+ New Campaign</button>
+              </div>
+
+              {showAddCamp&&(
+                <div className="card mb3" style={{background:'rgba(200,169,110,.04)',border:'1px solid rgba(200,169,110,.2)'}}>
+                  <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>New Campaign</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                    <div className="fg"><label className="flbl">Campaign Name</label><input className="finput" value={campName} onChange={e=>setCampName(e.target.value)} placeholder="e.g. Eid Special 2026"/></div>
+                    <div className="fg"><label className="flbl">Client</label>
+                      <select className="finput" value={campClient} onChange={e=>setCampClient(e.target.value)}>
+                        {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="fg"><label className="flbl">Goal</label>
+                      <select className="finput" value={campGoal} onChange={e=>setCampGoal(e.target.value)}>
+                        {['Bookings','Leads','Awareness','Engagement','Sales'].map(g=><option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                    <div className="fg"><label className="flbl">Budget (৳)</label><input className="finput" type="number" value={campBudget} onChange={e=>setCampBudget(e.target.value)} placeholder="e.g. 20000"/></div>
+                    <div className="fg"><label className="flbl">End Date</label><input className="finput" type="date" value={campEnd} onChange={e=>setCampEnd(e.target.value)}/></div>
+                  </div>
+                  <div style={{display:'flex',gap:8}}>
+                    <button className="btn btn-gold btn-sm" onClick={()=>{
+                      if(!campName.trim()) return
+                      const c={id:Date.now(),client:campClient,name:campName,goal:campGoal,budget:parseInt(campBudget)||10000,spent:0,posts:0,target:30,reached:0,status:'active',end:campEnd||'2026-12-31'}
+                      setCampaigns(p=>[c,...p]); setCampName(''); setCampBudget(''); setCampEnd(''); setShowAddCamp(false); toast(`Campaign "${c.name}" created ✓`)
+                    }}>Create Campaign</button>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>setShowAddCamp(false)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                {campaigns.map(c=>{
+                  const bPct=Math.min(100,Math.round((c.spent/c.budget)*100))
+                  const gPct=Math.min(100,Math.round((c.reached/c.target)*100))
+                  const sc={active:'var(--grn)',completed:'var(--sky)',paused:'var(--gold)'}[c.status]||'var(--tx3)'
+                  return (
+                    <div key={c.id} className="card">
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{c.name}</div>
+                          <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{c.client} &nbsp;·&nbsp; {c.goal}</div>
+                        </div>
+                        <span style={{fontSize:9,padding:'2px 8px',background:sc+'15',color:sc,border:`1px solid ${sc}44`,textTransform:'uppercase',letterSpacing:'.08em',flexShrink:0}}>{c.status}</span>
+                      </div>
+                      <div style={{marginBottom:8}}>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)',marginBottom:3}}>
+                          <span>Budget: ৳{c.spent.toLocaleString()} / ৳{c.budget.toLocaleString()}</span>
+                          <span>{bPct}%</span>
+                        </div>
+                        <div style={{height:4,background:'rgba(0,0,0,.3)',borderRadius:2,overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${bPct}%`,background:bPct>90?'var(--rose)':bPct>70?'var(--gold)':'var(--grn)',borderRadius:2,transition:'width .3s'}}/>
+                        </div>
+                      </div>
+                      <div style={{marginBottom:10}}>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)',marginBottom:3}}>
+                          <span>Goal: {c.reached} / {c.target} {c.goal}</span>
+                          <span>{gPct}%</span>
+                        </div>
+                        <div style={{height:4,background:'rgba(0,0,0,.3)',borderRadius:2,overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${gPct}%`,background:'var(--sky)',borderRadius:2,transition:'width .3s'}}/>
+                        </div>
+                      </div>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+                        {[['Posts',c.posts],['End',new Date(c.end).toLocaleDateString('en',{month:'short',day:'numeric'})],['ROI',c.status==='completed'?'✓ Done':'Active']].map(([l,v])=>(
+                          <div key={l} style={{textAlign:'center',background:'rgba(0,0,0,.2)',padding:'5px 4px'}}>
+                            <div style={{fontSize:11,fontWeight:600,color:'var(--tx)'}}>{v}</div>
+                            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase'}}>{l}</div>
+                          </div>
                         ))}
                       </div>
                     </div>
-                    <div className="card mb3">
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>🎨 Background</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                        {BGS.map(b => (
-                          <button key={b.id} onClick={() => { setDesignBg(b.id); setDesignSeed(s => s + 1) }}
-                            style={{ padding: '8px 10px', fontSize: 10, background: designBg === b.id ? 'rgba(200,169,110,.12)' : 'rgba(0,0,0,.2)', border: `1px solid ${designBg === b.id ? 'rgba(200,169,110,.45)' : 'var(--br)'}`, color: designBg === b.id ? 'var(--gold)' : 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 10, height: 10, borderRadius: '50%', background: `linear-gradient(135deg, ${b.from}, ${b.to})`, border: `1px solid ${b.accent}`, flexShrink: 0 }} />
-                            {b.label}
-                          </button>
-                        ))}
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ════════ POSTER STUDIO ════════ */}
+          {tab==='poster' && (()=>{
+            const PS_SIZES=[
+              {id:'a4p',  label:'A4 Portrait',   w:595, h:842,  desc:'Print/PDF'},
+              {id:'a4l',  label:'A4 Landscape',  w:842, h:595,  desc:'Presentation'},
+              {id:'a3p',  label:'A3 Portrait',   w:842, h:1191, desc:'Large print'},
+              {id:'evt',  label:'Event Poster',  w:612, h:864,  desc:'18"×24" ratio'},
+              {id:'sqr',  label:'Square',        w:800, h:800,  desc:'Display/Digital'},
+            ]
+            const PS_STYLES=[
+              {id:'luxury',    label:'✨ Luxury Editorial',  desc:'Gold borders, serif elegance'},
+              {id:'modern',    label:'⚡ Modern Bold',       desc:'High contrast, dynamic type'},
+              {id:'corporate', label:'💼 Corporate Clean',   desc:'Structured, professional'},
+              {id:'festive',   label:'🎊 Festive',           desc:'Decorative, celebratory'},
+              {id:'minimal',   label:'◻ Minimal',            desc:'White space, pure typography'},
+            ]
+            const PS_BGS=[
+              {id:'deep_gold',  label:'🏆 Deep Gold',   from:'#0d0900',to:'#1f1400',accent:'#C8A96E',text:'#F5EDD8',sub:'rgba(245,237,216,.6)'},
+              {id:'night_blue', label:'🌃 Night Blue',  from:'#020814',to:'#051630',accent:'#58A6FF',text:'#E8F0FF',sub:'rgba(232,240,255,.55)'},
+              {id:'forest',     label:'🌿 Forest',      from:'#020d06',to:'#051a0c',accent:'#3FB950',text:'#E0FFE8',sub:'rgba(224,255,232,.55)'},
+              {id:'rose_black', label:'🥀 Rose Black',  from:'#0d0206',to:'#1a0410',accent:'#FF6B8A',text:'#FFE0E8',sub:'rgba(255,224,232,.55)'},
+              {id:'pure_white', label:'🤍 Clean White', from:'#f8f6f2',to:'#ede8df',accent:'#8B6914',text:'#1C1510',sub:'rgba(28,21,16,.55)'},
+              {id:'slate',      label:'🪨 Slate',       from:'#0a0a0e',to:'#141420',accent:'#A0AEC0',text:'#E8ECF0',sub:'rgba(232,236,240,.55)'},
+            ]
+
+            const [pSize,   setPSize]   = React.useState('a4p')
+            const [pStyle,  setPStyle]  = React.useState('luxury')
+            const [pBg,     setPBg]     = React.useState('deep_gold')
+            const [pSeed,   setPSeed]   = React.useState(1)
+            const [pTitle,  setPTitle]  = React.useState('Premium Rooms')
+            const [pSub,    setPSub]    = React.useState('Nikunja 2, Dhaka · Airport 5 min')
+            const [pBody,   setPBody]   = React.useState('From ৳3,500 per night\nBreakfast included · Free WiFi\nAirport transfer available')
+            const [pCTA,    setPCTA]    = React.useState('Book Now')
+            const [pFooter, setPFooter] = React.useState('+880-1319407384  ·  hotelfountainbd.com')
+            const [pClient, setPClient] = React.useState('Hotel Fountain')
+            const [pApproval, setPApproval] = React.useState(false)
+
+            const sz  = PS_SIZES.find(s=>s.id===pSize)||PS_SIZES[0]
+            const bg  = PS_BGS.find(b=>b.id===pBg)||PS_BGS[0]
+            const {w,h}=sz
+            const variant = pSeed % PS_STYLES.length
+
+            function wrapText(text, maxW, fontSize) {
+              const words = text.split('\n').map(line => line.split(' '))
+              const charsPerLine = Math.floor(maxW / (fontSize * 0.55))
+              const lines = []
+              words.forEach(lineWords => {
+                let cur = ''
+                lineWords.forEach(word => {
+                  if ((cur+' '+word).trim().length > charsPerLine) { if(cur) lines.push(cur); cur = word }
+                  else { cur = (cur+' '+word).trim() }
+                })
+                if (cur) lines.push(cur)
+              })
+              return lines
+            }
+
+            function makePosterSVG() {
+              const c = bg
+              const style = pStyle
+              const hotel = pClient || 'Hotel Fountain'
+              const titleLines = wrapText(pTitle, w*0.8, Math.round(w*0.065))
+              const bodyLines  = wrapText(pBody,  w*0.7, Math.round(w*0.03))
+
+              if (style==='luxury') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
+  <filter id="glo"><feGaussianBlur stdDeviation="60"/></filter>
+</defs>
+<rect width="${w}" height="${h}" fill="url(#bg)"/>
+<circle cx="${Math.round(w*.5)}" cy="${Math.round(h*.3)}" r="${Math.round(w*.6)}" fill="${c.accent}" opacity="0.06" filter="url(#glo)"/>
+<rect x="${Math.round(w*.04)}" y="${Math.round(h*.04)}" width="${Math.round(w*.92)}" height="${Math.round(h*.92)}" fill="none" stroke="${c.accent}" stroke-width="1.5" opacity="0.4"/>
+<rect x="${Math.round(w*.055)}" y="${Math.round(h*.055)}" width="${Math.round(w*.89)}" height="${Math.round(h*.89)}" fill="none" stroke="${c.accent}" stroke-width="0.5" opacity="0.2"/>
+<line x1="${Math.round(w*.1)}" y1="${Math.round(h*.14)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.14)}" stroke="${c.accent}" stroke-width="0.5" opacity="0.35"/>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.12)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.025)}" fill="${c.accent}" letter-spacing="8" opacity="0.9">${hotel.toUpperCase()}</text>
+${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.32+i*Math.round(w*.075))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.065)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('\n')}
+<text x="${Math.round(w/2)}" y="${Math.round(h*.44)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.accent}" letter-spacing="2">${pSub}</text>
+<rect x="${Math.round(w*.2)}" y="${Math.round(h*.47)}" width="${Math.round(w*.6)}" height="1" fill="${c.accent}" opacity="0.4"/>
+${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.54+i*Math.round(w*.038))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.sub}">${l}</text>`).join('\n')}
+<rect x="${Math.round(w*.3)}" y="${Math.round(h*.75)}" width="${Math.round(w*.4)}" height="${Math.round(h*.065)}" rx="2" fill="${c.accent}" opacity="0.12" stroke="${c.accent}" stroke-width="1.5"/>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.79)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text>
+<line x1="${Math.round(w*.1)}" y1="${Math.round(h*.87)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.87)}" stroke="${c.accent}" stroke-width="0.5" opacity="0.35"/>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.92)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.sub}" opacity="0.7">${pFooter}</text>
+</svg>`
+
+              if (style==='modern') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
+</defs>
+<rect width="${w}" height="${h}" fill="url(#bg)"/>
+<rect x="0" y="0" width="${Math.round(w*.08)}" height="${h}" fill="${c.accent}" opacity="0.7"/>
+<rect x="${Math.round(w*.08)}" y="0" width="${Math.round(w*.92)}" height="${Math.round(h*.5)}" fill="${c.accent}" opacity="0.06"/>
+<text x="${Math.round(w*.12)}" y="${Math.round(h*.08)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="5" font-weight="300">${hotel.toUpperCase()}</text>
+${titleLines.map((l,i)=>`<text x="${Math.round(w*.12)}" y="${Math.round(h*.28+i*Math.round(w*.09))}" font-family="Georgia,serif" font-size="${Math.round(w*.08)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('\n')}
+<rect x="${Math.round(w*.12)}" y="${Math.round(h*.5)}" width="${Math.round(w*.3)}" height="3" fill="${c.accent}"/>
+<text x="${Math.round(w*.12)}" y="${Math.round(h*.58)}" font-family="sans-serif" font-size="${Math.round(w*.03)}" fill="${c.accent}">${pSub}</text>
+${bodyLines.map((l,i)=>`<text x="${Math.round(w*.12)}" y="${Math.round(h*.66+i*Math.round(w*.04))}" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.sub}">${l}</text>`).join('\n')}
+<rect x="${Math.round(w*.12)}" y="${Math.round(h*.82)}" width="${Math.round(w*.32)}" height="${Math.round(h*.07)}" fill="${c.accent}"/>
+<text x="${Math.round(w*.12+w*.16)}" y="${Math.round(h*.863)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.from}" font-weight="700">${pCTA.toUpperCase()}</text>
+<text x="${Math.round(w*.12)}" y="${Math.round(h*.94)}" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.6">${pFooter}</text>
+</svg>`
+
+              if (style==='corporate') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
+  <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${c.accent}" stop-opacity="0.25"/><stop offset="100%" stop-color="${c.accent}" stop-opacity="0.05"/></linearGradient>
+</defs>
+<rect width="${w}" height="${h}" fill="url(#bg)"/>
+<rect x="0" y="0" width="${w}" height="${Math.round(h*.18)}" fill="url(#hdr)"/>
+<rect x="0" y="${Math.round(h*.18)}" width="${w}" height="2" fill="${c.accent}" opacity="0.5"/>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.1)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.035)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.15)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.sub}" letter-spacing="2" opacity="0.7">${pSub}</text>
+${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.36+i*Math.round(w*.08))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.07)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('\n')}
+<rect x="${Math.round(w*.08)}" y="${Math.round(h*.5)}" width="${Math.round(w*.84)}" height="1" fill="${c.accent}" opacity="0.25"/>
+${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.57+i*Math.round(w*.038))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('\n')}
+<rect x="${Math.round(w*.25)}" y="${Math.round(h*.76)}" width="${Math.round(w*.5)}" height="${Math.round(h*.07)}" fill="none" stroke="${c.accent}" stroke-width="1.5"/>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.803)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text>
+<rect x="0" y="${Math.round(h*.9)}" width="${w}" height="${Math.round(h*.1)}" fill="${c.accent}" opacity="0.08"/>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.955)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.7">${pFooter}</text>
+</svg>`
+
+              if (style==='festive') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
+  <filter id="glo2"><feGaussianBlur stdDeviation="50"/></filter>
+</defs>
+<rect width="${w}" height="${h}" fill="url(#bg)"/>
+<circle cx="${Math.round(w*.1)}" cy="${Math.round(h*.1)}" r="${Math.round(w*.3)}" fill="${c.accent}" opacity="0.08" filter="url(#glo2)"/>
+<circle cx="${Math.round(w*.9)}" cy="${Math.round(h*.85)}" r="${Math.round(w*.35)}" fill="${c.accent}" opacity="0.06" filter="url(#glo2)"/>
+<rect x="${Math.round(w*.06)}" y="${Math.round(h*.06)}" width="${Math.round(w*.88)}" height="${Math.round(h*.88)}" fill="none" stroke="${c.accent}" stroke-width="2" opacity="0.35" rx="4"/>
+<line x1="${Math.round(w*.15)}" y1="${Math.round(h*.13)}" x2="${Math.round(w*.85)}" y2="${Math.round(h*.13)}" stroke="${c.accent}" stroke-width="0.8" opacity="0.4"/>
+<line x1="${Math.round(w*.15)}" y1="${Math.round(h*.87)}" x2="${Math.round(w*.85)}" y2="${Math.round(h*.87)}" stroke="${c.accent}" stroke-width="0.8" opacity="0.4"/>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.115)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="6" font-style="italic">${hotel}</text>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.23)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.accent}" letter-spacing="4">— PRESENTS —</text>
+${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.36+i*Math.round(w*.085))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.075)}" fill="${c.text}" font-weight="bold" font-style="italic">${l}</text>`).join('\n')}
+<text x="${Math.round(w/2)}" y="${Math.round(h*.5)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}">${pSub}</text>
+${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.6+i*Math.round(w*.04))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('\n')}
+<rect x="${Math.round(w*.28)}" y="${Math.round(h*.76)}" width="${Math.round(w*.44)}" height="${Math.round(h*.065)}" rx="30" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1.5"/>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.803)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text>
+<text x="${Math.round(w/2)}" y="${Math.round(h*.875)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.7">${pFooter}</text>
+</svg>`
+
+              // minimal
+              return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
+</defs>
+<rect width="${w}" height="${h}" fill="url(#bg)"/>
+<rect x="${Math.round(w*.08)}" y="${Math.round(h*.08)}" width="3" height="${Math.round(h*.08)}" fill="${c.accent}"/>
+<text x="${Math.round(w*.12)}" y="${Math.round(h*.105)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.accent}" letter-spacing="5" text-transform="uppercase">${hotel.toUpperCase()}</text>
+<text x="${Math.round(w*.12)}" y="${Math.round(h*.14)}" font-family="sans-serif" font-size="${Math.round(w*.013)}" fill="${c.sub}" opacity="0.6">${pSub}</text>
+${titleLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.38+i*Math.round(w*.09))}" font-family="Georgia,serif" font-size="${Math.round(w*.082)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('\n')}
+<rect x="${Math.round(w*.08)}" y="${Math.round(h*.52)}" width="${Math.round(w*.15)}" height="1.5" fill="${c.accent}"/>
+${bodyLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.58+i*Math.round(w*.04))}" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('\n')}
+<text x="${Math.round(w*.08)}" y="${Math.round(h*.78)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" font-weight="600" letter-spacing="2">${pCTA.toUpperCase()} →</text>
+<rect x="${Math.round(w*.08)}" y="${Math.round(h*.88)}" width="${Math.round(w*.84)}" height="1" fill="${c.accent}" opacity="0.2"/>
+<text x="${Math.round(w*.08)}" y="${Math.round(h*.93)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.sub}" opacity="0.6">${pFooter}</text>
+</svg>`
+            }
+
+            function dlPoster(){
+              const svg=makePosterSVG(); const blob=new Blob([svg],{type:'image/svg+xml'})
+              const url=URL.createObjectURL(blob); const a=document.createElement('a')
+              a.href=url; a.download=`poster-${pStyle}-${pSize}-${pClient.replace(/ /g,'_')}.svg`
+              document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+            }
+
+            async function sendPosterApproval(){
+              dlPoster(); setPApproval(true)
+              try { await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({action:'email_design_approval',type:'poster',style:pStyle,size:pSize,client:pClient})}) } catch(e){}
+              toast('Poster downloaded & approval email sent ✓'); setTimeout(()=>setPApproval(false),4000)
+            }
+
+            const svgUrl='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(makePosterSVG())))
+            const prevW=280; const prevH=Math.round(prevW*(h/w))
+
+            return (
+              <div style={{display:'grid',gridTemplateColumns:'260px 1fr',gap:16,alignItems:'start'}}>
+                {/* Controls */}
+                <div>
+                  <div className="card mb3">
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>👤 Client</div>
+                    <select className="finput" style={{fontSize:11}} value={pClient} onChange={e=>setPClient(e.target.value)}>
+                      {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="card mb3">
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>📐 Format</div>
+                    <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                      {PS_SIZES.map(s=>(
+                        <button key={s.id} onClick={()=>setPSize(s.id)}
+                          style={{padding:'7px 10px',fontSize:10,background:pSize===s.id?'rgba(200,169,110,.15)':'rgba(0,0,0,.15)',border:`1px solid ${pSize===s.id?'rgba(200,169,110,.5)':'var(--br)'}`,color:pSize===s.id?'var(--gold)':'var(--tx3)',cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between'}}>
+                          <span style={{fontWeight:600}}>{s.label}</span>
+                          <span style={{opacity:.6}}>{s.w}×{s.h}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="card mb3">
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🎨 Style</div>
+                    <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                      {PS_STYLES.map(s=>(
+                        <button key={s.id} onClick={()=>setPStyle(s.id)}
+                          style={{padding:'7px 10px',fontSize:10,background:pStyle===s.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.15)',border:`1px solid ${pStyle===s.id?'rgba(200,169,110,.4)':'var(--br)'}`,color:pStyle===s.id?'var(--gold)':'var(--tx2)',cursor:'pointer',textAlign:'left'}}>
+                          <div>{s.label}</div>
+                          <div style={{fontSize:9,opacity:.6,marginTop:1}}>{s.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="card">
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🌈 Background</div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                      {PS_BGS.map(b=>(
+                        <button key={b.id} onClick={()=>setPBg(b.id)}
+                          style={{padding:'7px 8px',fontSize:9,background:pBg===b.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.2)',border:`1px solid ${pBg===b.id?'rgba(200,169,110,.45)':'var(--br)'}`,color:pBg===b.id?'var(--gold)':'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
+                          <span style={{width:9,height:9,borderRadius:'50%',background:`linear-gradient(135deg,${b.from},${b.to})`,border:`1px solid ${b.accent}`,flexShrink:0}}/>
+                          {b.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content + Preview */}
+                <div>
+                  <div className="card mb3">
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:12}}>✏️ Poster Content</div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                      <div className="fg">
+                        <label className="flbl">Main Headline</label>
+                        <input className="finput" style={{fontSize:11}} value={pTitle} onChange={e=>setPTitle(e.target.value)} placeholder="Premium Rooms"/>
+                      </div>
+                      <div className="fg">
+                        <label className="flbl">Subheadline</label>
+                        <input className="finput" style={{fontSize:11}} value={pSub} onChange={e=>setPSub(e.target.value)} placeholder="Nikunja 2, Dhaka"/>
+                      </div>
+                    </div>
+                    <div className="fg mb3">
+                      <label className="flbl">Body Text (use new lines for multiple points)</label>
+                      <textarea className="finput" rows={3} style={{fontSize:11,resize:'vertical'}} value={pBody} onChange={e=>setPBody(e.target.value)} placeholder="From ৳3,500/night&#10;Breakfast included&#10;Airport transfer available"/>
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                      <div className="fg">
+                        <label className="flbl">Call-to-Action</label>
+                        <input className="finput" style={{fontSize:11}} value={pCTA} onChange={e=>setPCTA(e.target.value)} placeholder="Book Now"/>
+                      </div>
+                      <div className="fg">
+                        <label className="flbl">Footer / Contact</label>
+                        <input className="finput" style={{fontSize:11}} value={pFooter} onChange={e=>setPFooter(e.target.value)} placeholder="+880-xxx · website.com"/>
                       </div>
                     </div>
                   </div>
 
-                  {/* Preview + Actions */}
-                  <div>
-                    <div className="card mb3">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)' }}>👁 Preview</div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <span style={{ fontSize: 9, color: 'var(--tx3)', background: 'rgba(0,0,0,.3)', padding: '2px 8px', border: '1px solid var(--br)' }}>{plat.label}</span>
-                          <span style={{ fontSize: 9, color: 'var(--tx3)', background: 'rgba(0,0,0,.3)', padding: '2px 8px', border: '1px solid var(--br)' }}>Layout {layout + 1}/5</span>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'center', background: 'rgba(0,0,0,.3)', padding: 12, border: '1px solid var(--br2)' }}>
-                        <img src={svgDataUrl} width={previewW} height={previewH} style={{ display: 'block', maxWidth: '100%' }} alt="Design preview" />
-                      </div>
-                      <div style={{ marginTop: 10, fontSize: 10, color: 'var(--tx3)', textAlign: 'center' }}>
-                        Change any option above to get a different layout variant
-                      </div>
-                    </div>
-
-                    <div className="card mb3">
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>🔀 Shuffle Layout</div>
-                      <button className="btn btn-ghost" style={{ width: '100%', fontSize: 11, marginBottom: 10 }}
-                        onClick={() => setDesignSeed(s => s + 1)}>
-                        🎲 Generate New Variation
-                      </button>
-                      <div style={{ fontSize: 9, color: 'var(--tx3)', textAlign: 'center' }}>
-                        Cycles through 5 unique layout templates
-                      </div>
-                    </div>
-
+                  <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:12,alignItems:'start'}}>
                     <div className="card">
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>📤 Export</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={downloadSVG}>
-                          ⬇ Download SVG
-                        </button>
-                        <button
-                          onClick={sendForApproval}
-                          disabled={approvalSent}
-                          style={{ width: '100%', padding: '10px', fontSize: 11, fontWeight: 600, background: approvalSent ? 'rgba(63,185,80,.1)' : 'rgba(200,169,110,.12)', border: `1px solid ${approvalSent ? 'rgba(63,185,80,.4)' : 'rgba(200,169,110,.4)'}`, color: approvalSent ? 'var(--grn)' : 'var(--gold)', cursor: approvalSent ? 'default' : 'pointer', letterSpacing: '.05em', transition: 'all .2s' }}>
-                          {approvalSent ? '✓ Sent for Approval' : '📧 Email for Approval + Auto-Download'}
-                        </button>
-                        <div style={{ fontSize: 9, color: 'var(--tx3)', lineHeight: 1.5 }}>
-                          Sends notification to hotellfountainbd@gmail.com and downloads the file automatically
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                        <div style={{fontSize:11,fontWeight:600,color:'var(--gold)'}}>👁 Preview — {sz.label}</div>
+                        <span style={{fontSize:9,color:'var(--tx3)',background:'rgba(0,0,0,.3)',padding:'2px 8px',border:'1px solid var(--br)'}}>{sz.w}×{sz.h}px</span>
+                      </div>
+                      <div style={{display:'flex',justifyContent:'center',background:'rgba(0,0,0,.3)',padding:10,border:'1px solid var(--br2)'}}>
+                        <img src={svgUrl} width={prevW} height={prevH} style={{display:'block',maxWidth:'100%',boxShadow:'0 4px 24px rgba(0,0,0,.5)'}} alt="Poster preview"/>
+                      </div>
+                    </div>
+                    <div style={{width:180}}>
+                      <div className="card mb3">
+                        <div style={{fontSize:10,fontWeight:600,color:'var(--gold)',marginBottom:8}}>📤 Export</div>
+                        <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                          <button className="btn btn-ghost" style={{fontSize:10,width:'100%'}} onClick={dlPoster}>⬇ Download SVG</button>
+                          <button onClick={sendPosterApproval} disabled={pApproval}
+                            style={{width:'100%',padding:'8px',fontSize:10,fontWeight:600,background:pApproval?'rgba(63,185,80,.1)':'rgba(200,169,110,.12)',border:`1px solid ${pApproval?'rgba(63,185,80,.4)':'rgba(200,169,110,.4)'}`,color:pApproval?'var(--grn)':'var(--gold)',cursor:pApproval?'default':'pointer'}}>
+                            {pApproval?'✓ Sent':'📧 Send for Approval'}
+                          </button>
                         </div>
+                      </div>
+                      <div className="card" style={{background:'rgba(200,169,110,.03)',border:'1px solid rgba(200,169,110,.15)'}}>
+                        <div style={{fontSize:9,fontWeight:600,color:'var(--gold)',marginBottom:6}}>🧠 BRAIN ACTIVE</div>
+                        {clients.find(c=>c.name===pClient)&&clientBrains[clients.find(c=>c.name===pClient).id]?.pillars?(
+                          <div style={{fontSize:9,color:'var(--tx3)',lineHeight:1.7}}>
+                            {(clientBrains[clients.find(c=>c.name===pClient).id].pillars||'').split(',').slice(0,3).map((p,i)=>(
+                              <div key={i}>· {p.trim()}</div>
+                            ))}
+                          </div>
+                        ):(
+                          <div style={{fontSize:9,color:'var(--tx3)'}}>Set pillars in Client Brain</div>
+                        )}
                       </div>
                     </div>
                   </div>
