@@ -1,5 +1,0 @@
-﻿*.json
-.claude/
-supabase/.temp/
-*.pdf
-node_modules/

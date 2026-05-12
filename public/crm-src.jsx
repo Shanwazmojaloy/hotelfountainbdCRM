@@ -4682,13 +4682,11 @@ function LeadPipelinePage() {
     setRunningBot(true)
     setBotResult(null)
     try {
-      const res = await fetch('/api/agents/outreach-bot', {
-        headers: { Authorization: `Bearer ${window.__ENV__?.CRON_SECRET || ''}` }
-      })
+      const res = await fetch('/api/agents/outreach-bot', { method: 'POST' })
       const data = await res.json()
       setBotResult(data)
       // Refresh leads
-      const l = await dbFetch('corporate_leads', '?select=*&order=priority.desc,created_at.asc')
+      const l = await db('corporate_leads', '?select=*&order=priority.desc,created_at.asc')
       setLeads(Array.isArray(l) ? l : [])
     } catch(e) {
       setBotResult({ error: String(e) })

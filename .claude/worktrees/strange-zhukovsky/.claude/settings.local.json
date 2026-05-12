@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(awk -F: '$2>3160{print}')"
-    ]
-  }
-}
