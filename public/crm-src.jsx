@@ -46,8 +46,8 @@ const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?
 const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
 
 const ROLES = {
-  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','settings']},
-  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports']},
+  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads','settings']},
+  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads']},
   receptionist: {label:'Receptionist',       color:'#58A6FF', pages:['dashboard','rooms','reservations','guests','billing']},
   housekeeping: {label:'Housekeeping Staff', color:'#F0A500', pages:['dashboard','rooms','housekeeping','billing']},
   accountant:   {label:'Accountant',         color:'#3FB950', pages:['dashboard','billing','reports']},
@@ -4631,6 +4631,271 @@ function GoogleSheetsCard({toast}) {
 }
 
 /* ═══════════════════════ ROOT APP ═══════════════════════════ */
+/* ═══════════════════ LEAD PIPELINE PAGE ════════════════════════════════════ */
+function LeadPipelinePage() {
+  const [leads, setLeads]       = React.useState([])
+  const [log, setLog]           = React.useState([])
+  const [loading, setLoading]   = React.useState(true)
+  const [filter, setFilter]     = React.useState('all')
+  const [runningBot, setRunningBot] = React.useState(false)
+  const [botResult, setBotResult]   = React.useState(null)
+
+  const SUPABASE_URL = window.__ENV__?.SUPABASE_URL || ''
+  const SUPABASE_KEY = window.__ENV__?.SUPABASE_ANON_KEY || ''
+
+  const dbFetch = (table, qs='') =>
+    fetch(`${SUPABASE_URL}/rest/v1/${table}${qs}`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    }).then(r => r.json())
+
+  React.useEffect(() => {
+    Promise.all([
+      dbFetch('corporate_leads', '?select=*&order=priority.desc,created_at.asc'),
+      dbFetch('outreach_log', '?select=*&order=sent_at.desc&limit=50'),
+    ]).then(([l, og]) => {
+      setLeads(Array.isArray(l) ? l : [])
+      setLog(Array.isArray(og) ? og : [])
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
+
+  const STATUS_CONFIG = {
+    pending:        { label:'Pending',       color:'#7A6A5A', bg:'rgba(122,106,90,.15)' },
+    contacted:      { label:'Contacted',     color:'#58A6FF', bg:'rgba(88,166,255,.12)' },
+    replied:        { label:'Replied',       color:'#FCD34D', bg:'rgba(252,211,77,.12)' },
+    audited:        { label:'Audited',       color:'#A78BFA', bg:'rgba(167,139,250,.12)' },
+    deal_ready:     { label:'Deal Ready 🔥', color:'#4ADE80', bg:'rgba(74,222,128,.12)' },
+    closed_won:     { label:'Closed Won ✓',  color:'#C8A96E', bg:'rgba(200,169,110,.15)' },
+    not_interested: { label:'Not Interested',color:'#F87171', bg:'rgba(248,113,113,.10)' },
+  }
+
+  const ICP_CONFIG = {
+    strong:  { label:'Strong', color:'#4ADE80' },
+    good:    { label:'Good',   color:'#58A6FF' },
+    partial: { label:'Partial',color:'#FCD34D' },
+  }
+
+  const FILTERS = ['all','pending','contacted','replied','deal_ready','audited']
+
+  const filtered = leads.filter(l => filter === 'all' || l.status === filter)
+
+  const stats = {
+    total:      leads.length,
+    contacted:  leads.filter(l => ['contacted','replied','audited','deal_ready','closed_won'].includes(l.status)).length,
+    replied:    leads.filter(l => ['replied','audited','deal_ready','closed_won'].includes(l.status)).length,
+    deal_ready: leads.filter(l => l.status === 'deal_ready').length,
+  }
+
+  const handleRunBot = async () => {
+    setRunningBot(true)
+    setBotResult(null)
+    try {
+      const res = await fetch('/api/agents/outreach-bot', {
+        headers: { Authorization: `Bearer ${window.__ENV__?.CRON_SECRET || ''}` }
+      })
+      const data = await res.json()
+      setBotResult(data)
+      // Refresh leads
+      const l = await dbFetch('corporate_leads', '?select=*&order=priority.desc,created_at.asc')
+      setLeads(Array.isArray(l) ? l : [])
+    } catch(e) {
+      setBotResult({ error: String(e) })
+    }
+    setRunningBot(false)
+  }
+
+  const recentLog = log.slice(0, 8)
+
+  return (
+    <div style={{padding:'24px 28px',overflowY:'auto',height:'100%',background:'var(--bg)'}}>
+
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:24}}>
+        <div>
+          <div style={{fontFamily:'var(--serif)',fontSize:22,color:'var(--gold)',marginBottom:4}}>
+            Corporate <em>Lead Pipeline</em>
+          </div>
+          <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase'}}>
+            Nikunja 2 · Airport Corridor · Dhaka
+          </div>
+        </div>
+        <button
+          onClick={handleRunBot}
+          disabled={runningBot}
+          style={{background:runningBot?'rgba(200,169,110,.1)':'rgba(200,169,110,.15)',border:'1px solid rgba(200,169,110,.3)',
+            color:'var(--gold)',padding:'8px 20px',fontSize:12,letterSpacing:'.08em',cursor:runningBot?'not-allowed':'pointer',
+            fontFamily:'var(--sans)',textTransform:'uppercase'}}
+        >
+          {runningBot ? '⟳ Running…' : '▶ Run OutreachBot'}
+        </button>
+      </div>
+
+      {/* Bot result toast */}
+      {botResult && (
+        <div style={{background:botResult.error?'rgba(248,113,113,.1)':'rgba(74,222,128,.1)',
+          border:`1px solid ${botResult.error?'rgba(248,113,113,.3)':'rgba(74,222,128,.3)'}`,
+          padding:'10px 16px',marginBottom:16,fontSize:12,color:botResult.error?'#F87171':'#4ADE80'}}>
+          {botResult.error ? `⚠ ${botResult.error}` : `✓ Processed ${botResult.processed ?? 0} leads · ${new Date().toLocaleTimeString('en-BD',{timeZone:'Asia/Dhaka'})}`}
+        </div>
+      )}
+
+      {/* Stats strip */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:24}}>
+        {[
+          {label:'Total Leads',   val:stats.total,      color:'var(--tx2)'},
+          {label:'Contacted',     val:stats.contacted,  color:'#58A6FF'},
+          {label:'Replied',       val:stats.replied,    color:'#FCD34D'},
+          {label:'Deal Ready 🔥', val:stats.deal_ready, color:'#4ADE80'},
+        ].map(s => (
+          <div key={s.label} style={{background:'var(--s4)',border:'1px solid var(--br2)',padding:'14px 18px'}}>
+            <div style={{fontFamily:'var(--mono)',fontSize:26,color:s.color,lineHeight:1}}>{s.val}</div>
+            <div style={{fontSize:10,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--tx3)',marginTop:4}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:16}}>
+
+        {/* Lead Table */}
+        <div style={{background:'var(--s4)',border:'1px solid var(--br2)'}}>
+
+          {/* Filter tabs */}
+          <div style={{display:'flex',borderBottom:'1px solid var(--br2)',padding:'0 16px'}}>
+            {FILTERS.map(f => (
+              <button key={f} onClick={()=>setFilter(f)}
+                style={{background:'none',border:'none',color:filter===f?'var(--gold)':'var(--tx3)',
+                  padding:'10px 14px',fontSize:11,letterSpacing:'.1em',textTransform:'uppercase',
+                  cursor:'pointer',borderBottom:filter===f?'2px solid var(--gold)':'2px solid transparent',
+                  marginBottom:-1,fontFamily:'var(--sans)'}}>
+                {f === 'all' ? `All (${leads.length})` : f === 'deal_ready' ? `Deal Ready (${stats.deal_ready})` : f}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div style={{padding:40,textAlign:'center',color:'var(--tx3)',fontSize:13}}>Loading leads…</div>
+          ) : filtered.length === 0 ? (
+            <div style={{padding:40,textAlign:'center',color:'var(--tx3)',fontSize:13}}>No leads in this filter.</div>
+          ) : (
+            <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid var(--br2)'}}>
+                  {['Company','Contact','ICP','Status','Score','Priority'].map(h => (
+                    <th key={h} style={{textAlign:'left',padding:'10px 14px',fontSize:10,letterSpacing:'.14em',
+                      textTransform:'uppercase',color:'var(--tx3)',fontWeight:500}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((lead, i) => {
+                  const st  = STATUS_CONFIG[lead.status] || STATUS_CONFIG.pending
+                  const icp = ICP_CONFIG[lead.icp_score]  || ICP_CONFIG.good
+                  return (
+                    <tr key={lead.id} style={{borderBottom:'1px solid rgba(200,169,110,.06)',
+                      background:i%2===0?'transparent':'rgba(255,255,255,.015)'}}>
+                      <td style={{padding:'12px 14px'}}>
+                        <div style={{fontWeight:500,fontSize:13,color:'var(--tx)'}}>{lead.company_name}</div>
+                        <div style={{fontSize:10,color:'var(--tx3)',marginTop:2,fontFamily:'var(--mono)'}}>{lead.company_address?.split(',')[0]}</div>
+                      </td>
+                      <td style={{padding:'12px 14px'}}>
+                        <div style={{fontSize:12,color:'var(--tx2)'}}>{lead.contact_title || '—'}</div>
+                        <div style={{fontSize:10,color:'var(--gold)',fontFamily:'var(--mono)',marginTop:2}}>{lead.contact_email || '—'}</div>
+                      </td>
+                      <td style={{padding:'12px 14px'}}>
+                        <span style={{fontSize:11,color:icp.color,background:`${icp.color}18`,
+                          padding:'2px 8px',border:`1px solid ${icp.color}40`}}>{icp.label}</span>
+                      </td>
+                      <td style={{padding:'12px 14px'}}>
+                        <span style={{fontSize:11,color:st.color,background:st.bg,
+                          padding:'3px 10px',border:`1px solid ${st.color}40`}}>{st.label}</span>
+                      </td>
+                      <td style={{padding:'12px 14px',fontFamily:'var(--mono)',fontSize:13,
+                        color:lead.deal_score >= 7 ? '#4ADE80' : lead.deal_score ? '#FCD34D' : 'var(--tx3)'}}>
+                        {lead.deal_score ? `${lead.deal_score}/10` : '—'}
+                      </td>
+                      <td style={{padding:'12px 14px'}}>
+                        <span style={{fontSize:10,letterSpacing:'.1em',textTransform:'uppercase',
+                          color:lead.priority==='high'?'#F87171':lead.priority==='med'?'var(--gold)':'var(--tx3)'}}>
+                          {lead.priority?.toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Activity Log sidebar */}
+        <div>
+          <div style={{background:'var(--s4)',border:'1px solid var(--br2)',padding:'16px'}}>
+            <div style={{fontSize:11,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--gold)',marginBottom:14}}>
+              Recent Activity
+            </div>
+            {recentLog.length === 0 ? (
+              <div style={{fontSize:12,color:'var(--tx3)'}}>No activity yet.</div>
+            ) : recentLog.map((entry, i) => {
+              const isInbound  = entry.direction === 'inbound'
+              const isDealReady = entry.is_deal_ready
+              return (
+                <div key={entry.id} style={{borderBottom:i<recentLog.length-1?'1px solid rgba(200,169,110,.06)':'none',
+                  paddingBottom:10,marginBottom:10}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+                    <span style={{fontSize:12}}>{isDealReady ? '🔥' : isInbound ? '📥' : '📤'}</span>
+                    <span style={{fontSize:11,color:isDealReady?'#4ADE80':isInbound?'#FCD34D':'#58A6FF',
+                      textTransform:'uppercase',letterSpacing:'.1em'}}>
+                      {isDealReady ? 'Deal Ready' : isInbound ? 'Reply' : 'Outreach'}
+                    </span>
+                    {entry.deal_score && (
+                      <span style={{fontSize:10,color:'#4ADE80',fontFamily:'var(--mono)',marginLeft:'auto'}}>
+                        {entry.deal_score}/10
+                      </span>
+                    )}
+                  </div>
+                  <div style={{fontSize:12,color:'var(--tx2)',fontWeight:500,marginBottom:2}}>
+                    {entry.subject ? entry.subject.substring(0,42)+'…' : '(no subject)'}
+                  </div>
+                  {entry.ceo_next_action && (
+                    <div style={{fontSize:11,color:'var(--gold)',marginBottom:2}}>→ {entry.ceo_next_action.substring(0,60)}</div>
+                  )}
+                  <div style={{fontSize:10,color:'var(--tx3)',fontFamily:'var(--mono)'}}>
+                    {new Date(entry.sent_at).toLocaleDateString('en-BD',{timeZone:'Asia/Dhaka',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Agent status card */}
+          <div style={{background:'var(--s4)',border:'1px solid var(--br2)',padding:'16px',marginTop:12}}>
+            <div style={{fontSize:11,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--gold)',marginBottom:12}}>
+              Agent Status
+            </div>
+            {[
+              {name:'OutreachBot',   status:'Cron 9AM BDT', icon:'📤', color:'#58A6FF'},
+              {name:'ReplyIntake',   status:'Webhook live', icon:'📥', color:'#4ADE80'},
+              {name:'CEOAuditor',    status:'On demand',    icon:'🧠', color:'#A78BFA'},
+              {name:'DealAlert',     status:'Auto-trigger', icon:'🔥', color:'#FCD34D'},
+            ].map(agent => (
+              <div key={agent.name} style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                <span style={{fontSize:14}}>{agent.icon}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,color:'var(--tx)',fontWeight:500}}>{agent.name}</div>
+                  <div style={{fontSize:10,color:agent.color}}>{agent.status}</div>
+                </div>
+                <div style={{width:6,height:6,borderRadius:'50%',background:agent.color,
+                  boxShadow:`0 0 6px ${agent.color}`}}/>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 function App() {
   const [user,setUser]=useState(null)
   const [page,setPage]=useState('dashboard')
@@ -4754,10 +5019,11 @@ function App() {
     {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
     {id:'billing',   ico:'◎', label:'Billing & Invoices'},
     {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
+    {id:'leads',     ico:'◈', label:'Lead Pipeline',    sect:'GROWTH'},
     {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
   ].filter(n=>allowed.includes(n.id))
 
-  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings'}
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',leads:'Lead Pipeline',settings:'Settings'}
   const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
   const _p = k => bdParts.find(p=>p.type===k)?.value || ''
   const clockStr=(()=>{
@@ -5011,6 +5277,7 @@ function App() {
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
+            {cur==='leads'       &&<LeadPipelinePage/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests}/>}
           </div>
         </main>
