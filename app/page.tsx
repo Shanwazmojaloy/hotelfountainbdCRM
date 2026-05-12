@@ -14,7 +14,7 @@ const ROOMS = [
     desc: 'Elegant room for two with premium air conditioning and round-the-clock front office support.',
     rate: 4000,
     amenities: ['Air Condition', 'High-Speed Wi-Fi', '24/7 Room Service', 'Front Office'],
-    img: '/room-fountain-deluxe.jpeg', supabaseType: 'Fountain Deluxe',
+    img: '/fountain-deluxe.jpeg', supabaseType: 'Fountain Deluxe',
     gradient: 'linear-gradient(135deg,#0d1117 0%,#1a2435 100%)',
   },
   {
@@ -23,7 +23,7 @@ const ROOMS = [
     desc: 'Refined comfort for two with complimentary breakfast and curated room amenities.',
     rate: 4500,
     amenities: ['Complimentary Breakfast', 'TV', 'High-Speed Wi-Fi', 'Room Amenities', '24/7 Room Service', 'Front Office'],
-    img: '/room-premium-deluxe.jpeg', supabaseType: 'Premium Deluxe',
+    img: '/premium-deluxe.jpg', supabaseType: 'Premium Deluxe',
     gradient: 'linear-gradient(135deg,#131b26 0%,#1f2d40 100%)',
   },
   {
@@ -32,7 +32,7 @@ const ROOMS = [
     desc: 'Superior appointments for two guests, featuring complimentary breakfast and premium connectivity.',
     rate: 5000,
     amenities: ['Complimentary Breakfast', 'TV', 'High-Speed Wi-Fi', '24/7 Room Service', 'Front Office'],
-    img: '/room-superior-deluxe.jpeg', supabaseType: 'Superior Deluxe',
+    img: '/superior-deluxe.jpeg', supabaseType: 'Superior Deluxe',
     gradient: 'linear-gradient(135deg,#131b26 0%,#202e3a 100%)',
   },
   {
@@ -41,7 +41,7 @@ const ROOMS = [
     desc: 'Spacious twin-bed suite for four, ideal for families or colleague groups travelling together.',
     rate: 6000,
     amenities: ['Complimentary Breakfast', 'TV', 'High-Speed Wi-Fi', '24/7 Room Service', 'Front Office'],
-    img: '/room-twin-deluxe.jpg', supabaseType: 'Twin Deluxe',
+    img: '/twin-deluxe.jpg', supabaseType: 'Twin Deluxe',
     gradient: 'linear-gradient(135deg,#1a1508 0%,#2a2010 100%)',
   },
   {
@@ -50,7 +50,7 @@ const ROOMS = [
     desc: 'Our crown jewel — an expansive suite for six with panoramic views and bespoke service.',
     rate: 9000,
     amenities: ['Complimentary Breakfast', 'TV', 'High-Speed Wi-Fi', '24/7 Room Service', 'Front Office'],
-    img: '/room-royal-suite.jpeg', supabaseType: 'Royal Suite',
+    img: '/royal-suite.jpeg', supabaseType: 'Royal Suite',
     gradient: 'linear-gradient(135deg,#1a1000 0%,#3a2800 100%)',
   },
 ];
