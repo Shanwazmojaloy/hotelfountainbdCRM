@@ -5028,6 +5028,28 @@ function App() {
     function SocialAgencyPage({ toast }) {
       const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/seo-geo-agent'
       const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
+      const PS_SIZES=[
+        {id:'a4p',  label:'A4 Portrait',   w:595, h:842,  desc:'Print/PDF'},
+        {id:'a4l',  label:'A4 Landscape',  w:842, h:595,  desc:'Presentation'},
+        {id:'a3p',  label:'A3 Portrait',   w:842, h:1191, desc:'Large print'},
+        {id:'evt',  label:'Event Poster',  w:612, h:864,  desc:'18"×24" ratio'},
+        {id:'sqr',  label:'Square',        w:800, h:800,  desc:'Display/Digital'},
+      ]
+      const PS_STYLES=[
+        {id:'luxury',    label:'✨ Luxury Editorial',  desc:'Gold borders, serif elegance'},
+        {id:'modern',    label:'⚡ Modern Bold',       desc:'High contrast, dynamic type'},
+        {id:'corporate', label:'💼 Corporate Clean',   desc:'Structured, professional'},
+        {id:'festive',   label:'🎊 Festive',           desc:'Decorative, celebratory'},
+        {id:'minimal',   label:'◻ Minimal',            desc:'White space, pure typography'},
+      ]
+      const PS_BGS=[
+        {id:'deep_gold',  label:'🏆 Deep Gold',   from:'#0d0900',to:'#1f1400',accent:'#C8A96E',text:'#F5EDD8',sub:'rgba(245,237,216,.6)'},
+        {id:'night_blue', label:'🌃 Night Blue',  from:'#020814',to:'#051630',accent:'#58A6FF',text:'#E8F0FF',sub:'rgba(232,240,255,.55)'},
+        {id:'forest',     label:'🌿 Forest',      from:'#020d06',to:'#051a0c',accent:'#3FB950',text:'#E0FFE8',sub:'rgba(224,255,232,.55)'},
+        {id:'rose_black', label:'🥀 Rose Black',  from:'#0d0206',to:'#1a0410',accent:'#FF6B8A',text:'#FFE0E8',sub:'rgba(255,224,232,.55)'},
+        {id:'pure_white', label:'🤍 Clean White', from:'#f8f6f2',to:'#ede8df',accent:'#8B6914',text:'#1C1510',sub:'rgba(28,21,16,.55)'},
+        {id:'slate',      label:'🪨 Slate',       from:'#0a0a0e',to:'#141420',accent:'#A0AEC0',text:'#E8ECF0',sub:'rgba(232,236,240,.55)'},
+      ]
 
       const PLATFORM_CFG = {
         instagram: { icon: '📷', color: '#E1306C', limit: 2200,  label: 'Instagram' },
@@ -5100,6 +5122,65 @@ function App() {
       })
       const [showBrain,    setShowBrain]    = useState(null)
       const [savingBrain,  setSavingBrain]  = useState(false)
+      // Poster Studio state
+      const [pSize,     setPSize]     = useState('a4p')
+      const [pStyle,    setPStyle]    = useState('luxury')
+      const [pBg,       setPBg]       = useState('deep_gold')
+      const [pSeed,     setPSeed]     = useState(1)
+      const [pTitle,    setPTitle]    = useState('Premium Rooms')
+      const [pSub,      setPSub]      = useState('Nikunja 2, Dhaka · Airport 5 min')
+      const [pBody,     setPBody]     = useState('From ৳3,500 per night\nBreakfast included · Free WiFi\nAirport transfer available')
+      const [pCTA,      setPCTA]      = useState('Book Now')
+      const [pFooter,   setPFooter]   = useState('+880-1319407384  ·  hotelfountainbd.com')
+      const [pClient,   setPClient]   = useState('Hotel Fountain')
+      const [pApproval, setPApproval] = useState(false)
+
+
+      // Poster Studio derived + helpers
+      const _psz  = PS_SIZES.find(s=>s.id===pSize)||PS_SIZES[0]
+      const _pbg  = PS_BGS.find(b=>b.id===pBg)||PS_BGS[0]
+      const _pw   = _psz.w; const _ph = _psz.h
+      const _pvar = pSeed % PS_STYLES.length
+
+      function wrapText(text, maxW, fontSize) {
+        const words = text.split('\n').map(line => line.split(' '))
+        const charsPerLine = Math.floor(maxW / (fontSize * 0.55))
+        const lines = []
+        words.forEach(lineWords => {
+          let cur = ''
+          lineWords.forEach(word => {
+            if ((cur+' '+word).trim().length > charsPerLine) { if(cur) lines.push(cur); cur = word }
+            else { cur = (cur+' '+word).trim() }
+          })
+          if (cur) lines.push(cur)
+        })
+        return lines
+      }
+
+      function makePosterSVG() {
+        const c = _pbg; const style = pStyle; const hotel = pClient || 'Hotel Fountain'
+        const w = _pw; const h = _ph
+        const titleLines = wrapText(pTitle, w*0.8, Math.round(w*0.065))
+        const bodyLines  = wrapText(pBody,  w*0.7, Math.round(w*0.03))
+        if (style==='luxury') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><filter id="glo"><feGaussianBlur stdDeviation="60"/></filter></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w*.5)}" cy="${Math.round(h*.3)}" r="${Math.round(w*.6)}" fill="${c.accent}" opacity="0.06" filter="url(#glo)"/><rect x="${Math.round(w*.04)}" y="${Math.round(h*.04)}" width="${Math.round(w*.92)}" height="${Math.round(h*.92)}" fill="none" stroke="${c.accent}" stroke-width="1.5" opacity="0.4"/><rect x="${Math.round(w*.055)}" y="${Math.round(h*.055)}" width="${Math.round(w*.89)}" height="${Math.round(h*.89)}" fill="none" stroke="${c.accent}" stroke-width="0.5" opacity="0.2"/><line x1="${Math.round(w*.1)}" y1="${Math.round(h*.14)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.14)}" stroke="${c.accent}" stroke-width="0.5" opacity="0.35"/><text x="${Math.round(w/2)}" y="${Math.round(h*.12)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.025)}" fill="${c.accent}" letter-spacing="8" opacity="0.9">${hotel.toUpperCase()}</text>${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.32+i*Math.round(w*.075))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.065)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('')}<text x="${Math.round(w/2)}" y="${Math.round(h*.44)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.accent}" letter-spacing="2">${pSub}</text><rect x="${Math.round(w*.2)}" y="${Math.round(h*.47)}" width="${Math.round(w*.6)}" height="1" fill="${c.accent}" opacity="0.4"/>${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.54+i*Math.round(w*.038))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.3)}" y="${Math.round(h*.75)}" width="${Math.round(w*.4)}" height="${Math.round(h*.065)}" rx="2" fill="${c.accent}" opacity="0.12" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.79)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text><line x1="${Math.round(w*.1)}" y1="${Math.round(h*.87)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.87)}" stroke="${c.accent}" stroke-width="0.5" opacity="0.35"/><text x="${Math.round(w/2)}" y="${Math.round(h*.92)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.sub}" opacity="0.7">${pFooter}</text></svg>`
+        if (style==='modern') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="1" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${Math.round(w*.08)}" height="${h}" fill="${c.accent}" opacity="0.7"/><rect x="${Math.round(w*.08)}" y="0" width="${Math.round(w*.92)}" height="${Math.round(h*.5)}" fill="${c.accent}" opacity="0.06"/><text x="${Math.round(w*.12)}" y="${Math.round(h*.08)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="5" font-weight="300">${hotel.toUpperCase()}</text>${titleLines.map((l,i)=>`<text x="${Math.round(w*.12)}" y="${Math.round(h*.28+i*Math.round(w*.09))}" font-family="Georgia,serif" font-size="${Math.round(w*.08)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('')}<rect x="${Math.round(w*.12)}" y="${Math.round(h*.5)}" width="${Math.round(w*.3)}" height="3" fill="${c.accent}"/><text x="${Math.round(w*.12)}" y="${Math.round(h*.58)}" font-family="sans-serif" font-size="${Math.round(w*.03)}" fill="${c.accent}">${pSub}</text>${bodyLines.map((l,i)=>`<text x="${Math.round(w*.12)}" y="${Math.round(h*.66+i*Math.round(w*.04))}" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.12)}" y="${Math.round(h*.82)}" width="${Math.round(w*.32)}" height="${Math.round(h*.07)}" fill="${c.accent}"/><text x="${Math.round(w*.12+w*.16)}" y="${Math.round(h*.863)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.from}" font-weight="700">${pCTA.toUpperCase()}</text><text x="${Math.round(w*.12)}" y="${Math.round(h*.94)}" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.6">${pFooter}</text></svg>`
+        if (style==='corporate') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${c.accent}" stop-opacity="0.25"/><stop offset="100%" stop-color="${c.accent}" stop-opacity="0.05"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${w}" height="${Math.round(h*.18)}" fill="url(#hdr)"/><rect x="0" y="${Math.round(h*.18)}" width="${w}" height="2" fill="${c.accent}" opacity="0.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.1)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.035)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.15)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.sub}" letter-spacing="2" opacity="0.7">${pSub}</text>${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.36+i*Math.round(w*.08))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.07)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('')}<rect x="${Math.round(w*.08)}" y="${Math.round(h*.5)}" width="${Math.round(w*.84)}" height="1" fill="${c.accent}" opacity="0.25"/>${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.57+i*Math.round(w*.038))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.25)}" y="${Math.round(h*.76)}" width="${Math.round(w*.5)}" height="${Math.round(h*.07)}" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.803)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text><rect x="0" y="${Math.round(h*.9)}" width="${w}" height="${Math.round(h*.1)}" fill="${c.accent}" opacity="0.08"/><text x="${Math.round(w/2)}" y="${Math.round(h*.955)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.7">${pFooter}</text></svg>`
+        if (style==='festive') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><filter id="glo2"><feGaussianBlur stdDeviation="50"/></filter></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w*.1)}" cy="${Math.round(h*.1)}" r="${Math.round(w*.3)}" fill="${c.accent}" opacity="0.08" filter="url(#glo2)"/><circle cx="${Math.round(w*.9)}" cy="${Math.round(h*.85)}" r="${Math.round(w*.35)}" fill="${c.accent}" opacity="0.06" filter="url(#glo2)"/><rect x="${Math.round(w*.06)}" y="${Math.round(h*.06)}" width="${Math.round(w*.88)}" height="${Math.round(h*.88)}" fill="none" stroke="${c.accent}" stroke-width="2" opacity="0.35" rx="4"/><line x1="${Math.round(w*.15)}" y1="${Math.round(h*.13)}" x2="${Math.round(w*.85)}" y2="${Math.round(h*.13)}" stroke="${c.accent}" stroke-width="0.8" opacity="0.4"/><line x1="${Math.round(w*.15)}" y1="${Math.round(h*.87)}" x2="${Math.round(w*.85)}" y2="${Math.round(h*.87)}" stroke="${c.accent}" stroke-width="0.8" opacity="0.4"/><text x="${Math.round(w/2)}" y="${Math.round(h*.115)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="6" font-style="italic">${hotel}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.23)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.accent}" letter-spacing="4">— PRESENTS —</text>${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.36+i*Math.round(w*.085))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.075)}" fill="${c.text}" font-weight="bold" font-style="italic">${l}</text>`).join('')}<text x="${Math.round(w/2)}" y="${Math.round(h*.5)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}">${pSub}</text>${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.6+i*Math.round(w*.04))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.28)}" y="${Math.round(h*.76)}" width="${Math.round(w*.44)}" height="${Math.round(h*.065)}" rx="30" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.803)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.875)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.7">${pFooter}</text></svg>`
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="${Math.round(w*.08)}" y="${Math.round(h*.08)}" width="3" height="${Math.round(h*.08)}" fill="${c.accent}"/><text x="${Math.round(w*.12)}" y="${Math.round(h*.105)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><text x="${Math.round(w*.12)}" y="${Math.round(h*.14)}" font-family="sans-serif" font-size="${Math.round(w*.013)}" fill="${c.sub}" opacity="0.6">${pSub}</text>${titleLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.38+i*Math.round(w*.09))}" font-family="Georgia,serif" font-size="${Math.round(w*.082)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('')}<rect x="${Math.round(w*.08)}" y="${Math.round(h*.52)}" width="${Math.round(w*.15)}" height="1.5" fill="${c.accent}"/>${bodyLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.58+i*Math.round(w*.04))}" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('')}<text x="${Math.round(w*.08)}" y="${Math.round(h*.78)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" font-weight="600" letter-spacing="2">${pCTA.toUpperCase()} →</text><rect x="${Math.round(w*.08)}" y="${Math.round(h*.88)}" width="${Math.round(w*.84)}" height="1" fill="${c.accent}" opacity="0.2"/><text x="${Math.round(w*.08)}" y="${Math.round(h*.93)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.sub}" opacity="0.6">${pFooter}</text></svg>`
+      }
+
+      function dlPoster(){
+        const svg=makePosterSVG(); const blob=new Blob([svg],{type:'image/svg+xml'})
+        const url=URL.createObjectURL(blob); const a=document.createElement('a')
+        a.href=url; a.download=`poster-${pStyle}-${pSize}-${pClient.replace(/ /g,'_')}.svg`
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+      }
+
+      async function sendPosterApproval(){
+        dlPoster(); setPApproval(true)
+        try { await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({action:'email_design_approval',type:'poster',style:pStyle,size:pSize,client:pClient})}) } catch(e){}
+        toast('Poster downloaded & approval email sent ✓'); setTimeout(()=>setPApproval(false),4000)
+      }
 
       useEffect(() => { loadPosts() }, [])
 
@@ -5756,179 +5837,8 @@ function App() {
 
           {/* ════════ POSTER STUDIO ════════ */}
           {tab==='poster' && (()=>{
-            const PS_SIZES=[
-              {id:'a4p',  label:'A4 Portrait',   w:595, h:842,  desc:'Print/PDF'},
-              {id:'a4l',  label:'A4 Landscape',  w:842, h:595,  desc:'Presentation'},
-              {id:'a3p',  label:'A3 Portrait',   w:842, h:1191, desc:'Large print'},
-              {id:'evt',  label:'Event Poster',  w:612, h:864,  desc:'18"×24" ratio'},
-              {id:'sqr',  label:'Square',        w:800, h:800,  desc:'Display/Digital'},
-            ]
-            const PS_STYLES=[
-              {id:'luxury',    label:'✨ Luxury Editorial',  desc:'Gold borders, serif elegance'},
-              {id:'modern',    label:'⚡ Modern Bold',       desc:'High contrast, dynamic type'},
-              {id:'corporate', label:'💼 Corporate Clean',   desc:'Structured, professional'},
-              {id:'festive',   label:'🎊 Festive',           desc:'Decorative, celebratory'},
-              {id:'minimal',   label:'◻ Minimal',            desc:'White space, pure typography'},
-            ]
-            const PS_BGS=[
-              {id:'deep_gold',  label:'🏆 Deep Gold',   from:'#0d0900',to:'#1f1400',accent:'#C8A96E',text:'#F5EDD8',sub:'rgba(245,237,216,.6)'},
-              {id:'night_blue', label:'🌃 Night Blue',  from:'#020814',to:'#051630',accent:'#58A6FF',text:'#E8F0FF',sub:'rgba(232,240,255,.55)'},
-              {id:'forest',     label:'🌿 Forest',      from:'#020d06',to:'#051a0c',accent:'#3FB950',text:'#E0FFE8',sub:'rgba(224,255,232,.55)'},
-              {id:'rose_black', label:'🥀 Rose Black',  from:'#0d0206',to:'#1a0410',accent:'#FF6B8A',text:'#FFE0E8',sub:'rgba(255,224,232,.55)'},
-              {id:'pure_white', label:'🤍 Clean White', from:'#f8f6f2',to:'#ede8df',accent:'#8B6914',text:'#1C1510',sub:'rgba(28,21,16,.55)'},
-              {id:'slate',      label:'🪨 Slate',       from:'#0a0a0e',to:'#141420',accent:'#A0AEC0',text:'#E8ECF0',sub:'rgba(232,236,240,.55)'},
-            ]
+            const sz=_psz; const bg=_pbg; const w=_pw; const h=_ph; const variant=_pvar
 
-            const [pSize,   setPSize]   = React.useState('a4p')
-            const [pStyle,  setPStyle]  = React.useState('luxury')
-            const [pBg,     setPBg]     = React.useState('deep_gold')
-            const [pSeed,   setPSeed]   = React.useState(1)
-            const [pTitle,  setPTitle]  = React.useState('Premium Rooms')
-            const [pSub,    setPSub]    = React.useState('Nikunja 2, Dhaka · Airport 5 min')
-            const [pBody,   setPBody]   = React.useState('From ৳3,500 per night\nBreakfast included · Free WiFi\nAirport transfer available')
-            const [pCTA,    setPCTA]    = React.useState('Book Now')
-            const [pFooter, setPFooter] = React.useState('+880-1319407384  ·  hotelfountainbd.com')
-            const [pClient, setPClient] = React.useState('Hotel Fountain')
-            const [pApproval, setPApproval] = React.useState(false)
-
-            const sz  = PS_SIZES.find(s=>s.id===pSize)||PS_SIZES[0]
-            const bg  = PS_BGS.find(b=>b.id===pBg)||PS_BGS[0]
-            const {w,h}=sz
-            const variant = pSeed % PS_STYLES.length
-
-            function wrapText(text, maxW, fontSize) {
-              const words = text.split('\n').map(line => line.split(' '))
-              const charsPerLine = Math.floor(maxW / (fontSize * 0.55))
-              const lines = []
-              words.forEach(lineWords => {
-                let cur = ''
-                lineWords.forEach(word => {
-                  if ((cur+' '+word).trim().length > charsPerLine) { if(cur) lines.push(cur); cur = word }
-                  else { cur = (cur+' '+word).trim() }
-                })
-                if (cur) lines.push(cur)
-              })
-              return lines
-            }
-
-            function makePosterSVG() {
-              const c = bg
-              const style = pStyle
-              const hotel = pClient || 'Hotel Fountain'
-              const titleLines = wrapText(pTitle, w*0.8, Math.round(w*0.065))
-              const bodyLines  = wrapText(pBody,  w*0.7, Math.round(w*0.03))
-
-              if (style==='luxury') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-<defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
-  <filter id="glo"><feGaussianBlur stdDeviation="60"/></filter>
-</defs>
-<rect width="${w}" height="${h}" fill="url(#bg)"/>
-<circle cx="${Math.round(w*.5)}" cy="${Math.round(h*.3)}" r="${Math.round(w*.6)}" fill="${c.accent}" opacity="0.06" filter="url(#glo)"/>
-<rect x="${Math.round(w*.04)}" y="${Math.round(h*.04)}" width="${Math.round(w*.92)}" height="${Math.round(h*.92)}" fill="none" stroke="${c.accent}" stroke-width="1.5" opacity="0.4"/>
-<rect x="${Math.round(w*.055)}" y="${Math.round(h*.055)}" width="${Math.round(w*.89)}" height="${Math.round(h*.89)}" fill="none" stroke="${c.accent}" stroke-width="0.5" opacity="0.2"/>
-<line x1="${Math.round(w*.1)}" y1="${Math.round(h*.14)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.14)}" stroke="${c.accent}" stroke-width="0.5" opacity="0.35"/>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.12)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.025)}" fill="${c.accent}" letter-spacing="8" opacity="0.9">${hotel.toUpperCase()}</text>
-${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.32+i*Math.round(w*.075))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.065)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('\n')}
-<text x="${Math.round(w/2)}" y="${Math.round(h*.44)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.accent}" letter-spacing="2">${pSub}</text>
-<rect x="${Math.round(w*.2)}" y="${Math.round(h*.47)}" width="${Math.round(w*.6)}" height="1" fill="${c.accent}" opacity="0.4"/>
-${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.54+i*Math.round(w*.038))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.sub}">${l}</text>`).join('\n')}
-<rect x="${Math.round(w*.3)}" y="${Math.round(h*.75)}" width="${Math.round(w*.4)}" height="${Math.round(h*.065)}" rx="2" fill="${c.accent}" opacity="0.12" stroke="${c.accent}" stroke-width="1.5"/>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.79)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text>
-<line x1="${Math.round(w*.1)}" y1="${Math.round(h*.87)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.87)}" stroke="${c.accent}" stroke-width="0.5" opacity="0.35"/>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.92)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.sub}" opacity="0.7">${pFooter}</text>
-</svg>`
-
-              if (style==='modern') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-<defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
-</defs>
-<rect width="${w}" height="${h}" fill="url(#bg)"/>
-<rect x="0" y="0" width="${Math.round(w*.08)}" height="${h}" fill="${c.accent}" opacity="0.7"/>
-<rect x="${Math.round(w*.08)}" y="0" width="${Math.round(w*.92)}" height="${Math.round(h*.5)}" fill="${c.accent}" opacity="0.06"/>
-<text x="${Math.round(w*.12)}" y="${Math.round(h*.08)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="5" font-weight="300">${hotel.toUpperCase()}</text>
-${titleLines.map((l,i)=>`<text x="${Math.round(w*.12)}" y="${Math.round(h*.28+i*Math.round(w*.09))}" font-family="Georgia,serif" font-size="${Math.round(w*.08)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('\n')}
-<rect x="${Math.round(w*.12)}" y="${Math.round(h*.5)}" width="${Math.round(w*.3)}" height="3" fill="${c.accent}"/>
-<text x="${Math.round(w*.12)}" y="${Math.round(h*.58)}" font-family="sans-serif" font-size="${Math.round(w*.03)}" fill="${c.accent}">${pSub}</text>
-${bodyLines.map((l,i)=>`<text x="${Math.round(w*.12)}" y="${Math.round(h*.66+i*Math.round(w*.04))}" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.sub}">${l}</text>`).join('\n')}
-<rect x="${Math.round(w*.12)}" y="${Math.round(h*.82)}" width="${Math.round(w*.32)}" height="${Math.round(h*.07)}" fill="${c.accent}"/>
-<text x="${Math.round(w*.12+w*.16)}" y="${Math.round(h*.863)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.from}" font-weight="700">${pCTA.toUpperCase()}</text>
-<text x="${Math.round(w*.12)}" y="${Math.round(h*.94)}" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.6">${pFooter}</text>
-</svg>`
-
-              if (style==='corporate') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-<defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
-  <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${c.accent}" stop-opacity="0.25"/><stop offset="100%" stop-color="${c.accent}" stop-opacity="0.05"/></linearGradient>
-</defs>
-<rect width="${w}" height="${h}" fill="url(#bg)"/>
-<rect x="0" y="0" width="${w}" height="${Math.round(h*.18)}" fill="url(#hdr)"/>
-<rect x="0" y="${Math.round(h*.18)}" width="${w}" height="2" fill="${c.accent}" opacity="0.5"/>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.1)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.035)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.15)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.sub}" letter-spacing="2" opacity="0.7">${pSub}</text>
-${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.36+i*Math.round(w*.08))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.07)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('\n')}
-<rect x="${Math.round(w*.08)}" y="${Math.round(h*.5)}" width="${Math.round(w*.84)}" height="1" fill="${c.accent}" opacity="0.25"/>
-${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.57+i*Math.round(w*.038))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('\n')}
-<rect x="${Math.round(w*.25)}" y="${Math.round(h*.76)}" width="${Math.round(w*.5)}" height="${Math.round(h*.07)}" fill="none" stroke="${c.accent}" stroke-width="1.5"/>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.803)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text>
-<rect x="0" y="${Math.round(h*.9)}" width="${w}" height="${Math.round(h*.1)}" fill="${c.accent}" opacity="0.08"/>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.955)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.7">${pFooter}</text>
-</svg>`
-
-              if (style==='festive') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-<defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
-  <filter id="glo2"><feGaussianBlur stdDeviation="50"/></filter>
-</defs>
-<rect width="${w}" height="${h}" fill="url(#bg)"/>
-<circle cx="${Math.round(w*.1)}" cy="${Math.round(h*.1)}" r="${Math.round(w*.3)}" fill="${c.accent}" opacity="0.08" filter="url(#glo2)"/>
-<circle cx="${Math.round(w*.9)}" cy="${Math.round(h*.85)}" r="${Math.round(w*.35)}" fill="${c.accent}" opacity="0.06" filter="url(#glo2)"/>
-<rect x="${Math.round(w*.06)}" y="${Math.round(h*.06)}" width="${Math.round(w*.88)}" height="${Math.round(h*.88)}" fill="none" stroke="${c.accent}" stroke-width="2" opacity="0.35" rx="4"/>
-<line x1="${Math.round(w*.15)}" y1="${Math.round(h*.13)}" x2="${Math.round(w*.85)}" y2="${Math.round(h*.13)}" stroke="${c.accent}" stroke-width="0.8" opacity="0.4"/>
-<line x1="${Math.round(w*.15)}" y1="${Math.round(h*.87)}" x2="${Math.round(w*.85)}" y2="${Math.round(h*.87)}" stroke="${c.accent}" stroke-width="0.8" opacity="0.4"/>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.115)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="6" font-style="italic">${hotel}</text>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.23)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.accent}" letter-spacing="4">— PRESENTS —</text>
-${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.36+i*Math.round(w*.085))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.075)}" fill="${c.text}" font-weight="bold" font-style="italic">${l}</text>`).join('\n')}
-<text x="${Math.round(w/2)}" y="${Math.round(h*.5)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}">${pSub}</text>
-${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.6+i*Math.round(w*.04))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('\n')}
-<rect x="${Math.round(w*.28)}" y="${Math.round(h*.76)}" width="${Math.round(w*.44)}" height="${Math.round(h*.065)}" rx="30" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1.5"/>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.803)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text>
-<text x="${Math.round(w/2)}" y="${Math.round(h*.875)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.7">${pFooter}</text>
-</svg>`
-
-              // minimal
-              return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-<defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient>
-</defs>
-<rect width="${w}" height="${h}" fill="url(#bg)"/>
-<rect x="${Math.round(w*.08)}" y="${Math.round(h*.08)}" width="3" height="${Math.round(h*.08)}" fill="${c.accent}"/>
-<text x="${Math.round(w*.12)}" y="${Math.round(h*.105)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.accent}" letter-spacing="5" text-transform="uppercase">${hotel.toUpperCase()}</text>
-<text x="${Math.round(w*.12)}" y="${Math.round(h*.14)}" font-family="sans-serif" font-size="${Math.round(w*.013)}" fill="${c.sub}" opacity="0.6">${pSub}</text>
-${titleLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.38+i*Math.round(w*.09))}" font-family="Georgia,serif" font-size="${Math.round(w*.082)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('\n')}
-<rect x="${Math.round(w*.08)}" y="${Math.round(h*.52)}" width="${Math.round(w*.15)}" height="1.5" fill="${c.accent}"/>
-${bodyLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.58+i*Math.round(w*.04))}" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('\n')}
-<text x="${Math.round(w*.08)}" y="${Math.round(h*.78)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" font-weight="600" letter-spacing="2">${pCTA.toUpperCase()} →</text>
-<rect x="${Math.round(w*.08)}" y="${Math.round(h*.88)}" width="${Math.round(w*.84)}" height="1" fill="${c.accent}" opacity="0.2"/>
-<text x="${Math.round(w*.08)}" y="${Math.round(h*.93)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.sub}" opacity="0.6">${pFooter}</text>
-</svg>`
-            }
-
-            function dlPoster(){
-              const svg=makePosterSVG(); const blob=new Blob([svg],{type:'image/svg+xml'})
-              const url=URL.createObjectURL(blob); const a=document.createElement('a')
-              a.href=url; a.download=`poster-${pStyle}-${pSize}-${pClient.replace(/ /g,'_')}.svg`
-              document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
-            }
-
-            async function sendPosterApproval(){
-              dlPoster(); setPApproval(true)
-              try { await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({action:'email_design_approval',type:'poster',style:pStyle,size:pSize,client:pClient})}) } catch(e){}
-              toast('Poster downloaded & approval email sent ✓'); setTimeout(()=>setPApproval(false),4000)
-            }
-
-            const svgUrl='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(makePosterSVG())))
-            const prevW=280; const prevH=Math.round(prevW*(h/w))
 
             return (
               <div style={{display:'grid',gridTemplateColumns:'260px 1fr',gap:16,alignItems:'start'}}>
