@@ -5134,6 +5134,10 @@ function App() {
       const [pFooter,   setPFooter]   = useState('+880-1319407384  ·  hotelfountainbd.com')
       const [pClient,   setPClient]   = useState('Hotel Fountain')
       const [pApproval, setPApproval] = useState(false)
+      const [pImageData,   setPImageData]   = useState(null)
+      const [pImageColors, setPImageColors] = useState(null)
+      const [pPlacement,   setPPlacement]   = useState('full_bleed')
+      const [pAnalyzing,   setPAnalyzing]   = useState(false)
 
 
       // Poster Studio derived + helpers
@@ -5158,6 +5162,7 @@ function App() {
       }
 
       function makePosterSVG() {
+        if (pImageData) return makeImagePosterSVG()
         const c = _pbg; const style = pStyle; const hotel = pClient || 'Hotel Fountain'
         const w = _pw; const h = _ph
         const titleLines = wrapText(pTitle, w*0.8, Math.round(w*0.065))
@@ -5169,7 +5174,80 @@ function App() {
         return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="${Math.round(w*.08)}" y="${Math.round(h*.08)}" width="3" height="${Math.round(h*.08)}" fill="${c.accent}"/><text x="${Math.round(w*.12)}" y="${Math.round(h*.105)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><text x="${Math.round(w*.12)}" y="${Math.round(h*.14)}" font-family="sans-serif" font-size="${Math.round(w*.013)}" fill="${c.sub}" opacity="0.6">${pSub}</text>${titleLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.38+i*Math.round(w*.09))}" font-family="Georgia,serif" font-size="${Math.round(w*.082)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('')}<rect x="${Math.round(w*.08)}" y="${Math.round(h*.52)}" width="${Math.round(w*.15)}" height="1.5" fill="${c.accent}"/>${bodyLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.58+i*Math.round(w*.04))}" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('')}<text x="${Math.round(w*.08)}" y="${Math.round(h*.78)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" font-weight="600" letter-spacing="2">${pCTA.toUpperCase()} →</text><rect x="${Math.round(w*.08)}" y="${Math.round(h*.88)}" width="${Math.round(w*.84)}" height="1" fill="${c.accent}" opacity="0.2"/><text x="${Math.round(w*.08)}" y="${Math.round(h*.93)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.sub}" opacity="0.6">${pFooter}</text></svg>`
       }
 
-      function dlPoster(){
+      function extractColors(ctx, w, h) {
+        const d = ctx.getImageData(0,0,w,h).data
+        let r=0,g=0,b=0,n=0
+        for (let i=0;i<d.length;i+=40){r+=d[i];g+=d[i+1];b+=d[i+2];n++}
+        r=Math.round(r/n);g=Math.round(g/n);b=Math.round(b/n)
+        const br=(r*299+g*587+b*114)/1000; const isDark=br<145
+        let maxSat=0,ar=200,ag=169,ab=110
+        for (let i=0;i<d.length;i+=160){
+          const pr=d[i],pg=d[i+1],pb=d[i+2]
+          const mx=Math.max(pr,pg,pb),mn=Math.min(pr,pg,pb)
+          const sat=mx===0?0:(mx-mn)/mx
+          if(sat>maxSat&&mx>60){maxSat=sat;ar=pr;ag=pg;ab=pb}
+        }
+        const hex=v=>v.toString(16).padStart(2,'0')
+        return {
+          isDark, accent:`#${hex(ar)}${hex(ag)}${hex(ab)}`,
+          avg:`#${hex(r)}${hex(g)}${hex(b)}`,
+          text:isDark?'#FFFFFF':'#1C1510',
+          sub:isDark?'rgba(255,255,255,0.75)':'rgba(28,21,16,0.7)',
+          scrim:isDark?'rgba(0,0,0,0.52)':'rgba(255,255,255,0.45)',
+          panel:isDark?'rgba(0,0,0,0.72)':'rgba(255,255,255,0.82)',
+        }
+      }
+
+      function handlePosterImage(file) {
+        if (!file||!file.type.startsWith('image/')) return
+        const reader = new FileReader()
+        reader.onload = e => {
+          const img = new Image()
+          img.onload = () => {
+            const canvas=document.createElement('canvas')
+            const maxW=900; const scale=Math.min(1,maxW/img.width)
+            canvas.width=Math.round(img.width*scale); canvas.height=Math.round(img.height*scale)
+            const ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,canvas.width,canvas.height)
+            setPImageData(canvas.toDataURL('image/jpeg',0.82))
+            setPImageColors(extractColors(ctx,canvas.width,canvas.height))
+          }
+          img.src=e.target.result
+        }
+        reader.readAsDataURL(file)
+      }
+
+      async function analyzeImageWithAI(){
+        if(!pImageData) return
+        setPAnalyzing(true)
+        try {
+          const r=await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},
+            body:JSON.stringify({action:'analyze_poster_image',image_snippet:pImageData.slice(0,8000),client:pClient})})
+          const d=await r.json()
+          if(d.style) setPStyle(d.style)
+          if(d.colors) setPImageColors(prev=>({...prev,...d.colors}))
+          toast('AI theme applied ✓')
+        } catch(e){ toast('Using canvas-extracted colors') }
+        finally { setPAnalyzing(false) }
+      }
+
+      function makeImagePosterSVG(){
+        const ic=pImageColors||{isDark:true,accent:'#C8A96E',text:'#FFFFFF',sub:'rgba(255,255,255,0.75)',scrim:'rgba(0,0,0,0.52)',panel:'rgba(0,0,0,0.72)'}
+        const w=_pw; const h=_ph; const hotel=pClient||'Hotel Fountain'
+        const titleLines=wrapText(pTitle,w*0.78,Math.round(w*0.063))
+        const bodyLines=wrapText(pBody,w*0.65,Math.round(w*0.028))
+        const imgTag=`<image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>`
+        const halfImgL=`<clipPath id="cl"><rect x="0" y="0" width="${Math.round(w*.5)}" height="${h}"/></clipPath><image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#cl)"/>`
+        const halfImgR=`<clipPath id="cr"><rect x="${Math.round(w*.5)}" y="0" width="${Math.round(w*.5)}" height="${h}"/></clipPath><image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#cr)"/>`
+
+        if(pPlacement==='full_bleed') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="scr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(0,0,0,0.1)"/><stop offset="60%" stop-color="${ic.scrim}"/><stop offset="100%" stop-color="rgba(0,0,0,0.85)"/></linearGradient></defs>${imgTag}<rect width="${w}" height="${h}" fill="url(#scr)"/><text x="${Math.round(w/2)}" y="${Math.round(h*.08)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${ic.accent}" letter-spacing="7" opacity="0.95">${hotel.toUpperCase()}</text><line x1="${Math.round(w*.1)}" y1="${Math.round(h*.11)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.11)}" stroke="${ic.accent}" stroke-width="0.6" opacity="0.5"/>${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.42+i*Math.round(w*.075))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.065)}" fill="${ic.text}" font-weight="bold" style="text-shadow:0 2px 8px rgba(0,0,0,0.8)">${l}</text>`).join('')}<text x="${Math.round(w/2)}" y="${Math.round(h*.57)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${ic.accent}">${pSub}</text><line x1="${Math.round(w*.25)}" y1="${Math.round(h*.6)}" x2="${Math.round(w*.75)}" y2="${Math.round(h*.6)}" stroke="${ic.accent}" stroke-width="0.5" opacity="0.5"/>${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.66+i*Math.round(w*.036))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${ic.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.3)}" y="${Math.round(h*.8)}" width="${Math.round(w*.4)}" height="${Math.round(h*.065)}" rx="2" fill="${ic.accent}" opacity="0.18" stroke="${ic.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.843)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.025)}" fill="${ic.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text><line x1="${Math.round(w*.1)}" y1="${Math.round(h*.91)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.91)}" stroke="${ic.accent}" stroke-width="0.5" opacity="0.4"/><text x="${Math.round(w/2)}" y="${Math.round(h*.955)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.019)}" fill="${ic.sub}" opacity="0.8">${pFooter}</text></svg>`
+
+        if(pPlacement==='half_left') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs>${halfImgL.replace('<clipPath','<clipPath ').split('<image')[0]}</defs>${halfImgL.split('</clipPath>')[1]}<rect x="${Math.round(w*.5)}" y="0" width="${Math.round(w*.5)}" height="${h}" fill="${ic.panel}"/><line x1="${Math.round(w*.5)}" y1="${Math.round(h*.08)}" x2="${Math.round(w*.5)}" y2="${Math.round(h*.92)}" stroke="${ic.accent}" stroke-width="1.5" opacity="0.4"/><text x="${Math.round(w*.75)}" y="${Math.round(h*.12)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${ic.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><line x1="${Math.round(w*.55)}" y1="${Math.round(h*.16)}" x2="${Math.round(w*.95)}" y2="${Math.round(h*.16)}" stroke="${ic.accent}" stroke-width="0.5" opacity="0.4"/>${titleLines.map((l,i)=>`<text x="${Math.round(w*.75)}" y="${Math.round(h*.34+i*Math.round(w*.08))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.066)}" fill="${ic.text}" font-weight="bold">${l}</text>`).join('')}<text x="${Math.round(w*.75)}" y="${Math.round(h*.54)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.024)}" fill="${ic.accent}">${pSub}</text>${bodyLines.map((l,i)=>`<text x="${Math.round(w*.75)}" y="${Math.round(h*.63+i*Math.round(w*.036))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.024)}" fill="${ic.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.58)}" y="${Math.round(h*.78)}" width="${Math.round(w*.34)}" height="${Math.round(h*.065)}" fill="${ic.accent}" opacity="0.2" stroke="${ic.accent}" stroke-width="1.2"/><text x="${Math.round(w*.75)}" y="${Math.round(h*.822)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.023)}" fill="${ic.accent}" letter-spacing="2" font-weight="600">${pCTA.toUpperCase()}</text><text x="${Math.round(w*.75)}" y="${Math.round(h*.93)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.017)}" fill="${ic.sub}" opacity="0.7">${pFooter}</text></svg>`
+
+        // half_right — image right, text panel left
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs>${halfImgR.replace('<clipPath','<clipPath ').split('<image')[0]}</defs>${halfImgR.split('</clipPath>')[1]}<rect x="0" y="0" width="${Math.round(w*.5)}" height="${h}" fill="${ic.panel}"/><line x1="${Math.round(w*.5)}" y1="${Math.round(h*.08)}" x2="${Math.round(w*.5)}" y2="${Math.round(h*.92)}" stroke="${ic.accent}" stroke-width="1.5" opacity="0.4"/><text x="${Math.round(w*.25)}" y="${Math.round(h*.12)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${ic.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><line x1="${Math.round(w*.05)}" y1="${Math.round(h*.16)}" x2="${Math.round(w*.45)}" y2="${Math.round(h*.16)}" stroke="${ic.accent}" stroke-width="0.5" opacity="0.4"/>${titleLines.map((l,i)=>`<text x="${Math.round(w*.25)}" y="${Math.round(h*.34+i*Math.round(w*.08))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.066)}" fill="${ic.text}" font-weight="bold">${l}</text>`).join('')}<text x="${Math.round(w*.25)}" y="${Math.round(h*.54)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.024)}" fill="${ic.accent}">${pSub}</text>${bodyLines.map((l,i)=>`<text x="${Math.round(w*.25)}" y="${Math.round(h*.63+i*Math.round(w*.036))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.024)}" fill="${ic.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.08)}" y="${Math.round(h*.78)}" width="${Math.round(w*.34)}" height="${Math.round(h*.065)}" fill="${ic.accent}" opacity="0.2" stroke="${ic.accent}" stroke-width="1.2"/><text x="${Math.round(w*.25)}" y="${Math.round(h*.822)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.023)}" fill="${ic.accent}" letter-spacing="2" font-weight="600">${pCTA.toUpperCase()}</text><text x="${Math.round(w*.25)}" y="${Math.round(h*.93)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.017)}" fill="${ic.sub}" opacity="0.7">${pFooter}</text></svg>`
+      }
+
+            function dlPoster(){
         const svg=makePosterSVG(); const blob=new Blob([svg],{type:'image/svg+xml'})
         const url=URL.createObjectURL(blob); const a=document.createElement('a')
         a.href=url; a.download=`poster-${pStyle}-${pSize}-${pClient.replace(/ /g,'_')}.svg`
@@ -5876,7 +5954,47 @@ function App() {
                     </div>
                   </div>
                   <div className="card">
-                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🌈 Background</div>
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🖼 Background Photo</div>
+                    {!pImageData ? (
+                      <label style={{display:'block',padding:'18px 10px',border:'1.5px dashed rgba(200,169,110,.4)',borderRadius:6,textAlign:'center',cursor:'pointer',color:'var(--tx3)',fontSize:10,background:'rgba(0,0,0,.15)'}}>
+                        <div style={{fontSize:22,marginBottom:6}}>📷</div>
+                        <div style={{color:'var(--gold)',fontWeight:600,marginBottom:3}}>Upload hotel photo</div>
+                        <div>JPG · PNG · WebP</div>
+                        <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files[0])handlePosterImage(e.target.files[0])}}/>
+                      </label>
+                    ) : (
+                      <div>
+                        <div style={{position:'relative',marginBottom:8}}>
+                          <img src={pImageData} style={{width:'100%',height:90,objectFit:'cover',borderRadius:5,display:'block'}} alt="bg"/>
+                          <button onClick={()=>{setPImageData(null);setPImageColors(null)}} style={{position:'absolute',top:4,right:4,background:'rgba(0,0,0,.7)',border:'none',color:'#fff',borderRadius:'50%',width:20,height:20,fontSize:11,cursor:'pointer',lineHeight:'20px'}}>✕</button>
+                        </div>
+                        {pImageColors && (
+                          <div style={{display:'flex',gap:4,marginBottom:8,alignItems:'center'}}>
+                            <span style={{fontSize:9,color:'var(--tx3)'}}>Extracted:</span>
+                            <span style={{width:14,height:14,borderRadius:'50%',background:pImageColors.accent,border:'1px solid rgba(255,255,255,.2)',display:'inline-block'}} title="Accent"/>
+                            <span style={{width:14,height:14,borderRadius:'50%',background:pImageColors.avg,border:'1px solid rgba(255,255,255,.2)',display:'inline-block'}} title="Avg"/>
+                            <span style={{fontSize:9,color:pImageColors.isDark?'var(--gold)':'var(--tx2)',marginLeft:4}}>{pImageColors.isDark?'Dark image':'Light image'}</span>
+                          </div>
+                        )}
+                        <button onClick={analyzeImageWithAI} disabled={pAnalyzing}
+                          style={{width:'100%',padding:'7px',fontSize:10,background:'rgba(200,169,110,.15)',border:'1px solid rgba(200,169,110,.4)',color:'var(--gold)',borderRadius:4,cursor:pAnalyzing?'wait':'pointer',marginBottom:8}}>
+                          {pAnalyzing?'🤖 Analyzing...':'🤖 AI Analyze → Auto-Theme'}
+                        </button>
+                        <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:6}}>📐 Placement</div>
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4}}>
+                          {[['full_bleed','Full Bleed','▣'],['half_left','Photo Left','◧'],['half_right','Photo Right','◨']].map(([id,lbl,ico])=>(
+                            <button key={id} onClick={()=>setPPlacement(id)}
+                              style={{padding:'6px 4px',fontSize:9,textAlign:'center',background:pPlacement===id?'rgba(200,169,110,.18)':'rgba(0,0,0,.2)',border:`1px solid ${pPlacement===id?'rgba(200,169,110,.5)':'var(--br)'}`,color:pPlacement===id?'var(--gold)':'var(--tx3)',borderRadius:3,cursor:'pointer'}}>
+                              <div style={{fontSize:14,marginBottom:2}}>{ico}</div>{lbl}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {!pImageData && (
+                  <div className="card">
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🌈 Gradient Background</div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
                       {PS_BGS.map(b=>(
                         <button key={b.id} onClick={()=>setPBg(b.id)}
@@ -5887,6 +6005,7 @@ function App() {
                       ))}
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Content + Preview */}
