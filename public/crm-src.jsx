@@ -5032,6 +5032,16 @@ function App() {
       const [showBrain,    setShowBrain]    = useState(null)
       const [savingBrain,  setSavingBrain]  = useState(false)
 
+      // ── Composer / Posts state ────────────────────────────────────────────
+      const [posts,        setPosts]        = useState([])
+      const [loadingPosts, setLoadingPosts] = useState(false)
+      const [cPlatform,    setCPlatform]    = useState('instagram')
+      const [cCaption,     setCCaption]     = useState('')
+      const [cTopic,       setCTopic]       = useState('')
+      const [cSchedule,    setCSchedule]    = useState('')
+      const [cClient,      setCClient]      = useState('Hotel Fountain')
+      const [aiLoading,    setAiLoading]    = useState(false)
+
       // ── AI Agent Debate state ──────────────────────────────────────────────
       const [agentMsgs,     setAgentMsgs]     = useState([])
       const [agentRunning,  setAgentRunning]  = useState(null)
