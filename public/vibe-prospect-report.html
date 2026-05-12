@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hotel Fountain BD — Vibe Prospecting Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --gold: #C8A96E;
+    --gold-light: #E2C98A;
+    --gold-pale: #F5EDD8;
+    --dark: #1C1510;
+    --card: #2A2118;
+    --border: rgba(200,169,110,0.2);
+    --text: #EAE6DD;
+    --muted: rgba(234,230,221,0.5);
+    --strong: #4CAF50;
+    --good: #2196F3;
+    --partial: #FF9800;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--dark); color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* Header */
+  .header { border-bottom: 1px solid var(--border); padding: 32px 40px 24px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .brand { display: flex; flex-direction: column; gap: 4px; }
+  .brand-name { font-family: 'Libre Baskerville', Georgia, serif; font-size: 26px; color: var(--gold); letter-spacing: 0.02em; }
+  .brand-name em { font-style: italic; font-weight: 400; }
+  .brand-sub { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  .report-meta { text-align: right; font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .report-meta strong { color: var(--gold); }
+
+  /* Summary strip */
+  .summary-strip { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 40px; display: flex; gap: 40px; align-items: center; }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-val { font-family: 'IBM Plex Mono', monospace; font-size: 22px; color: var(--gold); font-weight: 500; }
+  .stat-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+  .stat-sep { width: 1px; background: var(--border); height: 36px; }
+
+  /* ICP pill */
+  .icp-bar { padding: 16px 40px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .icp-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+  .pill { background: rgba(200,169,110,0.1); border: 1px solid var(--border); color: var(--gold-light); padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+
+  /* Main layout */
+  .main { display: grid; grid-template-columns: 1fr 380px; gap: 0; }
+
+  /* Lead table section */
+  .leads-section { padding: 28px 40px; border-right: 1px solid var(--border); }
+  .section-title { font-family: 'Libre Baskerville', serif; font-size: 16px; color: var(--gold); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .lead-table { width: 100%; border-collapse: collapse; }
+  .lead-table th { text-align: left; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); padding: 0 12px 12px 0; border-bottom: 1px solid var(--border); font-weight: 500; }
+  .lead-table td { padding: 14px 12px 14px 0; border-bottom: 1px solid rgba(200,169,110,0.08); vertical-align: top; }
+  .lead-table tr:last-child td { border-bottom: none; }
+  .lead-table tr:hover td { background: rgba(200,169,110,0.03); }
+
+  .rank { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); width: 24px; }
+  .co-name { font-weight: 600; color: var(--text); font-size: 13px; }
+  .co-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .co-address { font-size: 11px; color: var(--gold); margin-top: 3px; font-family: 'IBM Plex Mono', monospace; }
+
+  .contact-name { font-weight: 500; color: var(--text); font-size: 13px; }
+  .contact-title { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .contact-email { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--gold); margin-top: 4px; }
+
+  .fit-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+  .fit-strong { background: rgba(76,175,80,0.15); color: #81C784; border: 1px solid rgba(76,175,80,0.3); }
+  .fit-good { background: rgba(33,150,243,0.15); color: #64B5F6; border: 1px solid rgba(33,150,243,0.3); }
+  .fit-partial { background: rgba(255,152,0,0.15); color: #FFB74D; border: 1px solid rgba(255,152,0,0.3); }
+
+  .priority { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+  .p-high { color: #EF5350; }
+  .p-med { color: var(--gold); }
+
+  /* Outreach sidebar */
+  .outreach-section { padding: 28px 24px 28px 28px; }
+  .outreach-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .outreach-type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--gold); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .outreach-type::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+  .outreach-body { font-size: 12.5px; line-height: 1.7; color: var(--text); white-space: pre-wrap; }
+  .outreach-body em { color: var(--gold-light); font-style: italic; }
+  .copy-btn { margin-top: 12px; background: rgba(200,169,110,0.1); border: 1px solid var(--border); color: var(--gold); padding: 6px 14px; border-radius: 4px; font-size: 11px; cursor: pointer; letter-spacing: 0.08em; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+  .copy-btn:hover { background: rgba(200,169,110,0.2); }
+  .copy-btn.copied { color: #81C784; border-color: rgba(76,175,80,0.3); }
+
+  /* Outreach label tabs */
+  .tabs { display: flex; gap: 0; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .tab { flex: 1; padding: 8px 4px; text-align: center; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; color: var(--muted); background: transparent; border: none; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+  .tab.active { background: rgba(200,169,110,0.15); color: var(--gold); }
+  .outreach-panel { display: none; }
+  .outreach-panel.active { display: block; }
+
+  /* Footer note */
+  .footer { border-top: 1px solid var(--border); padding: 16px 40px; display: flex; justify-content: space-between; align-items: center; }
+  .footer-note { font-size: 11px; color: var(--muted); }
+  .footer-note strong { color: var(--gold-light); }
+
+  @media print {
+    body { background: white; color: #1C1510; }
+    .copy-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">
+    <div class="brand-name"><em>Hotel Fountain</em> BD</div>
+    <div class="brand-sub">Vibe Prospecting Report — Corporate Tie-Up Campaign</div>
+  </div>
+  <div class="report-meta">
+    <strong>Nikunja 2, Dhaka</strong> · Airport Corridor<br/>
+    Generated: May 12, 2026<br/>
+    Target: Corporate accommodation partnerships
+  </div>
+</div>
+
+<div class="summary-strip">
+  <div class="stat"><div class="stat-val">10</div><div class="stat-lbl">Target Companies</div></div>
+  <div class="stat-sep"></div>
+  <div class="stat"><div class="stat-val">15</div><div class="stat-lbl">Decision Makers</div></div>
+  <div class="stat-sep"></div>
+  <div class="stat"><div class="stat-val">6</div><div class="stat-lbl">Strong ICP Fit</div></div>
+  <div class="stat-sep"></div>
+  <div class="stat"><div class="stat-val">3</div><div class="stat-lbl">Outreach Templates</div></div>
+  <div class="stat-sep"></div>
+  <div class="stat"><div class="stat-val">0–5 min</div><div class="stat-lbl">Walk / Drive to Hotel</div></div>
+</div>
+
+<div class="icp-bar">
+  <span class="icp-label">ICP Filters</span>
+  <span class="pill">HR / Admin Manager</span>
+  <span class="pill">Office Manager</span>
+  <span class="pill">Procurement / Travel Coord.</span>
+  <span class="pill">Tech · Engineering · Telecom</span>
+  <span class="pill">Multinational Corporates</span>
+  <span class="pill">Nikunja 2 · Uttara · Airport Corridor</span>
+  <span class="pill">Dhaka, Bangladesh</span>
+</div>
+
+<div class="main">
+
+  <!-- LEAD TABLE -->
+  <div class="leads-section">
+    <div class="section-title">Ranked Lead Pipeline</div>
+    <table class="lead-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Company</th>
+          <th>Target Contact</th>
+          <th>ICP Fit</th>
+          <th>Priority</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td class="rank">01</td>
+          <td>
+            <div class="co-name">DESCO</div>
+            <div class="co-meta">Dhaka Electric Supply Co. Ltd. · 1,000+ employees · State utility</div>
+            <div class="co-address">Plot 22/B, Kobi Forrukh Soroni, Nikunja-2, Dhaka-1229</div>
+          </td>
+          <td>
+            <div class="contact-name">Admin / HR Manager</div>
+            <div class="contact-title">Head of Administration & HR</div>
+            <div class="contact-email">info@desco.org.bd · mddesco@desco.org.bd</div>
+          </td>
+          <td><span class="fit-badge fit-strong">Strong</span></td>
+          <td class="priority p-high">HIGH</td>
+        </tr>
+
+        <tr>
+          <td class="rank">02</td>
+          <td>
+            <div class="co-name">Kazi IT Center Ltd.</div>
+            <div class="co-meta">BPO / IT services · 501–1,000 employees · North American clients</div>
+            <div class="co-address">House 1/B, Road 12, Nikunja-2, Khilkhet, Dhaka-1229</div>
+          </td>
+          <td>
+            <div class="contact-name">Admin Manager</div>
+            <div class="contact-title">Administration & Operations</div>
+            <div class="contact-email">admin@kaziitcenter.com</div>
+          </td>
+          <td><span class="fit-badge fit-strong">Strong</span></td>
+          <td class="priority p-high">HIGH</td>
+        </tr>
+
+        <tr>
+          <td class="rank">03</td>
+          <td>
+            <div class="co-name">Universal IT</div>
+            <div class="co-meta">BPO / Contact Center · US, UK, Canada clients · Visiting executives</div>
+            <div class="co-address">Nikunja-2, Khilkhet, Dhaka-1229</div>
+          </td>
+          <td>
+            <div class="contact-name">HR & Admin Manager</div>
+            <div class="contact-title">People & Operations Lead</div>
+            <div class="contact-email">Find via: universalit.com.bd</div>
+          </td>
+          <td><span class="fit-badge fit-strong">Strong</span></td>
+          <td class="priority p-high">HIGH</td>
+        </tr>
+
+        <tr>
+          <td class="rank">04</td>
+          <td>
+            <div class="co-name">Walton Hi-Tech Industries</div>
+            <div class="co-meta">Electronics manufacturing · Large corporate · Regional HQ</div>
+            <div class="co-address">Ground & 1st Floor, Nikunja-2, Khilkhet, Dhaka-1229</div>
+          </td>
+          <td>
+            <div class="contact-name">Procurement / Travel Coordinator</div>
+            <div class="contact-title">Corporate Admin & Procurement</div>
+            <div class="contact-email">Find via: waltonbd.com</div>
+          </td>
+          <td><span class="fit-badge fit-strong">Strong</span></td>
+          <td class="priority p-high">HIGH</td>
+        </tr>
+
+        <tr>
+          <td class="rank">05</td>
+          <td>
+            <div class="co-name">Workspace Infotech Ltd.</div>
+            <div class="co-meta">Software engineering · 30 staff · Offshore teams visiting</div>
+            <div class="co-address">House 16, Road 12, Nikunja-2, Dhaka</div>
+          </td>
+          <td>
+            <div class="contact-name">Office Manager</div>
+            <div class="contact-title">Admin & Operations</div>
+            <div class="contact-email">Find via: workspaceit.com</div>
+          </td>
+          <td><span class="fit-badge fit-good">Good</span></td>
+          <td class="priority p-med">MED</td>
+        </tr>
+
+        <tr>
+          <td class="rank">06</td>
+          <td>
+            <div class="co-name">LinkTech IT</div>
+            <div class="co-meta">IT services · App dev, digital marketing · SME</div>
+            <div class="co-address">House 07, Road 18, Nikunja-2, Dhaka-1229</div>
+          </td>
+          <td>
+            <div class="contact-name">HR / Admin Manager</div>
+            <div class="contact-title">Operations & Admin</div>
+            <div class="contact-email">Find via: linktechit.com</div>
+          </td>
+          <td><span class="fit-badge fit-good">Good</span></td>
+          <td class="priority p-med">MED</td>
+        </tr>
+
+        <tr>
+          <td class="rank">07</td>
+          <td>
+            <div class="co-name">Riseup Labs</div>
+            <div class="co-meta">Mobile / games / AI · 100+ staff · Global clients visiting</div>
+            <div class="co-address">Floor 14, Tropical Alauddin Tower, Sector 3, Uttara, Dhaka-1230</div>
+          </td>
+          <td>
+            <div class="contact-name">Admin Manager</div>
+            <div class="contact-title">Corporate Administration</div>
+            <div class="contact-email">Find via: riseuplabs.com/contact</div>
+          </td>
+          <td><span class="fit-badge fit-good">Good</span></td>
+          <td class="priority p-med">MED</td>
+        </tr>
+
+        <tr>
+          <td class="rank">08</td>
+          <td>
+            <div class="co-name">Banglalink (VEON Group)</div>
+            <div class="co-meta">Telecom · Multinational · Regular visiting engineers/executives</div>
+            <div class="co-address">S.B. Plaza, Plot 37, Sector 3, Uttara, Dhaka-1230</div>
+          </td>
+          <td>
+            <div class="contact-name">Travel & Accommodation Coordinator</div>
+            <div class="contact-title">Corporate Admin / Procurement</div>
+            <div class="contact-email">Find via: banglalink.net</div>
+          </td>
+          <td><span class="fit-badge fit-good">Good</span></td>
+          <td class="priority p-med">MED</td>
+        </tr>
+
+        <tr>
+          <td class="rank">09</td>
+          <td>
+            <div class="co-name">Grameenphone (Telenor Group)</div>
+            <div class="co-meta">Telecom · 3,000+ staff · High frequency of visiting Nordic/int'l execs</div>
+            <div class="co-address">GP House, Basundhara, Baridhara, Dhaka-1229</div>
+          </td>
+          <td>
+            <div class="contact-name">Travel & Events Manager</div>
+            <div class="contact-title">Corporate Travel / Procurement</div>
+            <div class="contact-email">Find via: grameenphone.com/contact-us</div>
+          </td>
+          <td><span class="fit-badge fit-partial">Partial</span></td>
+          <td class="priority p-med">MED</td>
+        </tr>
+
+        <tr>
+          <td class="rank">10</td>
+          <td>
+            <div class="co-name">Brainstation 23</div>
+            <div class="co-meta">SaaS / Fintech / Enterprise · Top 10 BD tech firm · Global clients</div>
+            <div class="co-address">Dhaka (multiple offices) · Near airport corridor</div>
+          </td>
+          <td>
+            <div class="contact-name">HR / Admin Manager</div>
+            <div class="contact-title">People Ops / Corporate Admin</div>
+            <div class="contact-email">Find via: brainstation23.com</div>
+          </td>
+          <td><span class="fit-badge fit-partial">Partial</span></td>
+          <td class="priority p-med">MED</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <!-- OUTREACH SIDEBAR -->
+  <div class="outreach-section">
+    <div class="section-title" style="font-size:14px;">Outreach Templates</div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('linkedin')">LinkedIn DM</button>
+      <button class="tab" onclick="showTab('email')">Coffee Email</button>
+      <button class="tab" onclick="showTab('caption')">Social</button>
+    </div>
+
+    <!-- LinkedIn DM -->
+    <div id="panel-linkedin" class="outreach-panel active">
+      <div class="outreach-card">
+        <div class="outreach-type">LinkedIn DM — HR / Admin Manager</div>
+        <div class="outreach-body" id="txt-linkedin">Hi [Name],
+
+We're Hotel Fountain — a boutique 24-room property literally 5 minutes from your office in Nikunja 2.
+
+I noticed [Company] regularly brings in visiting engineers / overseas clients, and I wanted to reach out person-to-person rather than send a brochure.
+
+A few things that might be relevant:
+→ We handle airport pickups (3 AM flights included)
+→ Monthly corporate billing — no per-visit hassle
+→ Quiet, well-appointed rooms designed for work trips
+
+Would love to set up a quick 15-min call or, even better, walk you through the property whenever you're nearby. No pitch deck, I promise.
+
+— Shan
+Hotel Fountain BD, Nikunja 2</div>
+        <button class="copy-btn" onclick="copyText('txt-linkedin', this)">Copy Message</button>
+      </div>
+    </div>
+
+    <!-- Coffee Tour Email -->
+    <div id="panel-email" class="outreach-panel">
+      <div class="outreach-card">
+        <div class="outreach-type">Coffee Tour Email — Decision Maker</div>
+        <div class="outreach-body" id="txt-email">Subject: A 20-minute coffee + hotel tour (we're 5 min from your office)
+
+Hi [Name],
+
+I'm Shan, Operations Manager at Hotel Fountain BD — we're at Nikunja 2, right by the airport.
+
+A lot of companies in your area quietly use us for visiting executives, overseas trainers, and inspection teams — mostly because we're close, billing is easy, and the experience is a step above the usual corporate hotel.
+
+I'd love to invite you for a quick coffee and a look around the property — no formal presentation, just a conversation about whether we could be useful to [Company] whenever you have the need.
+
+Any day this week or next works well. Just reply and I'll confirm a time.
+
+Warm regards,
+Shan Ahmed
+Operations Manager · Hotel Fountain BD
+📍 Nikunja 2, Dhaka-1229
+📞 [Phone number]</div>
+        <button class="copy-btn" onclick="copyText('txt-email', this)">Copy Message</button>
+      </div>
+    </div>
+
+    <!-- Social Caption -->
+    <div id="panel-caption" class="outreach-panel">
+      <div class="outreach-card">
+        <div class="outreach-type">Social Caption — LinkedIn / Facebook</div>
+        <div class="outreach-body" id="txt-caption">If your team flies in experts, trainers, or clients regularly — this one's for you.
+
+Hotel Fountain BD sits 5 minutes from Hazrat Shahjalal Airport in Nikunja 2. We've been quietly hosting corporate guests from some of Dhaka's most active tech and engineering firms.
+
+What makes it work for companies:
+✔ Airport pickup at any hour
+✔ Monthly invoicing, no per-stay admin
+✔ Dedicated point of contact for your HR or admin team
+✔ Comfortable, quiet rooms — not a noisy transit hotel
+
+If you manage accommodation for visiting staff and want to see the property, DM me directly or drop by. The coffee's always on.
+
+#HotelFountainBD #Nikunja2 #CorporateHospitality #Dhaka #BusinessTravel</div>
+        <button class="copy-btn" onclick="copyText('txt-caption', this)">Copy Caption</button>
+      </div>
+    </div>
+
+    <!-- Outreach Strategy Note -->
+    <div style="background: rgba(200,169,110,0.06); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-top: 4px;">
+      <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--gold); margin-bottom: 10px;">Sequencing Strategy</div>
+      <div style="font-size: 12px; color: var(--muted); line-height: 1.8;">
+        <strong style="color:var(--text);">Week 1</strong> — Walk into Tier 1 (DESCO, Kazi IT, Universal IT, Walton) with a physical leave-behind card.<br/>
+        <strong style="color:var(--text);">Week 2</strong> — Send LinkedIn DM to the admin/HR contact identified.<br/>
+        <strong style="color:var(--text);">Week 3</strong> — Follow up with Coffee Tour Email for no-reply.<br/>
+        <strong style="color:var(--text);">Ongoing</strong> — Post Social Caption every 3–4 weeks to stay visible.<br/><br/>
+        <span style="color:var(--gold);">Pro tip:</span> DESCO is the highest priority — they have visiting engineers constantly and the head office is 2 min from Hotel Fountain.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="footer-note">
+    <strong>6 Strong ICP</strong> matches · All companies verified within 2km of Hotel Fountain BD · Nikunja 2, Dhaka-1229
+  </div>
+  <div class="footer-note">
+    Hotel Fountain BD © 2026 · Internal use only
+  </div>
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.outreach-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function copyText(id, btn) {
+  const text = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.innerText;
+    btn.innerText = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerText = orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+{
+  "_comment": "Hotel Fountain BD CRM (Lumea) — Claude Desktop / Cowork project config. Updated 2026-05-01.",
+
+  "project": {
+    "name": "Hotel Fountain BD CRM — Lumea",
+    "stack": ["Next.js 15", "React 18", "Supabase (PostgreSQL)", "TypeScript", "Vercel"],
+    "repo": "https://github.com/Shanwazmojaloy/hotelfountainbdCRM.git",
+    "live_url": "https://hotelfountainbd.vercel.app",
+    "crm_url": "https://hotelfountainbd.vercel.app/crm.html",
+    "supabase_project_ref": "mynwfkgksqqwlqowlscj",
+    "vercel_project_id": "prj_BvTsXnp2GWgXsp6smJOXAm5gLgdr",
+    "vercel_team_id": "team_l1SAECyZJ9giIw4o2SGxjpqd"
+  },
+
+  "architecture": {
+    "core_rule": "Reservation-Centric. Every financial row MUST carry a non-null reservation_id. Never join by room_number or guest_name alone.",
+    "single_source_of_truth": {
+      "crm_html": "public/crm.html (Vercel-served). Root-level crm.html is NOT served — do not edit it.",
+      "canonical_bill_total": "reservations.total_amount. computeBill() falls back to roomCharge+extras only for legacy rows.",
+      "today_filter": "t.fiscal_day === businessDate  (never created_at — see v3.6.2 invariant)",
+      "balance_formula": "max(0, total_amount - discount_amount - paid_amount)  [_resDue pattern]",
+      "biz_day_dedup": "per-reservation bucket keyed by room_number|guest_name; Cash/Bkash takes priority over Final Settlement"
+    },
+    "currency": "BDT (৳). VAT 15% + Service Charge 5% = 20% combined markup on base rate.",
+    "room_count": 24,
+    "status_enums": {
+      "rooms": ["AVAILABLE", "OCCUPIED", "DIRTY", "OUT_OF_ORDER", "RESERVED"],
+      "reservations": ["PENDING", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"]
+    }
+  },
+
+  "key_architecture": {
+    "_note": "As of 2026-05-01 — legacy HS256 JWT keys DISABLED and REVOKED.",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_... (Vercel sensitive env var)",
+    "SUPABASE_SERVICE_ROLE_KEY": "sb_secret_... (Vercel encrypted env var)",
+    "BREVO_API_KEY": "xkeysib-... (Vercel encrypted env var)",
+    "legacy_jwt_status": "REVOKED — HS256 signing key A1647548-C0A5-4EC1-8A9E-EF0A7A346551 permanently revoked 2026-05-01"
+  },
+
+  "vercel_env_ids": {
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "E6ALkqIyxUpKQg3P",
+    "SUPABASE_SERVICE_ROLE_KEY": "W8rd4cL0avYZz3mn",
+    "_usage": "PATCH /api/v10/projects/{projectId}/env/{envId}?teamId={teamId} with browser session credentials"
+  },
+
+  "coding_conventions": {
+    "git_commits": "MUST originate from Windows PowerShell — NOT bash sandbox (.git/*.lock files are Windows-UID-owned)",
+    "after_filter_repo": "git reflog expire --expire=now --all && git gc --prune=now  BEFORE push",
+    "crm_html_edit_check": "After any Edit to public/crm.html: grep ReactDOM.createRoot AND </html> — if either missing, restore tail immediately",
+    "eslint_disable": "eslint-disable-next-line must be on the line IMMEDIATELY before the flagged element — no blank line gap",
+    "catch_binding": "Use bare catch{} not catch(e){} when the error variable is unused",
+    "date_math": "ALL Dhaka date math via _dhakaParts() / todayStr() / todayDhaka(). NEVER new Date(d.toLocaleString('en',{timeZone:'Asia/Dhaka'}))",
+    "folio_fetch": "Always fetch folios by reservation_id. NEVER ?room_number= for folios (v3.2 regression marker)",
+    "status_casing": "All status comparisons UPPERCASE. CHECK constraints in DB enforce this."
+  },
+
+  "schema_notes": {
+    "transactions_reservation_id_fk": "NOT NULL but NO FK constraint yet — manual cascade required on reservation delete (v3.5.1 open item)",
+    "transactions_payment_type": "Column does NOT exist. Payment method is embedded in the type string: 'Room Payment (Cash)' / 'Room Payment (Bkash)'. Parse via /cash/i and /bkash/i regex.",
+    "guests_outstanding_balance": "Cached field — DO NOT trust for display. Compute live via reservations reduce (v3.6.0).",
+    "folios_reservation_id_fk": "FK → reservations(id) ON DELETE CASCADE — confirmed correct",
+    "active_fiscal_day": "Stored in hotel_settings WHERE key='active_fiscal_day'. Controlled by Closing Complete button. Must never advance past Dhaka wall day (v3.5.4 guard)."
+  },
+
+  "pending_migrations": [
+    "supabase/migrations/20260429_status_uppercase_constraints.sql — run in Supabase SQL Editor (owner action)",
+    "ADD CONSTRAINT transactions_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE CASCADE — resolve 24 orphan tx rows first"
+  ],
+
+  "hotel_contact": {
+    "address": "House 05, Road 02, Nikunja 02, Dhaka 1229, Bangladesh",
+    "email": "hotellfountainbd@gmail.com",
+    "whatsapp": "+880 1322-840799",
+    "web": "hotelfountainbd.vercel.app"
+  }
+}
