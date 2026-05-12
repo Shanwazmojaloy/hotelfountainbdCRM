@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "regions": ["sin1"],
+  "rewrites": [
+    { "source": "/crm.html", "destination": "/crm.html" },
+    { "source": "/landing", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/agents/daily-ops",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/agents/weekly-retention",
+      "schedule": "0 3 * * 1"
+    }
+  ]
+}
