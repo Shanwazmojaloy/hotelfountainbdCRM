@@ -5176,25 +5176,74 @@ function App() {
 
       function extractColors(ctx, w, h) {
         const d = ctx.getImageData(0,0,w,h).data
+        // Global average
         let r=0,g=0,b=0,n=0
         for (let i=0;i<d.length;i+=40){r+=d[i];g+=d[i+1];b+=d[i+2];n++}
         r=Math.round(r/n);g=Math.round(g/n);b=Math.round(b/n)
-        const br=(r*299+g*587+b*114)/1000; const isDark=br<145
-        let maxSat=0,ar=200,ag=169,ab=110
-        for (let i=0;i<d.length;i+=160){
+        // Region sampling: bottom-half brightness (where text usually sits)
+        const bot=ctx.getImageData(0,Math.round(h*.55),w,Math.round(h*.45))
+        let br2=0,bn=0
+        for(let i=0;i<bot.data.length;i+=40){br2+=(bot.data[i]*299+bot.data[i+1]*587+bot.data[i+2]*114)/1000;bn++}
+        const botBr=br2/bn
+        const globalBr=(r*299+g*587+b*114)/1000
+        const isDark=globalBr<148
+        // Accent: most vibrant pixel (high saturation + sufficient brightness, not too dark/white)
+        let maxScore=0,ar=200,ag=169,ab=110
+        for(let i=0;i<d.length;i+=80){
           const pr=d[i],pg=d[i+1],pb=d[i+2]
           const mx=Math.max(pr,pg,pb),mn=Math.min(pr,pg,pb)
           const sat=mx===0?0:(mx-mn)/mx
-          if(sat>maxSat&&mx>60){maxSat=sat;ar=pr;ag=pg;ab=pb}
+          const lum=(mx+mn)/2
+          const score=sat*(lum>40&&lum<220?1:0.2)  // penalise near-black/near-white
+          if(score>maxScore){maxScore=score;ar=pr;ag=pg;ab=pb}
         }
+        // Warm/cool tone detection
+        const warmth=r-b
+        const isWarm=warmth>20
+        // Boost accent legibility: if accent is too dark, lighten it
+        const accentBr=(ar*299+ag*587+ab*114)/1000
+        if(accentBr<60){ar=Math.min(255,ar+120);ag=Math.min(255,ag+100);ab=Math.min(255,ab+80)}
         const hex=v=>v.toString(16).padStart(2,'0')
         return {
-          isDark, accent:`#${hex(ar)}${hex(ag)}${hex(ab)}`,
+          isDark, isWarm,
+          accent:`#${hex(ar)}${hex(ag)}${hex(ab)}`,
           avg:`#${hex(r)}${hex(g)}${hex(b)}`,
-          text:isDark?'#FFFFFF':'#1C1510',
-          sub:isDark?'rgba(255,255,255,0.75)':'rgba(28,21,16,0.7)',
-          scrim:isDark?'rgba(0,0,0,0.52)':'rgba(255,255,255,0.45)',
-          panel:isDark?'rgba(0,0,0,0.72)':'rgba(255,255,255,0.82)',
+          text: isDark?'#FFFFFF':'#1A1208',
+          sub:  isDark?'rgba(255,255,255,0.82)':'rgba(26,18,8,0.72)',
+          scrim: botBr<100?'rgba(0,0,0,0.45)': botBr<160?'rgba(0,0,0,0.62)':'rgba(0,0,0,0.78)',
+          panel: isDark?'rgba(10,8,5,0.78)':'rgba(248,244,236,0.88)',
+          botBr, globalBr,
+        }
+      }
+
+      // Smart client-side AI theme analysis
+      function smartAnalyze(ic) {
+        const hex=v=>v.toString(16).padStart(2,'0')
+        // Derive a clean readable accent from image warmth + extracted color
+        let {ar,ag,ab} = (() => {
+          const h=ic.accent; const n=parseInt(h.slice(1),16)
+          return {ar:(n>>16)&255, ag:(n>>8)&255, ab:n&255}
+        })()
+        // If image is warm (hotel rooms, wood tones) → warm gold accent
+        if(ic.isWarm && (ar*299+ag*587+ab*114)/1000 < 180) {
+          ar=Math.min(255,ar+60); ag=Math.min(255,ag+40); ab=Math.max(0,ab-20)
+        }
+        // Ensure accent is bright enough to read on dark image
+        const acBr=(ar*299+ag*587+ab*114)/1000
+        if(acBr<100){const boost=Math.round((100-acBr)*1.4);ar=Math.min(255,ar+boost);ag=Math.min(255,ag+boost);ab=Math.min(255,ab+boost)}
+        const newAccent=`#${hex(ar)}${hex(ag)}${hex(ab)}`
+        // Suggest style based on image character
+        let suggestedStyle='luxury'
+        if(!ic.isWarm && ic.globalBr<80) suggestedStyle='modern'
+        else if(ic.globalBr>160) suggestedStyle='minimal'
+        else if(ic.isWarm && ic.globalBr>100) suggestedStyle='festive'
+        else if(!ic.isWarm) suggestedStyle='corporate'
+        return {
+          newColors:{...ic, accent:newAccent,
+            text:ic.isDark?'#FFFFFF':'#1A1208',
+            sub:ic.isDark?'rgba(255,255,255,0.85)':'rgba(26,18,8,0.75)',
+          },
+          suggestedStyle
         }
       }
 
@@ -5219,14 +5268,20 @@ function App() {
       async function analyzeImageWithAI(){
         if(!pImageData) return
         setPAnalyzing(true)
+        // Always run smart client-side analysis first (instant, no network needed)
+        const {newColors, suggestedStyle} = smartAnalyze(pImageColors||{isDark:true,isWarm:true,accent:'#C8A96E',globalBr:80,text:'#FFFFFF',sub:'rgba(255,255,255,0.75)',scrim:'rgba(0,0,0,0.52)',panel:'rgba(0,0,0,0.72)',avg:'#332211'})
+        setPImageColors(newColors)
+        setPStyle(suggestedStyle)
+        // Then try edge function for additional refinement
         try {
           const r=await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},
-            body:JSON.stringify({action:'analyze_poster_image',image_snippet:pImageData.slice(0,8000),client:pClient})})
+            body:JSON.stringify({action:'analyze_poster_image',image_snippet:pImageData.slice(0,6000),client:pClient}),
+            signal:AbortSignal.timeout(4000)})
           const d=await r.json()
-          if(d.style) setPStyle(d.style)
-          if(d.colors) setPImageColors(prev=>({...prev,...d.colors}))
+          if(d.style && ['luxury','modern','corporate','festive','minimal'].includes(d.style)) setPStyle(d.style)
+          if(d.accent && /^#[0-9a-fA-F]{6}$/.test(d.accent)) setPImageColors(prev=>({...prev,accent:d.accent}))
           toast('AI theme applied ✓')
-        } catch(e){ toast('Using canvas-extracted colors') }
+        } catch(e){ toast(`Smart theme applied — ${suggestedStyle} style ✓`) }
         finally { setPAnalyzing(false) }
       }
 
