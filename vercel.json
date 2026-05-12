@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/agents/reply-intake-poll",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 }
