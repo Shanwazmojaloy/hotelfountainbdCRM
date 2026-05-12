@@ -15,7 +15,7 @@ export const maxDuration = 60;
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const SENDER_NAME  = 'Shan Ahmed — Hotel Fountain BD';
 const SENDER_EMAIL = 'hotellfountainbd@gmail.com';
-const MAX_PER_RUN  = 5;
+const MAX_PER_RUN  = 10;
 
 function buildOutreachHtml(company: string, contactName: string | null, title: string | null): string {
   const greeting = contactName ? `Dear ${contactName},` : 'Dear Sir/Madam,';
@@ -109,14 +109,20 @@ async function runOutreachBot() {
     .eq('tenant_id', TENANT)
     .eq('status', 'pending')
     .not('contact_email', 'is', null)
-    .order('priority', { ascending: false })
-    .limit(MAX_PER_RUN);
+    .limit(MAX_PER_RUN * 3); // Fetch extra — JS sort below selects top MAX_PER_RUN
 
   if (error) return { ok: false, error: error.message };
 
+  // Fix: .order('priority') is alphabetical (h<l<m), so 'high' sorts LAST.
+  // Sort in JS instead: high=1, med=2, low=3.
+  const PRIORITY_RANK: Record<string, number> = { high: 1, med: 2, low: 3 };
+  const sorted = (leads ?? [])
+    .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9))
+    .slice(0, MAX_PER_RUN);
+
   const results: Array<Record<string, unknown>> = [];
 
-  for (const lead of leads ?? []) {
+  for (const lead of sorted) {
     try {
       const subject = `A 20-minute coffee + property tour — we're 5 min from ${lead.company_name}`;
 

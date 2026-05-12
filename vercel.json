@@ -9,6 +9,10 @@
   ],
   "crons": [
     {
+      "path": "/api/agents/outreach-bot",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/agents/daily-ops",
       "schedule": "0 2 * * *"
     },
