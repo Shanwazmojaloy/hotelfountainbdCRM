@@ -5052,6 +5052,7 @@ function App() {
       const [agentAccepted, setAgentAccepted] = useState({researcher:0,strategist:0,copywriter:0,creative:0,analyst:0})
       const [debateClient,  setDebateClient]  = useState('Hotel Fountain')
       const [focusAgent,    setFocusAgent]    = useState(null)
+      const [clientBrains,  setClientBrains]  = useState({})
       const [canvasBrief,   setCanvasBrief]   = useState(null)
       const [selectedPhoto, setSelectedPhoto] = useState('1skrxB3Gb7R5m3VCUTblkSRzvDT7xN0eZ')
       const [canvasDesignType, setCanvasDesignType] = useState('poster')
@@ -5234,12 +5235,7 @@ Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airp
             const m=msg.content.match(/CANVAS_BRIEF:\s*(\{[\s\S]*?\})/);
             if(m){ const brief=JSON.parse(m[1]); setCanvasBrief(brief)
               // Auto-fill poster fields from brief
-              if(brief.title) setPTitle(brief.title)
-              if(brief.subtitle) setPSub(brief.subtitle)
-              if(brief.cta) setPCTA(brief.cta)
-              if(brief.style) setPStyle(brief.style)
-              if(brief.size) setPSize(brief.size)
-              toast('🎨 Canvas brief extracted — Poster Studio auto-filled ✓')
+              toast('🎨 Canvas brief extracted — Canvas Studio ready ✓')
             }
           }catch(e){}
         }
