@@ -5134,6 +5134,19 @@ function App() {
       const [pFooter,   setPFooter]   = useState('+880-1319407384  ·  hotelfountainbd.com')
       const [pClient,   setPClient]   = useState('Hotel Fountain')
       const [pApproval, setPApproval] = useState(false)
+
+      // ── AI Agent Debate state ──────────────────────────────────────────────
+      const [agentMsgs,     setAgentMsgs]     = useState([])
+      const [agentRunning,  setAgentRunning]  = useState(null)
+      const [debateTopic,   setDebateTopic]   = useState('')
+      const [userInput,     setUserInput]     = useState('')
+      const [acceptedOuts,  setAcceptedOuts]  = useState([])
+      const [agentScores,   setAgentScores]   = useState({researcher:72,strategist:68,copywriter:75,creative:70,analyst:65})
+      const [agentAccepted, setAgentAccepted] = useState({researcher:0,strategist:0,copywriter:0,creative:0,analyst:0})
+      const [debateClient,  setDebateClient]  = useState('Hotel Fountain')
+      const [focusAgent,    setFocusAgent]    = useState(null)
+      const [posterOpen,    setPosterOpen]    = useState(false)
+
       const [pImageData,   setPImageData]   = useState(null)
       const [pImageColors, setPImageColors] = useState(null)
       const [pPlacement,   setPPlacement]   = useState('full_bleed')
@@ -5488,757 +5501,422 @@ function App() {
       const charLeft  = charLimit - cCaption.length
       const charPct   = Math.min(100, (cCaption.length / charLimit) * 100)
 
+      // ── Agent config (defined once per render, no hooks) ──────────────────
+      const AGENTS=[
+        {id:'researcher', name:'Researcher',        icon:'🔍', color:'#58A6FF', role:'Competitor intel & market research',        personality:'Data-driven analyst. Cites specific competitors. Challenges strategy with hard facts.'},
+        {id:'strategist', name:'Strategist',         icon:'🧠', color:'#C8A96E', role:'Campaign strategy & content pillars',        personality:'Big-picture thinker. Connects market data to goals. Challenges tactics without strategy.'},
+        {id:'copywriter', name:'Copywriter',         icon:'✍️', color:'#3FB950', role:'Captions, posts & messaging',                personality:'Audience-first writer. Pushes for emotional resonance. Challenges bland corporate tone.'},
+        {id:'creative',   name:'Creative Director',  icon:'🎨', color:'#FF6B8A', role:'Visual brief, poster & brand direction',     personality:'Brand guardian. Thinks in images. Rejects copy that cannot be visualised.'},
+        {id:'analyst',    name:'Analyst',             icon:'📊', color:'#A78BFA', role:'Performance, ROI & optimisation',           personality:'Numbers only. Sceptical of claims without metrics. Always asks "how do we measure this?"'},
+      ]
+
+      const COMPETITOR_CONTEXT=`Hotel competitors in Dhaka to research:
+1. Pan Pacific Sonargaon Dhaka — luxury 5-star, business travelers, Kazi Nazrul Islam Ave
+2. Le Méridien Dhaka — 5-star Marriott brand, premium corporate, Airport Road
+3. Radisson Blu Dhaka Water Garden — 5-star, meetings & events, Airport Road
+4. Westin Dhaka — 5-star Marriott, Gulshan, corporate focus
+5. Amari Dhaka — 5-star Minor Hotels, Gulshan 2
+
+Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airport, personal service, competitive pricing from ৳3500/night, Halal dining.`
+
+      async function callAgent(agentId, extra=''){
+        const ag=AGENTS.find(a=>a.id===agentId); if(!ag) return
+        setAgentRunning(agentId)
+        const cl=clients.find(c=>c.name===debateClient)||clients[0]
+        const brain=cl?(clientBrains[cl.id]||{}):{};
+        const history=agentMsgs.slice(-8).map(m=>{const a=AGENTS.find(x=>x.id===m.agent);return `${a?a.name:'You'}: ${m.content.slice(0,200)}`}).join('\n')
+        const researchPart=agentId==='researcher'?`\n\nCOMPETITOR RESEARCH TASK:\n${COMPETITOR_CONTEXT}\nAnalyse their marketing strategy, pricing messaging, social content themes, target audience. Find 3 exploitable gaps for Hotel Fountain.`:'';
+        const prompt=`You are ${ag.name}, an elite AI marketing agent for a boutique hotel agency.\nRole: ${ag.role}\nPersonality: ${ag.personality}\n\nClient: ${debateClient}\nBrand Voice: ${brain.voice||'Warm, professional, aspirational'}\nICP: ${brain.icp||'Corporate travelers, expats, transit passengers'}\nContent Pillars: ${brain.pillars||'Airport proximity, Premium comfort, Corporate packages'}\nCompetitors: ${brain.competitors||'Pan Pacific, Le Méridien, Radisson Blu'}${researchPart}\n\nMISSION BRIEF: ${debateTopic||'Develop the best marketing strategy for Hotel Fountain Dhaka'}\n${history?`\nDEBATE SO FAR:\n${history}\n`:''}${extra?`\nSPECIFIC QUESTION: ${extra}`:''}\n\nRespond as ${ag.name}. Be specific, direct, challenge previous points if needed. Max 220 words. No preamble.`
+        let content=''
+        try {
+          const r=await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({action:'generate_social_caption',topic:prompt,platform:'linkedin',client:debateClient}),signal:AbortSignal.timeout(18000)})
+          const d=await r.json()
+          content=d.caption||d.content||d.response||''
+        } catch(e){}
+        if(!content) content=agentId==='researcher'?`📊 Competitor Research (baseline):\n\n• Pan Pacific leads on corporate packages (৳12,000+/night) targeting MNCs. Their weakness: impersonal service, no airport proximity messaging.\n• Le Méridien dominates LinkedIn with B2B event content. Gap: they ignore transit passengers entirely.\n• Radisson Blu focuses on weddings/events. Rarely targets corporate solo travelers.\n\n🎯 Hotel Fountain Gaps to Exploit:\n1. "5-minute airport" — none of the big hotels own this positioning\n2. Boutique personalisation vs corporate coldness\n3. Price-value: same proximity, 70% lower rate than 5-star competitors`:agentId==='strategist'?`🧠 Strategy Recommendation:\n\nBased on competitor gaps, I recommend a 3-pillar campaign:\n\n1. OWN "The Airport Hotel" positioning — make 5-min proximity the hero message across all channels\n2. CORPORATE COMFORT — target "road warriors" with monthly corporate rate packages, LinkedIn-first\n3. PERSONAL LUXURY — contrast boutique warmth vs cold 5-star chains on Instagram\n\nPriority: LinkedIn for corporate leads, Instagram for aspirational, Facebook for local market.\nBudget split: 50% LinkedIn ads / 30% Instagram / 20% Facebook retargeting.`:agentId==='copywriter'?`✍️ Draft Copy Lines:\n\n**LinkedIn:** "While others check in to a hotel, our guests arrive home. 5 minutes from Dhaka airport, Hotel Fountain offers what 5-star chains can't — your name remembered."\n\n**Instagram:** "✈️ Land. Shower. Meeting-ready in 45 minutes. That's the Hotel Fountain promise. #DhakaAirportHotel #BusinessTravel"\n\n**Facebook:** "Corporate rate from ৳3,500/night. Free airport transfer. Conference room included. Your Dhaka base camp."\n\n**Challenge to Strategist:** "Airport Hotel" is correct but we need an emotional hook — I suggest "Dhaka's most convenient luxury" as the brand line.`:agentId==='creative'?`🎨 Creative Direction:\n\nVisual Brief — "The 5-Minute Promise" Campaign:\n\n• **Hero image:** Aerial shot of hotel with airport visible in background. Overlay: "5 min ✈️"\n• **Color palette:** Warm ivory + deep gold (trust + luxury) against Dhaka night skyline\n• **Typography:** Libre Baskerville for headlines (editorial authority), DM Sans for body\n• **Content series:** "From gate to great" — time-lapse style: plane lands → taxi → hotel lobby → fresh coffee\n\n📌 Poster brief: Full-bleed hotel room photo, Luxury Editorial style, headline "The Airport Hotel. Finally." CTA: "Book Your Room"\n\n**Challenge to Copywriter:** "Your name remembered" is strong but unverifiable. Suggest "Your preferences remembered" — more credible.`:agentId==='analyst'?`📊 Performance Framework:\n\nKPIs I want tracked before approving this campaign:\n\n**Awareness:** Impressions target 50,000/month LinkedIn + 80,000 Instagram\n**Engagement:** CTR >2.5% on corporate posts (industry avg 1.8%)\n**Conversion:** Cost per booking inquiry <৳850\n**Revenue:** Target 40% occupancy uplift in corporate segment (currently ~28%)\n\nRecommendations:\n1. A/B test "5-minute airport" vs "boutique luxury" as hero message — run 2 weeks each\n2. LinkedIn InMail to Dhaka-based MNCs (50-200 employees) — highest ROI channel\n3. Track booking source in PMS to attribute social ROI\n\n**Challenge to Strategist:** 50% LinkedIn budget is justified only if corporate segment is >40% of revenue. What's the current mix?`:'[Agent offline — please try again]'
+        const newMsg={id:Date.now(),agent:agentId,content,accepted:false,ts:new Date().toLocaleTimeString()}
+        setAgentMsgs(prev=>[...prev,newMsg])
+        setAgentRunning(null)
+        return newMsg
+      }
+
+      async function runChain(startIdx){
+        const order=['researcher','strategist','copywriter','creative','analyst']
+        for(let i=startIdx;i<order.length;i++){
+          await callAgent(order[i])
+          await new Promise(r=>setTimeout(r,800))
+        }
+      }
+
+      function acceptMessage(msgId){
+        setAgentMsgs(prev=>prev.map(m=>m.id===msgId?{...m,accepted:true}:m))
+        const msg=agentMsgs.find(m=>m.id===msgId); if(!msg) return
+        setAcceptedOuts(prev=>[...prev,msg])
+        setAgentScores(prev=>({...prev,[msg.agent]:Math.min(99,prev[msg.agent]+3)}))
+        setAgentAccepted(prev=>({...prev,[msg.agent]:(prev[msg.agent]||0)+1}))
+        // Save to client brain
+        const cl=clients.find(c=>c.name===debateClient)
+        if(cl) setClientBrains(prev=>({...prev,[cl.id]:{...(prev[cl.id]||{}),lastAccepted:msg.content.slice(0,300)}}))
+        toast(`${AGENTS.find(a=>a.id===msg.agent)?.name||'Agent'} output accepted — confidence +3% ✓`)
+      }
+
+      async function sendUserMessage(){
+        if(!userInput.trim()) return
+        const uMsg={id:Date.now(),agent:'user',content:userInput,accepted:false,ts:new Date().toLocaleTimeString()}
+        setAgentMsgs(prev=>[...prev,uMsg])
+        const input=userInput; setUserInput('')
+        // Auto-respond with focused agent or round-robin
+        const nextAg=focusAgent||(agentMsgs.length%5===0?'researcher':agentMsgs.length%5===1?'strategist':agentMsgs.length%5===2?'copywriter':agentMsgs.length%5===3?'creative':'analyst')
+        await callAgent(nextAg, input)
+      }
+
       // ── Render ─────────────────────────────────────────────────────────────
       return (
-        <div>
-          {/* ── Header ── */}
-          <div style={{background:'linear-gradient(135deg,rgba(88,166,255,.08),rgba(200,169,110,.04))',border:'1px solid rgba(88,166,255,.2)',padding:'14px 18px',marginBottom:20}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div>
-                <div style={{fontFamily:'var(--serif)',fontSize:20,color:'var(--sky)'}}>📱 Social Media Agency</div>
-                <div style={{fontSize:11,color:'var(--tx3)',marginTop:4}}>
-                  {clients.length} clients &nbsp;·&nbsp; {posts.filter(p=>p.status==='scheduled').length} scheduled &nbsp;·&nbsp; {campaigns.filter(c=>c.status==='active').length} active campaigns
-                </div>
-              </div>
-              <div style={{display:'flex',gap:8}}>
-                {Object.entries(PLATFORM_CFG).map(([k,v])=>(
-                  <span key={k} style={{fontSize:20,opacity:.8}} title={v.label}>{v.icon}</span>
-                ))}
-              </div>
+        <div style={{paddingBottom:40}}>
+          {/* Header */}
+          <div style={{background:'linear-gradient(135deg,rgba(200,169,110,.1),rgba(88,166,255,.06))',border:'1px solid rgba(200,169,110,.25)',borderRadius:8,padding:'14px 18px',marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}}>
+            <div>
+              <div style={{fontSize:20,fontWeight:700,color:'var(--gold)',fontFamily:'Georgia,serif'}}>🤖 AI Marketing Agency</div>
+              <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>{agentMsgs.length} exchanges · {acceptedOuts.length} accepted outputs · {clients.length} clients</div>
             </div>
+            <div style={{display:'flex',gap:14,alignItems:'center'}}>
+              {AGENTS.map(ag=>(
+                <div key={ag.id} onClick={()=>setFocusAgent(prev=>prev===ag.id?null:ag.id)}
+                  style={{textAlign:'center',cursor:'pointer',opacity:focusAgent&&focusAgent!==ag.id?.45:1,transition:'opacity .2s'}}>
+                  <div style={{fontSize:20,filter:agentRunning===ag.id?'drop-shadow(0 0 6px '+ag.color+')':'none',transition:'filter .3s'}}>{ag.icon}</div>
+                  <div style={{fontSize:8,color:ag.color,fontWeight:600,marginTop:2}}>{ag.name.split(' ')[0].toUpperCase()}</div>
+                  <div style={{width:36,height:3,background:'rgba(255,255,255,.1)',borderRadius:2,marginTop:3}}>
+                    <div style={{width:`${agentScores[ag.id]}%`,height:'100%',background:ag.color,borderRadius:2,transition:'width .6s'}}/>
+                  </div>
+                  <div style={{fontSize:7,color:'var(--tx3)',marginTop:1}}>{agentScores[ag.id]}%</div>
+                </div>
+              ))}
+            </div>
+            <select className="finput" style={{fontSize:12,width:160}} value={debateClient} onChange={e=>setDebateClient(e.target.value)}>
+              {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
           </div>
 
-          {/* ── Tab Bar ── */}
-          <div className="tabs mb4">
-            {[['clients','🏢 Clients'],['composer','✍️ Composer'],['schedule','📅 Schedule'],['design','🎨 Design'],['analytics','📊 Analytics'],['campaigns','🎯 Campaigns'],['poster','🖼 Poster Studio']].map(([v,l])=>(
-              <button key={v} className={`tab${tab===v?' on':''}`} onClick={()=>setTab(v)}>{l}</button>
-            ))}
-          </div>
+          {/* 3-column grid */}
+          <div style={{display:'grid',gridTemplateColumns:'200px 1fr 270px',gap:14,alignItems:'start'}}>
 
-          {/* ════════ CLIENTS ════════ */}
-          {tab==='clients' && (
-            <div>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-                <div style={{fontSize:12,color:'var(--tx3)'}}>{clients.length} client brands</div>
-                <button className="btn btn-gold btn-sm" onClick={()=>setShowAddClient(s=>!s)}>+ Add Client</button>
-              </div>
-
-              {showAddClient && (
-                <div className="card mb3" style={{background:'rgba(200,169,110,.04)',border:'1px solid rgba(200,169,110,.2)'}}>
-                  <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>New Client Brand</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-                    <div className="fg">
-                      <label className="flbl">Brand Name</label>
-                      <input className="finput" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="e.g. Mondol Group" />
-                    </div>
-                    <div className="fg">
-                      <label className="flbl">Industry</label>
-                      <input className="finput" value={newIndustry} onChange={e=>setNewIndustry(e.target.value)} placeholder="e.g. Manufacturing" />
+            {/* LEFT — Agent roster */}
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {AGENTS.map(ag=>(
+                <div key={ag.id} className="card" onClick={()=>setFocusAgent(prev=>prev===ag.id?null:ag.id)}
+                  style={{cursor:'pointer',border:`1px solid ${focusAgent===ag.id?ag.color:'var(--br)'}`,transition:'border .2s',padding:'10px 12px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                    <span style={{fontSize:18,filter:agentRunning===ag.id?`drop-shadow(0 0 8px ${ag.color})`:'none'}}>{ag.icon}</span>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:600,color:ag.color}}>{ag.name}</div>
+                      <div style={{fontSize:9,color:'var(--tx3)',lineHeight:1.3}}>{ag.role}</div>
                     </div>
                   </div>
-                  <div style={{marginBottom:12}}>
-                    <label className="flbl" style={{display:'block',marginBottom:6}}>Platforms</label>
-                    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                      {Object.entries(PLATFORM_CFG).map(([k,v])=>(
-                        <button key={k} onClick={()=>setNewPlats(p=>p.includes(k)?p.filter(x=>x!==k):[...p,k])}
-                          style={{padding:'6px 14px',fontSize:11,background:newPlats.includes(k)?v.color+'22':'rgba(0,0,0,.2)',border:`1px solid ${newPlats.includes(k)?v.color:'var(--br)'}`,color:newPlats.includes(k)?v.color:'var(--tx3)',cursor:'pointer'}}>
-                          {v.icon} {v.label}
-                        </button>
-                      ))}
-                    </div>
+                  <div style={{background:'rgba(255,255,255,.08)',borderRadius:3,height:4,marginBottom:4}}>
+                    <div style={{width:`${agentScores[ag.id]}%`,height:'100%',background:ag.color,borderRadius:3,transition:'width .6s'}}/>
                   </div>
-                  <div style={{display:'flex',gap:8}}>
-                    <button className="btn btn-gold btn-sm" onClick={()=>{
-                      if(!newName.trim()) return
-                      const palette=['#C8A96E','#58A6FF','#3FB950','#FF6B8A','#A0AEC0','#2EC4B6']
-                      const c={id:Date.now(),name:newName,ini:newName.slice(0,2).toUpperCase(),color:palette[clients.length%palette.length],industry:newIndustry||'General',platforms:newPlats.length?newPlats:['instagram']}
-                      setClients(p=>[...p,c]); setNewName(''); setNewIndustry(''); setNewPlats([]); setShowAddClient(false); toast(`${c.name} added ✓`)
-                    }}>Save Client</button>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>setShowAddClient(false)}>Cancel</button>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'var(--tx3)'}}>
+                    <span>{agentScores[ag.id]}% confidence</span>
+                    <span>{agentAccepted[ag.id]||0} accepted</span>
                   </div>
-                </div>
-              )}
-
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
-                {clients.map(c=>(
-                  <div key={c.id} className="card" style={{borderColor:'var(--br)',transition:'border-color .2s'}}
-                    onMouseEnter={e=>e.currentTarget.style.borderColor=c.color+'55'}
-                    onMouseLeave={e=>e.currentTarget.style.borderColor='var(--br)'}>
-                    <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
-                      <div style={{width:42,height:42,borderRadius:'50%',background:c.color+'20',border:`2px solid ${c.color}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:c.color,flexShrink:0}}>{c.ini}</div>
-                      <div>
-                        <div style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{c.name}</div>
-                        <div style={{fontSize:10,color:'var(--tx3)'}}>{c.industry}</div>
-                      </div>
-                    </div>
-                    <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
-                      {c.platforms.map(p=>(
-                        <span key={p} title={PLATFORM_CFG[p]?.label} style={{fontSize:16,opacity:.8}}>{PLATFORM_CFG[p]?.icon}</span>
-                      ))}
-                    </div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-                      {[['Posts', posts.filter(p=>p.client_name===c.name).length || 0],
-                        ['Campaigns', campaigns.filter(cp=>cp.client===c.name).length || 0]].map(([l,v])=>(
-                        <div key={l} style={{background:'rgba(0,0,0,.2)',padding:'8px',textAlign:'center'}}>
-                          <div style={{fontSize:20,fontWeight:600,color:c.color,fontFamily:'var(--mono)'}}>{v}</div>
-                          <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.08em'}}>{l}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{display:'flex',gap:6,marginTop:0}}>
-                      <button className="btn btn-ghost btn-sm" style={{flex:1,fontSize:10}}
-                        onClick={()=>{setCClient(c.name); setTab('composer')}}>✍️ Compose</button>
-                      <button onClick={()=>setShowBrain(showBrain===c.id?null:c.id)}
-                        style={{flex:1,padding:'5px 8px',fontSize:10,background:showBrain===c.id?'rgba(88,166,255,.12)':'rgba(0,0,0,.2)',border:`1px solid ${showBrain===c.id?'rgba(88,166,255,.4)':'var(--br)'}`,color:showBrain===c.id?'var(--sky)':'var(--tx3)',cursor:'pointer'}}>
-                        🧠 Brain
-                      </button>
-                    </div>
-                    {showBrain===c.id&&(
-                      <div style={{marginTop:10,padding:'12px',background:'rgba(88,166,255,.04)',border:'1px solid rgba(88,166,255,.15)'}}>
-                        <div style={{fontSize:11,fontWeight:600,color:'var(--sky)',marginBottom:10}}>🧠 Brand Brain — {c.name}</div>
-                        <div className="fg mb2">
-                          <label className="flbl">Brand Voice & Tone</label>
-                          <textarea className="finput" rows={2} style={{fontSize:11}}
-                            value={(clientBrains[c.id]||{}).voice||''}
-                            onChange={e=>setClientBrains(b=>({...b,[c.id]:{...(b[c.id]||{}),voice:e.target.value}}))}
-                            placeholder="Warm, professional. Never pushy. Aspirational tone."/>
-                        </div>
-                        <div className="fg mb2">
-                          <label className="flbl">ICP — Ideal Customer Profile</label>
-                          <textarea className="finput" rows={2} style={{fontSize:11}}
-                            value={(clientBrains[c.id]||{}).icp||''}
-                            onChange={e=>setClientBrains(b=>({...b,[c.id]:{...(b[c.id]||{}),icp:e.target.value}}))}
-                            placeholder="Corporate travelers, Japanese expats, transit passengers"/>
-                        </div>
-                        <div className="fg mb2">
-                          <label className="flbl">Content Pillars (comma-separated)</label>
-                          <input className="finput" style={{fontSize:11}}
-                            value={(clientBrains[c.id]||{}).pillars||''}
-                            onChange={e=>setClientBrains(b=>({...b,[c.id]:{...(b[c.id]||{}),pillars:e.target.value}}))}
-                            placeholder="Airport proximity,Corporate packages,Premium comfort"/>
-                        </div>
-                        <div className="fg mb2">
-                          <label className="flbl">Competitors to outperform</label>
-                          <input className="finput" style={{fontSize:11}}
-                            value={(clientBrains[c.id]||{}).competitors||''}
-                            onChange={e=>setClientBrains(b=>({...b,[c.id]:{...(b[c.id]||{}),competitors:e.target.value}}))}
-                            placeholder="Pan Pacific, Le Méridien, Radisson Blu"/>
-                        </div>
-                        <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                          <button className="btn btn-sm" style={{background:'rgba(88,166,255,.12)',border:'1px solid rgba(88,166,255,.3)',color:'var(--sky)',fontSize:10}}
-                            onClick={async()=>{
-                              setSavingBrain(true)
-                              try { await fetch(`${SB_URL}/rest/v1/social_clients?id=eq.${c.id}&tenant_id=eq.${TENANT}`,{method:'PATCH',headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({brand_voice:clientBrains[c.id]})}) } catch(e){}
-                              setSavingBrain(false); toast(`Brain saved for ${c.name} ✓`)
-                            }}>
-                            {savingBrain?'Saving…':'💾 Save Brain'}
-                          </button>
-                          <div style={{fontSize:9,color:'var(--tx3)'}}>Used by AI caption generator automatically</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ════════ COMPOSER ════════ */}
-          {tab==='composer' && (
-            <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:16}}>
-              <div>
-                <div className="card mb3">
-                  <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:14}}>✍️ Compose Post</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-                    <div className="fg">
-                      <label className="flbl">Client</label>
-                      <select className="finput" value={cClient} onChange={e=>setCClient(e.target.value)}>
-                        {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="fg">
-                      <label className="flbl">Schedule</label>
-                      <input className="finput" type="datetime-local" value={cSchedule} onChange={e=>setCSchedule(e.target.value)}/>
-                    </div>
-                  </div>
-
-                  <div style={{marginBottom:12}}>
-                    <label className="flbl" style={{display:'block',marginBottom:6}}>Platform</label>
-                    <div style={{display:'flex',gap:8}}>
-                      {Object.entries(PLATFORM_CFG).map(([k,v])=>(
-                        <button key={k} onClick={()=>setCPlatform(k)}
-                          style={{flex:1,padding:'9px 6px',fontSize:10,textAlign:'center',background:cPlatform===k?v.color+'20':'rgba(0,0,0,.2)',border:`1px solid ${cPlatform===k?v.color:'var(--br)'}`,color:cPlatform===k?v.color:'var(--tx3)',cursor:'pointer',transition:'all .15s'}}>
-                          <div style={{fontSize:18,marginBottom:3}}>{v.icon}</div>
-                          <div style={{fontWeight:cPlatform===k?600:400}}>{v.label}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="fg mb3">
-                    <label className="flbl">Topic / Brief (for AI)</label>
-                    <input className="finput" value={cTopic} onChange={e=>setCTopic(e.target.value)} placeholder={`e.g. Promote weekend room deals for ${cClient}`}/>
-                  </div>
-
-                  <button className="btn btn-gold" style={{width:'100%',marginBottom:14}} disabled={aiLoading} onClick={generateCaption}>
-                    {aiLoading?<><span className="spinner" style={{width:12,height:12}}/>{' '}Generating AI Caption…</>:'✨ Generate AI Caption'}
+                  {agentRunning===ag.id&&<div style={{fontSize:9,color:ag.color,marginTop:4,animation:'pulse 1.2s infinite'}}>● thinking...</div>}
+                  <button onClick={e=>{e.stopPropagation();if(debateTopic.trim()||agentMsgs.length>0)callAgent(ag.id)}}
+                    style={{marginTop:7,width:'100%',padding:'5px',fontSize:10,background:`${ag.color}18`,border:`1px solid ${ag.color}55`,color:ag.color,borderRadius:4,cursor:'pointer'}}>
+                    Ask {ag.name.split(' ')[0]}
                   </button>
-
-                  <div className="fg">
-                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                      <label className="flbl" style={{margin:0}}>Caption</label>
-                      <span style={{fontSize:10,color:charLeft<50?'var(--rose)':charLeft<200?'var(--gold)':'var(--tx3)',fontFamily:'var(--mono)'}}>{charLeft.toLocaleString()} left</span>
-                    </div>
-                    <textarea className="finput" rows={8} value={cCaption} onChange={e=>setCCaption(e.target.value)}
-                      placeholder="Write your caption or hit Generate AI Caption above…"
-                      style={{resize:'vertical',fontFamily:'var(--sans)',lineHeight:1.7}}/>
-                    <div style={{height:3,background:'rgba(0,0,0,.3)',borderRadius:2,overflow:'hidden',marginTop:4}}>
-                      <div style={{height:'100%',width:`${charPct}%`,background:charPct>90?'var(--rose)':charPct>70?'var(--gold)':'var(--grn)',borderRadius:2,transition:'width .2s'}}/>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{display:'flex',gap:8}}>
-                  <button className="btn btn-ghost" style={{flex:1}} onClick={()=>savePost('draft')}>💾 Save Draft</button>
-                  <button className="btn btn-gold" style={{flex:2}} onClick={()=>savePost('scheduled')}>📅 Schedule Post</button>
-                </div>
-              </div>
-
-              {/* Preview + recent drafts */}
-              <div>
-                <div className="card mb3">
-                  <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>👁 PREVIEW</div>
-                  <div style={{background:'rgba(0,0,0,.35)',border:'1px solid var(--br)',borderRadius:6,overflow:'hidden'}}>
-                    <div style={{background:(platCfg?.color||'#888')+'18',padding:'10px 12px',display:'flex',alignItems:'center',gap:8,borderBottom:'1px solid var(--br)'}}>
-                      <span style={{fontSize:20}}>{platCfg?.icon}</span>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:600,color:'var(--tx)'}}>{cClient}</div>
-                        <div style={{fontSize:9,color:'var(--tx3)'}}>
-                          {cSchedule?new Date(cSchedule).toLocaleString('en',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Now'}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{padding:'12px',fontSize:12,color:'var(--tx2)',lineHeight:1.75,minHeight:100,whiteSpace:'pre-wrap'}}>
-                      {cCaption||<span style={{color:'var(--tx3)',fontStyle:'italic'}}>Caption preview…</span>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div style={{fontSize:10,fontWeight:600,color:'var(--tx3)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.1em'}}>Recent Drafts</div>
-                  {posts.filter(p=>p.status==='draft').slice(0,4).map((p,i)=>(
-                    <div key={i} onClick={()=>{setCCaption(p.caption);setCClient(p.client_name);setCPlatform(p.platform)}}
-                      style={{padding:'8px 0',borderBottom:'1px solid var(--br2)',cursor:'pointer'}}>
-                      <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:2}}>
-                        <span style={{fontSize:14}}>{PLATFORM_CFG[p.platform]?.icon}</span>
-                        <span style={{fontSize:9,color:'var(--tx3)'}}>{p.client_name}</span>
-                      </div>
-                      <div style={{fontSize:11,color:'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.caption}</div>
-                    </div>
-                  ))}
-                  {!posts.filter(p=>p.status==='draft').length&&<div style={{fontSize:11,color:'var(--tx3)',textAlign:'center',padding:'10px 0'}}>No drafts yet</div>}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ════════ SCHEDULE ════════ */}
-          {tab==='schedule' && (
-            <div>
-              <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
-                <span style={{fontSize:11,color:'var(--tx3)'}}>Filter:</span>
-                {[['all','All'],['scheduled','📅 Scheduled'],['draft','📝 Drafts'],['published','✓ Published']].map(([v,l])=>(
-                  <button key={v} onClick={()=>setSchedFilter(v)}
-                    className={`btn btn-ghost btn-sm`}
-                    style={{fontSize:10,background:schedFilter===v?'rgba(200,169,110,.12)':'',borderColor:schedFilter===v?'rgba(200,169,110,.4)':'var(--br)',color:schedFilter===v?'var(--gold)':'var(--tx3)'}}>
-                    {l}
-                  </button>
-                ))}
-                <span style={{marginLeft:'auto',fontSize:10,color:'var(--tx3)'}}>
-                  {posts.filter(p=>schedFilter==='all'||p.status===schedFilter).length} posts
-                </span>
-              </div>
-
-              {loadingPosts&&<div style={{textAlign:'center',padding:24,color:'var(--tx3)',fontSize:12}}>Loading…</div>}
-
-              <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                {posts.filter(p=>schedFilter==='all'||p.status===schedFilter)
-                  .sort((a,b)=>new Date(b.scheduled_at)-new Date(a.scheduled_at))
-                  .map((p,i)=>{
-                    const sc={scheduled:'var(--gold)',draft:'var(--sky)',published:'var(--grn)'}[p.status]||'var(--tx3)'
-                    return (
-                      <div key={p.id||i} style={{background:'rgba(0,0,0,.15)',border:'1px solid var(--br)',padding:'12px 14px',display:'flex',alignItems:'flex-start',gap:12}}
-                        onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(200,169,110,.3)'}
-                        onMouseLeave={e=>e.currentTarget.style.borderColor='var(--br)'}>
-                        <span style={{fontSize:22,flexShrink:0,marginTop:2}}>{PLATFORM_CFG[p.platform]?.icon||'📄'}</span>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap'}}>
-                            <span style={{fontSize:11,fontWeight:600,color:'var(--tx)'}}>{p.client_name}</span>
-                            <span style={{fontSize:9,color:PLATFORM_CFG[p.platform]?.color||'var(--tx3)',background:(PLATFORM_CFG[p.platform]?.color||'#888')+'15',padding:'1px 7px',border:`1px solid ${(PLATFORM_CFG[p.platform]?.color||'#888')}33`}}>
-                              {PLATFORM_CFG[p.platform]?.label}
-                            </span>
-                            <span style={{fontSize:9,color:sc,background:sc+'15',padding:'1px 7px',border:`1px solid ${sc}33`,textTransform:'uppercase',letterSpacing:'.06em'}}>{p.status}</span>
-                          </div>
-                          <div style={{fontSize:12,color:'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.caption}</div>
-                        </div>
-                        <div style={{fontSize:9,color:'var(--tx3)',flexShrink:0,textAlign:'right',lineHeight:1.8}}>
-                          {p.scheduled_at?new Date(p.scheduled_at).toLocaleDateString('en',{month:'short',day:'numeric'}):'—'}
-                          <br/>{p.scheduled_at?new Date(p.scheduled_at).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}):''}
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-
-              {!posts.filter(p=>schedFilter==='all'||p.status===schedFilter).length&&(
-                <div style={{textAlign:'center',padding:'40px',color:'var(--tx3)'}}>
-                  <div style={{fontSize:32,marginBottom:12}}>📭</div>
-                  <div style={{fontSize:13}}>No posts yet — go to Composer to create one</div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ════════ DESIGN STUDIO ════════ */}
-          {tab==='design' && (()=>{
-            const DS_PLATFORMS=[
-              {id:'instagram_post',  label:'Instagram Post',  w:1080,h:1080},
-              {id:'instagram_story', label:'Instagram Story', w:1080,h:1920},
-              {id:'facebook_post',   label:'Facebook Post',   w:1200,h:630},
-              {id:'linkedin_post',   label:'LinkedIn Post',   w:1200,h:627},
-              {id:'twitter_post',    label:'Twitter/X Post',  w:1200,h:675},
-            ]
-            const DS_THEMES=[
-              {id:'room_promo',   label:'🛏 Room Promo',       headline:'Premium Rooms',     sub:'From ৳3,500/night',        cta:'Book Now'},
-              {id:'corporate_pkg',label:'💼 Corporate Package', headline:'Corporate Packages', sub:'Exclusive Business Rates',     cta:'Get Quote'},
-              {id:'dining',       label:'🍽 Dining',            headline:'Fine Dining',        sub:'World-Class Cuisine',           cta:'Reserve Table'},
-              {id:'weekend_deal', label:'🌟 Weekend Deal',      headline:'Weekend Escape',     sub:'Special Packages Available',    cta:'View Deals'},
-              {id:'event_mtg',    label:'🎪 Events & Meetings', headline:'Events & Meetings',  sub:'Premium Facilities',            cta:'Inquire Now'},
-            ]
-            const DS_BGS=[
-              {id:'twilight_gold',label:'✨ Twilight Gold', from:'#1a1208',to:'#2d1e05',accent:'#C8A96E',text:'#F5EDD8'},
-              {id:'midnight_blue',label:'🌙 Midnight Blue',from:'#080d1a',to:'#0d1f3c',accent:'#58A6FF',text:'#E8F0FF'},
-              {id:'emerald_night',label:'💚 Emerald Night',from:'#081a10',to:'#0a2a18',accent:'#3FB950',text:'#E0FFE8'},
-              {id:'rose_dawn',    label:'🌹 Rose Dawn',  from:'#1a080d',to:'#2d0a18',accent:'#FF6B8A',text:'#FFE0E8'},
-              {id:'slate_grey',   label:'🩶 Slate Grey', from:'#0a0a0f',to:'#1a1a28',accent:'#A0AEC0',text:'#E8ECF0'},
-              {id:'ivory_warm',   label:'🪔 Ivory Warm', from:'#1a150f',to:'#2d2015',accent:'#E8D5B0',text:'#FFF8F0'},
-            ]
-            const plat  = DS_PLATFORMS.find(p=>p.id===dPlatform)||DS_PLATFORMS[0]
-            const theme = DS_THEMES.find(t=>t.id===dTheme)||DS_THEMES[0]
-            const bg    = DS_BGS.find(b=>b.id===dBg)||DS_BGS[0]
-            const layout= dSeed%5
-            const {w,h} = plat
-            const hotel  = 'Hotel Fountain'
-            const tagline= 'Nikunja 2, Dhaka · 5 min from Airport'
-
-            function makeSVG(){
-              const {headline,sub,cta}=theme; const c=bg
-              if(layout===0) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><filter id="glo"><feGaussianBlur stdDeviation="40"/></filter></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w*.8)}" cy="${Math.round(h*.2)}" r="${Math.round(w*.35)}" fill="${c.accent}" opacity="0.07" filter="url(#glo)"/><circle cx="${Math.round(w*.15)}" cy="${Math.round(h*.75)}" r="${Math.round(w*.25)}" fill="${c.accent}" opacity="0.05" filter="url(#glo)"/><rect x="${Math.round(w*.08)}" y="${Math.round(h*.08)}" width="${Math.round(w*.84)}" height="${Math.round(h*.84)}" fill="none" stroke="${c.accent}" stroke-width="1" opacity="0.3"/><text x="${Math.round(w/2)}" y="${Math.round(h*.36)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.045)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><rect x="${Math.round(w*.36)}" y="${Math.round(h*.40)}" width="${Math.round(w*.28)}" height="1" fill="${c.accent}" opacity="0.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.52)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.074)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.61)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.text}" opacity="0.75">${sub}</text><rect x="${Math.round(w*.37)}" y="${Math.round(h*.67)}" width="${Math.round(w*.26)}" height="${Math.round(h*.065)}" rx="2" fill="${c.accent}" opacity="0.15" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w/2)}" y="${Math.round(h*.712)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.025)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.86)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
-              if(layout===1) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><linearGradient id="side" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${c.accent}" stop-opacity="0.18"/><stop offset="100%" stop-color="${c.accent}" stop-opacity="0.03"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${Math.round(w*.44)}" height="${h}" fill="url(#side)"/><rect x="${Math.round(w*.44)}" y="${Math.round(h*.1)}" width="1" height="${Math.round(h*.8)}" fill="${c.accent}" opacity="0.35"/><text x="${Math.round(w*.22)}" y="${Math.round(h*.4)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.036)}" fill="${c.accent}" letter-spacing="3">${hotel.toUpperCase()}</text><text x="${Math.round(w*.22)}" y="${Math.round(h*.49)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.text}" opacity="0.55">${tagline}</text><text x="${Math.round(w*.63)}" y="${Math.round(h*.38)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.063)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w*.63)}" y="${Math.round(h*.47)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.025)}" fill="${c.text}" opacity="0.7">${sub}</text><rect x="${Math.round(w*.52)}" y="${Math.round(h*.56)}" width="${Math.round(w*.22)}" height="${Math.round(h*.06)}" rx="2" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w*.63)}" y="${Math.round(h*.6)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text></svg>`
-              if(layout===2) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${w}" height="${Math.round(h*.13)}" fill="${c.accent}" opacity="0.12"/><text x="${Math.round(w/2)}" y="${Math.round(h*.085)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.03)}" fill="${c.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.36)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.078)}" fill="${c.text}" font-weight="bold">${headline}</text><rect x="${Math.round(w*.4)}" y="${Math.round(h*.41)}" width="${Math.round(w*.2)}" height="2" fill="${c.accent}" opacity="0.55"/><text x="${Math.round(w/2)}" y="${Math.round(h*.5)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.027)}" fill="${c.text}" opacity="0.72">${sub}</text><rect x="0" y="${Math.round(h*.8)}" width="${w}" height="${Math.round(h*.2)}" fill="${c.accent}" opacity="0.07"/><rect x="${Math.round(w*.38)}" y="${Math.round(h*.845)}" width="${Math.round(w*.24)}" height="${Math.round(h*.065)}" rx="2" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.888)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.95)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
-              if(layout===3) return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><polygon points="${Math.round(w*.6)},0 ${w},0 ${w},${Math.round(h*.5)}" fill="${c.accent}" opacity="0.08"/><polygon points="0,${Math.round(h*.6)} 0,${h} ${Math.round(w*.4)},${h}" fill="${c.accent}" opacity="0.05"/><rect x="${Math.round(w*.07)}" y="${Math.round(h*.25)}" width="${Math.round(w*.55)}" height="${Math.round(h*.08)}" fill="none" stroke="${c.accent}" stroke-width="0.5" opacity="0.4"/><text x="${Math.round(w*.1)}" y="${Math.round(h*.31)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="4" opacity="0.9">${hotel.toUpperCase()}</text><text x="${Math.round(w*.1)}" y="${Math.round(h*.49)}" font-family="Georgia,serif" font-size="${Math.round(w*.072)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w*.1)}" y="${Math.round(h*.58)}" font-family="sans-serif" font-size="${Math.round(w*.027)}" fill="${c.text}" opacity="0.68">${sub}</text><rect x="${Math.round(w*.1)}" y="${Math.round(h*.65)}" width="${Math.round(w*.22)}" height="${Math.round(h*.06)}" rx="2" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1"/><text x="${Math.round(w*.21)}" y="${Math.round(h*.69)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w*.1)}" y="${Math.round(h*.87)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
-              return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w/2)}" cy="${Math.round(h*.42)}" r="${Math.round(w*.32)}" fill="none" stroke="${c.accent}" stroke-width="0.8" opacity="0.25"/><circle cx="${Math.round(w/2)}" cy="${Math.round(h*.42)}" r="${Math.round(w*.27)}" fill="none" stroke="${c.accent}" stroke-width="0.4" opacity="0.14"/><text x="${Math.round(w/2)}" y="${Math.round(h*.33)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.032)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.44)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.07)}" fill="${c.text}" font-weight="bold">${headline}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.52)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.text}" opacity="0.68">${sub}</text><rect x="${Math.round(w*.38)}" y="${Math.round(h*.62)}" width="${Math.round(w*.24)}" height="${Math.round(h*.06)}" rx="30" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.66)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="2">${cta.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.83)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.text}" opacity="0.4">${tagline}</text></svg>`
-            }
-
-            function downloadSVG(){
-              const svg=makeSVG(); const blob=new Blob([svg],{type:'image/svg+xml'})
-              const url=URL.createObjectURL(blob); const a=document.createElement('a')
-              a.href=url; a.download=`social-${dPlatform}-${dTheme}-v${dSeed}.svg`
-              document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
-            }
-
-            async function sendApproval(){
-              downloadSVG(); setApprovalSent(true)
-              try { await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({action:'email_design_approval',platform:dPlatform,theme:dTheme,bg:dBg,seed:dSeed,layout})}) } catch(e){}
-              toast('Design downloaded & approval sent ✓')
-              setTimeout(()=>setApprovalSent(false),4000)
-            }
-
-            const svgUrl='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(makeSVG())))
-            const prevW=320; const prevH=Math.round(prevW*(h/w))
-
-            return (
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,alignItems:'start'}}>
-                <div>
-                  <div className="card mb3">
-                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>📐 Platform</div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                      {DS_PLATFORMS.map(p=>(
-                        <button key={p.id} onClick={()=>{setDPlatform(p.id);setDSeed(s=>s+1)}}
-                          style={{padding:'8px 10px',fontSize:10,background:dPlatform===p.id?'rgba(200,169,110,.15)':'rgba(0,0,0,.2)',border:`1px solid ${dPlatform===p.id?'rgba(200,169,110,.5)':'var(--br)'}`,color:dPlatform===p.id?'var(--gold)':'var(--tx3)',cursor:'pointer',textAlign:'left',lineHeight:1.5}}>
-                          <div style={{fontWeight:600}}>{p.label}</div>
-                          <div style={{fontSize:9,opacity:.7}}>{p.w}×{p.h}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="card mb3">
-                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>🎯 Content Theme</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                      {DS_THEMES.map(t=>(
-                        <button key={t.id} onClick={()=>{setDTheme(t.id);setDSeed(s=>s+1)}}
-                          style={{padding:'8px 12px',fontSize:11,background:dTheme===t.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.15)',border:`1px solid ${dTheme===t.id?'rgba(200,169,110,.4)':'var(--br)'}`,color:dTheme===t.id?'var(--gold)':'var(--tx2)',cursor:'pointer',textAlign:'left'}}>
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="card">
-                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>🎨 Background</div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                      {DS_BGS.map(b=>(
-                        <button key={b.id} onClick={()=>{setDBg(b.id);setDSeed(s=>s+1)}}
-                          style={{padding:'8px 10px',fontSize:10,background:dBg===b.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.2)',border:`1px solid ${dBg===b.id?'rgba(200,169,110,.45)':'var(--br)'}`,color:dBg===b.id?'var(--gold)':'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',gap:7}}>
-                          <span style={{width:10,height:10,borderRadius:'50%',background:`linear-gradient(135deg,${b.from},${b.to})`,border:`1px solid ${b.accent}`,flexShrink:0}}/>
-                          {b.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="card mb3">
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                      <div style={{fontSize:12,fontWeight:600,color:'var(--gold)'}}>👁 Preview</div>
-                      <div style={{display:'flex',gap:6}}>
-                        <span style={{fontSize:9,color:'var(--tx3)',background:'rgba(0,0,0,.3)',padding:'2px 8px',border:'1px solid var(--br)'}}>{plat.label}</span>
-                        <span style={{fontSize:9,color:'var(--tx3)',background:'rgba(0,0,0,.3)',padding:'2px 8px',border:'1px solid var(--br)'}}>Layout {layout+1}/5</span>
-                      </div>
-                    </div>
-                    <div style={{display:'flex',justifyContent:'center',background:'rgba(0,0,0,.3)',padding:12,border:'1px solid var(--br2)'}}>
-                      <img src={svgUrl} width={prevW} height={prevH} style={{display:'block',maxWidth:'100%'}} alt="Design preview"/>
-                    </div>
-                  </div>
-                  <div className="card mb3">
-                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🔀 Shuffle</div>
-                    <button className="btn btn-ghost" style={{width:'100%',fontSize:11,marginBottom:8}} onClick={()=>setDSeed(s=>s+1)}>
-                      🎲 New Variation
+                  {ag.id==='creative'&&(
+                    <button onClick={e=>{e.stopPropagation();setPosterOpen(p=>!p)}}
+                      style={{marginTop:5,width:'100%',padding:'5px',fontSize:10,background:'rgba(255,107,138,.1)',border:'1px solid rgba(255,107,138,.4)',color:'#FF6B8A',borderRadius:4,cursor:'pointer'}}>
+                      {posterOpen?'Close':'🖼 Poster Studio'}
                     </button>
-                    <div style={{fontSize:9,color:'var(--tx3)',textAlign:'center'}}>Cycles through 5 unique layout templates</div>
-                  </div>
-                  <div className="card">
-                    <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>📤 Export</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                      <button className="btn btn-ghost" style={{fontSize:11}} onClick={downloadSVG}>⬇ Download SVG</button>
-                      <button onClick={sendApproval} disabled={approvalSent}
-                        style={{width:'100%',padding:'10px',fontSize:11,fontWeight:600,background:approvalSent?'rgba(63,185,80,.1)':'rgba(200,169,110,.12)',border:`1px solid ${approvalSent?'rgba(63,185,80,.4)':'rgba(200,169,110,.4)'}`,color:approvalSent?'var(--grn)':'var(--gold)',cursor:approvalSent?'default':'pointer',transition:'all .2s'}}>
-                        {approvalSent?'✓ Sent for Approval':'📧 Email for Approval + Auto-Download'}
-                      </button>
-                    </div>
-                  </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* CENTER — Debate room */}
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              {/* Brief input */}
+              <div className="card">
+                <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:8}}>🎯 Mission Brief</div>
+                <textarea className="finput" rows={2} style={{fontSize:12,resize:'vertical',marginBottom:10}}
+                  value={debateTopic} onChange={e=>setDebateTopic(e.target.value)}
+                  placeholder="e.g. Create an Eid 2026 campaign targeting corporate guests. Beat Le Méridien on LinkedIn."/>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  <button onClick={()=>{if(!debateTopic.trim()){toast('Enter a brief first','error');return}runChain(0)}}
+                    style={{padding:'7px 14px',fontSize:11,background:'rgba(200,169,110,.15)',border:'1px solid rgba(200,169,110,.5)',color:'var(--gold)',borderRadius:5,cursor:'pointer',fontWeight:600}}>
+                    🚀 Full Debate
+                  </button>
+                  <button onClick={()=>{if(!debateTopic.trim()){toast('Enter a brief first','error');return}callAgent('researcher')}}
+                    style={{padding:'7px 12px',fontSize:11,background:'rgba(88,166,255,.1)',border:'1px solid rgba(88,166,255,.4)',color:'#58A6FF',borderRadius:5,cursor:'pointer'}}>
+                    🔍 Research First
+                  </button>
+                  <button onClick={()=>{setAgentMsgs([]);setAcceptedOuts([])}}
+                    style={{padding:'7px 10px',fontSize:11,background:'rgba(255,255,255,.05)',border:'1px solid var(--br)',color:'var(--tx3)',borderRadius:5,cursor:'pointer'}}>
+                    Clear
+                  </button>
                 </div>
               </div>
-            )
-          })()}
 
-          {/* ════════ ANALYTICS ════════ */}
-          {tab==='analytics' && (
-            <div>
-              <div style={{display:'flex',gap:8,marginBottom:16,alignItems:'center'}}>
-                <span style={{fontSize:11,color:'var(--tx3)'}}>Client:</span>
-                <select className="finput" style={{width:'auto',fontSize:11,padding:'5px 10px'}} value={aClient} onChange={e=>setAClient(e.target.value)}>
-                  {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-                <span style={{marginLeft:'auto',fontSize:9,color:'var(--tx3)',background:'rgba(88,166,255,.06)',border:'1px solid rgba(88,166,255,.2)',padding:'4px 10px'}}>
-                  💡 Demo data — connect Meta/LinkedIn API for live metrics
-                </span>
-              </div>
-
-              <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:12,marginBottom:16}}>
-                {[
-                  {k:'instagram', data:{followers:'2.4K',reach:'18.2K',engagement:'4.8%',posts:12,trend:'+12%'}},
-                  {k:'facebook',  data:{followers:'1.1K',reach:'9.4K', engagement:'2.3%',posts:8, trend:'+5%'}},
-                  {k:'linkedin',  data:{followers:'456', reach:'3.8K', engagement:'3.1%',posts:5, trend:'+22%'}},
-                  {k:'twitter',   data:{followers:'312', reach:'2.1K', engagement:'1.9%',posts:4, trend:'+3%'}},
-                ].map(({k,data})=>{
-                  const v=PLATFORM_CFG[k]
+              {/* Chat thread */}
+              <div style={{background:'var(--bg2)',border:'1px solid var(--br)',borderRadius:8,padding:12,minHeight:320,maxHeight:520,overflowY:'auto',display:'flex',flexDirection:'column',gap:12}}>
+                {agentMsgs.length===0&&(
+                  <div style={{textAlign:'center',padding:'60px 20px',color:'var(--tx3)'}}>
+                    <div style={{fontSize:32,marginBottom:8}}>🤖</div>
+                    <div style={{fontSize:13,marginBottom:4}}>5 AI agents ready to debate</div>
+                    <div style={{fontSize:11}}>Enter a brief above and click 🚀 Full Debate</div>
+                  </div>
+                )}
+                {agentMsgs.map(msg=>{
+                  const ag=AGENTS.find(a=>a.id===msg.agent)
+                  const isUser=msg.agent==='user'
                   return (
-                    <div key={k} className="card" style={{border:`1px solid ${v.color}33`}}>
-                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,paddingBottom:10,borderBottom:'1px solid var(--br2)'}}>
-                        <span style={{fontSize:24}}>{v.icon}</span>
-                        <div>
-                          <div style={{fontSize:13,fontWeight:600,color:v.color}}>{v.label}</div>
-                          <div style={{fontSize:9,color:'var(--grn)'}}>{data.trend} this month</div>
+                    <div key={msg.id} style={{display:'flex',flexDirection:'column',alignItems:isUser?'flex-end':'flex-start'}}>
+                      {!isUser&&<div style={{display:'flex',alignItems:'center',gap:5,marginBottom:4}}>
+                        <span style={{fontSize:16}}>{ag?.icon}</span>
+                        <span style={{fontSize:11,fontWeight:600,color:ag?.color}}>{ag?.name}</span>
+                        <span style={{fontSize:9,color:'var(--tx3)'}}>{msg.ts}</span>
+                        {msg.accepted&&<span style={{fontSize:9,color:'#3FB950',background:'rgba(63,185,80,.12)',padding:'1px 6px',borderRadius:10}}>✓ accepted</span>}
+                      </div>}
+                      <div style={{
+                        maxWidth:'90%',padding:'10px 12px',borderRadius:isUser?'12px 12px 4px 12px':'4px 12px 12px 12px',
+                        background:isUser?'rgba(200,169,110,.15)':'var(--bg3)',
+                        borderLeft:isUser?'none':`3px solid ${ag?.color||'var(--gold)'}`,
+                        fontSize:12,lineHeight:1.6,color:'var(--tx)',whiteSpace:'pre-wrap',wordBreak:'break-word',
+                        opacity:msg.accepted?0.75:1
+                      }}>{msg.content}</div>
+                      {!isUser&&!msg.accepted&&(
+                        <div style={{display:'flex',gap:6,marginTop:4}}>
+                          <button onClick={()=>acceptMessage(msg.id)}
+                            style={{padding:'3px 10px',fontSize:10,background:'rgba(63,185,80,.1)',border:'1px solid rgba(63,185,80,.4)',color:'#3FB950',borderRadius:4,cursor:'pointer'}}>
+                            ✓ Accept
+                          </button>
+                          <button onClick={()=>{setUserInput(`@${ag?.name} Challenge: `);setFocusAgent(ag?.id)}}
+                            style={{padding:'3px 10px',fontSize:10,background:'rgba(255,255,255,.05)',border:'1px solid var(--br)',color:'var(--tx3)',borderRadius:4,cursor:'pointer'}}>
+                            ↩ Challenge
+                          </button>
                         </div>
-                      </div>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                        {[['Followers',data.followers],['Reach',data.reach],['Engagement',data.engagement],['Posts/mo',data.posts]].map(([l,val])=>(
-                          <div key={l} style={{background:'rgba(0,0,0,.2)',padding:'9px 10px'}}>
-                            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:3}}>{l}</div>
-                            <div style={{fontSize:20,fontWeight:600,color:v.color,fontFamily:'var(--mono)'}}>{val}</div>
-                          </div>
-                        ))}
-                      </div>
+                      )}
                     </div>
                   )
                 })}
-              </div>
-
-              <div className="card" style={{background:'rgba(200,169,110,.03)',border:'1px solid rgba(200,169,110,.15)'}}>
-                <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>📈 Top Performing Posts — {aClient}</div>
-                {posts.filter(p=>p.client_name===aClient&&p.status==='published').slice(0,3).map((p,i)=>(
-                  <div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'8px 0',borderBottom:'1px solid var(--br2)'}}>
-                    <span style={{fontSize:18,flexShrink:0}}>{PLATFORM_CFG[p.platform]?.icon}</span>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:11,color:'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.caption}</div>
-                      <div style={{fontSize:9,color:'var(--tx3)',marginTop:2}}>Published · {PLATFORM_CFG[p.platform]?.label}</div>
-                    </div>
-                    <div style={{fontSize:10,color:'var(--grn)',flexShrink:0}}>↑ {Math.floor(Math.random()*500+100)} reach</div>
+                {agentRunning&&(
+                  <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'var(--bg3)',borderRadius:8,border:`1px solid ${AGENTS.find(a=>a.id===agentRunning)?.color}40`}}>
+                    <span style={{fontSize:18}}>{AGENTS.find(a=>a.id===agentRunning)?.icon}</span>
+                    <span style={{fontSize:11,color:AGENTS.find(a=>a.id===agentRunning)?.color}}>{AGENTS.find(a=>a.id===agentRunning)?.name} is thinking...</span>
+                    <span style={{fontSize:14,color:'var(--tx3)'}}>●●●</span>
                   </div>
-                ))}
-                {!posts.filter(p=>p.client_name===aClient&&p.status==='published').length&&(
-                  <div style={{fontSize:11,color:'var(--tx3)',textAlign:'center',padding:'12px 0'}}>No published posts for {aClient} yet</div>
                 )}
               </div>
-            </div>
-          )}
 
-          {/* ════════ CAMPAIGNS ════════ */}
-          {tab==='campaigns' && (
-            <div>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-                <div style={{fontSize:12,color:'var(--tx3)'}}>
-                  {campaigns.length} campaigns &nbsp;·&nbsp; {campaigns.filter(c=>c.status==='active').length} active
-                </div>
-                <button className="btn btn-gold btn-sm" onClick={()=>setShowAddCamp(s=>!s)}>+ New Campaign</button>
+              {/* User input */}
+              <div className="card" style={{display:'flex',gap:8}}>
+                <input className="finput" style={{flex:1,fontSize:12}}
+                  value={userInput} onChange={e=>setUserInput(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&sendUserMessage()}
+                  placeholder={focusAgent?`Asking ${AGENTS.find(a=>a.id===focusAgent)?.name}... (Enter to send)`:'Add your input or challenge an agent...'}/>
+                <button onClick={sendUserMessage} disabled={!!agentRunning}
+                  style={{padding:'7px 14px',fontSize:11,background:'rgba(200,169,110,.15)',border:'1px solid rgba(200,169,110,.4)',color:'var(--gold)',borderRadius:5,cursor:'pointer'}}>
+                  Send
+                </button>
               </div>
+            </div>
 
-              {showAddCamp&&(
-                <div className="card mb3" style={{background:'rgba(200,169,110,.04)',border:'1px solid rgba(200,169,110,.2)'}}>
-                  <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:12}}>New Campaign</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-                    <div className="fg"><label className="flbl">Campaign Name</label><input className="finput" value={campName} onChange={e=>setCampName(e.target.value)} placeholder="e.g. Eid Special 2026"/></div>
-                    <div className="fg"><label className="flbl">Client</label>
-                      <select className="finput" value={campClient} onChange={e=>setCampClient(e.target.value)}>
-                        {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="fg"><label className="flbl">Goal</label>
-                      <select className="finput" value={campGoal} onChange={e=>setCampGoal(e.target.value)}>
-                        {['Bookings','Leads','Awareness','Engagement','Sales'].map(g=><option key={g} value={g}>{g}</option>)}
-                      </select>
-                    </div>
-                    <div className="fg"><label className="flbl">Budget (৳)</label><input className="finput" type="number" value={campBudget} onChange={e=>setCampBudget(e.target.value)} placeholder="e.g. 20000"/></div>
-                    <div className="fg"><label className="flbl">End Date</label><input className="finput" type="date" value={campEnd} onChange={e=>setCampEnd(e.target.value)}/></div>
-                  </div>
-                  <div style={{display:'flex',gap:8}}>
-                    <button className="btn btn-gold btn-sm" onClick={()=>{
-                      if(!campName.trim()) return
-                      const c={id:Date.now(),client:campClient,name:campName,goal:campGoal,budget:parseInt(campBudget)||10000,spent:0,posts:0,target:30,reached:0,status:'active',end:campEnd||'2026-12-31'}
-                      setCampaigns(p=>[c,...p]); setCampName(''); setCampBudget(''); setCampEnd(''); setShowAddCamp(false); toast(`Campaign "${c.name}" created ✓`)
-                    }}>Create Campaign</button>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>setShowAddCamp(false)}>Cancel</button>
-                  </div>
-                </div>
-              )}
-
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                {campaigns.map(c=>{
-                  const bPct=Math.min(100,Math.round((c.spent/c.budget)*100))
-                  const gPct=Math.min(100,Math.round((c.reached/c.target)*100))
-                  const sc={active:'var(--grn)',completed:'var(--sky)',paused:'var(--gold)'}[c.status]||'var(--tx3)'
+            {/* RIGHT — Outputs panel */}
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              {/* Accepted outputs */}
+              <div className="card">
+                <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:10}}>✓ Accepted Outputs ({acceptedOuts.length})</div>
+                {acceptedOuts.length===0?(
+                  <div style={{fontSize:11,color:'var(--tx3)',textAlign:'center',padding:'16px 0'}}>Accept agent messages<br/>to save them here</div>
+                ):acceptedOuts.map((out,i)=>{
+                  const ag=AGENTS.find(a=>a.id===out.agent)
                   return (
-                    <div key={c.id} className="card">
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-                        <div>
-                          <div style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{c.name}</div>
-                          <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{c.client} &nbsp;·&nbsp; {c.goal}</div>
-                        </div>
-                        <span style={{fontSize:9,padding:'2px 8px',background:sc+'15',color:sc,border:`1px solid ${sc}44`,textTransform:'uppercase',letterSpacing:'.08em',flexShrink:0}}>{c.status}</span>
-                      </div>
-                      <div style={{marginBottom:8}}>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)',marginBottom:3}}>
-                          <span>Budget: ৳{c.spent.toLocaleString()} / ৳{c.budget.toLocaleString()}</span>
-                          <span>{bPct}%</span>
-                        </div>
-                        <div style={{height:4,background:'rgba(0,0,0,.3)',borderRadius:2,overflow:'hidden'}}>
-                          <div style={{height:'100%',width:`${bPct}%`,background:bPct>90?'var(--rose)':bPct>70?'var(--gold)':'var(--grn)',borderRadius:2,transition:'width .3s'}}/>
-                        </div>
-                      </div>
-                      <div style={{marginBottom:10}}>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)',marginBottom:3}}>
-                          <span>Goal: {c.reached} / {c.target} {c.goal}</span>
-                          <span>{gPct}%</span>
-                        </div>
-                        <div style={{height:4,background:'rgba(0,0,0,.3)',borderRadius:2,overflow:'hidden'}}>
-                          <div style={{height:'100%',width:`${gPct}%`,background:'var(--sky)',borderRadius:2,transition:'width .3s'}}/>
-                        </div>
-                      </div>
-                      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
-                        {[['Posts',c.posts],['End',new Date(c.end).toLocaleDateString('en',{month:'short',day:'numeric'})],['ROI',c.status==='completed'?'✓ Done':'Active']].map(([l,v])=>(
-                          <div key={l} style={{textAlign:'center',background:'rgba(0,0,0,.2)',padding:'5px 4px'}}>
-                            <div style={{fontSize:11,fontWeight:600,color:'var(--tx)'}}>{v}</div>
-                            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase'}}>{l}</div>
-                          </div>
-                        ))}
-                      </div>
+                    <div key={i} style={{borderLeft:`2px solid ${ag?.color}`,paddingLeft:8,marginBottom:10,fontSize:10,color:'var(--tx2)'}}>
+                      <div style={{color:ag?.color,fontWeight:600,marginBottom:3}}>{ag?.icon} {ag?.name}</div>
+                      <div style={{lineHeight:1.5}}>{out.content.slice(0,140)}{out.content.length>140?'…':''}</div>
                     </div>
                   )
                 })}
               </div>
-            </div>
-          )}
 
-          {/* ════════ POSTER STUDIO ════════ */}
-          {tab==='poster' && (()=>{
+              {/* Client brain status */}
+              <div className="card">
+                <div style={{fontSize:12,fontWeight:600,color:'var(--gold)',marginBottom:8}}>🧠 Client Brain</div>
+                {(()=>{
+                  const cl=clients.find(c=>c.name===debateClient)
+                  const brain=cl?(clientBrains[cl.id]||{}):{}
+                  return (
+                    <div style={{fontSize:10,color:'var(--tx3)',lineHeight:1.7}}>
+                      <div><span style={{color:'var(--tx2)'}}>Voice:</span> {brain.voice?brain.voice.slice(0,50)+'…':'Not set'}</div>
+                      <div><span style={{color:'var(--tx2)'}}>ICP:</span> {brain.icp?brain.icp.slice(0,50)+'…':'Not set'}</div>
+                      <div><span style={{color:'var(--tx2)'}}>Pillars:</span> {brain.pillars||'Not set'}</div>
+                      {brain.lastAccepted&&<div style={{marginTop:6,padding:'6px 8px',background:'rgba(63,185,80,.08)',borderRadius:4,border:'1px solid rgba(63,185,80,.2)'}}>
+                        <div style={{color:'#3FB950',fontWeight:600,marginBottom:2}}>Last Accepted:</div>
+                        {brain.lastAccepted.slice(0,100)}…
+                      </div>}
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {/* Poster Studio toggle hint */}
+              {!posterOpen&&(
+                <div className="card" style={{textAlign:'center',cursor:'pointer',border:'1px dashed rgba(255,107,138,.35)'}} onClick={()=>setPosterOpen(true)}>
+                  <div style={{fontSize:24,marginBottom:4}}>🎨</div>
+                  <div style={{fontSize:11,fontWeight:600,color:'#FF6B8A'}}>Poster Studio</div>
+                  <div style={{fontSize:10,color:'var(--tx3)'}}>Creative Director tool<br/>Click to open</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* POSTER STUDIO — full width, shown when posterOpen */}
+          {posterOpen && (()=>{
             const sz=_psz; const bg=_pbg; const w=_pw; const h=_ph; const variant=_pvar
             const svgUrl='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(makePosterSVG())))
             const prevW=280; const prevH=Math.round(prevW*(h/w))
 
             return (
-              <div style={{display:'grid',gridTemplateColumns:'260px 1fr',gap:16,alignItems:'start'}}>
-                {/* Controls */}
-                <div>
-                  <div className="card mb3">
-                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>👤 Client</div>
-                    <select className="finput" style={{fontSize:11}} value={pClient} onChange={e=>setPClient(e.target.value)}>
-                      {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="card mb3">
-                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>📐 Format</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:5}}>
+              <div style={{marginTop:16,border:'1px solid rgba(255,107,138,.35)',borderRadius:8,padding:16}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+                  <div style={{fontSize:14,fontWeight:600,color:'#FF6B8A'}}>🎨 Poster Studio — Creative Director</div>
+                  <button onClick={()=>setPosterOpen(false)} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:18}}>✕</button>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'260px 1fr 200px',gap:16,alignItems:'start'}}>
+                  {/* Controls */}
+                  <div>
+                    <div className="card mb3">
+                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>👤 Client</div>
+                      <select className="finput" style={{fontSize:11}} value={pClient} onChange={e=>setPClient(e.target.value)}>
+                        {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="card mb3">
+                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:8}}>📐 Format</div>
                       {PS_SIZES.map(s=>(
                         <button key={s.id} onClick={()=>setPSize(s.id)}
-                          style={{padding:'7px 10px',fontSize:10,background:pSize===s.id?'rgba(200,169,110,.15)':'rgba(0,0,0,.15)',border:`1px solid ${pSize===s.id?'rgba(200,169,110,.5)':'var(--br)'}`,color:pSize===s.id?'var(--gold)':'var(--tx3)',cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between'}}>
-                          <span style={{fontWeight:600}}>{s.label}</span>
-                          <span style={{opacity:.6}}>{s.w}×{s.h}</span>
+                          style={{width:'100%',marginBottom:4,padding:'7px 10px',fontSize:10,background:pSize===s.id?'rgba(200,169,110,.15)':'rgba(0,0,0,.15)',border:`1px solid ${pSize===s.id?'rgba(200,169,110,.5)':'var(--br)'}`,color:pSize===s.id?'var(--gold)':'var(--tx3)',cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between'}}>
+                          <span>{s.label}</span><span style={{opacity:.6}}>{s.desc}</span>
                         </button>
                       ))}
                     </div>
-                  </div>
-                  <div className="card mb3">
-                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🎨 Style</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                    <div className="card mb3">
+                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:8}}>✨ Style</div>
                       {PS_STYLES.map(s=>(
                         <button key={s.id} onClick={()=>setPStyle(s.id)}
-                          style={{padding:'7px 10px',fontSize:10,background:pStyle===s.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.15)',border:`1px solid ${pStyle===s.id?'rgba(200,169,110,.4)':'var(--br)'}`,color:pStyle===s.id?'var(--gold)':'var(--tx2)',cursor:'pointer',textAlign:'left'}}>
-                          <div>{s.label}</div>
-                          <div style={{fontSize:9,opacity:.6,marginTop:1}}>{s.desc}</div>
+                          style={{width:'100%',marginBottom:4,padding:'7px 10px',fontSize:10,background:pStyle===s.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.15)',border:`1px solid ${pStyle===s.id?'rgba(200,169,110,.4)':'var(--br)'}`,color:pStyle===s.id?'var(--gold)':'var(--tx2)',cursor:'pointer',textAlign:'left'}}>
+                          <span>{s.label}</span><div style={{fontSize:9,opacity:.6}}>{s.desc}</div>
                         </button>
                       ))}
                     </div>
-                  </div>
-                  <div className="card">
-                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🖼 Background Photo</div>
-                    {!pImageData ? (
-                      <label style={{display:'block',padding:'18px 10px',border:'1.5px dashed rgba(200,169,110,.4)',borderRadius:6,textAlign:'center',cursor:'pointer',color:'var(--tx3)',fontSize:10,background:'rgba(0,0,0,.15)'}}>
-                        <div style={{fontSize:22,marginBottom:6}}>📷</div>
-                        <div style={{color:'var(--gold)',fontWeight:600,marginBottom:3}}>Upload hotel photo</div>
-                        <div>JPG · PNG · WebP</div>
-                        <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files[0])handlePosterImage(e.target.files[0])}}/>
-                      </label>
-                    ) : (
-                      <div>
-                        <div style={{position:'relative',marginBottom:8}}>
-                          <img src={pImageData} style={{width:'100%',height:90,objectFit:'cover',borderRadius:5,display:'block'}} alt="bg"/>
-                          <button onClick={()=>{setPImageData(null);setPImageColors(null)}} style={{position:'absolute',top:4,right:4,background:'rgba(0,0,0,.7)',border:'none',color:'#fff',borderRadius:'50%',width:20,height:20,fontSize:11,cursor:'pointer',lineHeight:'20px'}}>✕</button>
-                        </div>
-                        {pImageColors && (
-                          <div style={{display:'flex',gap:4,marginBottom:8,alignItems:'center'}}>
-                            <span style={{fontSize:9,color:'var(--tx3)'}}>Extracted:</span>
-                            <span style={{width:14,height:14,borderRadius:'50%',background:pImageColors.accent,border:'1px solid rgba(255,255,255,.2)',display:'inline-block'}} title="Accent"/>
-                            <span style={{width:14,height:14,borderRadius:'50%',background:pImageColors.avg,border:'1px solid rgba(255,255,255,.2)',display:'inline-block'}} title="Avg"/>
-                            <span style={{fontSize:9,color:pImageColors.isDark?'var(--gold)':'var(--tx2)',marginLeft:4}}>{pImageColors.isDark?'Dark image':'Light image'}</span>
+                    <div className="card mb3">
+                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🖼 Background Photo</div>
+                      {!pImageData ? (
+                        <label style={{display:'block',padding:'18px 10px',border:'1.5px dashed rgba(200,169,110,.4)',borderRadius:6,textAlign:'center',cursor:'pointer',color:'var(--tx3)',fontSize:10,background:'rgba(0,0,0,.15)'}}>
+                          <div style={{fontSize:22,marginBottom:6}}>📷</div>
+                          <div style={{color:'var(--gold)',fontWeight:600,marginBottom:3}}>Upload hotel photo</div>
+                          <div>JPG · PNG · WebP</div>
+                          <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files[0])handlePosterImage(e.target.files[0])}}/>
+                        </label>
+                      ) : (
+                        <div>
+                          <div style={{position:'relative',marginBottom:8}}>
+                            <img src={pImageData} style={{width:'100%',height:90,objectFit:'cover',borderRadius:5,display:'block'}} alt="bg"/>
+                            <button onClick={()=>{setPImageData(null);setPImageColors(null)}} style={{position:'absolute',top:4,right:4,background:'rgba(0,0,0,.7)',border:'none',color:'#fff',borderRadius:'50%',width:20,height:20,fontSize:11,cursor:'pointer',lineHeight:'20px'}}>✕</button>
                           </div>
-                        )}
-                        <button onClick={analyzeImageWithAI} disabled={pAnalyzing}
-                          style={{width:'100%',padding:'7px',fontSize:10,background:'rgba(200,169,110,.15)',border:'1px solid rgba(200,169,110,.4)',color:'var(--gold)',borderRadius:4,cursor:pAnalyzing?'wait':'pointer',marginBottom:8}}>
-                          {pAnalyzing?'🤖 Analyzing...':'🤖 AI Analyze → Auto-Theme'}
-                        </button>
-                        <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:6}}>📐 Placement</div>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4}}>
-                          {[['full_bleed','Full Bleed','▣'],['half_left','Photo Left','◧'],['half_right','Photo Right','◨']].map(([id,lbl,ico])=>(
-                            <button key={id} onClick={()=>setPPlacement(id)}
-                              style={{padding:'6px 4px',fontSize:9,textAlign:'center',background:pPlacement===id?'rgba(200,169,110,.18)':'rgba(0,0,0,.2)',border:`1px solid ${pPlacement===id?'rgba(200,169,110,.5)':'var(--br)'}`,color:pPlacement===id?'var(--gold)':'var(--tx3)',borderRadius:3,cursor:'pointer'}}>
-                              <div style={{fontSize:14,marginBottom:2}}>{ico}</div>{lbl}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {!pImageData && (
-                  <div className="card">
-                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🌈 Gradient Background</div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
-                      {PS_BGS.map(b=>(
-                        <button key={b.id} onClick={()=>setPBg(b.id)}
-                          style={{padding:'7px 8px',fontSize:9,background:pBg===b.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.2)',border:`1px solid ${pBg===b.id?'rgba(200,169,110,.45)':'var(--br)'}`,color:pBg===b.id?'var(--gold)':'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
-                          <span style={{width:9,height:9,borderRadius:'50%',background:`linear-gradient(135deg,${b.from},${b.to})`,border:`1px solid ${b.accent}`,flexShrink:0}}/>
-                          {b.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  )}
-                </div>
-
-                {/* Content + Preview */}
-                <div>
-                  <div className="card mb3">
-                    <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:12}}>✏️ Poster Content</div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-                      <div className="fg">
-                        <label className="flbl">Main Headline</label>
-                        <input className="finput" style={{fontSize:11}} value={pTitle} onChange={e=>setPTitle(e.target.value)} placeholder="Premium Rooms"/>
-                      </div>
-                      <div className="fg">
-                        <label className="flbl">Subheadline</label>
-                        <input className="finput" style={{fontSize:11}} value={pSub} onChange={e=>setPSub(e.target.value)} placeholder="Nikunja 2, Dhaka"/>
-                      </div>
-                    </div>
-                    <div className="fg mb3">
-                      <label className="flbl">Body Text (use new lines for multiple points)</label>
-                      <textarea className="finput" rows={3} style={{fontSize:11,resize:'vertical'}} value={pBody} onChange={e=>setPBody(e.target.value)} placeholder="From ৳3,500/night&#10;Breakfast included&#10;Airport transfer available"/>
-                    </div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                      <div className="fg">
-                        <label className="flbl">Call-to-Action</label>
-                        <input className="finput" style={{fontSize:11}} value={pCTA} onChange={e=>setPCTA(e.target.value)} placeholder="Book Now"/>
-                      </div>
-                      <div className="fg">
-                        <label className="flbl">Footer / Contact</label>
-                        <input className="finput" style={{fontSize:11}} value={pFooter} onChange={e=>setPFooter(e.target.value)} placeholder="+880-xxx · website.com"/>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:12,alignItems:'start'}}>
-                    <div className="card">
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                        <div style={{fontSize:11,fontWeight:600,color:'var(--gold)'}}>👁 Preview — {sz.label}</div>
-                        <span style={{fontSize:9,color:'var(--tx3)',background:'rgba(0,0,0,.3)',padding:'2px 8px',border:'1px solid var(--br)'}}>{sz.w}×{sz.h}px</span>
-                      </div>
-                      <div style={{display:'flex',justifyContent:'center',background:'rgba(0,0,0,.3)',padding:10,border:'1px solid var(--br2)'}}>
-                        <img src={svgUrl} width={prevW} height={prevH} style={{display:'block',maxWidth:'100%',boxShadow:'0 4px 24px rgba(0,0,0,.5)'}} alt="Poster preview"/>
-                      </div>
-                    </div>
-                    <div style={{width:180}}>
-                      <div className="card mb3">
-                        <div style={{fontSize:10,fontWeight:600,color:'var(--gold)',marginBottom:8}}>📤 Export</div>
-                        <div style={{display:'flex',flexDirection:'column',gap:7}}>
-                          <button className="btn btn-ghost" style={{fontSize:10,width:'100%'}} onClick={dlPoster}>⬇ Download SVG</button>
-                          <button onClick={sendPosterApproval} disabled={pApproval}
-                            style={{width:'100%',padding:'8px',fontSize:10,fontWeight:600,background:pApproval?'rgba(63,185,80,.1)':'rgba(200,169,110,.12)',border:`1px solid ${pApproval?'rgba(63,185,80,.4)':'rgba(200,169,110,.4)'}`,color:pApproval?'var(--grn)':'var(--gold)',cursor:pApproval?'default':'pointer'}}>
-                            {pApproval?'✓ Sent':'📧 Send for Approval'}
+                          {pImageColors&&(
+                            <div style={{display:'flex',gap:4,marginBottom:8,alignItems:'center'}}>
+                              <span style={{fontSize:9,color:'var(--tx3)'}}>Extracted:</span>
+                              <span style={{width:14,height:14,borderRadius:'50%',background:pImageColors.accent,border:'1px solid rgba(255,255,255,.2)',display:'inline-block'}}/>
+                              <span style={{width:14,height:14,borderRadius:'50%',background:pImageColors.avg,border:'1px solid rgba(255,255,255,.2)',display:'inline-block'}}/>
+                              <span style={{fontSize:9,color:pImageColors.isDark?'var(--gold)':'var(--tx2)',marginLeft:4}}>{pImageColors.isDark?'Dark image':'Light image'}</span>
+                            </div>
+                          )}
+                          <button onClick={analyzeImageWithAI} disabled={pAnalyzing}
+                            style={{width:'100%',padding:'7px',fontSize:10,background:'rgba(200,169,110,.15)',border:'1px solid rgba(200,169,110,.4)',color:'var(--gold)',borderRadius:4,cursor:pAnalyzing?'wait':'pointer',marginBottom:8}}>
+                            {pAnalyzing?'🤖 Analyzing...':'🤖 AI Analyze → Auto-Theme'}
                           </button>
-                        </div>
-                      </div>
-                      <div className="card" style={{background:'rgba(200,169,110,.03)',border:'1px solid rgba(200,169,110,.15)'}}>
-                        <div style={{fontSize:9,fontWeight:600,color:'var(--gold)',marginBottom:6}}>🧠 BRAIN ACTIVE</div>
-                        {clients.find(c=>c.name===pClient)&&clientBrains[clients.find(c=>c.name===pClient).id]?.pillars?(
-                          <div style={{fontSize:9,color:'var(--tx3)',lineHeight:1.7}}>
-                            {(clientBrains[clients.find(c=>c.name===pClient).id].pillars||'').split(',').slice(0,3).map((p,i)=>(
-                              <div key={i}>· {p.trim()}</div>
+                          <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:6}}>📐 Placement</div>
+                          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4}}>
+                            {[['full_bleed','Full Bleed','▣'],['half_left','Photo Left','◧'],['half_right','Photo Right','◨']].map(([id,lbl,ico])=>(
+                              <button key={id} onClick={()=>setPPlacement(id)}
+                                style={{padding:'6px 4px',fontSize:9,textAlign:'center',background:pPlacement===id?'rgba(200,169,110,.18)':'rgba(0,0,0,.2)',border:`1px solid ${pPlacement===id?'rgba(200,169,110,.5)':'var(--br)'}`,color:pPlacement===id?'var(--gold)':'var(--tx3)',borderRadius:3,cursor:'pointer'}}>
+                                <div style={{fontSize:14,marginBottom:2}}>{ico}</div>{lbl}
+                              </button>
                             ))}
                           </div>
-                        ):(
-                          <div style={{fontSize:9,color:'var(--tx3)'}}>Set pillars in Client Brain</div>
-                        )}
+                        </div>
+                      )}
+                    </div>
+                    {!pImageData&&(
+                    <div className="card">
+                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🌈 Gradient Background</div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                        {PS_BGS.map(b=>(
+                          <button key={b.id} onClick={()=>setPBg(b.id)}
+                            style={{padding:'7px 8px',fontSize:9,background:pBg===b.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.2)',border:`1px solid ${pBg===b.id?'rgba(200,169,110,.45)':'var(--br)'}`,color:pBg===b.id?'var(--gold)':'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
+                            <span style={{width:9,height:9,borderRadius:'50%',background:`linear-gradient(135deg,${b.from},${b.to})`,border:`1px solid ${b.accent}`,flexShrink:0}}/>
+                            {b.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
+                    )}
+                  </div>
+
+                  {/* Content + Preview */}
+                  <div>
+                    <div className="card mb3">
+                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:12}}>✏️ Poster Content</div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                        <div className="fg"><label className="flbl">Main Headline</label>
+                          <input className="finput" style={{fontSize:11}} value={pTitle} onChange={e=>setPTitle(e.target.value)} placeholder="Premium Rooms"/></div>
+                        <div className="fg"><label className="flbl">Subheadline</label>
+                          <input className="finput" style={{fontSize:11}} value={pSub} onChange={e=>setPSub(e.target.value)} placeholder="Nikunja 2, Dhaka"/></div>
+                      </div>
+                      <div className="fg mb3"><label className="flbl">Body Text (use new lines for multiple points)</label>
+                        <textarea className="finput" rows={3} style={{fontSize:11,resize:'vertical'}} value={pBody} onChange={e=>setPBody(e.target.value)} placeholder="From ৳3,500/night&#10;Breakfast included&#10;Airport transfer available"/></div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                        <div className="fg"><label className="flbl">Call-To-Action</label>
+                          <input className="finput" style={{fontSize:11}} value={pCTA} onChange={e=>setPCTA(e.target.value)} placeholder="Book Now"/></div>
+                        <div className="fg"><label className="flbl">Footer / Contact</label>
+                          <input className="finput" style={{fontSize:11}} value={pFooter} onChange={e=>setPFooter(e.target.value)} placeholder="+880-xxx · website.com"/></div>
+                      </div>
+                    </div>
+                    <div className="card">
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                        <div style={{fontSize:11,fontWeight:600,color:'var(--gold)'}}>🖼 Preview — {PS_SIZES.find(s=>s.id===pSize)?.label}</div>
+                        <span style={{fontSize:9,color:'var(--tx3)'}}>{_pw}×{_ph}px</span>
+                      </div>
+                      <div style={{display:'flex',justifyContent:'center',padding:'10px 0'}}>
+                        <img src={svgUrl} width={prevW} height={prevH} style={{display:'block',maxWidth:'100%',boxShadow:'0 4px 24px rgba(0,0,0,.5)'}} alt="Poster preview"/>
+                      </div>
+                      <div style={{display:'flex',gap:6,marginTop:12,justifyContent:'center'}}>
+                        <button onClick={()=>setPSeed(s=>s+1)} style={{padding:'5px 10px',fontSize:10,background:'rgba(255,255,255,.06)',border:'1px solid var(--br)',color:'var(--tx2)',borderRadius:4,cursor:'pointer'}}>🔄 Vary</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Export */}
+                  <div>
+                    <div className="card mb3">
+                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>⬇ Export</div>
+                      <button onClick={dlPoster} style={{width:'100%',padding:'9px',fontSize:11,background:'rgba(200,169,110,.12)',border:'1px solid rgba(200,169,110,.4)',color:'var(--gold)',borderRadius:5,cursor:'pointer',marginBottom:8,fontWeight:600}}>
+                        ⬇ DOWNLOAD SVG
+                      </button>
+                      <button onClick={sendPosterApproval} disabled={pApproval} style={{width:'100%',padding:'9px',fontSize:11,background:pApproval?'rgba(63,185,80,.1)':'rgba(255,255,255,.05)',border:`1px solid ${pApproval?'rgba(63,185,80,.4)':'var(--br)'}`,color:pApproval?'#3FB950':'var(--tx2)',borderRadius:5,cursor:'pointer'}}>
+                        {pApproval?'✓ Sent':'📧 Send for Approval'}
+                      </button>
+                    </div>
+                    {clients.find(c=>c.name===pClient)&&clientBrains[clients.find(c=>c.name===pClient).id]?.pillars&&(
+                      <div className="card">
+                        <div style={{fontSize:10,fontWeight:600,color:'var(--gold)',marginBottom:6}}>🧠 BRAIN ACTIVE</div>
+                        {(clientBrains[clients.find(c=>c.name===pClient).id].pillars||'').split(',').slice(0,3).map((p,i)=>(
+                          <div key={i} style={{fontSize:9,color:'var(--tx3)',marginBottom:2}}>· {p.trim()}</div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -6247,6 +5925,5 @@ function App() {
         </div>
       )
     }
-
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
 setTimeout(()=>{ const el=document.getElementById('loading'); if(el) el.style.display='none'; }, 8000);
