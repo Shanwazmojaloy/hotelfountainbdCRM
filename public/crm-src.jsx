@@ -5028,112 +5028,9 @@ function App() {
     function SocialAgencyPage({ toast }) {
       const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/seo-geo-agent'
       const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow'
-      const PS_SIZES=[
-        {id:'a4p',  label:'A4 Portrait',   w:595, h:842,  desc:'Print/PDF'},
-        {id:'a4l',  label:'A4 Landscape',  w:842, h:595,  desc:'Presentation'},
-        {id:'a3p',  label:'A3 Portrait',   w:842, h:1191, desc:'Large print'},
-        {id:'evt',  label:'Event Poster',  w:612, h:864,  desc:'18"×24" ratio'},
-        {id:'sqr',  label:'Square',        w:800, h:800,  desc:'Display/Digital'},
-      ]
-      const PS_STYLES=[
-        {id:'luxury',    label:'✨ Luxury Editorial',  desc:'Gold borders, serif elegance'},
-        {id:'modern',    label:'⚡ Modern Bold',       desc:'High contrast, dynamic type'},
-        {id:'corporate', label:'💼 Corporate Clean',   desc:'Structured, professional'},
-        {id:'festive',   label:'🎊 Festive',           desc:'Decorative, celebratory'},
-        {id:'minimal',   label:'◻ Minimal',            desc:'White space, pure typography'},
-      ]
-      const PS_BGS=[
-        {id:'deep_gold',  label:'🏆 Deep Gold',   from:'#0d0900',to:'#1f1400',accent:'#C8A96E',text:'#F5EDD8',sub:'rgba(245,237,216,.6)'},
-        {id:'night_blue', label:'🌃 Night Blue',  from:'#020814',to:'#051630',accent:'#58A6FF',text:'#E8F0FF',sub:'rgba(232,240,255,.55)'},
-        {id:'forest',     label:'🌿 Forest',      from:'#020d06',to:'#051a0c',accent:'#3FB950',text:'#E0FFE8',sub:'rgba(224,255,232,.55)'},
-        {id:'rose_black', label:'🥀 Rose Black',  from:'#0d0206',to:'#1a0410',accent:'#FF6B8A',text:'#FFE0E8',sub:'rgba(255,224,232,.55)'},
-        {id:'pure_white', label:'🤍 Clean White', from:'#f8f6f2',to:'#ede8df',accent:'#8B6914',text:'#1C1510',sub:'rgba(28,21,16,.55)'},
-        {id:'slate',      label:'🪨 Slate',       from:'#0a0a0e',to:'#141420',accent:'#A0AEC0',text:'#E8ECF0',sub:'rgba(232,236,240,.55)'},
-      ]
 
-      const PLATFORM_CFG = {
-        instagram: { icon: '📷', color: '#E1306C', limit: 2200,  label: 'Instagram' },
-        facebook:  { icon: '👍', color: '#1877F2', limit: 63206, label: 'Facebook'  },
-        linkedin:  { icon: '💼', color: '#0A66C2', limit: 3000,  label: 'LinkedIn'  },
-        twitter:   { icon: '🐦', color: '#1DA1F2', limit: 280,   label: 'Twitter/X' },
-      }
-
-      const INIT_CLIENTS = [
-        { id:1, name:'Hotel Fountain',  ini:'HF', color:'#C8A96E', industry:'Hospitality',     platforms:['instagram','facebook','linkedin','twitter'] },
-        { id:2, name:'WeekendWipe BD',  ini:'WW', color:'#58A6FF', industry:'Cleaning Services',platforms:['instagram','facebook'] },
-        { id:3, name:'NekoNest',        ini:'NN', color:'#3FB950', industry:'Pet Services',     platforms:['instagram','twitter'] },
-      ]
-
-      const INIT_CAMPAIGNS = [
-        { id:1, client:'Hotel Fountain', name:'Eid Special 2026',     goal:'Bookings', budget:25000, spent:18400, posts:12, target:50, reached:38, status:'active',    end:'2026-06-15' },
-        { id:2, client:'Hotel Fountain', name:'Corporate B2B Outreach',goal:'Leads',    budget:15000, spent:6200,  posts:8,  target:20, reached:9,  status:'active',    end:'2026-07-01' },
-        { id:3, client:'WeekendWipe BD', name:'Summer Launch',         goal:'Awareness',budget:8000,  spent:8000,  posts:6,  target:30, reached:31, status:'completed', end:'2026-05-01' },
-      ]
-
-      const SEED_POSTS = [
-        { id:'s1', client_name:'Hotel Fountain', platform:'instagram', caption:'Experience luxury at its finest. Nikunja 2, Dhaka. 🌟 #HotelFountain #Dhaka #Travel', status:'scheduled', scheduled_at: new Date(Date.now()+86400000).toISOString() },
-        { id:'s2', client_name:'Hotel Fountain', platform:'linkedin',  caption:'We offer exclusive corporate packages for businesses in Dhaka. Premium facilities, 5 min from airport. Contact us today.', status:'draft', scheduled_at: new Date(Date.now()+172800000).toISOString() },
-        { id:'s3', client_name:'WeekendWipe BD', platform:'facebook',  caption:'Sparkling clean homes, every weekend. Book your slot now! 🧹 Dhaka-wide service.', status:'published', scheduled_at: new Date(Date.now()-86400000).toISOString() },
-      ]
-
-      // ── State ──────────────────────────────────────────────────────────────
-      const [tab, setTab]               = useState('clients')
-      const [clients, setClients]       = useState(INIT_CLIENTS)
-      const [posts, setPosts]           = useState(SEED_POSTS)
-      const [campaigns, setCampaigns]   = useState(INIT_CAMPAIGNS)
-      const [loadingPosts, setLoadingPosts] = useState(false)
-
-      // Composer
-      const [cClient,   setCClient]   = useState('Hotel Fountain')
-      const [cPlatform, setCPlatform] = useState('instagram')
-      const [cTopic,    setCTopic]    = useState('')
-      const [cCaption,  setCCaption]  = useState('')
-      const [cSchedule, setCSchedule] = useState('')
-      const [aiLoading, setAiLoading] = useState(false)
-
-      // Add client form
-      const [showAddClient,  setShowAddClient]  = useState(false)
-      const [newName,        setNewName]        = useState('')
-      const [newIndustry,    setNewIndustry]    = useState('')
-      const [newPlats,       setNewPlats]       = useState([])
-
-      // Add campaign form
-      const [showAddCamp,  setShowAddCamp]  = useState(false)
-      const [campName,     setCampName]     = useState('')
-      const [campClient,   setCampClient]   = useState('Hotel Fountain')
-      const [campGoal,     setCampGoal]     = useState('Bookings')
-      const [campBudget,   setCampBudget]   = useState('')
-      const [campEnd,      setCampEnd]      = useState('')
-
-      // Design Studio
-      const [dPlatform,    setDPlatform]    = useState('instagram_post')
-      const [dTheme,       setDTheme]       = useState('room_promo')
-      const [dBg,          setDBg]          = useState('twilight_gold')
-      const [dSeed,        setDSeed]        = useState(1)
-      const [approvalSent, setApprovalSent] = useState(false)
-
-      // Analytics
-      const [aClient, setAClient] = useState('Hotel Fountain')
-      const [schedFilter, setSchedFilter] = useState('all')
-      const [clientBrains, setClientBrains] = useState({
-        1:{voice:'Warm, professional, aspirational. Never pushy. Serif elegance.',icp:'Corporate travelers, Japanese expats, transit passengers, MICE organizers',pillars:'Airport proximity,Premium comfort,Corporate packages,Halal dining,Event facilities',competitors:'Pan Pacific,Le Méridien,Radisson Blu'},
-        2:{voice:'Friendly, reliable, clean-focused. Simple language.',icp:'Dhaka households, working couples, busy professionals',pillars:'Speed,Reliability,Affordable quality,Eco products',competitors:''},
-        3:{voice:'Playful, caring, community-driven.',icp:'Pet owners aged 22-40, urban Dhaka',pillars:'Pet care tips,Products,Grooming,Adoption',competitors:''},
-      })
       const [showBrain,    setShowBrain]    = useState(null)
       const [savingBrain,  setSavingBrain]  = useState(false)
-      // Poster Studio state
-      const [pSize,     setPSize]     = useState('a4p')
-      const [pStyle,    setPStyle]    = useState('luxury')
-      const [pBg,       setPBg]       = useState('deep_gold')
-      const [pSeed,     setPSeed]     = useState(1)
-      const [pTitle,    setPTitle]    = useState('Premium Rooms')
-      const [pSub,      setPSub]      = useState('Nikunja 2, Dhaka · Airport 5 min')
-      const [pBody,     setPBody]     = useState('From ৳3,500 per night\nBreakfast included · Free WiFi\nAirport transfer available')
-      const [pCTA,      setPCTA]      = useState('Book Now')
-      const [pFooter,   setPFooter]   = useState('+880-1319407384  ·  hotelfountainbd.com')
-      const [pClient,   setPClient]   = useState('Hotel Fountain')
-      const [pApproval, setPApproval] = useState(false)
 
       // ── AI Agent Debate state ──────────────────────────────────────────────
       const [agentMsgs,     setAgentMsgs]     = useState([])
@@ -5145,344 +5042,13 @@ function App() {
       const [agentAccepted, setAgentAccepted] = useState({researcher:0,strategist:0,copywriter:0,creative:0,analyst:0})
       const [debateClient,  setDebateClient]  = useState('Hotel Fountain')
       const [focusAgent,    setFocusAgent]    = useState(null)
-      const [posterOpen,    setPosterOpen]    = useState(false)
       const [canvasBrief,   setCanvasBrief]   = useState(null)
+      const [selectedPhoto, setSelectedPhoto] = useState('1skrxB3Gb7R5m3VCUTblkSRzvDT7xN0eZ')
+      const [canvasDesignType, setCanvasDesignType] = useState('poster')
+      const [canvasResults, setCanvasResults] = useState([])
+      const [canvasStudioOpen, setCanvasStudioOpen] = useState(false)
 
-      const [pImageData,   setPImageData]   = useState(null)
-      const [pImageColors, setPImageColors] = useState(null)
-      const [pPlacement,   setPPlacement]   = useState('full_bleed')
-      const [pAnalyzing,   setPAnalyzing]   = useState(false)
 
-
-      // Poster Studio derived + helpers
-      const _psz  = PS_SIZES.find(s=>s.id===pSize)||PS_SIZES[0]
-      const _pbg  = PS_BGS.find(b=>b.id===pBg)||PS_BGS[0]
-      const _pw   = _psz.w; const _ph = _psz.h
-      const _pvar = pSeed % PS_STYLES.length
-
-      function wrapText(text, maxW, fontSize) {
-        const words = text.split('\n').map(line => line.split(' '))
-        const charsPerLine = Math.floor(maxW / (fontSize * 0.55))
-        const lines = []
-        words.forEach(lineWords => {
-          let cur = ''
-          lineWords.forEach(word => {
-            if ((cur+' '+word).trim().length > charsPerLine) { if(cur) lines.push(cur); cur = word }
-            else { cur = (cur+' '+word).trim() }
-          })
-          if (cur) lines.push(cur)
-        })
-        return lines
-      }
-
-      function makePosterSVG() {
-        if (pImageData) return makeImagePosterSVG()
-        const c = _pbg; const style = pStyle; const hotel = pClient || 'Hotel Fountain'
-        const w = _pw; const h = _ph
-        const titleLines = wrapText(pTitle, w*0.8, Math.round(w*0.065))
-        const bodyLines  = wrapText(pBody,  w*0.7, Math.round(w*0.03))
-        if (style==='luxury') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><filter id="glo"><feGaussianBlur stdDeviation="60"/></filter></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w*.5)}" cy="${Math.round(h*.3)}" r="${Math.round(w*.6)}" fill="${c.accent}" opacity="0.06" filter="url(#glo)"/><rect x="${Math.round(w*.04)}" y="${Math.round(h*.04)}" width="${Math.round(w*.92)}" height="${Math.round(h*.92)}" fill="none" stroke="${c.accent}" stroke-width="1.5" opacity="0.4"/><rect x="${Math.round(w*.055)}" y="${Math.round(h*.055)}" width="${Math.round(w*.89)}" height="${Math.round(h*.89)}" fill="none" stroke="${c.accent}" stroke-width="0.5" opacity="0.2"/><line x1="${Math.round(w*.1)}" y1="${Math.round(h*.14)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.14)}" stroke="${c.accent}" stroke-width="0.5" opacity="0.35"/><text x="${Math.round(w/2)}" y="${Math.round(h*.12)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.025)}" fill="${c.accent}" letter-spacing="8" opacity="0.9">${hotel.toUpperCase()}</text>${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.32+i*Math.round(w*.075))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.065)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('')}<text x="${Math.round(w/2)}" y="${Math.round(h*.44)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.accent}" letter-spacing="2">${pSub}</text><rect x="${Math.round(w*.2)}" y="${Math.round(h*.47)}" width="${Math.round(w*.6)}" height="1" fill="${c.accent}" opacity="0.4"/>${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.54+i*Math.round(w*.038))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.3)}" y="${Math.round(h*.75)}" width="${Math.round(w*.4)}" height="${Math.round(h*.065)}" rx="2" fill="${c.accent}" opacity="0.12" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.79)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text><line x1="${Math.round(w*.1)}" y1="${Math.round(h*.87)}" x2="${Math.round(w*.9)}" y2="${Math.round(h*.87)}" stroke="${c.accent}" stroke-width="0.5" opacity="0.35"/><text x="${Math.round(w/2)}" y="${Math.round(h*.92)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.sub}" opacity="0.7">${pFooter}</text></svg>`
-        if (style==='modern') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="1" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${Math.round(w*.08)}" height="${h}" fill="${c.accent}" opacity="0.7"/><rect x="${Math.round(w*.08)}" y="0" width="${Math.round(w*.92)}" height="${Math.round(h*.5)}" fill="${c.accent}" opacity="0.06"/><text x="${Math.round(w*.12)}" y="${Math.round(h*.08)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="5" font-weight="300">${hotel.toUpperCase()}</text>${titleLines.map((l,i)=>`<text x="${Math.round(w*.12)}" y="${Math.round(h*.28+i*Math.round(w*.09))}" font-family="Georgia,serif" font-size="${Math.round(w*.08)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('')}<rect x="${Math.round(w*.12)}" y="${Math.round(h*.5)}" width="${Math.round(w*.3)}" height="3" fill="${c.accent}"/><text x="${Math.round(w*.12)}" y="${Math.round(h*.58)}" font-family="sans-serif" font-size="${Math.round(w*.03)}" fill="${c.accent}">${pSub}</text>${bodyLines.map((l,i)=>`<text x="${Math.round(w*.12)}" y="${Math.round(h*.66+i*Math.round(w*.04))}" font-family="sans-serif" font-size="${Math.round(w*.028)}" fill="${c.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.12)}" y="${Math.round(h*.82)}" width="${Math.round(w*.32)}" height="${Math.round(h*.07)}" fill="${c.accent}"/><text x="${Math.round(w*.12+w*.16)}" y="${Math.round(h*.863)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.from}" font-weight="700">${pCTA.toUpperCase()}</text><text x="${Math.round(w*.12)}" y="${Math.round(h*.94)}" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.6">${pFooter}</text></svg>`
-        if (style==='corporate') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${c.accent}" stop-opacity="0.25"/><stop offset="100%" stop-color="${c.accent}" stop-opacity="0.05"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="0" y="0" width="${w}" height="${Math.round(h*.18)}" fill="url(#hdr)"/><rect x="0" y="${Math.round(h*.18)}" width="${w}" height="2" fill="${c.accent}" opacity="0.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.1)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.035)}" fill="${c.accent}" letter-spacing="4">${hotel.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.15)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.sub}" letter-spacing="2" opacity="0.7">${pSub}</text>${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.36+i*Math.round(w*.08))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.07)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('')}<rect x="${Math.round(w*.08)}" y="${Math.round(h*.5)}" width="${Math.round(w*.84)}" height="1" fill="${c.accent}" opacity="0.25"/>${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.57+i*Math.round(w*.038))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.25)}" y="${Math.round(h*.76)}" width="${Math.round(w*.5)}" height="${Math.round(h*.07)}" fill="none" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.803)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text><rect x="0" y="${Math.round(h*.9)}" width="${w}" height="${Math.round(h*.1)}" fill="${c.accent}" opacity="0.08"/><text x="${Math.round(w/2)}" y="${Math.round(h*.955)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.7">${pFooter}</text></svg>`
-        if (style==='festive') return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient><filter id="glo2"><feGaussianBlur stdDeviation="50"/></filter></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><circle cx="${Math.round(w*.1)}" cy="${Math.round(h*.1)}" r="${Math.round(w*.3)}" fill="${c.accent}" opacity="0.08" filter="url(#glo2)"/><circle cx="${Math.round(w*.9)}" cy="${Math.round(h*.85)}" r="${Math.round(w*.35)}" fill="${c.accent}" opacity="0.06" filter="url(#glo2)"/><rect x="${Math.round(w*.06)}" y="${Math.round(h*.06)}" width="${Math.round(w*.88)}" height="${Math.round(h*.88)}" fill="none" stroke="${c.accent}" stroke-width="2" opacity="0.35" rx="4"/><line x1="${Math.round(w*.15)}" y1="${Math.round(h*.13)}" x2="${Math.round(w*.85)}" y2="${Math.round(h*.13)}" stroke="${c.accent}" stroke-width="0.8" opacity="0.4"/><line x1="${Math.round(w*.15)}" y1="${Math.round(h*.87)}" x2="${Math.round(w*.85)}" y2="${Math.round(h*.87)}" stroke="${c.accent}" stroke-width="0.8" opacity="0.4"/><text x="${Math.round(w/2)}" y="${Math.round(h*.115)}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" letter-spacing="6" font-style="italic">${hotel}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.23)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.02)}" fill="${c.accent}" letter-spacing="4">— PRESENTS —</text>${titleLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.36+i*Math.round(w*.085))}" text-anchor="middle" font-family="Georgia,serif" font-size="${Math.round(w*.075)}" fill="${c.text}" font-weight="bold" font-style="italic">${l}</text>`).join('')}<text x="${Math.round(w/2)}" y="${Math.round(h*.5)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}">${pSub}</text>${bodyLines.map((l,i)=>`<text x="${Math.round(w/2)}" y="${Math.round(h*.6+i*Math.round(w*.04))}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('')}<rect x="${Math.round(w*.28)}" y="${Math.round(h*.76)}" width="${Math.round(w*.44)}" height="${Math.round(h*.065)}" rx="30" fill="${c.accent}" opacity="0.18" stroke="${c.accent}" stroke-width="1.5"/><text x="${Math.round(w/2)}" y="${Math.round(h*.803)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.accent}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text><text x="${Math.round(w/2)}" y="${Math.round(h*.875)}" text-anchor="middle" font-family="sans-serif" font-size="${Math.round(w*.018)}" fill="${c.sub}" opacity="0.7">${pFooter}</text></svg>`
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.from}"/><stop offset="100%" stop-color="${c.to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#bg)"/><rect x="${Math.round(w*.08)}" y="${Math.round(h*.08)}" width="3" height="${Math.round(h*.08)}" fill="${c.accent}"/><text x="${Math.round(w*.12)}" y="${Math.round(h*.105)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.accent}" letter-spacing="5">${hotel.toUpperCase()}</text><text x="${Math.round(w*.12)}" y="${Math.round(h*.14)}" font-family="sans-serif" font-size="${Math.round(w*.013)}" fill="${c.sub}" opacity="0.6">${pSub}</text>${titleLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.38+i*Math.round(w*.09))}" font-family="Georgia,serif" font-size="${Math.round(w*.082)}" fill="${c.text}" font-weight="bold">${l}</text>`).join('')}<rect x="${Math.round(w*.08)}" y="${Math.round(h*.52)}" width="${Math.round(w*.15)}" height="1.5" fill="${c.accent}"/>${bodyLines.map((l,i)=>`<text x="${Math.round(w*.08)}" y="${Math.round(h*.58+i*Math.round(w*.04))}" font-family="sans-serif" font-size="${Math.round(w*.026)}" fill="${c.sub}">${l}</text>`).join('')}<text x="${Math.round(w*.08)}" y="${Math.round(h*.78)}" font-family="sans-serif" font-size="${Math.round(w*.022)}" fill="${c.accent}" font-weight="600" letter-spacing="2">${pCTA.toUpperCase()} →</text><rect x="${Math.round(w*.08)}" y="${Math.round(h*.88)}" width="${Math.round(w*.84)}" height="1" fill="${c.accent}" opacity="0.2"/><text x="${Math.round(w*.08)}" y="${Math.round(h*.93)}" font-family="sans-serif" font-size="${Math.round(w*.016)}" fill="${c.sub}" opacity="0.6">${pFooter}</text></svg>`
-      }
-
-      function extractColors(ctx, w, h) {
-        const d = ctx.getImageData(0,0,w,h).data
-        // Global average
-        let r=0,g=0,b=0,n=0
-        for (let i=0;i<d.length;i+=40){r+=d[i];g+=d[i+1];b+=d[i+2];n++}
-        r=Math.round(r/n);g=Math.round(g/n);b=Math.round(b/n)
-        // Region sampling: bottom-half brightness (where text usually sits)
-        const bot=ctx.getImageData(0,Math.round(h*.55),w,Math.round(h*.45))
-        let br2=0,bn=0
-        for(let i=0;i<bot.data.length;i+=40){br2+=(bot.data[i]*299+bot.data[i+1]*587+bot.data[i+2]*114)/1000;bn++}
-        const botBr=br2/bn
-        const globalBr=(r*299+g*587+b*114)/1000
-        const isDark=globalBr<148
-        // Accent: most vibrant pixel (high saturation + sufficient brightness, not too dark/white)
-        let maxScore=0,ar=200,ag=169,ab=110
-        for(let i=0;i<d.length;i+=80){
-          const pr=d[i],pg=d[i+1],pb=d[i+2]
-          const mx=Math.max(pr,pg,pb),mn=Math.min(pr,pg,pb)
-          const sat=mx===0?0:(mx-mn)/mx
-          const lum=(mx+mn)/2
-          const score=sat*(lum>40&&lum<220?1:0.2)  // penalise near-black/near-white
-          if(score>maxScore){maxScore=score;ar=pr;ag=pg;ab=pb}
-        }
-        // Warm/cool tone detection
-        const warmth=r-b
-        const isWarm=warmth>20
-        // Boost accent legibility: if accent is too dark, lighten it
-        const accentBr=(ar*299+ag*587+ab*114)/1000
-        if(accentBr<60){ar=Math.min(255,ar+120);ag=Math.min(255,ag+100);ab=Math.min(255,ab+80)}
-        const hex=v=>v.toString(16).padStart(2,'0')
-        return {
-          isDark, isWarm,
-          accent:`#${hex(ar)}${hex(ag)}${hex(ab)}`,
-          avg:`#${hex(r)}${hex(g)}${hex(b)}`,
-          text: isDark?'#FFFFFF':'#1A1208',
-          sub:  isDark?'rgba(255,255,255,0.82)':'rgba(26,18,8,0.72)',
-          scrim: botBr<100?'rgba(0,0,0,0.45)': botBr<160?'rgba(0,0,0,0.62)':'rgba(0,0,0,0.78)',
-          panel: isDark?'rgba(10,8,5,0.78)':'rgba(248,244,236,0.88)',
-          botBr, globalBr,
-        }
-      }
-
-      // Smart client-side AI theme analysis
-      function smartAnalyze(ic) {
-        const hex=v=>v.toString(16).padStart(2,'0')
-        // Derive a clean readable accent from image warmth + extracted color
-        let {ar,ag,ab} = (() => {
-          const h=ic.accent; const n=parseInt(h.slice(1),16)
-          return {ar:(n>>16)&255, ag:(n>>8)&255, ab:n&255}
-        })()
-        // If image is warm (hotel rooms, wood tones) → warm gold accent
-        if(ic.isWarm && (ar*299+ag*587+ab*114)/1000 < 180) {
-          ar=Math.min(255,ar+60); ag=Math.min(255,ag+40); ab=Math.max(0,ab-20)
-        }
-        // Ensure accent is bright enough to read on dark image
-        const acBr=(ar*299+ag*587+ab*114)/1000
-        if(acBr<100){const boost=Math.round((100-acBr)*1.4);ar=Math.min(255,ar+boost);ag=Math.min(255,ag+boost);ab=Math.min(255,ab+boost)}
-        const newAccent=`#${hex(ar)}${hex(ag)}${hex(ab)}`
-        // Suggest style based on image character
-        let suggestedStyle='luxury'
-        if(!ic.isWarm && ic.globalBr<80) suggestedStyle='modern'
-        else if(ic.globalBr>160) suggestedStyle='minimal'
-        else if(ic.isWarm && ic.globalBr>100) suggestedStyle='festive'
-        else if(!ic.isWarm) suggestedStyle='corporate'
-        return {
-          newColors:{...ic, accent:newAccent,
-            text:ic.isDark?'#FFFFFF':'#1A1208',
-            sub:ic.isDark?'rgba(255,255,255,0.85)':'rgba(26,18,8,0.75)',
-          },
-          suggestedStyle
-        }
-      }
-
-      function handlePosterImage(file) {
-        if (!file||!file.type.startsWith('image/')) return
-        const reader = new FileReader()
-        reader.onload = e => {
-          const img = new Image()
-          img.onload = () => {
-            const canvas=document.createElement('canvas')
-            const maxW=900; const scale=Math.min(1,maxW/img.width)
-            canvas.width=Math.round(img.width*scale); canvas.height=Math.round(img.height*scale)
-            const ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,canvas.width,canvas.height)
-            setPImageData(canvas.toDataURL('image/jpeg',0.82))
-            setPImageColors(extractColors(ctx,canvas.width,canvas.height))
-          }
-          img.src=e.target.result
-        }
-        reader.readAsDataURL(file)
-      }
-
-      async function analyzeImageWithAI(){
-        if(!pImageData) return
-        setPAnalyzing(true)
-        // Always run smart client-side analysis first (instant, no network needed)
-        const {newColors, suggestedStyle} = smartAnalyze(pImageColors||{isDark:true,isWarm:true,accent:'#C8A96E',globalBr:80,text:'#FFFFFF',sub:'rgba(255,255,255,0.75)',scrim:'rgba(0,0,0,0.52)',panel:'rgba(0,0,0,0.72)',avg:'#332211'})
-        setPImageColors(newColors)
-        setPStyle(suggestedStyle)
-        // Then try edge function for additional refinement
-        try {
-          const r=await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},
-            body:JSON.stringify({action:'analyze_poster_image',image_snippet:pImageData.slice(0,6000),client:pClient}),
-            signal:AbortSignal.timeout(4000)})
-          const d=await r.json()
-          if(d.style && ['luxury','modern','corporate','festive','minimal'].includes(d.style)) setPStyle(d.style)
-          if(d.accent && /^#[0-9a-fA-F]{6}$/.test(d.accent)) setPImageColors(prev=>({...prev,accent:d.accent}))
-          toast('AI theme applied ✓')
-        } catch(e){ toast(`Smart theme applied — ${suggestedStyle} style ✓`) }
-        finally { setPAnalyzing(false) }
-      }
-
-      function makeImagePosterSVG(){
-        const ic=pImageColors||{isDark:true,accent:'#C8A96E',text:'#FFFFFF',sub:'rgba(255,255,255,0.75)',scrim:'rgba(0,0,0,0.52)',panel:'rgba(0,0,0,0.72)',avg:'#332211'}
-        const w=_pw; const h=_ph; const hotel=pClient||'Hotel Fountain'
-        const s=pStyle; const a=ic.accent; const tx=ic.text; const sb=ic.sub
-
-        // Font choices by style
-        const hFont = (s==='luxury'||s==='festive') ? 'Georgia,serif' : s==='minimal' ? 'Georgia,serif' : 'Arial,sans-serif'
-        const bFont = 'Arial,sans-serif'
-        const hSize = Math.round(w*(s==='modern'?0.072:0.063))
-        const bSize = Math.round(w*0.026)
-        const lsHotel = s==='luxury'?'8':s==='corporate'?'5':s==='modern'?'6':'4'
-
-        // Text wrap
-        const tW = pPlacement==='full_bleed' ? w*0.78 : w*0.44
-        const titleLines=wrapText(pTitle,tW,hSize)
-        const bodyLines=wrapText(pBody,tW*0.9,bSize)
-
-        // Image elements
-        const fullImg=`<image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>`
-        const halfLDefs=`<clipPath id="cpl"><rect x="0" y="0" width="${Math.round(w*.5)}" height="${h}"/></clipPath>`
-        const halfLImg=`<image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#cpl)"/>`
-        const halfRDefs=`<clipPath id="cpr"><rect x="${Math.round(w*.5)}" y="0" width="${Math.round(w*.5)}" height="${h}"/></clipPath>`
-        const halfRImg=`<image href="${pImageData}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#cpr)"/>`
-
-        // Style decorator — given text panel origin (tx0,ty0) and dimensions (pw,ph)
-        function styleLayer(tx0, ty0, pw, ph) {
-          const cx = tx0+pw/2; const mid = ty0+ph/2
-          if (s==='luxury') return [
-            `<rect x="${Math.round(tx0+pw*.04)}" y="${Math.round(ty0+ph*.03)}" width="${Math.round(pw*.92)}" height="${Math.round(ph*.94)}" fill="none" stroke="${a}" stroke-width="1.2" opacity="0.35"/>`,
-            `<rect x="${Math.round(tx0+pw*.055)}" y="${Math.round(ty0+ph*.045)}" width="${Math.round(pw*.89)}" height="${Math.round(ph*.91)}" fill="none" stroke="${a}" stroke-width="0.4" opacity="0.18"/>`,
-          ].join('')
-          if (s==='modern') return [
-            `<rect x="${Math.round(tx0)}" y="${Math.round(ty0)}" width="${Math.round(pw*.055)}" height="${Math.round(ph)}" fill="${a}" opacity="0.85"/>`,
-          ].join('')
-          if (s==='corporate') return [
-            `<rect x="${Math.round(tx0)}" y="${Math.round(ty0)}" width="${Math.round(pw)}" height="${Math.round(ph*.14)}" fill="${a}" opacity="0.14"/>`,
-            `<rect x="${Math.round(tx0)}" y="${Math.round(ty0+ph*.14)}" width="${Math.round(pw)}" height="2" fill="${a}" opacity="0.5"/>`,
-            `<rect x="${Math.round(tx0)}" y="${Math.round(ty0+ph*.86)}" width="${Math.round(pw)}" height="${Math.round(ph*.14)}" fill="${a}" opacity="0.1"/>`,
-          ].join('')
-          if (s==='festive') return [
-            `<circle cx="${Math.round(tx0+pw*.15)}" cy="${Math.round(ty0+ph*.15)}" r="${Math.round(pw*.22)}" fill="${a}" opacity="0.07" filter="url(#glo)"/>`,
-            `<circle cx="${Math.round(tx0+pw*.85)}" cy="${Math.round(ty0+ph*.82)}" r="${Math.round(pw*.2)}" fill="${a}" opacity="0.05" filter="url(#glo)"/>`,
-            `<rect x="${Math.round(tx0+pw*.06)}" y="${Math.round(ty0+ph*.05)}" width="${Math.round(pw*.88)}" height="${Math.round(ph*.9)}" fill="none" stroke="${a}" stroke-width="1.8" opacity="0.3" rx="4"/>`,
-          ].join('')
-          // minimal
-          return [
-            `<rect x="${Math.round(tx0+pw*.07)}" y="${Math.round(ty0+ph*.12)}" width="4" height="${Math.round(ph*.15)}" fill="${a}"/>`,
-          ].join('')
-        }
-
-        // Hotel name + dividers by style — given anchor x, y, width
-        function hotelName(cx, y, pw) {
-          const nm=`<text x="${Math.round(cx)}" y="${Math.round(y)}" text-anchor="middle" font-family="${hFont}" font-size="${Math.round(pw*.023)}" fill="${a}" letter-spacing="${lsHotel}" opacity="0.95">${hotel.toUpperCase()}</text>`
-          if (s==='luxury') return nm+`<line x1="${Math.round(cx-pw*.38)}" y1="${Math.round(y+pw*.02)}" x2="${Math.round(cx+pw*.38)}" y2="${Math.round(y+pw*.02)}" stroke="${a}" stroke-width="0.6" opacity="0.45"/>`
-          if (s==='modern') return `<text x="${Math.round(cx)}" y="${Math.round(y)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.02)}" fill="${a}" letter-spacing="6" font-weight="300">${hotel.toUpperCase()}</text>`
-          if (s==='corporate') return nm
-          if (s==='festive') return `<text x="${Math.round(cx)}" y="${Math.round(y)}" text-anchor="middle" font-family="${hFont}" font-size="${Math.round(pw*.023)}" fill="${a}" letter-spacing="5" font-style="italic">${hotel}</text>`
-          return `<text x="${Math.round(cx-pw*.43)}" y="${Math.round(y)}" font-family="${bFont}" font-size="${Math.round(pw*.016)}" fill="${a}" letter-spacing="5">${hotel.toUpperCase()}</text>`
-        }
-
-        // Title block — given anchor x, start y, panel width
-        function titleBlock(cx, y0, pw) {
-          const fStyle = (s==='festive') ? ' font-style="italic"' : ''
-          return titleLines.map((l,i)=>`<text x="${Math.round(cx)}" y="${Math.round(y0+i*Math.round(hSize*1.18))}" text-anchor="middle" font-family="${hFont}" font-size="${hSize}" fill="${tx}" font-weight="bold"${fStyle}>${l}</text>`).join('')
-        }
-
-        // Sub + body block
-        function bodyBlock(cx, y0, pw) {
-          const sub=`<text x="${Math.round(cx)}" y="${Math.round(y0)}" text-anchor="middle" font-family="${bFont}" font-size="${bSize}" fill="${a}">${pSub}</text>`
-          const div = (s==='luxury'||s==='minimal') ? `<line x1="${Math.round(cx-pw*.28)}" y1="${Math.round(y0+pw*.025)}" x2="${Math.round(cx+pw*.28)}" y2="${Math.round(y0+pw*.025)}" stroke="${a}" stroke-width="0.5" opacity="0.45"/>` : ''
-          const bod = bodyLines.map((l,i)=>`<text x="${Math.round(cx)}" y="${Math.round(y0+pw*.06+i*Math.round(bSize*1.4))}" text-anchor="middle" font-family="${bFont}" font-size="${bSize}" fill="${sb}">${l}</text>`).join('')
-          return sub+div+bod
-        }
-
-        // CTA button by style
-        function ctaBtn(cx, y0, pw) {
-          const bw=Math.round(pw*.42); const bh=Math.round(pw*.068); const bx=Math.round(cx-bw/2)
-          if (s==='luxury') return `<rect x="${bx}" y="${Math.round(y0)}" width="${bw}" height="${bh}" rx="2" fill="${a}" opacity="0.15" stroke="${a}" stroke-width="1.5"/><text x="${Math.round(cx)}" y="${Math.round(y0+bh*.68)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.025)}" fill="${a}" letter-spacing="3" font-weight="600">${pCTA.toUpperCase()}</text>`
-          if (s==='modern') return `<rect x="${bx}" y="${Math.round(y0)}" width="${bw}" height="${bh}" fill="${a}"/><text x="${Math.round(cx)}" y="${Math.round(y0+bh*.68)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.025)}" fill="${ic.isDark?'#000':'#FFF'}" font-weight="700">${pCTA.toUpperCase()}</text>`
-          if (s==='corporate') return `<rect x="${bx}" y="${Math.round(y0)}" width="${bw}" height="${bh}" fill="none" stroke="${a}" stroke-width="1.5"/><text x="${Math.round(cx)}" y="${Math.round(y0+bh*.68)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.025)}" fill="${a}" letter-spacing="2" font-weight="600">${pCTA.toUpperCase()}</text>`
-          if (s==='festive') return `<rect x="${bx}" y="${Math.round(y0)}" width="${bw}" height="${bh}" rx="${Math.round(bh/2)}" fill="${a}" opacity="0.18" stroke="${a}" stroke-width="1.5"/><text x="${Math.round(cx)}" y="${Math.round(y0+bh*.68)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.025)}" fill="${a}" letter-spacing="3">${pCTA.toUpperCase()}</text>`
-          return `<text x="${Math.round(bx)}" y="${Math.round(y0+bh*.68)}" font-family="${bFont}" font-size="${Math.round(pw*.024)}" fill="${a}" font-weight="600" letter-spacing="2">${pCTA.toUpperCase()} →</text>`
-        }
-
-        function footer(cx, y, pw) {
-          return `<text x="${Math.round(cx)}" y="${Math.round(y)}" text-anchor="middle" font-family="${bFont}" font-size="${Math.round(pw*.018)}" fill="${sb}" opacity="0.75">${pFooter}</text>`
-        }
-
-        // ── FULL BLEED ───────────────────────────────────────────────────────
-        if (pPlacement==='full_bleed') {
-          const cx=w/2; const pw=w
-          const scrimColor = ic.isDark ? 'rgba(0,0,0' : 'rgba(20,15,10'
-          const defs=`<defs><linearGradient id="scr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${scrimColor},0.05)"/><stop offset="55%" stop-color="${scrimColor},0.5)"/><stop offset="100%" stop-color="${scrimColor},0.88)"/></linearGradient><filter id="glo"><feGaussianBlur stdDeviation="55"/></filter></defs>`
-          const layer=styleLayer(0,0,w,h)
-          const hn=hotelName(cx,h*.08,pw)
-          const tB=titleBlock(cx,h*.36,pw)
-          const bB=bodyBlock(cx,h*.55,pw)
-          const cta=ctaBtn(cx,h*.78,pw)
-          const ft=footer(cx,h*.955,pw)
-          return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${defs}${fullImg}<rect width="${w}" height="${h}" fill="url(#scr)"/>${layer}${hn}${tB}${bB}${cta}${ft}</svg>`
-        }
-
-        // ── HALF LEFT (image left, text right) ───────────────────────────────
-        if (pPlacement==='half_left') {
-          const px0=Math.round(w*.5); const pw=Math.round(w*.5); const cx=px0+pw/2
-          const defs=`<defs>${halfLDefs}<filter id="glo"><feGaussianBlur stdDeviation="40"/></filter></defs>`
-          const layer=styleLayer(px0,0,pw,h)
-          const hn=hotelName(cx,h*.1,pw)
-          const tB=titleBlock(cx,h*.3,pw)
-          const bB=bodyBlock(cx,h*.52,pw)
-          const cta=ctaBtn(cx,h*.78,pw)
-          const ft=footer(cx,h*.93,pw)
-          const sep=`<line x1="${px0}" y1="${Math.round(h*.06)}" x2="${px0}" y2="${Math.round(h*.94)}" stroke="${a}" stroke-width="1.2" opacity="0.35"/>`
-          return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${defs}${halfLImg}<rect x="${px0}" y="0" width="${pw}" height="${h}" fill="${ic.panel}"/>${sep}${layer}${hn}${tB}${bB}${cta}${ft}</svg>`
-        }
-
-        // ── HALF RIGHT (text left, image right) ──────────────────────────────
-        const px0=0; const pw=Math.round(w*.5); const cx=pw/2
-        const defs=`<defs>${halfRDefs}<filter id="glo"><feGaussianBlur stdDeviation="40"/></filter></defs>`
-        const layer=styleLayer(0,0,pw,h)
-        const hn=hotelName(cx,h*.1,pw)
-        const tB=titleBlock(cx,h*.3,pw)
-        const bB=bodyBlock(cx,h*.52,pw)
-        const cta=ctaBtn(cx,h*.78,pw)
-        const ft=footer(cx,h*.93,pw)
-        const sep=`<line x1="${pw}" y1="${Math.round(h*.06)}" x2="${pw}" y2="${Math.round(h*.94)}" stroke="${a}" stroke-width="1.2" opacity="0.35"/>`
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${defs}<rect x="0" y="0" width="${pw}" height="${h}" fill="${ic.panel}"/>${halfRImg}${sep}${layer}${hn}${tB}${bB}${cta}${ft}</svg>`
-      }
-
-                  function dlPoster(){
-        const svg=makePosterSVG(); const blob=new Blob([svg],{type:'image/svg+xml'})
-        const url=URL.createObjectURL(blob); const a=document.createElement('a')
-        a.href=url; a.download=`poster-${pStyle}-${pSize}-${pClient.replace(/ /g,'_')}.svg`
-        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
-      }
-
-      function downloadAsPNG(){
-        const svg=makePosterSVG()
-        const svgBlob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'})
-        const svgObjUrl=URL.createObjectURL(svgBlob)
-        const img=new window.Image(); img.crossOrigin='anonymous'
-        img.onload=()=>{
-          const sz=PS_SIZES.find(s=>s.id===pSize)||PS_SIZES[0]
-          const canvas=document.createElement('canvas')
-          canvas.width=sz.w; canvas.height=sz.h
-          const ctx=canvas.getContext('2d')
-          ctx.drawImage(img,0,0,sz.w,sz.h)
-          URL.revokeObjectURL(svgObjUrl)
-          canvas.toBlob(blob=>{
-            const url=URL.createObjectURL(blob)
-            const a=document.createElement('a')
-            a.href=url; a.download=`poster-${pStyle}-${pSize}-${pClient.replace(/ /g,'_')}.png`
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
-            toast('PNG downloaded ✓')
-          },'image/png',0.96)
-        }
-        img.onerror=()=>{ URL.revokeObjectURL(svgObjUrl); toast('PNG export failed — try SVG','error') }
-        img.src=svgObjUrl
-      }
-
-      function openInCanva(){
-        const brief=canvasBrief||{title:pTitle,subtitle:pSub,style:pStyle,cta:pCTA,palette:[]}
-        const briefText=`Hotel Fountain Dhaka — Canvas Design Brief
-
-Title: ${brief.title||pTitle}
-Subtitle: ${brief.subtitle||pSub}
-Style: ${brief.style||pStyle}
-CTA: ${brief.cta||pCTA}
-Mood: ${brief.mood||'editorial, warm, aspirational'}
-Philosophy: ${brief.philosophy||'Gilded Transit'}
-Palette: ${(brief.palette||[]).join(' · ')}
-Font Headline: ${brief.font_headline||'Libre Baskerville'}
-Font Body: ${brief.font_body||'DM Sans'}
-
-Client: ${pClient} · Size: ${brief.size||pSize}`
-        try{ navigator.clipboard.writeText(briefText); toast('📋 Brief copied to clipboard — paste into Canva ✓') }catch(e){ toast('Brief ready — opening Canva') }
-        window.open('https://www.canva.com/design/new','_blank')
-      }
-
-      async function sendPosterApproval(){
-        dlPoster(); setPApproval(true)
-        try { await fetch(EDGE,{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({action:'email_design_approval',type:'poster',style:pStyle,size:pSize,client:pClient})}) } catch(e){}
-        toast('Poster downloaded & approval email sent ✓'); setTimeout(()=>setPApproval(false),4000)
-      }
 
       useEffect(() => { loadPosts() }, [])
 
@@ -5554,6 +5120,22 @@ Client: ${pClient} · Size: ${brief.size||pSize}`
         {id:'analyst',    name:'Analyst',             icon:'📊', color:'#A78BFA', role:'Performance, ROI & optimisation',           personality:'Numbers only. Sceptical of claims without metrics. Always asks "how do we measure this?"'},
       ]
 
+
+      // Hotel photos from Google Drive
+      const HOTEL_PHOTOS=[
+        {id:'1skrxB3Gb7R5m3VCUTblkSRzvDT7xN0eZ',name:'Suite'},
+        {id:'1qEGT2RagoNyVKFUCOwCOMhH7QnX1hdl2',name:'Premium Room'},
+        {id:'1oB5VFtu-14Le8rPt2h2aMeEu7IYml_p3',name:'Exterior 2'},
+        {id:'1HihgwaA_1l7m7CelHo5n_L5qHPgdrg3G',name:'Exterior 1'},
+        {id:'1LhD9EwKxIP_ftJrYsPgdVfoaGZx6KIfp',name:'Night View'},
+        {id:'1lk6Q3RzR0izhfRX-LO9_6Yl-xBK7bQw5',name:'Room WhatsApp'},
+        {id:'1qDIFirDWYz9BhERiYjizgUgCfggUAS_N',name:'Room 3'},
+        {id:'1CKsH6FmKatMgT8gucepVIDiZUTTGKkAz',name:'Room 2'},
+        {id:'1jWLg4uVVEBKq9MP0K8bem9gmna95eiP2',name:'Room 1'},
+        {id:'1BnGeF57MRJrz_oWqMY76-kiQgy_mpnwY',name:'Grand Exterior'},
+        {id:'18XOOjbwX5_wwzxAYSnUtMbAt6VGwMQ5q',name:'AI Room 1'},
+        {id:'1ZHCSKuA-PGDevQpxT2MmcNWObgbSIN-L',name:'Poster Design'},
+      ]
       const COMPETITOR_CONTEXT=`Hotel competitors in Dhaka to research:
 1. Pan Pacific Sonargaon Dhaka — luxury 5-star, business travelers, Kazi Nazrul Islam Ave
 2. Le Méridien Dhaka — 5-star Marriott brand, premium corporate, Airport Road
@@ -5684,15 +5266,15 @@ Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airp
                     Ask {ag.name.split(' ')[0]}
                   </button>
                   {ag.id==='creative'&&(
-                    <>
-                      <button onClick={e=>{e.stopPropagation();setPosterOpen(p=>!p)}}
-                        style={{marginTop:5,width:'100%',padding:'5px',fontSize:10,background:'rgba(255,107,138,.1)',border:'1px solid rgba(255,107,138,.4)',color:'#FF6B8A',borderRadius:4,cursor:'pointer'}}>
-                        {posterOpen?'✕ Close Studio':'🖼 Canvas Studio'}
+                    <div style={{marginTop:5,display:'flex',flexDirection:'column',gap:3}}>
+                      <button onClick={e=>{e.stopPropagation();setCanvasStudioOpen(p=>!p)}}
+                        style={{width:'100%',padding:'5px',fontSize:9,background:canvasStudioOpen?'rgba(0,196,204,.15)':'rgba(255,107,138,.08)',border:`1px solid ${canvasStudioOpen?'rgba(0,196,204,.4)':'rgba(255,107,138,.3)'}`,color:canvasStudioOpen?'#00C4CC':'#FF6B8A',borderRadius:4,cursor:'pointer',fontWeight:600}}>
+                        {canvasStudioOpen?'✕ Close':'🎨 Canvas Studio'}
                       </button>
-                      {canvasBrief&&(
-                        <button onClick={openInCanva} style={{marginTop:4,width:'100%',padding:'5px',fontSize:9,background:'linear-gradient(135deg,rgba(0,196,204,.15),rgba(122,89,255,.15))',border:'1px solid rgba(0,196,204,.4)',color:'#00C4CC',borderRadius:4,cursor:'pointer',fontWeight:600}}>🎨 Open in Canva ✓</button>
+                      {canvasResults.length>0&&(
+                        <div style={{fontSize:8,color:'#3FB950',padding:'2px 4px',background:'rgba(63,185,80,.08)',border:'1px solid rgba(63,185,80,.2)',borderRadius:3,textAlign:'center'}}>✓ {canvasResults.length} design{canvasResults.length>1?'s':''} generated</div>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               ))}
@@ -5824,172 +5406,89 @@ Hotel Fountain advantage: boutique 24-room, Nikunja 2, literally 5 min from airp
                 })()}
               </div>
 
-              {/* Poster Studio toggle hint */}
-              {!posterOpen&&(
-                <div className="card" style={{textAlign:'center',cursor:'pointer',border:'1px dashed rgba(255,107,138,.35)'}} onClick={()=>setPosterOpen(true)}>
-                  <div style={{fontSize:24,marginBottom:4}}>🎨</div>
-                  <div style={{fontSize:11,fontWeight:600,color:'#FF6B8A'}}>Poster Studio</div>
-                  <div style={{fontSize:10,color:'var(--tx3)'}}>Creative Director tool<br/>Click to open</div>
-                </div>
-              )}
             </div>
           </div>
-
-          {/* POSTER STUDIO — full width, shown when posterOpen */}
-          {posterOpen && (()=>{
-            const sz=_psz; const bg=_pbg; const w=_pw; const h=_ph; const variant=_pvar
-            const svgUrl='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(makePosterSVG())))
-            const prevW=280; const prevH=Math.round(prevW*(h/w))
-
-            return (
-              <div style={{marginTop:16,border:'1px solid rgba(255,107,138,.35)',borderRadius:8,padding:16}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-                  <div style={{fontSize:14,fontWeight:600,color:'#FF6B8A'}}>🎨 Poster Studio — Creative Director</div>
-                  <button onClick={()=>setPosterOpen(false)} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:18}}>✕</button>
+          {/* CANVAS STUDIO — full width below 3-col grid */}
+          {canvasStudioOpen&&(
+            <div style={{marginTop:16,background:'rgba(0,196,204,.04)',border:'1px solid rgba(0,196,204,.2)',borderRadius:8,padding:16}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#00C4CC',fontFamily:'Georgia,serif'}}>🎨 Canvas Design Studio</div>
+                <div style={{fontSize:9,color:'var(--tx3)'}}>Powered by canvas-design + Canva AI</div>
+              </div>
+              {/* Design type + brief */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+                <div>
+                  <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:5}}>Design Format</div>
+                  <select value={canvasDesignType} onChange={e=>setCanvasDesignType(e.target.value)} style={{width:'100%',padding:'6px 8px',fontSize:11,background:'rgba(255,255,255,.06)',border:'1px solid var(--br)',color:'var(--tx)',borderRadius:4}}>
+                    <option value="poster">🖼 Poster (A4)</option>
+                    <option value="instagram_post">📸 Instagram Post</option>
+                    <option value="facebook_post">📘 Facebook Post</option>
+                    <option value="flyer">📄 Flyer</option>
+                    <option value="your_story">📱 Story (IG/FB)</option>
+                  </select>
                 </div>
-                <div style={{display:'grid',gridTemplateColumns:'260px 1fr 200px',gap:16,alignItems:'start'}}>
-                  {/* Controls */}
-                  <div>
-                    <div className="card mb3">
-                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>👤 Client</div>
-                      <select className="finput" style={{fontSize:11}} value={pClient} onChange={e=>setPClient(e.target.value)}>
-                        {clients.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="card mb3">
-                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:8}}>📐 Format</div>
-                      {PS_SIZES.map(s=>(
-                        <button key={s.id} onClick={()=>setPSize(s.id)}
-                          style={{width:'100%',marginBottom:4,padding:'7px 10px',fontSize:10,background:pSize===s.id?'rgba(200,169,110,.15)':'rgba(0,0,0,.15)',border:`1px solid ${pSize===s.id?'rgba(200,169,110,.5)':'var(--br)'}`,color:pSize===s.id?'var(--gold)':'var(--tx3)',cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between'}}>
-                          <span>{s.label}</span><span style={{opacity:.6}}>{s.desc}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="card mb3">
-                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:8}}>✨ Style</div>
-                      {PS_STYLES.map(s=>(
-                        <button key={s.id} onClick={()=>setPStyle(s.id)}
-                          style={{width:'100%',marginBottom:4,padding:'7px 10px',fontSize:10,background:pStyle===s.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.15)',border:`1px solid ${pStyle===s.id?'rgba(200,169,110,.4)':'var(--br)'}`,color:pStyle===s.id?'var(--gold)':'var(--tx2)',cursor:'pointer',textAlign:'left'}}>
-                          <span>{s.label}</span><div style={{fontSize:9,opacity:.6}}>{s.desc}</div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="card mb3">
-                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🖼 Background Photo</div>
-                      {!pImageData ? (
-                        <label style={{display:'block',padding:'18px 10px',border:'1.5px dashed rgba(200,169,110,.4)',borderRadius:6,textAlign:'center',cursor:'pointer',color:'var(--tx3)',fontSize:10,background:'rgba(0,0,0,.15)'}}>
-                          <div style={{fontSize:22,marginBottom:6}}>📷</div>
-                          <div style={{color:'var(--gold)',fontWeight:600,marginBottom:3}}>Upload hotel photo</div>
-                          <div>JPG · PNG · WebP</div>
-                          <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files[0])handlePosterImage(e.target.files[0])}}/>
-                        </label>
-                      ) : (
-                        <div>
-                          <div style={{position:'relative',marginBottom:8}}>
-                            <img src={pImageData} style={{width:'100%',height:90,objectFit:'cover',borderRadius:5,display:'block'}} alt="bg"/>
-                            <button onClick={()=>{setPImageData(null);setPImageColors(null)}} style={{position:'absolute',top:4,right:4,background:'rgba(0,0,0,.7)',border:'none',color:'#fff',borderRadius:'50%',width:20,height:20,fontSize:11,cursor:'pointer',lineHeight:'20px'}}>✕</button>
-                          </div>
-                          {pImageColors&&(
-                            <div style={{display:'flex',gap:4,marginBottom:8,alignItems:'center'}}>
-                              <span style={{fontSize:9,color:'var(--tx3)'}}>Extracted:</span>
-                              <span style={{width:14,height:14,borderRadius:'50%',background:pImageColors.accent,border:'1px solid rgba(255,255,255,.2)',display:'inline-block'}}/>
-                              <span style={{width:14,height:14,borderRadius:'50%',background:pImageColors.avg,border:'1px solid rgba(255,255,255,.2)',display:'inline-block'}}/>
-                              <span style={{fontSize:9,color:pImageColors.isDark?'var(--gold)':'var(--tx2)',marginLeft:4}}>{pImageColors.isDark?'Dark image':'Light image'}</span>
-                            </div>
-                          )}
-                          <button onClick={analyzeImageWithAI} disabled={pAnalyzing}
-                            style={{width:'100%',padding:'7px',fontSize:10,background:'rgba(200,169,110,.15)',border:'1px solid rgba(200,169,110,.4)',color:'var(--gold)',borderRadius:4,cursor:pAnalyzing?'wait':'pointer',marginBottom:8}}>
-                            {pAnalyzing?'🤖 Analyzing...':'🤖 AI Analyze → Auto-Theme'}
-                          </button>
-                          <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:6}}>📐 Placement</div>
-                          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4}}>
-                            {[['full_bleed','Full Bleed','▣'],['half_left','Photo Left','◧'],['half_right','Photo Right','◨']].map(([id,lbl,ico])=>(
-                              <button key={id} onClick={()=>setPPlacement(id)}
-                                style={{padding:'6px 4px',fontSize:9,textAlign:'center',background:pPlacement===id?'rgba(200,169,110,.18)':'rgba(0,0,0,.2)',border:`1px solid ${pPlacement===id?'rgba(200,169,110,.5)':'var(--br)'}`,color:pPlacement===id?'var(--gold)':'var(--tx3)',borderRadius:3,cursor:'pointer'}}>
-                                <div style={{fontSize:14,marginBottom:2}}>{ico}</div>{lbl}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {!pImageData&&(
-                    <div className="card">
-                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>🌈 Gradient Background</div>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
-                        {PS_BGS.map(b=>(
-                          <button key={b.id} onClick={()=>setPBg(b.id)}
-                            style={{padding:'7px 8px',fontSize:9,background:pBg===b.id?'rgba(200,169,110,.12)':'rgba(0,0,0,.2)',border:`1px solid ${pBg===b.id?'rgba(200,169,110,.45)':'var(--br)'}`,color:pBg===b.id?'var(--gold)':'var(--tx3)',cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
-                            <span style={{width:9,height:9,borderRadius:'50%',background:`linear-gradient(135deg,${b.from},${b.to})`,border:`1px solid ${b.accent}`,flexShrink:0}}/>
-                            {b.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    )}
-                  </div>
-
-                  {/* Content + Preview */}
-                  <div>
-                    <div className="card mb3">
-                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:12}}>✏️ Poster Content</div>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-                        <div className="fg"><label className="flbl">Main Headline</label>
-                          <input className="finput" style={{fontSize:11}} value={pTitle} onChange={e=>setPTitle(e.target.value)} placeholder="Premium Rooms"/></div>
-                        <div className="fg"><label className="flbl">Subheadline</label>
-                          <input className="finput" style={{fontSize:11}} value={pSub} onChange={e=>setPSub(e.target.value)} placeholder="Nikunja 2, Dhaka"/></div>
-                      </div>
-                      <div className="fg mb3"><label className="flbl">Body Text (use new lines for multiple points)</label>
-                        <textarea className="finput" rows={3} style={{fontSize:11,resize:'vertical'}} value={pBody} onChange={e=>setPBody(e.target.value)} placeholder="From ৳3,500/night&#10;Breakfast included&#10;Airport transfer available"/></div>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                        <div className="fg"><label className="flbl">Call-To-Action</label>
-                          <input className="finput" style={{fontSize:11}} value={pCTA} onChange={e=>setPCTA(e.target.value)} placeholder="Book Now"/></div>
-                        <div className="fg"><label className="flbl">Footer / Contact</label>
-                          <input className="finput" style={{fontSize:11}} value={pFooter} onChange={e=>setPFooter(e.target.value)} placeholder="+880-xxx · website.com"/></div>
-                      </div>
-                    </div>
-                    <div className="card">
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                        <div style={{fontSize:11,fontWeight:600,color:'var(--gold)'}}>🖼 Preview — {PS_SIZES.find(s=>s.id===pSize)?.label}</div>
-                        <span style={{fontSize:9,color:'var(--tx3)'}}>{_pw}×{_ph}px</span>
-                      </div>
-                      <div style={{display:'flex',justifyContent:'center',padding:'10px 0'}}>
-                        <img src={svgUrl} width={prevW} height={prevH} style={{display:'block',maxWidth:'100%',boxShadow:'0 4px 24px rgba(0,0,0,.5)'}} alt="Poster preview"/>
-                      </div>
-                      <div style={{display:'flex',gap:6,marginTop:12,justifyContent:'center'}}>
-                        <button onClick={()=>setPSeed(s=>s+1)} style={{padding:'5px 10px',fontSize:10,background:'rgba(255,255,255,.06)',border:'1px solid var(--br)',color:'var(--tx2)',borderRadius:4,cursor:'pointer'}}>🔄 Vary</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Export */}
-                  <div>
-                    <div className="card mb3">
-                      <div style={{fontSize:11,fontWeight:600,color:'var(--gold)',marginBottom:10}}>⬇ Export</div>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
-                        <button onClick={dlPoster} style={{padding:'8px',fontSize:10,background:'rgba(200,169,110,.12)',border:'1px solid rgba(200,169,110,.4)',color:'var(--gold)',borderRadius:5,cursor:'pointer',fontWeight:600}}>⬇ SVG</button>
-                        <button onClick={downloadAsPNG} style={{padding:'8px',fontSize:10,background:'rgba(88,166,255,.1)',border:'1px solid rgba(88,166,255,.35)',color:'#58A6FF',borderRadius:5,cursor:'pointer',fontWeight:600}}>🖼 PNG</button>
-                      </div>
-                      <button onClick={openInCanva} style={{width:'100%',padding:'9px',fontSize:11,background:'linear-gradient(135deg,rgba(0,196,204,.12),rgba(122,89,255,.12))',border:'1px solid rgba(0,196,204,.4)',color:'#00C4CC',borderRadius:5,cursor:'pointer',marginBottom:8,fontWeight:600,letterSpacing:.3}}>
-                        🎨 Create in Canva {canvasBrief?'· Brief Ready ✓':''}
-                      </button>
-                      <button onClick={sendPosterApproval} disabled={pApproval} style={{width:'100%',padding:'9px',fontSize:11,background:pApproval?'rgba(63,185,80,.1)':'rgba(255,255,255,.05)',border:`1px solid ${pApproval?'rgba(63,185,80,.4)':'var(--br)'}`,color:pApproval?'#3FB950':'var(--tx2)',borderRadius:5,cursor:'pointer'}}>
-                        {pApproval?'✓ Sent':'📧 Send for Approval'}
-                      </button>
-                    </div>
-                    {clients.find(c=>c.name===pClient)&&clientBrains[clients.find(c=>c.name===pClient).id]?.pillars&&(
-                      <div className="card">
-                        <div style={{fontSize:10,fontWeight:600,color:'var(--gold)',marginBottom:6}}>🧠 BRAIN ACTIVE</div>
-                        {(clientBrains[clients.find(c=>c.name===pClient).id].pillars||'').split(',').slice(0,3).map((p,i)=>(
-                          <div key={i} style={{fontSize:9,color:'var(--tx3)',marginBottom:2}}>· {p.trim()}</div>
-                        ))}
-                      </div>
-                    )}
+                <div>
+                  <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:5}}>Style Theme</div>
+                  <div style={{padding:'6px 8px',fontSize:10,background:'rgba(200,169,110,.06)',border:'1px solid rgba(200,169,110,.2)',borderRadius:4,color:'var(--gold)'}}>
+                    {canvasBrief?.philosophy||'Gilded Transit'} · {canvasBrief?.mood||'editorial'}
                   </div>
                 </div>
               </div>
-            )
-          })()}
+              {/* Hotel Photo Gallery */}
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:10,fontWeight:600,color:'var(--tx2)',marginBottom:6}}>Hero Photo <span style={{color:'var(--tx3)',fontWeight:400}}>(from your Google Drive)</span></div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:4}}>
+                  {HOTEL_PHOTOS.map(p=>(
+                    <div key={p.id} onClick={()=>setSelectedPhoto(p.id)}
+                      style={{position:'relative',aspectRatio:'1',cursor:'pointer',borderRadius:4,overflow:'hidden',border:`2px solid ${selectedPhoto===p.id?'#00C4CC':'transparent'}`,outline:selectedPhoto===p.id?'1px solid rgba(0,196,204,.4)':'none'}}>
+                      <img src={`https://drive.google.com/thumbnail?id=${p.id}&sz=w200`} alt={p.name}
+                        style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
+                        onError={e=>{e.target.style.display='none';e.target.parentNode.style.background='rgba(255,255,255,.05)'}}/>
+                      {selectedPhoto===p.id&&<div style={{position:'absolute',top:2,right:2,width:14,height:14,borderRadius:'50%',background:'#00C4CC',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'#000',fontWeight:700}}>✓</div>}
+                      <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'2px 3px',fontSize:7,background:'rgba(0,0,0,.6)',color:'#fff',textAlign:'center',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{p.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Brief preview */}
+              {canvasBrief&&(
+                <div style={{marginBottom:12,padding:'8px 10px',background:'rgba(255,255,255,.03)',border:'1px solid var(--br)',borderRadius:5}}>
+                  <div style={{fontSize:9,fontWeight:600,color:'var(--gold)',marginBottom:4}}>Creative Brief from Director</div>
+                  <div style={{fontSize:10,color:'var(--tx2)',fontWeight:600}}>{canvasBrief.title}</div>
+                  <div style={{fontSize:9,color:'var(--tx3)'}}>{canvasBrief.subtitle}</div>
+                  <div style={{display:'flex',gap:6,marginTop:4,flexWrap:'wrap'}}>
+                    {(canvasBrief.palette||[]).map((c,i)=>(<span key={i} style={{display:'inline-block',width:12,height:12,borderRadius:2,background:c,border:'1px solid rgba(255,255,255,.15)'}}/>))}
+                    <span style={{fontSize:8,color:'var(--tx3)',alignSelf:'center'}}>{canvasBrief.style} · {canvasBrief.font_headline}</span>
+                  </div>
+                </div>
+              )}
+              {/* Generate button */}
+              <button onClick={()=>{
+                const brief=canvasBrief||{title:'The Airport Hotel. Finally.',subtitle:'Nikunja 2, Dhaka — 5 min from Airport',style:'luxury',cta:'Book Now',palette:['#F5F0E8','#C8A96E','#1A1A2E'],mood:'editorial warm aspirational',philosophy:'Gilded Transit'}
+                const photoUrl=`https://drive.google.com/thumbnail?id=${selectedPhoto}&sz=w2000`
+                const prompt=`Hotel Fountain Dhaka ${canvasDesignType} design. Philosophy: "${brief.philosophy||'Gilded Transit'}". Style: warm ivory + deep gold editorial. Headline: "${brief.title}". Subheadline: "${brief.subtitle}". CTA: "${brief.cta||'Book Now'}". Rate: "From ৳3,500/night". Footer: "+880-1319407384 · hotelfountainbd.com". Mood: ${brief.mood||'editorial luxury aspirational'}. Photo: ${photoUrl}. Libre Baskerville headlines, DM Sans body, IBM Plex Mono rates. Magazine quality, minimal text, white space is luxury.`
+                navigator.clipboard.writeText(prompt).catch(()=>{})
+                const req={type:canvasDesignType,brief,photoId:selectedPhoto,prompt,ts:Date.now()}
+                setCanvasResults(prev=>[req,...prev.slice(0,4)])
+                window.open('https://www.canva.com/create/','_blank')
+                toast('📋 Design brief copied + Canva opened. Paste brief into Canva AI or ask Claude to generate ✓')
+              }} style={{width:'100%',padding:'10px',fontSize:12,background:'linear-gradient(135deg,rgba(0,196,204,.2),rgba(122,89,255,.15))',border:'1px solid rgba(0,196,204,.5)',color:'#00C4CC',borderRadius:5,cursor:'pointer',fontWeight:700,letterSpacing:.3}}>
+                🎨 Generate in Canva
+              </button>
+              {/* Previous results */}
+              {canvasResults.length>0&&(
+                <div style={{marginTop:10}}>
+                  <div style={{fontSize:9,fontWeight:600,color:'var(--tx3)',marginBottom:5}}>Recent Requests</div>
+                  {canvasResults.slice(0,3).map((r,i)=>(
+                    <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 6px',background:'rgba(255,255,255,.03)',borderRadius:3,marginBottom:3}}>
+                      <span style={{fontSize:9,color:'var(--tx2)'}}>{r.type} · {new Date(r.ts).toLocaleTimeString()}</span>
+                      <button onClick={()=>{navigator.clipboard.writeText(r.prompt).catch(()=>{});toast('Brief copied ✓')}} style={{fontSize:8,padding:'2px 6px',background:'rgba(0,196,204,.1)',border:'1px solid rgba(0,196,204,.3)',color:'#00C4CC',borderRadius:3,cursor:'pointer'}}>Copy Brief</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )
     }
