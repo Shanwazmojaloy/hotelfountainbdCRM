@@ -2333,18 +2333,19 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     return rooms.filter(Boolean).join(', ')||'—'
   }
 
-  const _isPayVehicle = t => /cash|bkash/i.test(t.type||'') && t.type!=='Balance Carried Forward'
+  const _isRealPayment = t => !/balance carried forward/i.test(t.type||'') && !/final\s*settlement/i.test(t.type||'')
+  const _isPayVehicle = t => _isRealPayment(t)
   const _bizDayTotal = list => {
     const byKey = {}
     list.forEach(t=>{
-      if(t.type==='Balance Carried Forward') return
+      if(/balance carried forward/i.test(t.type||'')) return
       const key = `${t.room_number||''}|${t.guest_name||''}`
-      if(!byKey[key]) byKey[key] = { pay:0, fsPos:0, hasCash:false }
+      if(!byKey[key]) byKey[key] = { pay:0, fsPos:0, hasReal:false }
       const amt = +t.amount||0
-      if(/cash|bkash/i.test(t.type||'')) { byKey[key].pay += amt; byKey[key].hasCash = true }
+      if(_isRealPayment(t)) { byKey[key].pay += amt; byKey[key].hasReal = true }
       else if(/final\s*settlement/i.test(t.type||'') && amt > 0) { byKey[key].fsPos += amt }
     })
-    return Object.values(byKey).reduce((a,g)=> a + (g.hasCash ? g.pay : g.fsPos), 0)
+    return Object.values(byKey).reduce((a,g)=> a + (g.hasReal ? g.pay : g.fsPos), 0)
   }
   // todayRevenue: mirrors the ledger table's unifiedGroups logic exactly.
   // Part 1: reservations matched via activeLedgerTx (same dual-match: room_ids UUID OR room_number string + guest name)
@@ -2776,9 +2777,9 @@ ${dueRows}
                     const chkIn = r ? fmtDate(r.check_in) : (grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
                     const chkOut = r ? fmtDate(r.check_out) : (grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
                     const tTotal = r ? resTotal : (grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
-                    // PAID column: TODAY = actual cash/bkash collected today; other filters = lifetime paid
+                    // PAID column: TODAY = all real payments today (excl BCF); other filters = lifetime paid
                     const tPaid = (filter==='TODAY')
-                      ? grp.txs.filter(t=>/cash|bkash/i.test(t.type||'')).reduce((s,t)=>s+(+t.amount||0),0)
+                      ? grp.txs.filter(t=>!/balance carried forward/i.test(t.type||'')).reduce((s,t)=>s+(+t.amount||0),0)
                       : (r ? resPaid : 0)
                     const tDue = r ? resDue : 0
                     const tDiscount = r ? (+r.discount_amount||+r.discount||0) : 0
