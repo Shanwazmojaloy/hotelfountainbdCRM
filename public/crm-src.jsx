@@ -621,14 +621,15 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
     const todayTxs = (transactions||[]).filter(t => t.fiscal_day === today)
     const byKey = {}
     todayTxs.forEach(t => {
-      if(t.type==='Balance Carried Forward') return
+      if(/balance carried forward/i.test(t.type||'')) return
       const key = `${t.room_number||''}|${t.guest_name||''}`
-      if(!byKey[key]) byKey[key] = {pay:0, fsPos:0, hasCash:false}
+      if(!byKey[key]) byKey[key] = {pay:0, fsPos:0, hasReal:false}
       const amt = +t.amount||0
-      if(/cash|bkash/i.test(t.type||'')) { byKey[key].pay += amt; byKey[key].hasCash = true }
-      else if(/final\s*settlement/i.test(t.type||'') && amt > 0) { byKey[key].fsPos += amt }
+      const isReal = !/final\s*settlement/i.test(t.type||'')
+      if(isReal) { byKey[key].pay += amt; byKey[key].hasReal = true }
+      else if(amt > 0) { byKey[key].fsPos += amt }
     })
-    return Object.values(byKey).reduce((a,g) => a + (g.hasCash ? g.pay : g.fsPos), 0)
+    return Object.values(byKey).reduce((a,g) => a + (g.hasReal ? g.pay : g.fsPos), 0)
   })()
   const inHouse=reservations.filter(r=>r.status==='CHECKED_IN').length
   const pending=reservations.filter(r=>r.status==='PENDING').length
