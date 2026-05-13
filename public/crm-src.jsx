@@ -7,9 +7,23 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co'
 const SB_KEY = (window.__env&&window.__env.SB_KEY)||'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh'
-const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
+const _CFG     = window.CRM_CONFIG || {}
+const TENANT   = _CFG.tenantId     || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
+const _HNAME   = _CFG.hotelName    || 'Hotel Fountain BD'
+const _HSHORT  = _CFG.hotelShort   || 'Fountain'
+const _HADDR   = _CFG.address      || 'House 05, Road 02, Nikunja 02 · Dhaka 1229, Bangladesh'
+const _HLOC    = _CFG.location     || 'Nikunja 2 · Airport Corridor · Dhaka'
+const _HPHONE  = _CFG.phone        || '+880 1322-840799'
+const _HWAPP   = _CFG.whatsapp     || '+8801322840799'
+const _HEMAIL  = _CFG.email        || 'hotellfountainbd@gmail.com'
+const _HSITE   = _CFG.website      || 'hotelfountainbd.vercel.app'
+const _TAGLINE = _CFG.tagline      || 'The Gilded Threshold · Luxury In Comfort'
+const _CURR    = _CFG.currency     || '৳'
+const _CCITY   = _CFG.city         || 'Dhaka, Bangladesh'
+const _VRATE   = _CFG.vatPct       !== undefined ? _CFG.vatPct : 15
+const _SRATE   = _CFG.svcPct       !== undefined ? _CFG.svcPct : 5
 
-const BDT = n => '৳' + Number(n||0).toLocaleString('en-BD')
+const BDT = n => _CURR + Number(n||0).toLocaleString('en-BD')
 const fmtDate = d => d ? String(d).slice(0,10) : '—'
 const _dhakaParts = (d=new Date()) => {
   const p = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(d)
@@ -480,7 +494,7 @@ function LoginPage({onLogin, staffList}) {
         {/* top bar */}
         <div className="lp-bar top">
           <div className="lp-rule"/>
-          <div className="lp-label">Staff Portal · Hotel Fountain</div>
+          <div className="lp-label">Staff Portal · {_HNAME}</div>
           <div className="lp-rule dim"/>
         </div>
 
@@ -488,7 +502,7 @@ function LoginPage({onLogin, staffList}) {
         <div className="lp-logo-wrap">
           <img
             src="/lp-logo.png"
-            alt="Hotel Fountain"
+            alt={_HNAME}
             className="lp-logo-img"
           />
           <div className="lp-brand-sub">Management CRM · Powered by Lumea</div>
@@ -601,7 +615,7 @@ function LoginPage({onLogin, staffList}) {
           </form>
         </div>
 
-        <div className="lp-right-bot">Lumea · Hotel Fountain Management CRM</div>
+        <div className="lp-right-bot">Lumea · {_HNAME} Management CRM</div>
       </div>
     </div>
   )
@@ -1959,7 +1973,7 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
   </tr>`).join('')
   const tkn = +(tokenAmount||0)
   const closingBalance = (+periodTotal||0) - tkn
-  const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Hotel Fountain — Billing ${filterLabel}</title>
+  const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${_HNAME} — Billing ${filterLabel}</title>
   <style>
     @page{size:A4 portrait;margin:6mm 6mm}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
@@ -2075,7 +2089,7 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
     <div class="closing-row token"><span>Token Amount (Deducted)</span><span>− ${fmt(tkn)}</span></div>
     <div class="closing-row final"><span>Closing Balance</span><span>${fmt(closingBalance)}</span></div>
   </div>
-  <div class="footer"><div class="total-row">${filterLabel}: ${fmt(periodTotal)} · ${(enriched||[]).length} transaction${(enriched||[]).length!==1?'s':''}</div><div class="footer-note">Hotel Fountain CRM · Lumea PMS · Confidential</div></div>
+  <div class="footer"><div class="total-row">${filterLabel}: ${fmt(periodTotal)} · ${(enriched||[]).length} transaction${(enriched||[]).length!==1?'s':''}</div><div class="footer-note">${_HNAME} CRM · Lumea PMS · Confidential</div></div>
   </body></html>`
   printPDF(content)
 }
@@ -2169,11 +2183,11 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
   <table style="margin-bottom:18px">
     <tr>
       <td width="52%" style="background:#1C1510;padding:20px 22px;vertical-align:middle">
-        <div class="serif" style="font-size:24px;font-weight:800;color:#C8A96E;letter-spacing:.02em">Hotel <em style="font-weight:400">Fountain</em></div>
-        <div style="font-size:7.5px;color:rgba(255,255,255,.5);letter-spacing:.22em;text-transform:uppercase;margin-top:6px">The Gilded Threshold · Luxury In Comfort</div>
-        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:10px">House 05, Road 02, Nikunja 02 · Dhaka 1229, Bangladesh</div>
-        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">WhatsApp +880 1322-840799 · hotellfountainbd@gmail.com</div>
-        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">hotelfountainbd.vercel.app</div>
+        <div class="serif" style="font-size:24px;font-weight:800;color:#C8A96E;letter-spacing:.02em">${_HNAME}</div>
+        <div style="font-size:7.5px;color:rgba(255,255,255,.5);letter-spacing:.22em;text-transform:uppercase;margin-top:6px">${_TAGLINE}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:10px">${_HADDR}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">WhatsApp ${_HWAPP} · ${_HEMAIL}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">${_HSITE}</div>
         <div style="font-size:6.5px;color:rgba(200,169,110,.45);margin-top:10px;letter-spacing:.08em">MANAGEMENT CRM · POWERED BY LUMEA</div>
       </td>
       <td width="48%" style="padding:20px 0 20px 14px;vertical-align:top;text-align:right;border-bottom:3px solid #1C1510">
@@ -2253,11 +2267,11 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
   <div style="margin-top:20px;padding:14px 0 0;border-top:2px solid #1C1510">
     <table>
       <tr>
-        <td width="60%" style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase">Hotel Fountain · Lumea PMS · Confidential</td>
+        <td width="60%" style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase">${_HNAME} · Lumea PMS · Confidential</td>
         <td width="40%" style="font-size:7.5px;color:#8D6F57;text-align:right">Computer-generated invoice — no signature required</td>
       </tr>
       <tr>
-        <td colspan="2" style="padding-top:6px;font-size:8px;color:#8D6F57;text-align:center;font-style:italic">Thank you for choosing Hotel Fountain. We look forward to welcoming you again.</td>
+        <td colspan="2" style="padding-top:6px;font-size:8px;color:#8D6F57;text-align:center;font-style:italic">Thank you for choosing ${_HNAME}. We look forward to welcoming you again.</td>
       </tr>
     </table>
   </div>
@@ -2518,7 +2532,7 @@ ${dueRows}
   ${totalDue>0?`<div class="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDue.toLocaleString()}</span></div>`:''}
   <div class="closing-row final"><span>Closing Balance</span><span>৳${closingAmt.toLocaleString()}</span></div>
 </div>
-<div className="footer"><span>Hotel Fountain CRM · Lumea PMS · Confidential</span><span>${todayList.length} transaction${todayList.length!==1?'s':''} · ${duesCarried.length} pending due${duesCarried.length!==1?'s':''}</span></div>
+<div className="footer"><span>{_HNAME} CRM · Lumea PMS · Confidential</span><span>${todayList.length} transaction${todayList.length!==1?'s':''} · ${duesCarried.length} pending due${duesCarried.length!==1?'s':''}</span></div>
 </body></html>`
 
     printPDF(content).then(async()=>{
@@ -3185,7 +3199,7 @@ function ReportsPage({transactions,rooms,reservations,guests}) {
 function SettingsPage({currentUser,toast,staffList,setStaffList,reservations,rooms,guests}) {
   const isSA=currentUser?.role==='owner'
   const [tab,setTab]=useState('hotel')
-  const [hs,setHS]=useState({hotelName:'Hotel Fountain',city:'Dhaka, Bangladesh',currency:'BDT',checkIn:'14:00',checkOut:'12:00',vat:'15',svc:'5'})
+  const [hs,setHS]=useState({hotelName:_HNAME,city:_CCITY,currency:_CFG.currencyCode||'BDT',checkIn:_CFG.checkInTime||'14:00',checkOut:_CFG.checkOutTime||'12:00',vat:String(_VRATE),svc:String(_SRATE)})
   const [hsSaving,setHsSaving]=useState(false)
   const HS=k=>e=>setHS(p=>({...p,[k]:e.target.value}))
   const [showAddUser,setShowAddUser]=useState(false)
@@ -4577,7 +4591,7 @@ function WorkflowMonitor({toast}) {
           })
       }
       <div style={{padding:'10px 16px',background:'rgba(200,169,110,.03)',borderTop:'1px solid var(--br2)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <span className="xs muted">All emails → hotellfountainbd@gmail.com</span>
+        <span className="xs muted">All emails → {_HEMAIL}</span>
         <span className="xs muted">{runs.length} runs logged</span>
       </div>
     </div>
@@ -4703,7 +4717,7 @@ function LeadPipelinePage() {
             Corporate <em>Lead Pipeline</em>
           </div>
           <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase'}}>
-            Nikunja 2 · Airport Corridor · Dhaka
+            {_HLOC}
           </div>
         </div>
         <button

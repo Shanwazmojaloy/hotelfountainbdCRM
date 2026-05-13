@@ -1064,4 +1064,110 @@ Also committed separately: `postcss.config.mjs`, `tailwind.config.js`, `eslint.c
 - **Brevo inbound webhook** — set URL `https://fountainbd.com/api/agents/reply-intake` in Brevo → Settings → Inbound Parsing
 - **Fill NULL contact emails** — 8 leads in `corporate_leads`: Universal IT, Walton Hi-Tech, Workspace Infotech, LinkTech IT, Riseup Labs, Banglalink, Grameenphone, Brainstation 23
 - **Orphan TX cleanup** — 24 rows ~৳70,680 ledger inflation
-- **Facebook Page Token renewal** — deadline 202
+- **Facebook Page Token renewal** — deadline 2026-06-30
+- **Supabase migration** — `20260429_status_uppercase_constraints.sql` still unrun
+- **`transactions_reservation_id_fkey`** FK migration still pending
+
+---
+
+## Session 2026-05-13 — Infrastructure Reliability + Billing 400 Fix
+
+### Migrations Applied (Supabase MCP)
+
+| Migration | Status |
+|---|---|
+| `20260429_status_uppercase_constraints.sql` | ✅ APPLIED |
+| `20260512_corporate_leads.sql` | ✅ APPLIED (10 leads seeded) |
+| `20260513_transactions_reservation_id_fkey.sql` | ✅ APPLIED |
+
+**`20260513_transactions_reservation_id_fkey.sql` details:**
+- Dropped dead `res_id` column from `transactions` (0 rows; legacy column never populated by current code)
+- Added FK: `transactions.reservation_id → reservations.id ON DELETE SET NULL`
+- Added partial index: `idx_transactions_reservation_id WHERE reservation_id IS NOT NULL`
+- Pre-flight: 326/327 rows had `reservation_id`; 0 dangling refs; 1 NULL row (unaffected)
+
+### Vercel Cron Fix
+
+`reply-intake-poll` cron changed from `*/30 * * * *` → `0 1 * * *` (Hobby plan = 1 cron per path per day max). Deployed via `npx vercel --prod` (commit `630f6f4`).
+
+### Gmail IMAP Reply Intake
+
+`/api/agents/reply-intake-poll` route built. Polls Gmail IMAP daily at 7AM BDT (`0 1 * * *` UTC). Replaces Brevo inbound webhook (enterprise-only).
+
+### BREVO_API_KEY — Supabase Edge Function Secret
+
+Added via Supabase Dashboard → Edge Functions → Secrets. Fixed 164+44+46 failed `booking-confirmation` Edge Function invocations.
+
+### Billing & Invoices 400 Error — Root Cause + Fix
+
+**Error:** `42703: column "res_id" does not exist` / `rec 'new' has no field 'res_id'`  
+**Surface:** Every transaction INSERT/UPDATE on `fountainbd.com/crm.html` Billing & Invoices returned 400. Toast: `"could not advance fiscal day"`.
+
+**Root cause:** After dropping `res_id` in the FK migration, the trigger function `fn_dual_write_transaction` still referenced `NEW.res_id`:
+```sql
+v_res_id := COALESCE(NEW.reservation_id, NEW.res_id);  -- ← BROKEN
+```
+PostgreSQL PL/pgSQL error code `42703` — column does not exist on `NEW` record — caused the trigger to abort every transaction write.
+
+**Fix (applied via Supabase MCP — `CREATE OR REPLACE FUNCTION`):**
+```sql
+v_res_id := NEW.reservation_id;  -- res_id column dropped 2026-05-13
+```
+No redeploy needed — pure database-side fix. Effective immediately.
+
+**Other `res_id` references audited:**
+- `crm-src.jsx:2584` — read-only fallback `tx.reservation_id || tx.res_id` — safe (undefined fallback, not a column write)
+- `compute_bill()` — uses `res_id` as a PL/pgSQL parameter variable name, NOT a column — safe
+- No write paths in `crm-src.jsx` send `res_id` in any POST/PATCH payload
+
+### Orphan TX Status
+
+FK migration pre-flight confirmed: 1 row with `reservation_id IS NULL` in transactions. FK is `ON DELETE SET NULL` + NULLABLE — row is valid, no action needed unless owner wants to reconcile.
+
+### Billing PAID Column + BIZ DAY KPI — Advance Payment not counted (2026-05-14)
+
+**Bug:** BISSHOJIT BANIK (501) and MD.HASAN ALI (304) each paid ৳3,000 via Advance Payment. Billing PAID column showed ৳0; their amounts were absent from BIZ DAY KPI total.
+
+**Root cause:** Two places used `/cash|bkash/i` regex to identify real payments:
+1. `tPaid` (ledger PAID column, `crm-src.jsx:2780`) — whitelist only matched "Room Payment (Cash)" and "Room Payment (Bkash)" type strings. "Advance Payment" type was invisible.
+2. `_bizDayTotal` (BIZ DAY KPI + month revenue, `crm-src.jsx:2344`) — same `/cash|bkash/i` whitelist. The `hasCash` flag never set for Advance Payment rows → the group fell through to the FS fallback (৳0 since no Final Settlement either).
+
+**Fix (`crm-src.jsx`):**
+- `tPaid` — changed from whitelist to exclusion: `!/balance carried forward/i.test(t.type)`. All real payment types (Advance Payment, Room Payment, Nagad, Card, Bank Transfer, etc.) now count automatically.
+- `_bizDayTotal` — introduced `_isRealPayment(t)` helper: excludes BCF and Final Settlement. `hasCash` renamed to `hasReal`. FS dedup logic preserved — if a group has any real payment, FS is suppressed (prevents legacy double-count). If no real payment, FS is the fallback.
+- `_isPayVehicle` — updated to use `_isRealPayment` (was also `/cash|bkash/i`).
+
+**Rule going forward:** Never whitelist payment types to identify real money movements. Always **exclude** known synthetic types (BCF, Final Settlement). Any new payment type (Mobile Banking, Nagad, etc.) works automatically without code changes.
+
+**Also fixed:** `ReactDOM.createRoot` mount call was truncated from end of `crm-src.jsx` by Edit tool during this session — restored via Python script before rebuild.
+
+**Bundle:** `crm-bundle.js` → 279,630 bytes. Commit pending PowerShell push.
+
+### Dashboard todayRev ≠ Billing BIZ DAY — Stale Inline Copy (2026-05-14)
+
+**Symptom:** After Advance Payment fix, Billing BIZ DAY showed ৳58,000 while Dashboard TODAY'S REVENUE showed ৳51,998 — ৳6,002 gap despite both showing 14 in-house.
+
+**Root cause — two component scopes, one stale:**
+- Billing BIZ DAY (`BillingPage` component, ~L2635): renders `_bizDayTotal(todayT)` — correctly updated to `_isRealPayment` exclusion pattern.
+- Dashboard TODAY'S REVENUE (`DashboardPage` component, ~L620): had its own **inline copy** of the same logic still on the old `/cash|bkash/i` whitelist with `hasCash` flag. Advance Payments weren't counted → ৳6,002 short (2 guests × ৳3,000 each = ৳6,000, plus rounding on ৳2).
+
+**Fix (`crm-src.jsx` L620–632 via Python replace):**
+Updated Dashboard `todayRev` inline logic to match `_bizDayTotal` exactly:
+- BCF exclusion: `/balance carried forward/i` (was exact string match `==='Balance Carried Forward'`)
+- Real payment: `!/final\s*settlement/i` (excludes only FS as synthetic fallback)
+- Flag renamed `hasCash` → `hasReal`
+
+**Architecture lesson — PERMANENT rule:**
+`todayRev` (Dashboard) and `_bizDayTotal` (Billing) are two separate inline implementations in different component scopes. They CANNOT call each other. Any change to payment classification logic MUST be applied to BOTH:
+1. `_isRealPayment` + `_bizDayTotal` in `BillingPage` (~L2336–2348)
+2. `todayRev` inline in `DashboardPage` (~L620–632)
+
+If a shared helper is ever needed, move to module scope (before all `function` / `const` component definitions).
+
+**Bundle:** `crm-bundle.js` → 279,608 bytes. Commit pending PowerShell push.
+
+### Pending (carry forward)
+
+- **Orphan TX** — 1 row `reservation_id IS NULL`; pull row, confirm amount, reconcile or DELETE
+- **Facebook Page Token** — renew before **2026-06-30** (Graph API Explorer → Shanwaz Ahmed account → update Vercel env var `FACEBOOK_PAGE_TOKEN`)
+- **Corporate leads** — 8 leads still missing contact emails in `corporate_leads` table
