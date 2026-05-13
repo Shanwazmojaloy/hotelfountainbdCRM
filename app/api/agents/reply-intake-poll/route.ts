@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 async function runReplyPoll() {
   const supabase = createClient(

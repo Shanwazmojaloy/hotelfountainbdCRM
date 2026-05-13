@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const BASE = 'https://mynwfkgksqqwlqowlscj.supabase.co/rest/v1';
+const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const BASE   = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1`;
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -83,7 +83,8 @@ export async function GET(req: Request) {
       'reservations',
       `select=id&tenant_id=eq.${TENANT}&status=eq.CHECKED_IN`
     );
-    const occupancy = ((checkedIn?.length ?? 0) / 24) * 100;
+    const roomCount = Number(process.env.HOTEL_ROOM_COUNT || 24);
+    const occupancy = ((checkedIn?.length ?? 0) / roomCount) * 100;
 
     const alerts: { severity: string; body: string }[] = [];
 
@@ -91,7 +92,7 @@ export async function GET(req: Request) {
       alerts.push({ severity: 'HIGH', body: `Revenue variance ৳${variance.toFixed(0)} exceeds ৳500 threshold. Transactions: ৳${txnTotal.toFixed(0)}, Closing: ৳${closingTotal.toFixed(0)}` });
     }
     if (occupancy < 40) {
-      alerts.push({ severity: 'MEDIUM', body: `Occupancy ${occupancy.toFixed(0)}% below 40% threshold (${checkedIn?.length ?? 0}/24 rooms)` });
+      alerts.push({ severity: 'MEDIUM', body: `Occupancy ${occupancy.toFixed(0)}% below 40% threshold (${checkedIn?.length ?? 0}/${roomCount} rooms)` });
     }
     if (txnTotal < 20000) {
       alerts.push({ severity: 'LOW', body: `Daily revenue ৳${txnTotal.toFixed(0)} below ৳20,000 threshold` });
@@ -131,13 +132,14 @@ export async function GET(req: Request) {
 
   // ── AUTOMATED MARKETER ───────────────────────────────────────────
   try {
-    let waNumber = '8801322840799';
+    const waDefault = (process.env.HOTEL_WHATSAPP || '8801322840799').replace(/[^0-9]/g, '');
+    let waNumber = waDefault;
     try {
       const waSetting = await dbGet(
         'hotel_settings',
         `select=value&tenant_id=eq.${TENANT}&key=eq.whatsapp_number&limit=1`
       );
-      waNumber = (waSetting?.[0]?.value ?? '+8801322840799').replace(/[^0-9]/g, '');
+      waNumber = (waSetting?.[0]?.value ?? waDefault).replace(/[^0-9]/g, '');
     } catch { /* use default */ }
     const waLink = `https://wa.me/${waNumber}`;
 
@@ -159,7 +161,9 @@ export async function GET(req: Request) {
         );
         if (rooms?.length > 0) {
           const room = rooms[0];
-          postBody = `🏨 Room of the Day — ${room.name}\n\n✨ ${room.room_type} | ৳${room.rate}/night\n\n📞 Book now via WhatsApp: ${waLink}\n\n#HotelFountain #Dhaka #HotelBD`;
+          const hotelName = process.env.HOTEL_NAME || 'Hotel Fountain BD';
+          const hotelCity = process.env.HOTEL_CITY || 'Dhaka';
+          postBody = `🏨 Room of the Day — ${room.name}\n\n✨ ${room.room_type} | ৳${room.rate}/night\n\n📞 Book now via WhatsApp: ${waLink}\n\n#${hotelName.replace(/\s+/g,'')} #${hotelCity} #HotelBD`;
         }
       } catch { /* no rooms */ }
     }

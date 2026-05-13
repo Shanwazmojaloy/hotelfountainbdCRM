@@ -4,7 +4,10 @@ const CRON_SECRET   = process.env.CRON_SECRET
 const FB_TOKEN      = process.env.FACEBOOK_PAGE_TOKEN
 const FB_PAGE_ID    = process.env.FACEBOOK_PAGE_ID
 const BREVO_API_KEY = process.env.BREVO_API_KEY
-const ALERT_EMAIL   = 'ahmedshanwaz5@gmail.com'
+const ALERT_EMAIL   = process.env.ALERT_EMAIL  || 'ahmedshanwaz5@gmail.com'
+const ALERT_NAME    = process.env.ALERT_NAME   || 'Hotel Owner'
+const HOTEL_NAME    = process.env.HOTEL_NAME   || 'Hotel Fountain'
+const SENDER_EMAIL  = process.env.HOTEL_SENDER_EMAIL || 'hotellfountainbd@gmail.com'
 const WARN_DAYS     = 30  // alert when < 30 days remain
 
 export async function GET(req: Request) {
@@ -43,12 +46,12 @@ export async function GET(req: Request) {
 
   if (needsAlert && BREVO_API_KEY) {
     const subject = tokenError
-      ? '🚨 Hotel Fountain: Facebook Page Token INVALID'
-      : `⚠️ Hotel Fountain: Facebook Token expires in ${daysLeft} days`
+      ? `🚨 ${HOTEL_NAME}: Facebook Page Token INVALID`
+      : `⚠️ ${HOTEL_NAME}: Facebook Token expires in ${daysLeft} days`
 
     const body = tokenError
-      ? `The FACEBOOK_PAGE_TOKEN is invalid or expired.\n\nError: ${tokenError}\n\nRenew immediately via Graph API Explorer:\nhttps://developers.facebook.com/tools/explorer/\n\nAccount: Shanwaz Ahmed\nPage: Hotel Fountain (ID: ${FB_PAGE_ID})\n\nUpdate FACEBOOK_PAGE_TOKEN in Vercel Settings → Environment Variables.`
-      : `Your Facebook Page Token expires in ${daysLeft} days (${new Date((expiresAt! * 1000)).toISOString().slice(0,10)}).\n\nRenew via Graph API Explorer before it expires:\nhttps://developers.facebook.com/tools/explorer/\n\nAccount: Shanwaz Ahmed\nPage: Hotel Fountain (ID: ${FB_PAGE_ID})\n\nUpdate FACEBOOK_PAGE_TOKEN in Vercel Settings → Environment Variables.`
+      ? `The FACEBOOK_PAGE_TOKEN is invalid or expired.\n\nError: ${tokenError}\n\nRenew immediately via Graph API Explorer:\nhttps://developers.facebook.com/tools/explorer/\n\nPage: ${HOTEL_NAME} (ID: ${FB_PAGE_ID})\n\nUpdate FACEBOOK_PAGE_TOKEN in Vercel Settings → Environment Variables.`
+      : `Your Facebook Page Token expires in ${daysLeft} days (${new Date((expiresAt! * 1000)).toISOString().slice(0,10)}).\n\nRenew via Graph API Explorer before it expires:\nhttps://developers.facebook.com/tools/explorer/\n\nPage: ${HOTEL_NAME} (ID: ${FB_PAGE_ID})\n\nUpdate FACEBOOK_PAGE_TOKEN in Vercel Settings → Environment Variables.`
 
     try {
       await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -58,8 +61,8 @@ export async function GET(req: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sender: { name: 'Lumea CRM', email: 'hotellfountainbd@gmail.com' },
-          to: [{ email: ALERT_EMAIL, name: 'Shan' }],
+          sender: { name: 'Lumea CRM', email: SENDER_EMAIL },
+          to: [{ email: ALERT_EMAIL, name: ALERT_NAME }],
           subject,
           textContent: body,
         }),

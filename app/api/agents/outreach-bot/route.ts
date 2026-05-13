@@ -12,10 +12,14 @@ import { createClient } from '@supabase/supabase-js';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const SENDER_NAME  = 'Shan Ahmed — Hotel Fountain BD';
-const SENDER_EMAIL = 'hotellfountainbd@gmail.com';
-const MAX_PER_RUN  = 10;
+const TENANT        = process.env.NEXT_PUBLIC_TENANT_ID    || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const SENDER_NAME   = process.env.HOTEL_SENDER_NAME        || 'Shan Ahmed — Hotel Fountain BD';
+const SENDER_EMAIL  = process.env.HOTEL_SENDER_EMAIL       || 'hotellfountainbd@gmail.com';
+const HOTEL_NAME    = process.env.HOTEL_NAME               || 'Hotel Fountain BD';
+const HOTEL_LOC     = process.env.HOTEL_LOCATION           || 'Nikunja 2 · Dhaka · Airport Corridor';
+const HOTEL_ADDR    = process.env.HOTEL_ADDRESS            || 'House-05, Road-02, Nikunja-02, Dhaka-1229';
+const HOTEL_PHONE   = process.env.HOTEL_PHONE              || '+880 1322-840799';
+const MAX_PER_RUN   = 10;
 
 function buildOutreachHtml(company: string, contactName: string | null, title: string | null): string {
   const greeting = contactName ? `Dear ${contactName},` : 'Dear Sir/Madam,';
@@ -28,14 +32,14 @@ function buildOutreachHtml(company: string, contactName: string | null, title: s
 <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#07090E;border:1px solid rgba(200,169,110,.2)">
 
   <tr><td style="padding:36px 44px 24px;border-bottom:1px solid rgba(200,169,110,.12);text-align:center">
-    <div style="font-size:24px;color:#EEE9E2;letter-spacing:.1em;font-weight:300">Hotel <em style="color:#C8A96E;font-style:italic">Fountain</em></div>
-    <div style="font-size:10px;color:#9A907C;letter-spacing:.2em;text-transform:uppercase;margin-top:5px">Nikunja 2 · Dhaka · Airport Corridor</div>
+    <div style="font-size:24px;color:#EEE9E2;letter-spacing:.1em;font-weight:300">${HOTEL_NAME}</div>
+    <div style="font-size:10px;color:#9A907C;letter-spacing:.2em;text-transform:uppercase;margin-top:5px">${HOTEL_LOC}</div>
   </td></tr>
 
   <tr><td style="padding:36px 44px">
     <p style="color:#C8BFB0;font-size:14px;line-height:1.85;margin:0 0 20px">${greeting}</p>
     <p style="color:#C8BFB0;font-size:14px;line-height:1.85;margin:0 0 20px">
-      I'm Shan, Operations Manager at <strong style="color:#EEE9E2">Hotel Fountain BD</strong> — a boutique 24-room property in Nikunja 2, Dhaka, 5 minutes from Hazrat Shahjalal International Airport.
+      I'm Shan, Operations Manager at <strong style="color:#EEE9E2">${HOTEL_NAME}</strong> — a boutique property in ${HOTEL_LOC}, 5 minutes from Hazrat Shahjalal International Airport.
     </p>
     <p style="color:#C8BFB0;font-size:14px;line-height:1.85;margin:0 0 20px">
       A number of companies similar to <strong style="color:#EEE9E2">${company}</strong>${titleLine} quietly use us for visiting engineers, overseas trainers, and inspection teams — mostly because we're close, billing is easy, and the experience is a step above the usual corporate hotel.
@@ -57,14 +61,14 @@ function buildOutreachHtml(company: string, contactName: string | null, title: s
 
     <div style="border-top:1px solid rgba(200,169,110,.12);padding-top:24px">
       <div style="font-size:16px;color:#C8A96E;font-style:italic;margin-bottom:4px">Shan Ahmed</div>
-      <div style="font-size:12px;color:#9A907C;line-height:1.7">Operations Manager · Hotel Fountain BD<br/>
-      📍 House-05, Road-02, Nikunja-02, Dhaka-1229<br/>
-      📞 +880 1322-840799 · <a href="mailto:hotellfountainbd@gmail.com" style="color:#C8A96E;text-decoration:none">hotellfountainbd@gmail.com</a></div>
+      <div style="font-size:12px;color:#9A907C;line-height:1.7">Operations Manager · ${HOTEL_NAME}<br/>
+      📍 ${HOTEL_ADDR}<br/>
+      📞 ${HOTEL_PHONE} · <a href="mailto:${SENDER_EMAIL}" style="color:#C8A96E;text-decoration:none">${SENDER_EMAIL}</a></div>
     </div>
   </td></tr>
 
   <tr><td style="padding:18px 44px;border-top:1px solid rgba(200,169,110,.1);text-align:center">
-    <p style="font-size:10px;color:#5a5a4a;margin:0">Hotel Fountain · Nikunja-02, Dhaka 1229 · hotellfountainbd@gmail.com</p>
+    <p style="font-size:10px;color:#5a5a4a;margin:0">${HOTEL_NAME} · ${HOTEL_ADDR} · ${SENDER_EMAIL}</p>
   </td></tr>
 
 </table></td></tr></table>
@@ -75,7 +79,7 @@ function buildOutreachText(company: string, contactName: string | null): string 
   const greeting = contactName ? `Dear ${contactName},` : 'Dear Sir/Madam,';
   return [
     greeting, '',
-    `I'm Shan, Operations Manager at Hotel Fountain BD — a boutique 24-room property in Nikunja 2, Dhaka, 5 minutes from Hazrat Shahjalal International Airport.`,
+    `I'm Shan, Operations Manager at ${HOTEL_NAME} — a boutique property in ${HOTEL_LOC}, 5 minutes from Hazrat Shahjalal International Airport.`,
     '',
     `A number of companies similar to ${company} quietly use us for visiting engineers, overseas trainers, and inspection teams.`,
     '',
@@ -90,9 +94,9 @@ function buildOutreachText(company: string, contactName: string | null): string 
     `Any day this week or next works. Just reply and I'll confirm a time.`,
     '',
     `Shan Ahmed`,
-    `Operations Manager · Hotel Fountain BD`,
-    `House-05, Road-02, Nikunja-02, Dhaka-1229`,
-    `+880 1322-840799 · hotellfountainbd@gmail.com`,
+    `Operations Manager · ${HOTEL_NAME}`,
+    HOTEL_ADDR,
+    `${HOTEL_PHONE} · ${SENDER_EMAIL}`,
   ].join('\n');
 }
 

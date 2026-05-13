@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const TENANT       = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const TENANT       = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const DEAL_THRESHOLD = 7; // score >= 7 → deal alert
 
 interface AuditPayload {
@@ -34,7 +34,8 @@ interface ClaudeAuditResult {
 }
 
 async function runCEOAudit(payload: AuditPayload): Promise<ClaudeAuditResult> {
-  const prompt = `You are the CEO of Hotel Fountain BD, a boutique 24-room hotel in Nikunja 2, Dhaka. You are reviewing a reply received from a corporate lead we reached out to for a tie-up partnership.
+  const hotelDesc = process.env.HOTEL_DESCRIPTION || 'Hotel Fountain BD, a boutique 24-room hotel in Nikunja 2, Dhaka';
+  const prompt = `You are the CEO of ${hotelDesc}. You are reviewing a reply received from a corporate lead we reached out to for a tie-up partnership.
 
 COMPANY: ${payload.company_name}
 CONTACT: ${payload.contact_name ?? 'Unknown'}

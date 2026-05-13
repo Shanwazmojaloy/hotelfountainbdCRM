@@ -16,11 +16,11 @@ import { createClient } from '@supabase/supabase-js';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-const TENANT          = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const SHAN_EMAIL      = 'ahmedshanwaz5@gmail.com';
-const SHAN_NAME       = 'Shan Ahmed';
-const SENDER_NAME     = 'Lumea Deal Bot — Hotel Fountain';
-const SENDER_EMAIL    = 'hotellfountainbd@gmail.com';
+const TENANT          = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const SHAN_EMAIL      = process.env.ALERT_EMAIL  || 'ahmedshanwaz5@gmail.com';
+const SHAN_NAME       = process.env.ALERT_NAME   || 'Hotel Owner';
+const SENDER_NAME     = `Lumea Deal Bot — ${process.env.HOTEL_NAME || 'Hotel Fountain'}`;
+const SENDER_EMAIL    = process.env.HOTEL_SENDER_EMAIL || 'hotellfountainbd@gmail.com';
 
 interface DealAlertPayload {
   log_id:        string;

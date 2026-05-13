@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const BASE = 'https://mynwfkgksqqwlqowlscj.supabase.co/rest/v1';
+const TENANT     = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const BASE       = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1`;
+const HOTEL_NAME = process.env.HOTEL_NAME || 'Hotel Fountain';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -101,10 +102,10 @@ export async function GET(req: Request) {
 
     const message =
       tier === 'VIP'
-        ? `Dear ${guest.name}, as one of our most valued guests, we'd love to welcome you back to Hotel Fountain. Enjoy a complimentary room upgrade on your next stay. Book via WhatsApp or call us directly.`
+        ? `Dear ${guest.name}, as one of our most valued guests, we'd love to welcome you back to ${HOTEL_NAME}. Enjoy a complimentary room upgrade on your next stay. Book via WhatsApp or call us directly.`
         : tier === 'Lapsed'
-        ? `Dear ${guest.name}, we miss you at Hotel Fountain! Return this month and enjoy a special discount. Reply YES for details.`
-        : `Dear ${guest.name}, thank you for choosing Hotel Fountain. We hope to see you again soon — your preferred room is ready for you.`;
+        ? `Dear ${guest.name}, we miss you at ${HOTEL_NAME}! Return this month and enjoy a special discount. Reply YES for details.`
+        : `Dear ${guest.name}, thank you for choosing ${HOTEL_NAME}. We hope to see you again soon — your preferred room is ready for you.`;
 
     try {
       await dbPost('review_queue', {
