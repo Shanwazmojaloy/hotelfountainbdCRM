@@ -1,59 +1,74 @@
-# Hotel Fountain CRM — Deploy to Vercel
+# Lumea CRM — Operator Deploy Runbook
 
-## Vercel Project
-- Name: `hotelfountainbd`
-- ID: `prj_uN24s39VEayriFaMqgojy6nM2WJo`
-- Live URL: https://hotelfountainbd.vercel.app
-- GitHub: https://github.com/Shanwazmojaloy/hotelfountainbd
+> Last updated: 2026-05-14  
+> Environment: Next.js 15 on Vercel Hobby · Supabase PostgreSQL · Windows dev machine
 
-## Option A — Push to GitHub (triggers auto-deploy)
+---
 
-```bash
-# Clone repo
-git clone https://github.com/Shanwazmojaloy/hotelfountainbd.git
-cd hotelfountainbd
+## 1. Prerequisites
 
-# Replace with new files (extract zip contents here)
-# Then:
+| Tool | Check command | Required version |
+|---|---|---|
+| Node.js | `node -v` | ≥ 18 |
+| npm | `npm -v` | ≥ 9 |
+| Git | `git --version` | any |
+| Vercel CLI | `npx vercel --version` | ≥ 32 |
+
+Working directory (PowerShell):
+```powershell
+cd "C:\Users\ahmed\OneDrive\Desktop\New folder\claude\hotelfountainbd-vercel\Hotel Fountain BD CRM"
+```
+
+---
+
+## 2. CRM Bundle Rebuild (crm-src.jsx → crm-bundle.js)
+
+Run this **any time `public/crm-src.jsx` is edited**:
+
+```powershell
+npm run build:crm
+```
+
+What it does:
+1. Babel transpiles `crm-src.jsx` → `crm-bundle.js`
+2. Terser minifies `crm-bundle.js` in-place
+3. `scripts/bump-cache.js` stamps `?v=YYYYMMDDHHMMSS` in `crm.html`
+
+**Verify after build:**
+```powershell
+# Must end with ReactDOM.createRoot(...)
+Get-Content public/crm-src.jsx -Tail 3
+# Check bundle size (~279KB)
+(Get-Item public/crm-bundle.js).Length / 1KB
+```
+
+If the tail is missing the `ReactDOM.createRoot(...)` mount call, the CRM will show a blank screen. Restore from git immediately:
+```powershell
+git checkout HEAD -- public/crm-src.jsx
+```
+
+---
+
+## 3. Git Commit & Push (Windows PowerShell)
+
+### Standard commit
+```powershell
 git add -A
-git commit -m "feat: Lumea Hotel Fountain CRM — live Supabase, all modules"
+git status          # review staged files
+git commit -m "fix: describe the change"
 git push origin main
 ```
 
-Vercel will auto-build and deploy. Watch at: https://vercel.com/shanwaz-ahmeds-projects/hotelfountainbd
-
----
-
-## Option B — Vercel CLI (fastest, no git needed)
-
-```bash
-npm i -g vercel
-cd hotel-fountain-crm-deploy/  # unzip first
-vercel --prod --team team_l1SAECyZJ9giIw4o2SGxjpqd
+### Common files to stage after a CRM bundle rebuild:
+```powershell
+git add public/crm-src.jsx public/crm-bundle.js public/crm.html
 ```
 
----
-
-## Files in this zip
-```
-package.json     — React 18 + Vite
-vercel.json      — build: npm install && npm run build, SPA rewrites
-index.html       — entry point
-vite.config.js   — Vite + React plugin
-src/App.jsx      — Full CRM (947 lines, live Supabase)
-src/main.jsx     — React entry
+### After adding a new API route or env var:
+```powershell
+git add app/api/agents/<route-name>/route.ts vercel.json
 ```
 
-## Staff Login Credentials
-| Role          | Email                              | Password   |
-|---------------|------------------------------------|------------|
-| Owner/Founder | owner@hotelfountain.com            | owner2026  |
-| Front Desk    | fo.hotelfountain799@gmail.com      | front2026  |
-| Housekeeping  | hotelfountain.hk@gmail.com         | hk2026     |
-| Manager       | manager@hotelfountain.com          | mgr2026    |
-| Accountant    | accounts@hotelfountain.com         | acc2026    |
-
-## Supabase
-- Project: Hotel Fountain Main (mynwfkgksqqwlqowlscj)
-- Region: us-east-1
-- Tenant ID: 46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8
+### Corrupt git index (recurring issue — workaround):
+```powershell
+# From PowerShell — run if git add/commit fails with "index file corrupt"

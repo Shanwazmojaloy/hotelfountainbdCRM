@@ -355,6 +355,25 @@ html,body,#root{
 
 `
 
+
+/* ═══════════════════════ MODULE-SCOPE REVENUE HELPERS ══════════════════════
+   Shared by DashboardPage (todayRev) and BillingPage (_bizDayTotal).
+   Any change here automatically applies to both surfaces.
+   ─────────────────────────────────────────────────────────────────────────── */
+const _isRealPayment = t => !/balance carried forward/i.test(t.type||'') && !/final\s*settlement/i.test(t.type||'')
+const _bizDayTotalFn = list => {
+  const byKey = {}
+  list.forEach(t => {
+    if(/balance carried forward/i.test(t.type||'')) return
+    const key = `${t.room_number||''}|${t.guest_name||''}`
+    if(!byKey[key]) byKey[key] = {pay:0, fsPos:0, hasReal:false}
+    const amt = +t.amount||0
+    if(_isRealPayment(t)) { byKey[key].pay += amt; byKey[key].hasReal = true }
+    else if(/final\s*settlement/i.test(t.type||'') && amt > 0) { byKey[key].fsPos += amt }
+  })
+  return Object.values(byKey).reduce((a,g) => a + (g.hasReal ? g.pay : g.fsPos), 0)
+}
+
 /* ═══════════════════════ SMALL COMPONENTS ══════════════════ */
 function Toast({msg,type,onDone}) {
   useEffect(()=>{ const t=setTimeout(onDone,3400); return()=>clearTimeout(t) },[])
@@ -617,20 +636,7 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
   // reservations visible in today's ledger (activeTx matches + outstanding balance entries).
   // todayRev: sum of actual cash/bkash TX amounts for today's fiscal_day only.
   // Zero transactions = ৳0. Resets cleanly after Closing Complete.
-  const todayRev = (() => {
-    const todayTxs = (transactions||[]).filter(t => t.fiscal_day === today)
-    const byKey = {}
-    todayTxs.forEach(t => {
-      if(/balance carried forward/i.test(t.type||'')) return
-      const key = `${t.room_number||''}|${t.guest_name||''}`
-      if(!byKey[key]) byKey[key] = {pay:0, fsPos:0, hasReal:false}
-      const amt = +t.amount||0
-      const isReal = !/final\s*settlement/i.test(t.type||'')
-      if(isReal) { byKey[key].pay += amt; byKey[key].hasReal = true }
-      else if(amt > 0) { byKey[key].fsPos += amt }
-    })
-    return Object.values(byKey).reduce((a,g) => a + (g.hasReal ? g.pay : g.fsPos), 0)
-  })()
+  const todayRev = _bizDayTotalFn((transactions||[]).filter(t => t.fiscal_day === today))
   const inHouse=reservations.filter(r=>r.status==='CHECKED_IN').length
   const pending=reservations.filter(r=>r.status==='PENDING').length
   const last14=Array.from({length:14},(_,i)=>{
@@ -2334,20 +2340,9 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     return rooms.filter(Boolean).join(', ')||'—'
   }
 
-  const _isRealPayment = t => !/balance carried forward/i.test(t.type||'') && !/final\s*settlement/i.test(t.type||'')
+  // _isRealPayment, _bizDayTotalFn — now module-scope; aliases for local use
   const _isPayVehicle = t => _isRealPayment(t)
-  const _bizDayTotal = list => {
-    const byKey = {}
-    list.forEach(t=>{
-      if(/balance carried forward/i.test(t.type||'')) return
-      const key = `${t.room_number||''}|${t.guest_name||''}`
-      if(!byKey[key]) byKey[key] = { pay:0, fsPos:0, hasReal:false }
-      const amt = +t.amount||0
-      if(_isRealPayment(t)) { byKey[key].pay += amt; byKey[key].hasReal = true }
-      else if(/final\s*settlement/i.test(t.type||'') && amt > 0) { byKey[key].fsPos += amt }
-    })
-    return Object.values(byKey).reduce((a,g)=> a + (g.hasReal ? g.pay : g.fsPos), 0)
-  }
+  const _bizDayTotal = _bizDayTotalFn
   // todayRevenue: mirrors the ledger table's unifiedGroups logic exactly.
   // Part 1: reservations matched via activeLedgerTx (same dual-match: room_ids UUID OR room_number string + guest name)
   // Part 2: reservations with outstanding balance (dueRes equivalent) not already counted.

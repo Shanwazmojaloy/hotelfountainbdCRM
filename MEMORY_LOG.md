@@ -1064,6 +1064,4 @@ Also committed separately: `postcss.config.mjs`, `tailwind.config.js`, `eslint.c
 - **Brevo inbound webhook** — set URL `https://fountainbd.com/api/agents/reply-intake` in Brevo → Settings → Inbound Parsing
 - **Fill NULL contact emails** — 8 leads in `corporate_leads`: Universal IT, Walton Hi-Tech, Workspace Infotech, LinkTech IT, Riseup Labs, Banglalink, Grameenphone, Brainstation 23
 - **Orphan TX cleanup** — 24 rows ~৳70,680 ledger inflation
-- **Facebook Page Token renewal** — deadline 2026-06-30
-- **Supabase migration** — `20260429_status_uppercase_constraints.sql` still unrun
-- **`transactions_reservation_id_fkey`** FK migration still pending
+- **Facebook Page Token renewal** — deadline 202

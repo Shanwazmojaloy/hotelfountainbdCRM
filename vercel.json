@@ -17,12 +17,4 @@
       "schedule": "0 2 * * *"
     },
     {
-      "path": "/api/agents/weekly-retention",
-      "schedule": "0 3 * * 1"
-    },
-    {
-      "path": "/api/agents/reply-intake-poll",
-      "schedule": "0 1 * * *"
-    }
-  ]
-}
+   
