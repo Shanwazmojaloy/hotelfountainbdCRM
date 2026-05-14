@@ -86,7 +86,7 @@ function mapRow(row, industry) {
     contact_phone:   row.contact_mobile_phone || null,
     company_website: row.prospect_company_website || null,
     industry,
-    icp_score:       status === 'valid' ? 'good' : 'fair',
+    icp_score:       status === 'valid' ? 'good' : 'partial',
     priority:        industry === 'NGO / INGO' ? 'high' : 'med',
     status:          'pending',
     notes:           row.prospect_linkedin ? `Source: Vibe Prospecting\nLinkedIn: ${row.prospect_linkedin}` : 'Source: Vibe Prospecting',
@@ -164,7 +164,7 @@ async function main() {
     const chunk     = rows.slice(i, i + CHUNK);
     const chunkNum  = Math.ceil(i / CHUNK) + 1;
     const { data, error } = await supabase
-      .rpc('import_corporate_leads', { p_leads: JSON.stringify(chunk) });
+      .rpc('import_corporate_leads', { p_leads: chunk });
 
     if (error) {
       console.error(`  ❌ chunk ${chunkNum} error:`, error.message);
