@@ -84,27 +84,25 @@ function buildOutreachText(company: string, contactName: string | null): string 
 
 async function runOutreachBot() {
   const SB_URL    = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-  // Use anon key for PostgREST — confirmed working 200/204 with existing RLS policies.
-  // sb_secret_* (service role) returns 401 from Vercel's egress IPs despite working locally.
+  // Use publishable (anon) key — SECURITY DEFINER RPCs grant elevated access server-side.
   const SB_KEY    = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
   if (!SB_KEY) return { ok: false, error: 'Env missing: NEXT_PUBLIC_SUPABASE_ANON_KEY' };
   const BREVO_KEY = (process.env.BREVO_API_KEY || '').trim();
-
   if (!BREVO_KEY) return { ok: false, error: 'Env missing: BREVO_API_KEY — add in Vercel dashboard' };
 
-  const BASE = `${SB_URL}/rest/v1`;
+  const RPC  = `${SB_URL}/rest/v1/rpc`;
   const sbH: Record<string, string> = {
     apikey: SB_KEY,
     Authorization: `Bearer ${SB_KEY}`,
     'Content-Type': 'application/json',
-    Prefer: 'return=representation',
   };
 
-  // Fetch pending leads with email (raw REST — avoids SDK key-format issues)
-  const leadsRes = await fetch(
-    `${BASE}/corporate_leads?select=*&tenant_id=eq.${TENANT}&status=eq.pending&contact_email=not.is.null&limit=${MAX_PER_RUN * 3}`,
-    { headers: sbH }
-  );
+  // Fetch pending leads via SECURITY DEFINER RPC (bypasses anon RLS)
+  const leadsRes = await fetch(`${RPC}/outreach_get_pending_leads`, {
+    method: 'POST',
+    headers: sbH,
+    body: JSON.stringify({ p_tenant_id: TENANT, p_limit: MAX_PER_RUN * 3 }),
+  });
   if (!leadsRes.ok) {
     const txt = await leadsRes.text();
     let msg = txt;
@@ -112,11 +110,7 @@ async function runOutreachBot() {
     return { ok: false, error: `Supabase ${leadsRes.status}: ${msg}` };
   }
   const leads: Record<string, unknown>[] = await leadsRes.json();
-
-  const PRIORITY_RANK: Record<string, number> = { high: 1, med: 2, low: 3 };
-  const sorted = (leads ?? [])
-    .sort((a, b) => (PRIORITY_RANK[String(a.priority)] ?? 9) - (PRIORITY_RANK[String(b.priority)] ?? 9))
-    .slice(0, MAX_PER_RUN);
+  const sorted = (leads ?? []).slice(0, MAX_PER_RUN);
 
   const results: Array<Record<string, unknown>> = [];
 
@@ -148,24 +142,29 @@ async function runOutreachBot() {
         return { ok: false, error: `Brevo auth failed: ${String(brevoData?.message ?? 'Invalid API key')} — check BREVO_API_KEY in Vercel` };
       }
 
-      await fetch(`${BASE}/outreach_log`, {
+      // Log via SECURITY DEFINER RPC
+      await fetch(`${RPC}/outreach_log_entry`, {
         method: 'POST',
         headers: sbH,
         body: JSON.stringify({
-          tenant_id: TENANT, lead_id: lead.id, direction: 'outbound',
-          channel: 'email', subject,
-          body: buildOutreachText(company, contact),
-          sent_at: new Date().toISOString(),
+          p_tenant_id: TENANT,
+          p_lead_id:   lead.id,
+          p_direction: 'outbound',
+          p_channel:   'email',
+          p_subject:   subject,
+          p_body:      buildOutreachText(company, contact),
+          p_sent_at:   new Date().toISOString(),
         }),
       });
 
-      await fetch(`${BASE}/corporate_leads?id=eq.${String(lead.id)}`, {
-        method: 'PATCH',
-        headers: { ...sbH, Prefer: 'return=minimal' },
+      // Update status via SECURITY DEFINER RPC
+      await fetch(`${RPC}/outreach_update_lead_status`, {
+        method: 'POST',
+        headers: sbH,
         body: JSON.stringify({
-          status: ok ? 'contacted' : 'pending',
-          last_contacted_at: ok ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString(),
+          p_lead_id:            lead.id,
+          p_status:             ok ? 'contacted' : 'pending',
+          p_last_contacted_at:  ok ? new Date().toISOString() : null,
         }),
       });
 
