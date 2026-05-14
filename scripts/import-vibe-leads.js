@@ -25,11 +25,14 @@ const { createClient } = require('@supabase/supabase-js');
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const SB_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SB_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Uses the anon/publishable key — import_corporate_leads RPC is SECURITY DEFINER.
+// No service role key required.
+const SB_KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+             || 'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh';
 const TENANT  = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
-if (!SB_URL || !SB_KEY) {
-  console.error('\n❌  Missing env vars. Add to .env.local:\n   NEXT_PUBLIC_SUPABASE_URL\n   SUPABASE_SERVICE_ROLE_KEY\n');
+if (!SB_URL) {
+  console.error('\n❌  Missing NEXT_PUBLIC_SUPABASE_URL in .env.local\n');
   process.exit(1);
 }
 
@@ -157,22 +160,23 @@ async function main() {
 
   console.log(`\n⬆️   Upserting ${rows.length} unique leads → corporate_leads…\n`);
 
+  // Send in chunks of 50 via SECURITY DEFINER RPC (works with anon key)
   const CHUNK = 50;
   let inserted = 0, dupes = 0;
 
   for (let i = 0; i < rows.length; i += CHUNK) {
-    const chunk = rows.slice(i, i + CHUNK);
-    const { error, count } = await supabase
-      .from('corporate_leads')
-      .upsert(chunk, { onConflict: 'contact_email', ignoreDuplicates: true, count: 'exact' });
+    const chunk     = rows.slice(i, i + CHUNK);
+    const chunkNum  = Math.ceil(i / CHUNK) + 1;
+    const { data, error } = await supabase
+      .rpc('import_corporate_leads', { p_leads: JSON.stringify(chunk) });
 
     if (error) {
-      console.error(`  ❌ chunk ${Math.ceil(i/CHUNK)+1} error:`, error.message);
+      console.error(`  ❌ chunk ${chunkNum} error:`, error.message);
     } else {
-      const n = count ?? chunk.length;
+      const n = typeof data === 'number' ? data : chunk.length;
       inserted += n;
       dupes    += chunk.length - n;
-      console.log(`  chunk ${Math.ceil(i/CHUNK)+1}: ${n} inserted`);
+      console.log(`  chunk ${chunkNum}: ${n} inserted, ${chunk.length - n} already existed`);
     }
   }
 
