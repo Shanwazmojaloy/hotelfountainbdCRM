@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumea — AI Hotel CRM for Independent Properties</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:      #07080F;
+  --surface: #0C0D17;
+  --card:    #11121C;
+  --card2:   #0D0E18;
+  --b1:      rgba(255,255,255,0.07);
+  --b2:      rgba(255,255,255,0.12);
+  --gold:    #E8B84B;
+  --gdim:    rgba(232,184,75,0.12);
+  --blue:    #5B9CF6;
+  --bdim:    rgba(91,156,246,0.12);
+  --cyan:    #34d5c8;
+  --cdim:    rgba(52,213,200,0.1);
+  --green:   #4ade80;
+  --gdim2:   rgba(74,222,128,0.1);
+  --purple:  #a78bfa;
+  --pdim:    rgba(167,139,250,0.1);
+  --red:     #f87171;
+  --white:   #ECEAE4;
+  --muted:   rgba(236,234,228,0.42);
+  --muted2:  rgba(236,234,228,0.22);
+  --pad:     48px;
+}
+
+body {
+  background: var(--bg); color: var(--white);
+  font-family: 'Inter', sans-serif; font-size: 13px;
+  line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 920px; margin: 0 auto; }
+
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+}
+.eyebrow       { color: var(--blue); }
+.eyebrow-gold  { color: var(--gold); }
+.eyebrow-muted { color: var(--muted); }
+
+/* ══ NAV ══ */
+nav {
+  padding: 18px var(--pad);
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--b1);
+}
+.logo {
+  font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800;
+  background: linear-gradient(120deg, var(--blue) 0%, #c7dcff 50%, var(--gold) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: -0.03em; line-height: 1;
+}
+.logo-sub { margin-top: 2px; }
+.nav-pills { display: flex; gap: 8px; align-items: center; }
+.nav-badge {
+  font-size: 11px; font-weight: 600; padding: 5px 14px; border-radius: 100px;
+}
+.nb-blue {
+  background: rgba(91,156,246,0.1); border: 1px solid rgba(91,156,246,0.28);
+  color: var(--blue);
+}
+.nb-gold {
+  background: rgba(232,184,75,0.1); border: 1px solid rgba(232,184,75,0.25);
+  color: var(--gold);
+}
+
+/* ══ HERO ══ */
+.hero {
+  padding: 60px var(--pad) 52px;
+  border-bottom: 1px solid var(--b1);
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(91,156,246,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(91,156,246,0.05) 1px, transparent 1px);
+  background-size: 52px 52px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 55% at 50% 0%, black, transparent);
+  mask-image:        radial-gradient(ellipse 75% 55% at 50% 0%, black, transparent);
+}
+.hero::after {
+  content: ''; position: absolute; top: -120px; left: 40%; transform: translateX(-50%);
+  width: 700px; height: 380px; pointer-events: none;
+  background: radial-gradient(ellipse, rgba(91,156,246,0.08) 0%, rgba(232,184,75,0.04) 45%, transparent 70%);
+}
+.hero-inner { position: relative; z-index: 1; }
+
+.hero-eyebrow {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 24px;
+}
+.hero-eyebrow-line { width: 28px; height: 1px; background: var(--blue); }
+
+.hero h1 {
+  font-family: 'Syne', sans-serif; font-size: 54px; font-weight: 800;
+  line-height: 1.04; letter-spacing: -0.04em; margin-bottom: 22px;
+}
+.h1-plain { color: var(--white); }
+.h1-grad {
+  background: linear-gradient(120deg, var(--blue) 0%, var(--cyan) 40%, var(--gold) 85%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+.hero-desc {
+  font-size: 15px; color: var(--muted); line-height: 1.8;
+  max-width: 560px; margin-bottom: 36px;
+}
+
+/* market badges */
+.market-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.mkt {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--card); border: 1px solid var(--b2);
+  padding: 5px 12px; border-radius: 100px;
+  font-size: 12px; font-weight: 500; color: var(--muted);
+}
+.mkt-flag { font-size: 14px; line-height: 1; }
+
+.hero-note { font-size: 11.5px; color: var(--muted2); margin-bottom: 44px; }
+
+/* stat bar */
+.stat-bar {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--b2); border-radius: 14px; overflow: hidden;
+}
+.sc {
+  padding: 20px 22px; background: var(--card);
+  border-right: 1px solid var(--b1); position: relative;
+}
+.sc:last-child { border-right: none; }
+.sc::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.sc:nth-child(1)::before { background: var(--blue); }
+.sc:nth-child(2)::before { background: var(--gold); }
+.sc:nth-child(3)::before { background: var(--cyan); }
+.sc:nth-child(4)::before { background: var(--purple); }
+.sn {
+  font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800;
+  letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 5px;
+}
+.c-blue   { color: var(--blue); }
+.c-gold   { color: var(--gold); }
+.c-cyan   { color: var(--cyan); }
+.c-purple { color: var(--purple); }
+.c-green  { color: var(--green); }
+.sl       { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+
+/* ══ SECTION HEADER ══ */
+.sec { padding: 52px var(--pad) 28px; }
+.sec-title {
+  font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800;
+  letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 6px;
+}
+.sec-sub { font-size: 13.5px; color: var(--muted); max-width: 480px; }
+
+/* ══ DIFFERENTIATORS STRIP ══ */
+.diff-strip {
+  margin: 0 var(--pad);
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  margin-bottom: 0;
+}
+.diff-card {
+  background: var(--card); border: 1px solid var(--b1);
+  border-radius: 14px; padding: 22px 20px;
+  position: relative; overflow: hidden;
+}
+.diff-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.diff-card:nth-child(1)::before { background: linear-gradient(90deg, var(--blue), transparent); }
+.diff-card:nth-child(2)::before { background: linear-gradient(90deg, var(--gold), transparent); }
+.diff-card:nth-child(3)::before { background: linear-gradient(90deg, var(--cyan), transparent); }
+.diff-icon {
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; margin-bottom: 12px;
+}
+.ic-blue   { background: var(--bdim); }
+.ic-gold   { background: var(--gdim); }
+.ic-cyan   { background: var(--cdim); }
+.ic-green  { background: var(--gdim2); }
+.ic-purple { background: var(--pdim); }
+.diff-title {
+  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+  letter-spacing: -0.01em; margin-bottom: 7px;
+}
+.diff-desc { font-size: 12.5px; color: var(--muted); line-height: 1.65; }
+
+/* ══ BENTO ══ */
+.bento {
+  padding: 28px var(--pad) 52px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.bc-wide { grid-column: span 2; }
+
+.bc {
+  background: var(--card); border: 1px solid var(--b1);
+  border-radius: 14px; padding: 22px;
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+.bc::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 85% 10%, rgba(91,156,246,0.03), transparent 55%);
+}
+.bc.bc-wl {
+  background: linear-gradient(150deg, #0C1120, #08090F);
+  border-color: rgba(91,156,246,0.2);
+}
+.bc.bc-ai {
+  background: linear-gradient(150deg, #0D1A12, #07080F);
+  border-color: rgba(74,222,128,0.18);
+}
+.bc-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-bottom: 14px; flex-shrink: 0;
+}
+.bc-title {
+  font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700;
+  letter-spacing: -0.01em; margin-bottom: 7px;
+}
+.bc-desc {
+  font-size: 12.5px; color: var(--muted); line-height: 1.65; flex: 1;
+}
+.bc-tag {
+  display: inline-block; margin-top: 14px; align-self: flex-start;
+  font-family: 'IBM Plex Mono', monospace; font-size: 9.5px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 100px;
+  border: 1px solid var(--b2); color: var(--muted2);
+}
+.bt-blue   { color: var(--blue);   border-color: rgba(91,156,246,0.25);  background: rgba(91,156,246,0.07);  }
+.bt-green  { color: var(--green);  border-color: rgba(74,222,128,0.22);  background: rgba(74,222,128,0.06);  }
+.bt-purple { color: var(--purple); border-color: rgba(167,139,250,0.22); background: rgba(167,139,250,0.06); }
+.bt-gold   { color: var(--gold);   border-color: rgba(232,184,75,0.22);  background: rgba(232,184,75,0.06);  }
+
+/* tech stack chips inside card */
+.tech-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.chip {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  padding: 3px 9px; border-radius: 6px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--b1);
+  color: var(--muted2);
+}
+
+/* white-label env mock */
+.wl-mock {
+  margin-top: 16px;
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(91,156,246,0.15);
+  border-radius: 10px; overflow: hidden;
+}
+.wl-mock-bar {
+  background: rgba(91,156,246,0.06); padding: 7px 12px;
+  border-bottom: 1px solid rgba(91,156,246,0.1);
+  display: flex; align-items: center; gap: 6px;
+}
+.wl-mock-dot { width: 7px; height: 7px; border-radius: 50%; }
+.wl-row {
+  display: grid; grid-template-columns: 1.6fr 1fr; gap: 0;
+  padding: 5px 12px; border-bottom: 1px solid rgba(255,255,255,0.03);
+  align-items: center;
+}
+.wl-row:last-child { border-bottom: none; }
+.wl-key { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(91,156,246,0.7); }
+.wl-val { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(236,234,228,0.55); }
+
+/* ══ PIPELINE ══ */
+.pipeline {
+  margin: 0 var(--pad) 52px;
+  background: linear-gradient(150deg, #0A0C1A 0%, #07080F 100%);
+  border: 1px solid rgba(91,156,246,0.2);
+  border-radius: 20px; padding: 36px;
+  position: relative; overflow: hidden;
+}
+.pipeline::before {
+  content: ''; position: absolute; top: -100px; right: -100px;
+  width: 360px; height: 360px; pointer-events: none;
+  background: radial-gradient(circle, rgba(91,156,246,0.07), transparent 65%);
+}
+.pipeline::after {
+  content: ''; position: absolute; bottom: -60px; left: -60px;
+  width: 240px; height: 240px; pointer-events: none;
+  background: radial-gradient(circle, rgba(52,213,200,0.05), transparent 65%);
+}
+.pl-inner { position: relative; z-index: 1; }
+
+.pl-title {
+  font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800;
+  letter-spacing: -0.02em; margin-bottom: 4px;
+}
+.pl-sub { font-size: 13px; color: rgba(236,234,228,0.38); margin-bottom: 28px; max-width: 520px; }
+
+.pipe-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden;
+}
+.ps { background: var(--card2); padding: 18px 15px; }
+.ps-num  { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: rgba(91,156,246,0.4); letter-spacing: 0.1em; margin-bottom: 6px; }
+.ps-name { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--blue); margin-bottom: 7px; letter-spacing: -0.01em; }
+.ps-desc { font-size: 11.5px; color: rgba(236,234,228,0.38); line-height: 1.55; }
+
+.pl-metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
+  margin-top: 16px;
+  border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; overflow: hidden;
+}
+.pm { background: rgba(255,255,255,0.025); padding: 14px 16px; }
+.pm-val {
+  font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800;
+  color: var(--blue); letter-spacing: -0.02em; line-height: 1; margin-bottom: 4px;
+}
+.pm-val.sm { font-size: 15px; padding-top: 4px; }
+.pm-lbl { font-size: 11px; color: rgba(236,234,228,0.32); }
+
+/* ══ PRICING ══ */
+.pricing { padding: 0 var(--pad) 52px; }
+.price-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  margin-top: 28px; align-items: start;
+}
+.pc { background: var(--card); border: 1px solid var(--b1); border-radius: 16px; overflow: hidden; }
+.pc.featured {
+  background: linear-gradient(160deg, #0E1224, #090C1C);
+  border-color: rgba(91,156,246,0.35);
+  box-shadow: 0 0 48px rgba(91,156,246,0.07), 0 0 0 1px rgba(91,156,246,0.08);
+}
+.pc-head { padding: 22px 24px 18px; border-bottom: 1px solid var(--b1); position: relative; }
+.pc-tier { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.pc.featured .pc-tier { color: var(--blue); }
+.pc-badge {
+  position: absolute; top: 16px; right: 16px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--blue); background: rgba(91,156,246,0.1); border: 1px solid rgba(91,156,246,0.22);
+  padding: 3px 9px; border-radius: 100px;
+}
+.pc-price { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--white); }
+.pc-price sub { font-size: 18px; font-weight: 700; letter-spacing: 0; vertical-align: baseline; margin-right: 1px; }
+.pc-period { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.pc-body { padding: 20px 24px; }
+.pc-feat { display: flex; align-items: flex-start; gap: 9px; padding: 5px 0; font-size: 12.5px; }
+.pc-feat.on  { color: var(--white); }
+.pc-feat.off { color: var(--muted2); }
+.pfc { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; margin-top: 1px; }
+.pfc.on  { background: rgba(91,156,246,0.14); color: var(--blue); }
+.pfc.off { background: rgba(255,255,255,0.04); color: var(--muted2); }
+
+.reseller-box {
+  margin-top: 16px;
+  background: linear-gradient(135deg, rgba(232,184,75,0.04), rgba(52,213,200,0.04));
+  border: 1px solid rgba(232,184,75,0.2);
+  border-radius: 12px; padding: 16px 20px;
+}
+.reseller-title {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 8px;
+}
+.reseller-desc { font-size: 12px; color: var(--muted); line-height: 1.65; margin-bottom: 10px; }
+.reseller-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.ri {
+  font-family: 'IBM Plex Mono', monospace; font-size: 9.5px;
+  padding: 2px 9px; border-radius: 100px;
+  background: rgba(232,184,75,0.07); border: 1px solid rgba(232,184,75,0.18);
+  color: rgba(232,184,75,0.8);
+}
+
+.setup-banner {
+  margin-top: 16px;
+  background: var(--card); border: 1px solid var(--b2);
+  border-radius: 12px; padding: 16px 20px;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+}
+.sb-lbl strong { display: block; font-size: 13px; font-weight: 600; color: var(--white); margin-bottom: 3px; }
+.sb-lbl span   { font-size: 11.5px; color: var(--muted); }
+.sb-amt { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; color: var(--blue); letter-spacing: -0.02em; white-space: nowrap; }
+
+/* ══ TECH STRIP ══ */
+.tech-strip {
+  margin: 0 var(--pad) 52px;
+  background: var(--card); border: 1px solid var(--b1);
+  border-radius: 14px; padding: 24px 28px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center;
+}
+.ts-left {}
+.ts-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 6px; }
+.ts-desc { font-size: 12px; color: var(--muted); line-height: 1.65; }
+.ts-right {}
+.ts-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.ts-item {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--b1);
+  border-radius: 8px; padding: 10px 12px; text-align: center;
+}
+.ts-item-icon { font-size: 18px; margin-bottom: 4px; }
+.ts-item-name { font-size: 11px; font-weight: 600; color: var(--white); margin-bottom: 2px; }
+.ts-item-role { font-size: 10px; color: var(--muted2); }
+
+/* ══ CTA ══ */
+.cta {
+  margin: 0 var(--pad);
+  background: linear-gradient(135deg, #0C1020, #08090F 60%, #0A1018 100%);
+  border: 1px solid rgba(91,156,246,0.22);
+  border-radius: 20px; padding: 40px;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 32px; position: relative; overflow: hidden;
+}
+.cta::before {
+  content: ''; position: absolute; top: -80px; right: -80px;
+  width: 300px; height: 300px; pointer-events: none;
+  background: radial-gradient(circle, rgba(91,156,246,0.08), transparent 65%);
+}
+.cta::after {
+  content: ''; position: absolute; bottom: -60px; left: -60px;
+  width: 220px; height: 220px; pointer-events: none;
+  background: radial-gradient(circle, rgba(52,213,200,0.05), transparent 65%);
+}
+.cta-l { position: relative; z-index: 1; }
+.cta-eyebrow { margin-bottom: 8px; }
+.cta-title { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 6px; }
+.cta-sub { font-size: 13px; color: var(--muted); max-width: 360px; }
+.cta-r { position: relative; z-index: 1; text-align: right; flex-shrink: 0; }
+.cta-email { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500; color: var(--blue); text-decoration: none; display: block; margin-bottom: 8px; }
+.cta-note  { font-size: 11.5px; color: var(--muted2); }
+.cta-avail { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: rgba(91,156,246,0.5); margin-top: 10px; }
+
+.foot-bar {
+  padding: 18px var(--pad) 32px;
+  display: flex; justify-content: space-between;
+  border-top: 1px solid var(--b1); margin-top: 20px;
+}
+
+@media print {
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { margin: 0; size: A4; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ── NAV ── -->
+<nav>
+  <div>
+    <div class="logo">Lumea</div>
+    <div class="mono eyebrow-muted logo-sub">AI Hotel Management CRM</div>
+  </div>
+  <div class="nav-pills">
+    <div class="nav-badge nb-blue">White-Label Ready</div>
+    <div class="nav-badge nb-gold">SaaS · Multi-Tenant</div>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-line"></div>
+      <span class="mono eyebrow">Enterprise-Grade · API-First · Fully Rebrandable</span>
+    </div>
+
+    <h1>
+      <span class="h1-plain">The hotel CRM that<br></span>
+      <span class="h1-grad">scales with you</span><span class="h1-plain"><br>— and your clients.</span>
+    </h1>
+
+    <p class="hero-desc">Lumea is a production-grade hotel management platform built on Next.js and Supabase — fully white-labelable, multi-tenant, and powered by AI outreach agents. Deploy it for one property or a hundred.</p>
+
+    <div class="market-row">
+      <div class="mkt"><span class="mkt-flag">🇧🇩</span> Bangladesh</div>
+      <div class="mkt"><span class="mkt-flag">🇮🇳</span> India</div>
+      <div class="mkt"><span class="mkt-flag">🇱🇰</span> Sri Lanka</div>
+      <div class="mkt"><span class="mkt-flag">🇳🇵</span> Nepal</div>
+      <div class="mkt"><span class="mkt-flag">🇲🇲</span> Myanmar</div>
+      <div class="mkt"><span class="mkt-flag">🌏</span> Southeast Asia</div>
+    </div>
+    <div class="hero-note">Designed for boutique properties across South and Southeast Asia. BDT, INR, LKR, USD — any currency, any timezone.</div>
+
+    <div class="stat-bar">
+      <div class="sc">
+        <div class="sn c-blue">48h</div>
+        <div class="sl">Go-live per<br>new property</div>
+      </div>
+      <div class="sc">
+        <div class="sn c-gold">18+</div>
+        <div class="sl">White-label env<br>vars — one config</div>
+      </div>
+      <div class="sc">
+        <div class="sn c-cyan">4</div>
+        <div class="sl">AI outreach agents<br>running 24/7</div>
+      </div>
+      <div class="sc">
+        <div class="sn c-purple">∞</div>
+        <div class="sl">Properties on one<br>multi-tenant DB</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── WHY LUMEA ── -->
+<div class="sec">
+  <div class="mono eyebrow" style="margin-bottom:10px;">Why Lumea</div>
+  <div class="sec-title">Built different.<br>Not just another PMS.</div>
+  <div class="sec-sub">Most hotel software is bloated, expensive, and built for Western chains. Lumea is lean, fast, and built for the reality of running an independent property in emerging markets.</div>
+</div>
+
+<div class="diff-strip">
+  <div class="diff-card">
+    <div class="diff-icon ic-blue">🏗️</div>
+    <div class="diff-title">Reservation-Centric Architecture</div>
+    <div class="diff-desc">Every financial row carries a <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--blue);">reservation_id</code>. No ghost payments, no orphaned folios, no "mystery balance" bugs that cost real money.</div>
+  </div>
+  <div class="diff-card">
+    <div class="diff-icon ic-gold">🎨</div>
+    <div class="diff-title">True White-Label in Minutes</div>
+    <div class="diff-desc">18 environment variables control every brand string — hotel name, address, email domain, colors, agent signatures. One deployment, infinite brands.</div>
+  </div>
+  <div class="diff-card">
+    <div class="diff-icon ic-cyan">🤖</div>
+    <div class="diff-title">AI That Actually Ships Leads</div>
+    <div class="diff-desc">Not a chatbot. A full B2B outreach pipeline — LinkedIn sourcing → personalised email → inbox parsing → deal scoring → alert. Runs weekly on autopilot.</div>
+  </div>
+</div>
+
+<!-- ── FEATURES BENTO ── -->
+<div class="sec" style="padding-bottom:0;">
+  <div class="mono eyebrow" style="margin-bottom:10px;">Platform Modules</div>
+  <div class="sec-title">Everything included.<br>Out of the box.</div>
+</div>
+
+<div class="bento">
+
+  <!-- White-label config (wide) -->
+  <div class="bc bc-wide bc-wl">
+    <div class="bc-icon ic-blue">🏷️</div>
+    <div class="bc-title">Full White-Label Configuration</div>
+    <div class="bc-desc">Deploy Lumea under any hotel's brand in minutes. Every visible string — hotel name, address, agent email signatures, alert recipients, CRM labels — is controlled by environment variables. No code changes needed between clients.</div>
+    <div class="wl-mock">
+      <div class="wl-mock-bar">
+        <div class="wl-mock-dot" style="background:#f87171;"></div>
+        <div class="wl-mock-dot" style="background:var(--gold);margin-left:4px;"></div>
+        <div class="wl-mock-dot" style="background:var(--green);margin-left:4px;"></div>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted2);margin-left:8px;">.env.production</span>
+      </div>
+      <div class="wl-row"><span class="wl-key">HOTEL_NAME</span><span class="wl-val">"Grand Palace Hotel"</span></div>
+      <div class="wl-row"><span class="wl-key">HOTEL_ADDRESS</span><span class="wl-val">"45 Gulshan Ave, Dhaka"</span></div>
+      <div class="wl-row"><span class="wl-key">HOTEL_CONTACT_NAME</span><span class="wl-val">"Amir Hossain"</span></div>
+      <div class="wl-row"><span class="wl-key">SENDER_NAME</span><span class="wl-val">"Grand Palace — Lumea"</span></div>
+      <div class="wl-row"><span class="wl-key">BREVO_API_KEY</span><span class="wl-val">••••••••••••••</span></div>
+    </div>
+    <span class="bc-tag bt-blue">White-Label · 18 Env Vars</span>
+  </div>
+
+  <!-- Multi-tenant -->
+  <div class="bc">
+    <div class="bc-icon ic-blue">🏢</div>
+    <div class="bc-title">Multi-Tenant SaaS</div>
+    <div class="bc-desc">Row-level security (RLS) isolates every property's data in a single PostgreSQL database. Add new clients as tenants — no new deployments needed.</div>
+    <div class="tech-chips">
+      <span class="chip">Supabase RLS</span>
+      <span class="chip">tenant_id</span>
+      <span class="chip">SECURITY INVOKER</span>
+    </div>
+    <span class="bc-tag bt-blue">Multi-Tenant</span>
+  </div>
+
+  <!-- Live Room Matrix -->
+  <div class="bc">
+    <div class="bc-icon ic-gold">🏨</div>
+    <div class="bc-title">Live Room Matrix</div>
+    <div class="bc-desc">Real-time room status with guest name, check-in/out time, and outstanding balance. Occupied, reserved, available, maintenance — all at a glance.</div>
+    <span class="bc-tag bt-gold">Dashboard</span>
+  </div>
+
+  <!-- Smart Billing -->
+  <div class="bc">
+    <div class="bc-icon ic-gold">🧾</div>
+    <div class="bc-title">Smart Billing + Invoicing</div>
+    <div class="bc-desc">Auto-calculates room charges, local VAT/tax rates, extras, and discounts. Supports any currency — BDT, USD, INR, LKR. One-click invoice PDF export.</div>
+    <span class="bc-tag bt-gold">Billing</span>
+  </div>
+
+  <!-- AI Agents -->
+  <div class="bc bc-ai">
+    <div class="bc-icon ic-green">🤖</div>
+    <div class="bc-title">AI B2B Outreach Agents</div>
+    <div class="bc-desc">4 agents run autonomously: OutreachBot sends personalised B2B emails, ReplyIntake parses responses, CEOAuditor scores deals, DealAlert notifies owners of hot prospects in real-time.</div>
+    <span class="bc-tag bt-green">AI · Automated</span>
+  </div>
+
+  <!-- Revenue Dashboard (wide) -->
+  <div class="bc bc-wide">
+    <div class="bc-icon ic-cyan" style="background:var(--cdim);">📊</div>
+    <div class="bc-title">Revenue Dashboard + Analytics</div>
+    <div class="bc-desc">Today's revenue by payment channel, BIZ DAY KPI, 7-day trend, and occupancy rate — all computed live from real transactions. Zero manual entry. Configurable per timezone and fiscal day. Connect OTA channels (Booking.com, Expedia, Agoda) and track commission separately.</div>
+    <span class="bc-tag" style="color:var(--cyan);border-color:rgba(52,213,200,0.22);background:rgba(52,213,200,0.06);">Analytics · OTA</span>
+  </div>
+
+</div>
+
+<!-- ── AI PIPELINE ── -->
+<div class="pipeline">
+  <div class="pl-inner">
+    <div class="mono eyebrow" style="margin-bottom:8px;">Automated Growth Engine</div>
+    <div class="pl-title">LinkedIn → CRM → Email → Deal.</div>
+    <p class="pl-sub">Lumea sources verified B2B contacts from LinkedIn, enriches their professional emails, and runs a multi-step outreach sequence — fully automated, fully customisable per property.</p>
+
+    <div class="pipe-grid">
+      <div class="ps">
+        <div class="ps-num">01 · LinkedIn</div>
+        <div class="ps-name">Lead Sourcing</div>
+        <div class="ps-desc">50 verified HR & Admin contacts fetched weekly — filtered by country, industry, seniority</div>
+      </div>
+      <div class="ps">
+        <div class="ps-num">02 · Agents</div>
+        <div class="ps-name">OutreachBot</div>
+        <div class="ps-desc">Personalised intro email sent daily using hotel brand voice, contact name + title</div>
+      </div>
+      <div class="ps">
+        <div class="ps-num">03 · Inbox</div>
+        <div class="ps-name">ReplyIntake</div>
+        <div class="ps-desc">Parses inbox replies, logs sentiment, queues follow-ups or escalations</div>
+      </div>
+      <div class="ps">
+        <div class="ps-num">04 · Score</div>
+        <div class="ps-name">CEOAuditor</div>
+        <div class="ps-desc">Scores each prospect 0–100. Sends real-time deal alert for high-value opportunities</div>
+      </div>
+    </div>
+
+    <div class="pl-metrics">
+      <div class="pm"><div class="pm-val">10–20</div><div class="pm-lbl">New leads / week</div></div>
+      <div class="pm"><div class="pm-val">Auto</div><div class="pm-lbl">Emails sent daily</div></div>
+      <div class="pm"><div class="pm-val">0 hrs</div><div class="pm-lbl">Staff time needed</div></div>
+      <div class="pm"><div class="pm-val sm c-gold">Growth+</div><div class="pm-lbl">Plan required</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TECH STRIP ── -->
+<div class="tech-strip">
+  <div class="ts-left">
+    <div class="mono eyebrow" style="margin-bottom:8px;">Infrastructure</div>
+    <div class="ts-title">Production-grade stack.<br>No lock-in.</div>
+    <div class="ts-desc" style="margin-top:8px;">Built on open standards you already know — deployable on Vercel, Netlify, or self-hosted. Supabase PostgreSQL with full RLS and migration support. Every API route is documented and rebrandable.</div>
+  </div>
+  <div class="ts-right">
+    <div class="ts-grid">
+      <div class="ts-item"><div class="ts-item-icon">⚡</div><div class="ts-item-name">Next.js 15</div><div class="ts-item-role">App framework</div></div>
+      <div class="ts-item"><div class="ts-item-icon">🗄️</div><div class="ts-item-name">Supabase</div><div class="ts-item-role">DB + Auth + RLS</div></div>
+      <div class="ts-item"><div class="ts-item-icon">🐘</div><div class="ts-item-name">PostgreSQL</div><div class="ts-item-role">Core database</div></div>
+      <div class="ts-item"><div class="ts-item-icon">▲</div><div class="ts-item-name">Vercel</div><div class="ts-item-role">Deploy + Crons</div></div>
+      <div class="ts-item"><div class="ts-item-icon">📧</div><div class="ts-item-name">Brevo</div><div class="ts-item-role">Transactional</div></div>
+      <div class="ts-item"><div class="ts-item-icon">🤖</div><div class="ts-item-name">Claude AI</div><div class="ts-item-role">Agent brain</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PRICING ── -->
+<div class="pricing">
+  <div class="sec" style="padding-left:0;padding-right:0;">
+    <div class="mono eyebrow" style="margin-bottom:10px;">Pricing</div>
+    <div class="sec-title">Transparent pricing.<br>Per property, per month.</div>
+    <div class="sec-sub">USD pricing. Custom enterprise contracts available for 5+ properties. Annual billing saves 15%.</div>
+  </div>
+
+  <div class="price-grid">
+    <div class="pc">
+      <div class="pc-head">
+        <div class="pc-tier">Starter</div>
+        <div class="pc-price"><sub>$</sub>99</div>
+        <div class="pc-period">per property / month</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-feat on"><div class="pfc on">✓</div>Room Matrix + reservations</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>Smart billing + multi-currency</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>Guest ledger + history</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>Revenue dashboard + OTA</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>White-label configuration</div>
+        <div class="pc-feat off"><div class="pfc off">–</div>AI outreach agents</div>
+      </div>
+    </div>
+
+    <div class="pc featured">
+      <div class="pc-head">
+        <div class="pc-tier">Growth</div>
+        <div class="pc-badge">Most Popular</div>
+        <div class="pc-price"><sub>$</sub>199</div>
+        <div class="pc-period">per property / month</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-feat on"><div class="pfc on">✓</div>Everything in Starter</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>OutreachBot + FollowUpBot</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>ReplyIntake + DealAlert</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>CEO Auditor deal scoring</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>B2B corporate lead pipeline</div>
+        <div class="pc-feat off"><div class="pfc off">–</div>LinkedIn auto-prospecting</div>
+      </div>
+    </div>
+
+    <div class="pc">
+      <div class="pc-head">
+        <div class="pc-tier">Full</div>
+        <div class="pc-price"><sub>$</sub>349</div>
+        <div class="pc-period">per property / month</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-feat on"><div class="pfc on">✓</div>Everything in Growth</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>Weekly LinkedIn prospecting</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>Multi-country lead coverage</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>Facebook marketing automation</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>Priority support + SLA</div>
+        <div class="pc-feat on"><div class="pfc on">✓</div>Custom onboarding + training</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reseller-box">
+    <div class="reseller-title">Agency / Reseller Program</div>
+    <div class="reseller-desc">Deploying Lumea for multiple hotel clients? We offer white-glove agency onboarding, co-branded collateral, and volume discounts starting at 3 properties. Your brand on top of our infrastructure.</div>
+    <div class="reseller-items">
+      <span class="ri">Volume pricing</span>
+      <span class="ri">Co-branding</span>
+      <span class="ri">Priority API access</span>
+      <span class="ri">Dedicated Slack channel</span>
+      <span class="ri">Custom SLA</span>
+    </div>
+  </div>
+
+  <div class="setup-banner">
+    <div class="sb-lbl">
+      <strong>One-Time Setup Fee — All Plans</strong>
+      <span>Schema migration · env config · staff onboarding · 48-hour go-live guarantee per property</span>
+    </div>
+    <div class="sb-amt">$149</div>
+  </div>
+</div>
+
+<!-- ── CTA ── -->
+<div class="cta">
+  <div class="cta-l">
+    <div class="mono eyebrow cta-eyebrow">Get in touch</div>
+    <div class="cta-title">See Lumea running<br>on a live demo hotel.</div>
+    <div class="cta-sub">Full 20-minute walkthrough. Real data, real rooms, real AI pipeline. No slides.</div>
+  </div>
+  <div class="cta-r">
+    <a href="mailto:ahmedshanwaz5@gmail.com" class="cta-email">ahmedshanwaz5@gmail.com</a>
+    <div class="cta-note">Book a demo slot via email</div>
+    <div class="cta-avail">Response within 24 hours</div>
+  </div>
+</div>
+
+<div class="foot-bar">
+  <div class="mono eyebrow-muted" style="font-size:9.5px;">Lumea CRM · Hotel management for independent properties</div>
+  <div class="mono eyebrow-muted" style="font-size:9.5px;">Next.js · Supabase · PostgreSQL · Claude AI</div>
+</div>
+
+</div>
+</body>
+</html>
