@@ -4642,8 +4642,7 @@ function GoogleSheetsCard({toast}) {
 }
 
 /* ═══════════════════════ ROOT APP ═══════════════════════════ */
-/* ═══════════════════ LEAD PIPELINE PAGE ════════════════════════════════════ */
-function LeadPipelinePage() {
+function LeadPipelinePage_REMOVED() {
   const [leads, setLeads]           = React.useState([])
   const [log, setLog]               = React.useState([])
   const [loading, setLoading]       = React.useState(true)
@@ -5202,11 +5201,11 @@ function App() {
     {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
     {id:'billing',   ico:'◎', label:'Billing & Invoices'},
     {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
-    {id:'leads',     ico:'◈', label:'Lead Pipeline',    sect:'GROWTH'},
+
     {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
   ].filter(n=>allowed.includes(n.id))
 
-  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',leads:'Lead Pipeline',settings:'Settings'}
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings'}
   const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
   const _p = k => bdParts.find(p=>p.type===k)?.value || ''
   const clockStr=(()=>{
@@ -5460,7 +5459,7 @@ function App() {
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
-            {cur==='leads'       &&<LeadPipelinePage/>}
+
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests}/>}
           </div>
         </main>
