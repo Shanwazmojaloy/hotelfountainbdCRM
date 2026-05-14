@@ -8,17 +8,11 @@
     { "source": "/landing", "destination": "/index.html" }
   ],
   "crons": [
-    {
-      "path": "/api/agents/daily-ops",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/agents/reply-intake-poll",
-      "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/agents/fb-token-check",
-      "schedule": "0 2 * * *"
-    }
+    { "path": "/api/agents/outreach-bot",      "schedule": "0 3 * * *" },
+    { "path": "/api/agents/follow-up-bot",     "schedule": "0 4 * * *" },
+    { "path": "/api/agents/reply-digest",      "schedule": "0 2 * * *" },
+    { "path": "/api/agents/reply-intake-poll", "schedule": "*/30 * * * *" },
+    { "path": "/api/agents/daily-ops",         "schedule": "0 2 * * *" },
+    { "path": "/api/agents/fb-token-check",    "schedule": "0 2 * * *" }
   ]
 }
