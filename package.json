@@ -10,7 +10,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build:crm": "babel public/crm-src.jsx --config-file ./babel.crm.json --out-file public/crm-bundle.js && terser public/crm-bundle.js --compress --mangle --output public/crm-bundle.js && node scripts/bump-cache.js"
+    "build:crm": "babel public/crm-src.jsx --config-file ./babel.crm.json --out-file public/crm-bundle.js && terser public/crm-bundle.js --compress --mangle --output public/crm-bundle.js && node scripts/bump-cache.js",
+    "import:leads": "node scripts/import-vibe-leads.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
