@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumea — AI Hotel CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --dk:    #0D0D0D;
+  --dk2:   #141414;
+  --dk3:   #1C1C1C;
+  --lt:    #F2F0EA;
+  --lt2:   #E8E5DE;
+  --lime:  #C8FF00;
+  --white: #FFFFFF;
+  --off:   #F9F8F4;
+  --text-dk: #0D0D0D;
+  --text-lt: rgba(13,13,13,0.5);
+  --muted-w: rgba(255,255,255,0.45);
+  --border-dk: rgba(255,255,255,0.09);
+  --border-lt: rgba(13,13,13,0.1);
+  --red:   #FF4444;
+  --green: #22C55E;
+}
+
+body {
+  background: var(--dk);
+  color: var(--white);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 40px; }
+
+/* ═══════════════════════════
+   NAV
+═══════════════════════════ */
+nav {
+  background: var(--dk);
+  border-bottom: 1px solid var(--border-dk);
+  position: sticky; top: 0; z-index: 100;
+}
+.nav-inner {
+  max-width: 960px; margin: 0 auto; padding: 0 40px;
+  height: 60px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.nav-logo {
+  font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 800;
+  color: var(--white); letter-spacing: -0.03em;
+}
+.nav-logo span { color: var(--lime); }
+.nav-links { display: flex; gap: 28px; align-items: center; }
+.nav-links a { font-size: 13px; color: var(--muted-w); text-decoration: none; font-weight: 500; }
+.nav-cta {
+  background: var(--lime); color: var(--dk); font-size: 13px; font-weight: 700;
+  padding: 9px 20px; border-radius: 6px; text-decoration: none; letter-spacing: -0.01em;
+}
+
+/* ═══════════════════════════
+   HERO — DARK
+═══════════════════════════ */
+.hero {
+  background: var(--dk);
+  padding: 80px 0 70px;
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% -10%, rgba(200,255,0,0.08), transparent),
+    radial-gradient(ellipse 40% 60% at 80% 80%, rgba(200,255,0,0.04), transparent);
+  pointer-events: none;
+}
+.hero-inner { position: relative; z-index: 1; }
+
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(200,255,0,0.1); border: 1px solid rgba(200,255,0,0.25);
+  color: var(--lime); font-size: 12px; font-weight: 600;
+  padding: 6px 14px; border-radius: 100px; margin-bottom: 28px;
+  letter-spacing: 0.01em;
+}
+.hero-badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); }
+
+.hero h1 {
+  font-family: 'Inter', sans-serif;
+  font-size: 62px; font-weight: 900;
+  line-height: 1.05; letter-spacing: -0.03em;
+  color: var(--white); max-width: 700px; margin: 0 auto 20px;
+}
+.hero h1 em { color: var(--lime); font-style: normal; }
+.hero-sub {
+  font-size: 16px; color: var(--muted-w); line-height: 1.75;
+  max-width: 500px; margin: 0 auto 36px;
+}
+.hero-cta-row {
+  display: flex; gap: 12px; justify-content: center; align-items: center;
+  margin-bottom: 56px;
+}
+.btn-primary {
+  background: var(--lime); color: var(--dk);
+  font-size: 14px; font-weight: 700; padding: 13px 28px;
+  border-radius: 8px; text-decoration: none; letter-spacing: -0.01em;
+}
+.btn-ghost {
+  background: transparent; color: var(--white);
+  font-size: 14px; font-weight: 500; padding: 13px 28px;
+  border-radius: 8px; text-decoration: none;
+  border: 1px solid var(--border-dk);
+}
+
+/* floating metric cards */
+.hero-metrics {
+  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+}
+.metric-card {
+  background: var(--dk2); border: 1px solid var(--border-dk);
+  border-radius: 12px; padding: 16px 20px; text-align: left;
+  min-width: 140px;
+}
+.mc-label { font-size: 11px; color: var(--muted-w); margin-bottom: 6px; font-weight: 500; }
+.mc-val {
+  font-family: 'Inter', sans-serif; font-size: 26px; font-weight: 800;
+  letter-spacing: -0.03em; line-height: 1;
+}
+.mc-val.lime   { color: var(--lime); }
+.mc-val.white  { color: var(--white); }
+.mc-sub { font-size: 11px; color: var(--muted-w); margin-top: 4px; }
+.mc-tag {
+  display: inline-block; margin-top: 8px;
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+}
+.mc-tag.up   { background: rgba(34,197,94,0.15); color: #22C55E; }
+.mc-tag.lime { background: rgba(200,255,0,0.12); color: var(--lime); }
+
+/* ═══════════════════════════
+   TRUSTED BY — DARK
+═══════════════════════════ */
+.trusted {
+  background: var(--dk2);
+  border-top: 1px solid var(--border-dk);
+  border-bottom: 1px solid var(--border-dk);
+  padding: 20px 0;
+}
+.trusted-inner {
+  max-width: 960px; margin: 0 auto; padding: 0 40px;
+  display: flex; align-items: center; gap: 0;
+}
+.trusted-label {
+  font-size: 11px; color: var(--muted-w); font-weight: 500; white-space: nowrap;
+  padding-right: 28px; border-right: 1px solid var(--border-dk);
+  margin-right: 28px; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.trusted-logos {
+  display: flex; gap: 32px; align-items: center; flex-wrap: wrap;
+}
+.tl {
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700;
+  color: rgba(255,255,255,0.25); letter-spacing: -0.01em; white-space: nowrap;
+}
+
+/* ═══════════════════════════
+   PAIN POINTS — LIGHT
+═══════════════════════════ */
+.pain {
+  background: var(--lt);
+  padding: 80px 0;
+}
+.pain h2 {
+  font-family: 'Inter', sans-serif;
+  font-size: 38px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--text-dk);
+  text-align: center; margin-bottom: 48px; line-height: 1.15;
+}
+.pain-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+.pain-card {
+  background: var(--white); border: 1px solid var(--border-lt);
+  border-radius: 16px; padding: 28px;
+}
+.pain-card.bad  { border-top: 3px solid #FF4444; }
+.pain-card.good { border-top: 3px solid var(--lime); }
+.pain-card-icon { font-size: 28px; margin-bottom: 14px; display: block; }
+.pain-card h3 {
+  font-family: 'Inter', sans-serif; font-size: 17px; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--text-dk); margin-bottom: 20px; line-height: 1.3;
+}
+.pain-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border-lt);
+  font-size: 13px; color: var(--text-dk); line-height: 1.5;
+}
+.pain-item:last-child { border-bottom: none; }
+.pi-dot {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
+}
+.pi-dot.bad  { background: rgba(255,68,68,0.1);  color: #FF4444; }
+.pi-dot.good { background: rgba(200,255,0,0.15); color: #5A7A00; }
+
+/* ═══════════════════════════
+   COMPARISON — DARK
+═══════════════════════════ */
+.comparison {
+  background: var(--dk);
+  padding: 80px 0;
+}
+.sec-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(200,255,0,0.08); border: 1px solid rgba(200,255,0,0.2);
+  color: var(--lime); font-size: 11px; font-weight: 600;
+  padding: 5px 12px; border-radius: 100px; margin-bottom: 16px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.comparison h2 {
+  font-family: 'Inter', sans-serif;
+  font-size: 38px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--white);
+  text-align: center; margin-bottom: 48px; line-height: 1.15;
+}
+.comp-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.comp-card {
+  border-radius: 16px; padding: 28px 28px 24px; overflow: hidden;
+}
+.comp-card.lumea {
+  background: var(--dk2); border: 1px solid rgba(200,255,0,0.2);
+}
+.comp-card.old {
+  background: var(--dk3); border: 1px solid var(--border-dk);
+}
+.comp-card-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 24px;
+}
+.cc-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+.cc-icon.lime  { background: rgba(200,255,0,0.12); }
+.cc-icon.grey  { background: rgba(255,255,255,0.06); }
+.cc-title {
+  font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.cc-title.lime { color: var(--lime); }
+.cc-title.grey { color: rgba(255,255,255,0.45); }
+.comp-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px; margin-bottom: 6px;
+  font-size: 13px; font-weight: 500;
+}
+.comp-item.on  { background: rgba(200,255,0,0.06); color: rgba(255,255,255,0.85); }
+.comp-item.off { background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.35); }
+.ci-dot {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
+}
+.ci-dot.on  { background: rgba(200,255,0,0.15); color: #7AB800; }
+.ci-dot.off { background: rgba(255,68,68,0.12); color: #FF6666; }
+
+/* ═══════════════════════════
+   FEATURES — LIGHT
+═══════════════════════════ */
+.features {
+  background: var(--lt);
+  padding: 80px 0;
+}
+.features h2 {
+  font-family: 'Inter', sans-serif; font-size: 38px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--text-dk);
+  margin-bottom: 8px; line-height: 1.15;
+}
+.features-sub { font-size: 15px; color: var(--text-lt); margin-bottom: 40px; }
+.feat-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.feat-card {
+  background: var(--white); border: 1px solid var(--border-lt);
+  border-radius: 14px; padding: 22px;
+}
+.feat-card.highlight {
+  background: var(--dk); border-color: transparent;
+}
+.feat-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-bottom: 14px;
+}
+.fi-lime  { background: rgba(200,255,0,0.12); }
+.fi-dark  { background: rgba(13,13,13,0.06); }
+.fi-light { background: rgba(200,255,0,0.15); }
+.feat-title {
+  font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 800;
+  letter-spacing: -0.02em; margin-bottom: 8px; color: var(--text-dk);
+}
+.feat-card.highlight .feat-title { color: var(--white); }
+.feat-desc { font-size: 12.5px; color: var(--text-lt); line-height: 1.65; }
+.feat-card.highlight .feat-desc { color: rgba(255,255,255,0.45); }
+.feat-tag {
+  display: inline-block; margin-top: 14px;
+  font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 100px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  background: rgba(13,13,13,0.06); color: var(--text-lt);
+  border: 1px solid var(--border-lt);
+}
+.feat-card.highlight .feat-tag {
+  background: rgba(200,255,0,0.1); color: var(--lime); border-color: rgba(200,255,0,0.2);
+}
+
+/* mock table in feature card */
+.feat-mock {
+  margin-top: 14px; overflow: hidden;
+  background: var(--lt); border: 1px solid var(--border-lt);
+  border-radius: 8px;
+}
+.fm-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 12px; border-bottom: 1px solid var(--border-lt);
+  font-size: 11.5px;
+}
+.fm-row:last-child { border-bottom: none; }
+.fm-label { color: var(--text-lt); font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; }
+.fm-val   { font-weight: 600; color: var(--text-dk); font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; }
+.fm-badge {
+  font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
+}
+.fm-occ   { background: rgba(34,197,94,0.12); color: #15803D; }
+.fm-res   { background: rgba(234,179,8,0.12);  color: #92400E; }
+.fm-avail { background: rgba(13,13,13,0.06);   color: var(--text-lt); }
+.fm-maint { background: rgba(255,68,68,0.1);   color: #DC2626; }
+
+/* ═══════════════════════════
+   AI PIPELINE — DARK
+═══════════════════════════ */
+.pipeline {
+  background: var(--dk);
+  padding: 80px 0;
+}
+.pipeline h2 {
+  font-family: 'Inter', sans-serif; font-size: 38px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--white);
+  text-align: center; margin-bottom: 10px; line-height: 1.15;
+}
+.pipeline-sub {
+  font-size: 15px; color: var(--muted-w); text-align: center;
+  max-width: 520px; margin: 0 auto 48px; line-height: 1.7;
+}
+.pipe-steps {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  margin-bottom: 20px;
+}
+.ps {
+  background: var(--dk2); border: 1px solid var(--border-dk);
+  border-radius: 14px; padding: 22px 18px;
+  position: relative;
+}
+.ps-num {
+  font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 800;
+  color: rgba(255,255,255,0.06); letter-spacing: -0.04em; line-height: 1;
+  margin-bottom: 8px;
+}
+.ps-name {
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 800;
+  letter-spacing: -0.02em; margin-bottom: 8px; color: var(--white);
+}
+.ps-name em { color: var(--lime); font-style: normal; }
+.ps-desc { font-size: 12px; color: var(--muted-w); line-height: 1.6; }
+.ps-badge {
+  display: inline-block; margin-top: 14px;
+  background: rgba(200,255,0,0.08); border: 1px solid rgba(200,255,0,0.18);
+  color: var(--lime); font-size: 10px; font-weight: 600;
+  padding: 3px 9px; border-radius: 4px; letter-spacing: 0.04em;
+}
+
+.pipe-results {
+  background: var(--dk2); border: 1px solid var(--border-dk);
+  border-radius: 14px; padding: 20px 28px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+}
+.pr {
+  padding: 8px 20px; border-right: 1px solid var(--border-dk);
+  text-align: center;
+}
+.pr:first-child { padding-left: 0; }
+.pr:last-child  { border-right: none; padding-right: 0; }
+.pr-val {
+  font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 800;
+  color: var(--lime); letter-spacing: -0.02em; line-height: 1; margin-bottom: 4px;
+}
+.pr-lbl { font-size: 11.5px; color: var(--muted-w); }
+
+/* ═══════════════════════════
+   TESTIMONIALS — LIGHT
+═══════════════════════════ */
+.testimonials {
+  background: var(--lt);
+  padding: 80px 0;
+}
+.testimonials h2 {
+  font-family: 'Inter', sans-serif; font-size: 38px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--text-dk);
+  margin-bottom: 40px; line-height: 1.15;
+}
+.testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.testi-card {
+  background: var(--white); border: 1px solid var(--border-lt);
+  border-radius: 14px; padding: 22px;
+}
+.stars { color: #F59E0B; font-size: 13px; margin-bottom: 12px; letter-spacing: 2px; }
+.testi-text { font-size: 13px; color: var(--text-dk); line-height: 1.65; margin-bottom: 16px; }
+.testi-author { display: flex; align-items: center; gap: 10px; }
+.ta-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--dk); display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: var(--lime); font-family: 'Inter', sans-serif;
+  flex-shrink: 0;
+}
+.ta-name { font-size: 13px; font-weight: 700; color: var(--text-dk); }
+.ta-role { font-size: 11px; color: var(--text-lt); }
+
+/* ═══════════════════════════
+   PRICING — DARK
+═══════════════════════════ */
+.pricing {
+  background: var(--dk);
+  padding: 80px 0;
+}
+.pricing h2 {
+  font-family: 'Inter', sans-serif; font-size: 38px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--white);
+  text-align: center; margin-bottom: 10px; line-height: 1.15;
+}
+.pricing-sub {
+  text-align: center; color: var(--muted-w); font-size: 14px; margin-bottom: 44px;
+}
+.price-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  align-items: start;
+}
+.pc {
+  background: var(--dk2); border: 1px solid var(--border-dk);
+  border-radius: 16px; overflow: hidden;
+}
+.pc.featured {
+  background: var(--lime);
+  border-color: var(--lime);
+}
+.pc-head { padding: 24px 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.pc.featured .pc-head { border-color: rgba(0,0,0,0.1); }
+.pc-tier {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted-w); margin-bottom: 14px;
+}
+.pc.featured .pc-tier { color: rgba(0,0,0,0.5); }
+.pc-price {
+  font-family: 'Inter', sans-serif; font-size: 40px; font-weight: 800;
+  letter-spacing: -0.04em; line-height: 1; color: var(--white);
+}
+.pc.featured .pc-price { color: var(--dk); }
+.pc-price sub { font-size: 20px; font-weight: 700; letter-spacing: 0; }
+.pc-period { font-size: 12px; color: var(--muted-w); margin-top: 4px; }
+.pc.featured .pc-period { color: rgba(0,0,0,0.45); }
+.pc-body { padding: 20px 24px; }
+.pc-feat {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 7px 0; font-size: 13px; font-weight: 500;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.pc.featured .pc-feat { border-color: rgba(0,0,0,0.08); }
+.pc-feat:last-child { border-bottom: none; }
+.pc-feat.on  { color: var(--white); }
+.pc-feat.off { color: rgba(255,255,255,0.2); }
+.pc.featured .pc-feat.on  { color: var(--dk); }
+.pc.featured .pc-feat.off { color: rgba(0,0,0,0.25); }
+.pf-dot {
+  width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700;
+  margin-top: 2px;
+}
+.pf-dot.on  { background: rgba(200,255,0,0.15); color: #7AB800; }
+.pf-dot.off { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.2); }
+.pc.featured .pf-dot.on  { background: rgba(0,0,0,0.12); color: rgba(0,0,0,0.6); }
+.pc.featured .pf-dot.off { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.2); }
+
+.setup-row {
+  margin-top: 16px; padding: 16px 20px;
+  background: var(--dk2); border: 1px solid var(--border-dk);
+  border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+}
+.sr-l strong { display: block; font-size: 13px; font-weight: 700; color: var(--white); margin-bottom: 2px; }
+.sr-l span   { font-size: 12px; color: var(--muted-w); }
+.sr-r { font-family: 'Inter', sans-serif; font-size: 26px; font-weight: 800; color: var(--lime); letter-spacing: -0.02em; white-space: nowrap; }
+
+/* ═══════════════════════════
+   CTA — DARK
+═══════════════════════════ */
+.cta-section {
+  background: var(--dk2);
+  border-top: 1px solid var(--border-dk);
+  padding: 80px 0;
+}
+.cta-section h2 {
+  font-family: 'Inter', sans-serif; font-size: 38px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--white); margin-bottom: 48px; line-height: 1.15;
+}
+.steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 40px; }
+.step-card {
+  background: var(--dk); border: 1px solid var(--border-dk);
+  border-radius: 14px; padding: 22px;
+}
+.step-num {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: rgba(200,255,0,0.1); border: 1px solid rgba(200,255,0,0.2);
+  color: var(--lime); font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 14px;
+}
+.step-title { font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+.step-desc  { font-size: 12.5px; color: var(--muted-w); line-height: 1.65; }
+
+.cta-bottom {
+  background: var(--lime); border-radius: 16px; padding: 36px 36px;
+  display: flex; justify-content: space-between; align-items: center; gap: 24px;
+}
+.cb-left h3 {
+  font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--dk); margin-bottom: 6px;
+}
+.cb-left p { font-size: 13.5px; color: rgba(0,0,0,0.5); }
+.cb-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+.cb-email { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500; color: var(--dk); text-decoration: none; }
+.cb-note  { font-size: 11.5px; color: rgba(0,0,0,0.45); }
+
+/* ═══════════════════════════
+   FOOTER
+═══════════════════════════ */
+footer {
+  background: var(--dk); border-top: 1px solid var(--border-dk);
+  padding: 20px 0;
+}
+.foot-inner {
+  max-width: 960px; margin: 0 auto; padding: 0 40px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.foot-brand { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 800; color: var(--white); }
+.foot-brand span { color: var(--lime); }
+.foot-meta { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); text-transform: uppercase; }
+
+/* ═══════════════════════════
+   PRINT / PDF — PAGE-SAFE LAYOUT
+═══════════════════════════ */
+@media print {
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  /* Static nav on page 1, no sticky overhead */
+  nav { position: static !important; }
+
+  /* ── Page breaks: force new page before key sections ── */
+  .pain        { break-before: page; }
+  .features    { break-before: page; }
+  .pipeline    { break-before: page; }
+  .testimonials{ break-before: page; }
+  .pricing     { break-before: page; }
+  .cta-section { break-before: page; }
+  footer       { break-before: avoid; }
+
+  /* ── Never orphan a section heading ── */
+  h2           { break-after: avoid; page-break-after: avoid; }
+  .sec-eyebrow { break-after: avoid; page-break-after: avoid; }
+
+  /* ── Keep cards and grids whole ── */
+  .pain-card,
+  .comp-card,
+  .feat-card,
+  .ps,
+  .testi-card,
+  .pc,
+  .step-card,
+  .metric-card,
+  .setup-row,
+  .pipe-results,
+  .cta-bottom,
+  .pr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ── Keep grid rows together where possible ── */
+  .pain-grid,
+  .comp-grid,
+  .testi-grid,
+  .steps-grid,
+  .pipe-steps,
+  .feat-grid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ── Trusted strip — tight, keep it whole ── */
+  .trusted { break-inside: avoid; page-break-inside: avoid; }
+
+  /* ── Section padding: tighten slightly for print so content fits ── */
+  .hero        { padding: 56px 0 52px; }
+  .pain        { padding: 56px 0; }
+  .comparison  { padding: 56px 0; }
+  .features    { padding: 56px 0; }
+  .pipeline    { padding: 56px 0; }
+  .testimonials{ padding: 56px 0; }
+  .pricing     { padding: 56px 0; }
+  .cta-section { padding: 56px 0 48px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">Lumea<span>.</span></div>
+    <div class="nav-links">
+      <a href="#">Features</a>
+      <a href="#">Pricing</a>
+      <a href="#">Demo</a>
+    </div>
+    <a href="mailto:ahmedshanwaz5@gmail.com" class="nav-cta">Schedule a free call</a>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-badge"><div class="hero-badge-dot"></div>AI-Powered · Built for Independent Hotels</div>
+
+    <h1>Run your hotel like a<br><em>5-star operation</em><br>— automatically.</h1>
+
+    <p class="hero-sub">The only hotel CRM that manages reservations, billing, and B2B outreach in one place — with AI agents running 24/7 on your behalf.</p>
+
+    <div class="hero-cta-row">
+      <a href="mailto:ahmedshanwaz5@gmail.com" class="btn-primary">Schedule a free call</a>
+      <a href="#features" class="btn-ghost">See the platform →</a>
+    </div>
+
+    <div class="hero-metrics">
+      <div class="metric-card">
+        <div class="mc-label">Today's Revenue</div>
+        <div class="mc-val lime">৳257k</div>
+        <div class="mc-tag up">↑ Live tracking</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Occupancy Rate</div>
+        <div class="mc-val white">60%</div>
+        <div class="mc-tag lime">9 of 20 rooms</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">B2B Leads Sourced</div>
+        <div class="mc-val white">10–20</div>
+        <div class="mc-sub">per week · automated</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Billing Time Saved</div>
+        <div class="mc-val lime">4 hrs</div>
+        <div class="mc-sub">per day vs. manual</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Go-Live Time</div>
+        <div class="mc-val white">48h</div>
+        <div class="mc-sub">from signup to live</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TRUSTED BY ── -->
+<div class="trusted">
+  <div class="trusted-inner">
+    <div class="trusted-label">Trusted by</div>
+    <div class="trusted-logos">
+      <div class="tl">Hotel Fountain BD</div>
+      <div class="tl">Grand Palace</div>
+      <div class="tl">Summit Inn</div>
+      <div class="tl">Skyline Suites</div>
+      <div class="tl">The Orchid</div>
+      <div class="tl">Crescent Hotel</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PAIN POINTS ── -->
+<section class="pain">
+  <div class="wrap">
+    <div style="text-align:center; margin-bottom:0;">
+      <div class="sec-eyebrow" style="color:var(--text-dk);background:rgba(13,13,13,0.06);border-color:rgba(13,13,13,0.12);">The Problem</div>
+    </div>
+    <h2>Why most hotels get stuck.</h2>
+    <div class="pain-grid">
+      <div class="pain-card bad">
+        <span class="pain-card-icon">😤</span>
+        <h3>Managing without a system<br>— constant firefighting</h3>
+        <div class="pain-item"><div class="pi-dot bad">✕</div>Billing done on paper or Excel — errors every week</div>
+        <div class="pain-item"><div class="pi-dot bad">✕</div>No visibility of which rooms are occupied or when checkout is due</div>
+        <div class="pain-item"><div class="pi-dot bad">✕</div>Corporate clients are never proactively contacted — revenue left on the table</div>
+        <div class="pain-item"><div class="pi-dot bad">✕</div>Staff waste 4+ hours daily on admin that should be automated</div>
+      </div>
+      <div class="pain-card good">
+        <span class="pain-card-icon">✅</span>
+        <h3>Running Lumea<br>— everything on autopilot</h3>
+        <div class="pain-item"><div class="pi-dot good">✓</div>Auto-billing with VAT, discounts, and one-click invoice PDF</div>
+        <div class="pain-item"><div class="pi-dot good">✓</div>Live room matrix — every guest, balance, and check-out time visible</div>
+        <div class="pain-item"><div class="pi-dot good">✓</div>AI agent emails 10–20 corporate prospects every week automatically</div>
+        <div class="pain-item"><div class="pi-dot good">✓</div>Staff focus on guests — not spreadsheets</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── COMPARISON ── -->
+<section class="comparison">
+  <div class="wrap" style="text-align:center;">
+    <div class="sec-eyebrow">Comparison</div>
+    <h2>Lumea vs. Traditional PMS software.</h2>
+  </div>
+  <div class="wrap">
+    <div class="comp-grid">
+      <div class="comp-card lumea">
+        <div class="comp-card-header">
+          <div class="cc-icon lime">⚡</div>
+          <div class="cc-title lime">Lumea CRM</div>
+        </div>
+        <div class="comp-item on"><div class="ci-dot on">✓</div>AI B2B outreach — runs automatically, zero staff time</div>
+        <div class="comp-item on"><div class="ci-dot on">✓</div>Live room matrix with real-time guest data</div>
+        <div class="comp-item on"><div class="ci-dot on">✓</div>Auto billing — VAT, discounts, Cash/bKash/Card split</div>
+        <div class="comp-item on"><div class="ci-dot on">✓</div>48-hour go-live — no enterprise contract needed</div>
+        <div class="comp-item on"><div class="ci-dot on">✓</div>White-label ready — your brand, your hotel name</div>
+        <div class="comp-item on"><div class="ci-dot on">✓</div>Built for Bangladesh market — BDT, local VAT rules</div>
+      </div>
+      <div class="comp-card old">
+        <div class="comp-card-header">
+          <div class="cc-icon grey">🏚️</div>
+          <div class="cc-title grey">Traditional Hotel Software</div>
+        </div>
+        <div class="comp-item off"><div class="ci-dot off">✕</div>No outreach — you chase clients manually</div>
+        <div class="comp-item off"><div class="ci-dot off">✕</div>Static reports, no real-time visibility</div>
+        <div class="comp-item off"><div class="ci-dot off">✕</div>Manual billing — errors, rounding, disputes</div>
+        <div class="comp-item off"><div class="ci-dot off">✕</div>Months of onboarding, complex contracts</div>
+        <div class="comp-item off"><div class="ci-dot off">✕</div>Generic UI — not built for your property type</div>
+        <div class="comp-item off"><div class="ci-dot off">✕</div>Western pricing + currency assumptions</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="sec-eyebrow" style="color:var(--text-dk);background:rgba(13,13,13,0.06);border-color:rgba(13,13,13,0.12);">Platform</div>
+    <h2>Everything your hotel needs.<br>Nothing it doesn't.</h2>
+    <p class="features-sub">Reservations, billing, guest management, and AI outreach — all in one system, ready in 48 hours.</p>
+    <div class="feat-grid">
+      <!-- Room matrix with mock -->
+      <div class="feat-card" style="grid-column:span 2; display:flex; flex-direction:column;">
+        <div class="feat-icon fi-dark">🏨</div>
+        <div class="feat-title">Live Room Matrix</div>
+        <div class="feat-desc">Real-time view of every room — guest name, check-in/out time, and balance due. Updates instantly when a reservation is created or modified.</div>
+        <div class="feat-mock" style="flex:1; margin-top:16px;">
+          <div class="fm-row" style="background:rgba(13,13,13,0.03);">
+            <span class="fm-label">Room</span><span class="fm-label">Guest</span>
+            <span class="fm-label">Status</span><span class="fm-label">Balance</span>
+          </div>
+          <div class="fm-row"><span class="fm-label">501 · Suite</span><span style="font-size:11.5px;color:var(--text-dk);">Mohammad Karim</span><span class="fm-badge fm-occ">Occupied</span><span class="fm-val">৳0</span></div>
+          <div class="fm-row"><span class="fm-label">302 · Deluxe</span><span style="font-size:11.5px;color:var(--text-dk);">Nadia Islam</span><span class="fm-badge fm-occ">Occupied</span><span class="fm-val" style="color:#DC2626;">৳2,500</span></div>
+          <div class="fm-row"><span class="fm-label">303 · Deluxe</span><span style="font-size:11.5px;color:var(--text-lt);">Arriving tomorrow</span><span class="fm-badge fm-res">Reserved</span><span class="fm-val">৳11,500</span></div>
+          <div class="fm-row"><span class="fm-label">204 · Standard</span><span style="font-size:11.5px;color:var(--text-lt);">—</span><span class="fm-badge fm-maint">Maintenance</span><span class="fm-val" style="color:var(--text-lt);">—</span></div>
+          <div class="fm-row"><span class="fm-label">403 · Superior</span><span style="font-size:11.5px;color:var(--text-lt);">—</span><span class="fm-badge fm-avail">Available</span><span class="fm-val" style="color:var(--text-lt);">—</span></div>
+        </div>
+        <span class="feat-tag" style="align-self:flex-start;">Dashboard</span>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon fi-dark">🧾</div>
+        <div class="feat-title">Smart Billing</div>
+        <div class="feat-desc">Auto-calculates room charges, VAT (15%), service tax (1%), mini-bar, laundry, and discounts. Cash, bKash, and card — tracked to the taka.</div>
+        <span class="feat-tag">Billing · VAT</span>
+      </div>
+
+      <div class="feat-card highlight">
+        <div class="feat-icon fi-light">🤖</div>
+        <div class="feat-title">AI Outreach Agents</div>
+        <div class="feat-desc">4 AI agents run on autopilot. OutreachBot emails B2B prospects, ReplyIntake reads responses, CEOAuditor scores deals, DealAlert pings you for hot leads.</div>
+        <span class="feat-tag">AI · Automated</span>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon fi-dark">👤</div>
+        <div class="feat-title">Guest Ledger</div>
+        <div class="feat-desc">Per-guest payment history, VIP flags, loyalty points, and lifetime spend. Reservation-anchored — no ghost payments, no duplicate charges.</div>
+        <span class="feat-tag">Guests</span>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon fi-dark">📊</div>
+        <div class="feat-title">Revenue Dashboard</div>
+        <div class="feat-desc">Today's revenue by Cash/bKash/Card, occupancy rate, and BIZ DAY KPI — all live from real transactions. No spreadsheets, no manual entry.</div>
+        <span class="feat-tag">Analytics</span>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon fi-dark">🔗</div>
+        <div class="feat-title">LinkedIn Prospecting</div>
+        <div class="feat-desc">Every Monday, Lumea automatically sources 10–20 verified HR contacts from Dhaka and Chittagong companies — ready for OutreachBot to email.</div>
+        <span class="feat-tag">LinkedIn · Weekly</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── AI PIPELINE ── -->
+<section class="pipeline">
+  <div class="wrap" style="text-align:center;">
+    <div class="sec-eyebrow">Automated Growth</div>
+    <h2>LinkedIn → CRM → Email → Deal.</h2>
+    <p class="pipeline-sub">Every Monday, Lumea sources HR managers from BD companies, enriches their emails, and runs a personalised outreach sequence — while you focus on running your hotel.</p>
+  </div>
+  <div class="wrap">
+    <div class="pipe-steps">
+      <div class="ps">
+        <div class="ps-num">01</div>
+        <div class="ps-name"><em>LinkedIn</em> Scan</div>
+        <div class="ps-desc">50 verified HR & Admin contacts found at Dhaka + Chittagong companies every Monday</div>
+        <span class="ps-badge">Weekly · Auto</span>
+      </div>
+      <div class="ps">
+        <div class="ps-num">02</div>
+        <div class="ps-name"><em>OutreachBot</em></div>
+        <div class="ps-desc">Personalised intro email sent at 9AM daily with your hotel's corporate rate offer</div>
+        <span class="ps-badge">Daily · 9AM</span>
+      </div>
+      <div class="ps">
+        <div class="ps-num">03</div>
+        <div class="ps-name"><em>ReplyIntake</em></div>
+        <div class="ps-desc">Reads inbox replies, logs interest level, and queues follow-ups automatically</div>
+        <span class="ps-badge">IMAP · Daily</span>
+      </div>
+      <div class="ps">
+        <div class="ps-num">04</div>
+        <div class="ps-name"><em>CEOAuditor</em></div>
+        <div class="ps-desc">Scores each deal 0–100 and sends you an instant alert for high-value prospects</div>
+        <span class="ps-badge">Real-time Alert</span>
+      </div>
+    </div>
+    <div class="pipe-results">
+      <div class="pr"><div class="pr-val">10–20</div><div class="pr-lbl">New leads / week</div></div>
+      <div class="pr"><div class="pr-val">Auto</div><div class="pr-lbl">Emails sent daily</div></div>
+      <div class="pr"><div class="pr-val">0 hrs</div><div class="pr-lbl">Staff time needed</div></div>
+      <div class="pr"><div class="pr-val" style="font-size:16px;color:var(--muted-w);">Growth+</div><div class="pr-lbl">Plan required</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TESTIMONIALS ── -->
+<section class="testimonials">
+  <div class="wrap">
+    <div class="sec-eyebrow" style="color:var(--text-dk);background:rgba(13,13,13,0.06);border-color:rgba(13,13,13,0.12);">Testimonials</div>
+    <h2>Trusted by hotel owners<br>across Bangladesh.</h2>
+    <div class="testi-grid">
+      <div class="testi-card">
+        <div class="stars">★★★★★</div>
+        <div class="testi-text">"Lumea replaced 3 separate tools for us. Billing used to take 2 hours every morning — now it's 10 minutes. The AI outreach bot booked us 3 corporate accounts in the first month."</div>
+        <div class="testi-author">
+          <div class="ta-avatar">R</div>
+          <div><div class="ta-name">Rahim Chowdhury</div><div class="ta-role">Owner, The Orchid Hotel — Gulshan</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="stars">★★★★★</div>
+        <div class="testi-text">"We went live in less than 48 hours. The room matrix alone was worth it — I can see every guest's status and balance from my phone. No more calling the front desk constantly."</div>
+        <div class="testi-author">
+          <div class="ta-avatar">S</div>
+          <div><div class="ta-name">Sultana Begum</div><div class="ta-role">GM, Crescent Boutique Hotel — Dhanmondi</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="stars">★★★★★</div>
+        <div class="testi-text">"The corporate pipeline is a game changer. It emails companies I never would have reached myself. One of those leads turned into a ৳40,000/month contract with a pharma company."</div>
+        <div class="testi-author">
+          <div class="ta-avatar">K</div>
+          <div><div class="ta-name">Kamrul Islam</div><div class="ta-role">Director, Summit Inn — Banani</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING ── -->
+<section class="pricing">
+  <div class="wrap" style="text-align:center;">
+    <div class="sec-eyebrow">Pricing</div>
+    <h2>Simple, transparent plans.</h2>
+    <p class="pricing-sub">All prices in BDT. Annual billing saves 15%. Setup in 48 hours — guaranteed.</p>
+  </div>
+  <div class="wrap">
+    <div class="price-grid">
+      <div class="pc">
+        <div class="pc-head">
+          <div class="pc-tier">Starter</div>
+          <div class="pc-price">৳8,000</div>
+          <div class="pc-period">per month</div>
+        </div>
+        <div class="pc-body">
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Room Matrix + reservations</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Smart billing + VAT invoices</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Guest ledger + history</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Revenue dashboard</div>
+          <div class="pc-feat off"><div class="pf-dot off">–</div>AI outreach agents</div>
+          <div class="pc-feat off"><div class="pf-dot off">–</div>LinkedIn prospecting</div>
+        </div>
+      </div>
+      <div class="pc featured">
+        <div class="pc-head">
+          <div class="pc-tier">Growth · Most Popular</div>
+          <div class="pc-price">৳18,000</div>
+          <div class="pc-period">per month</div>
+        </div>
+        <div class="pc-body">
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Everything in Starter</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>OutreachBot + FollowUpBot</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>ReplyIntake + DealAlert</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>CEO Auditor deal scoring</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>B2B corporate lead pipeline</div>
+          <div class="pc-feat off"><div class="pf-dot off">–</div>LinkedIn auto-prospecting</div>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="pc-head">
+          <div class="pc-tier">Full</div>
+          <div class="pc-price">৳35,000</div>
+          <div class="pc-period">per month</div>
+        </div>
+        <div class="pc-body">
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Everything in Growth</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Weekly LinkedIn prospecting</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Dhaka + Chittagong coverage</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Facebook marketing automation</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>Priority support + training</div>
+          <div class="pc-feat on"><div class="pf-dot on">✓</div>White-glove onboarding</div>
+        </div>
+      </div>
+    </div>
+    <div class="setup-row">
+      <div class="sr-l">
+        <strong>One-Time Setup Fee — All Plans</strong>
+        <span>DB migration · domain config · staff training · 48-hour go-live guarantee</span>
+      </div>
+      <div class="sr-r">৳15,000</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta-section">
+  <div class="wrap">
+    <div class="sec-eyebrow">Get Started</div>
+    <h2>Ready to run your hotel<br>on autopilot?</h2>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <div class="step-title">Schedule a Free Call</div>
+        <div class="step-desc">20-minute walkthrough of Lumea running on a live demo hotel. Real data, real rooms, real AI pipeline — no slides.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <div class="step-title">Receive a Free Audit</div>
+        <div class="step-desc">We'll analyze your current setup — billing workflow, room tracking, and B2B gaps — and show you exactly what Lumea fixes.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <div class="step-title">Go Live in 48 Hours</div>
+        <div class="step-desc">We handle the setup — DB migration, env config, staff training. Your hotel is on Lumea and running within two working days.</div>
+      </div>
+    </div>
+    <div class="cta-bottom">
+      <div class="cb-left">
+        <h3>Book your free 20-minute demo today.</h3>
+        <p>No commitment. No slides. Just Lumea running live on your hotel's data.</p>
+      </div>
+      <div class="cb-right">
+        <a href="mailto:ahmedshanwaz5@gmail.com" class="cb-email">ahmedshanwaz5@gmail.com</a>
+        <div class="cb-note">Reply to book a demo slot · Available 7 days a week</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="foot-inner">
+    <div class="foot-brand">Lumea<span>.</span></div>
+    <div class="foot-meta">Next.js · Supabase · PostgreSQL · Claude AI · Built for Bangladesh</div>
+  </div>
+</footer>
+
+</body>
+</html>
