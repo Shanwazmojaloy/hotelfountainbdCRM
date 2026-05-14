@@ -84,9 +84,10 @@ function buildOutreachText(company: string, contactName: string | null): string 
 
 async function runOutreachBot() {
   const SB_URL    = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-  const SB_KEY    = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-  if (!SB_KEY) return { ok: false, error: 'Env missing: SUPABASE_SERVICE_ROLE_KEY — set sb_secret_* key in Vercel' };
-  console.log('[outreach-bot] key_prefix:', SB_KEY.substring(0, 14), '| len:', SB_KEY.length);
+  // Use anon key for PostgREST — confirmed working 200/204 with existing RLS policies.
+  // sb_secret_* (service role) returns 401 from Vercel's egress IPs despite working locally.
+  const SB_KEY    = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  if (!SB_KEY) return { ok: false, error: 'Env missing: NEXT_PUBLIC_SUPABASE_ANON_KEY' };
   const BREVO_KEY = (process.env.BREVO_API_KEY || '').trim();
 
   if (!BREVO_KEY) return { ok: false, error: 'Env missing: BREVO_API_KEY — add in Vercel dashboard' };
@@ -106,7 +107,6 @@ async function runOutreachBot() {
   );
   if (!leadsRes.ok) {
     const txt = await leadsRes.text();
-    console.log('[outreach-bot] leads_fetch failed:', leadsRes.status, txt);
     let msg = txt;
     try { msg = (JSON.parse(txt) as { message?: string }).message || txt; } catch { /* use raw txt */ }
     return { ok: false, error: `Supabase ${leadsRes.status}: ${msg}` };
