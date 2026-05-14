@@ -4644,115 +4644,159 @@ function GoogleSheetsCard({toast}) {
 /* ═══════════════════════ ROOT APP ═══════════════════════════ */
 /* ═══════════════════ LEAD PIPELINE PAGE ════════════════════════════════════ */
 function LeadPipelinePage() {
-  const [leads, setLeads]       = React.useState([])
-  const [log, setLog]           = React.useState([])
-  const [loading, setLoading]   = React.useState(true)
-  const [filter, setFilter]     = React.useState('all')
+  const [leads, setLeads]           = React.useState([])
+  const [log, setLog]               = React.useState([])
+  const [loading, setLoading]       = React.useState(true)
+  const [refreshing, setRefreshing] = React.useState(false)
+  const [filter, setFilter]         = React.useState('all')
+  const [search, setSearch]         = React.useState('')
+  const [selected, setSelected]     = React.useState(null)
   const [runningBot, setRunningBot] = React.useState(false)
   const [botResult, setBotResult]   = React.useState(null)
-  const botDismissRef = React.useRef(null)
+  const botTimerRef = React.useRef(null)
 
-  React.useEffect(() => {
-    Promise.all([
-      db('corporate_leads', '?select=*&order=priority.desc,created_at.asc'),
-      db('outreach_log', '?select=*&order=sent_at.desc&limit=50'),
-    ]).then(([l, og]) => {
-      setLeads(Array.isArray(l) ? l : [])
-      setLog(Array.isArray(og) ? og : [])
-      setLoading(false)
-    }).catch(() => setLoading(false))
+  const STATUS_CFG = {
+    pending:        {label:'Pending',        color:'#7A6A5A', bg:'rgba(122,106,90,.18)'},
+    contacted:      {label:'Contacted',      color:'#58A6FF', bg:'rgba(88,166,255,.12)'},
+    replied:        {label:'Replied',        color:'#FCD34D', bg:'rgba(252,211,77,.12)'},
+    audited:        {label:'Audited',        color:'#A78BFA', bg:'rgba(167,139,250,.12)'},
+    deal_ready:     {label:'Deal Ready',     color:'#4ADE80', bg:'rgba(74,222,128,.12)'},
+    closed_won:     {label:'Closed Won',     color:'#C8A96E', bg:'rgba(200,169,110,.15)'},
+    not_interested: {label:'Not Interested', color:'#F87171', bg:'rgba(248,113,113,.10)'},
+  }
+  const ICP_CFG = {
+    strong:  {label:'Strong',  color:'#4ADE80'},
+    good:    {label:'Good',    color:'#58A6FF'},
+    partial: {label:'Partial', color:'#FCD34D'},
+  }
+  const FILTERS = [
+    {key:'all',        label:'All'},
+    {key:'pending',    label:'Pending'},
+    {key:'contacted',  label:'Contacted'},
+    {key:'replied',    label:'Replied'},
+    {key:'deal_ready', label:'Deal Ready'},
+    {key:'audited',    label:'Audited'},
+  ]
+  const scoreColor = s => s >= 9 ? '#4ADE80' : s >= 7 ? '#FCD34D' : s >= 4 ? '#F97316' : '#F87171'
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('en-BD',{timeZone:'Asia/Dhaka',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'
+
+  const loadData = React.useCallback(async (silent) => {
+    if (silent) setRefreshing(true)
+    else setLoading(true)
+    try {
+      const [l, og] = await Promise.all([
+        db('corporate_leads', `?tenant_id=eq.${TENANT}&select=*&order=priority.asc,created_at.asc`),
+        db('outreach_log',    `?tenant_id=eq.${TENANT}&select=*&order=sent_at.desc&limit=100`),
+      ])
+      const leadsArr = Array.isArray(l)  ? l  : []
+      const logArr   = Array.isArray(og) ? og : []
+      setLeads(leadsArr)
+      setLog(logArr)
+      setSelected(prev => prev ? (leadsArr.find(x => x.id === prev.id) || null) : null)
+    } catch(e) { console.error('[LeadPipeline] load error', e) }
+    finally { setLoading(false); setRefreshing(false) }
   }, [])
 
-  const STATUS_CONFIG = {
-    pending:        { label:'Pending',       color:'#7A6A5A', bg:'rgba(122,106,90,.15)' },
-    contacted:      { label:'Contacted',     color:'#58A6FF', bg:'rgba(88,166,255,.12)' },
-    replied:        { label:'Replied',       color:'#FCD34D', bg:'rgba(252,211,77,.12)' },
-    audited:        { label:'Audited',       color:'#A78BFA', bg:'rgba(167,139,250,.12)' },
-    deal_ready:     { label:'Deal Ready 🔥', color:'#4ADE80', bg:'rgba(74,222,128,.12)' },
-    closed_won:     { label:'Closed Won ✓',  color:'#C8A96E', bg:'rgba(200,169,110,.15)' },
-    not_interested: { label:'Not Interested',color:'#F87171', bg:'rgba(248,113,113,.10)' },
-  }
+  React.useEffect(() => { loadData() }, [loadData])
 
-  const ICP_CONFIG = {
-    strong:  { label:'Strong', color:'#4ADE80' },
-    good:    { label:'Good',   color:'#58A6FF' },
-    partial: { label:'Partial',color:'#FCD34D' },
-  }
-
-  const FILTERS = ['all','pending','contacted','replied','deal_ready','audited']
-
-  const filtered = leads.filter(l => filter === 'all' || l.status === filter)
-
+  // Derived
   const stats = {
     total:      leads.length,
     contacted:  leads.filter(l => ['contacted','replied','audited','deal_ready','closed_won'].includes(l.status)).length,
     replied:    leads.filter(l => ['replied','audited','deal_ready','closed_won'].includes(l.status)).length,
     deal_ready: leads.filter(l => l.status === 'deal_ready').length,
   }
+  const s = search.toLowerCase()
+  const filtered = leads.filter(l => {
+    if (filter !== 'all' && l.status !== filter) return false
+    if (s && !l.company_name?.toLowerCase().includes(s)
+          && !l.contact_name?.toLowerCase().includes(s)
+          && !l.contact_email?.toLowerCase().includes(s)) return false
+    return true
+  })
+  const leadLog = selected ? log.filter(e => e.lead_id === selected.id) : []
 
-  const handleRunBot = async () => {
-    setRunningBot(true)
-    setBotResult(null)
-    if (botDismissRef.current) clearTimeout(botDismissRef.current)
+  const handleRunBot = React.useCallback(async () => {
+    setRunningBot(true); setBotResult(null)
+    if (botTimerRef.current) clearTimeout(botTimerRef.current)
     try {
-      const res = await fetch('/api/agents/outreach-bot', { method: 'POST' })
+      const res  = await fetch('/api/agents/outreach-bot', {method:'POST'})
       const data = await res.json()
-      setBotResult(data)
-      // Auto-dismiss after 8s for success; keep errors visible until dismissed
-      if (!data.error) {
-        botDismissRef.current = setTimeout(() => setBotResult(null), 8000)
+      if (data.error) {
+        const msg = data.error.includes('schema cache') ? 'DB function not ready — wait 30s and retry'
+          : data.error.includes('BREVO') ? 'Email service error — check BREVO_API_KEY in Vercel'
+          : data.error.includes('Env missing') ? 'Missing env var: ' + data.error.split(':')[1]
+          : data.error
+        setBotResult({ok:false, msg})
+      } else {
+        const names = (data.results || []).filter(r=>r.sent).map(r=>r.lead).join(', ')
+        setBotResult({ok:true, processed:data.processed ?? 0, names})
+        botTimerRef.current = setTimeout(() => setBotResult(null), 10000)
+        await loadData(true)
       }
-      // Refresh leads
-      const l = await db('corporate_leads', '?select=*&order=priority.desc,created_at.asc')
-      setLeads(Array.isArray(l) ? l : [])
-    } catch(e) {
-      setBotResult({ error: String(e) })
-    }
+    } catch(e) { setBotResult({ok:false, msg:String(e)}) }
     setRunningBot(false)
-  }
+  }, [loadData])
 
-  const recentLog = log.slice(0, 8)
+  const handleStatusChange = React.useCallback(async (leadId, newStatus) => {
+    try {
+      await dbPatch('corporate_leads', leadId, {status:newStatus, updated_at:new Date().toISOString()})
+      await loadData(true)
+    } catch(e) { console.error('[LeadPipeline] status patch error', e) }
+  }, [loadData])
+
+  if (loading) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--tx3)',fontSize:13}}>
+      Loading lead pipeline…
+    </div>
+  )
 
   return (
-    <div style={{padding:'24px 28px',overflowY:'auto',height:'100%',background:'var(--bg)'}}>
+    <div style={{padding:'24px 28px',overflowY:'auto',height:'100%',background:'var(--bg)',boxSizing:'border-box'}}>
 
-      {/* Header */}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:24}}>
+      {/* ── Header ── */}
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:20}}>
         <div>
           <div style={{fontFamily:'var(--serif)',fontSize:22,color:'var(--gold)',marginBottom:4}}>
             Corporate <em>Lead Pipeline</em>
           </div>
-          <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase'}}>
-            {_HLOC}
-          </div>
+          <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase'}}>{_HLOC}</div>
         </div>
-        <button
-          onClick={handleRunBot}
-          disabled={runningBot}
-          style={{background:runningBot?'rgba(200,169,110,.1)':'rgba(200,169,110,.15)',border:'1px solid rgba(200,169,110,.3)',
-            color:'var(--gold)',padding:'8px 20px',fontSize:12,letterSpacing:'.08em',cursor:runningBot?'not-allowed':'pointer',
-            fontFamily:'var(--sans)',textTransform:'uppercase'}}
-        >
-          {runningBot ? '⟳ Running…' : '▶ Run OutreachBot'}
-        </button>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={()=>loadData(true)} disabled={refreshing}
+            style={{background:'none',border:'1px solid var(--br2)',color:refreshing?'var(--gold)':'var(--tx3)',
+              padding:'7px 14px',fontSize:11,letterSpacing:'.08em',cursor:'pointer',
+              fontFamily:'var(--sans)',textTransform:'uppercase'}}>
+            {refreshing ? '⟳' : '↻ Refresh'}
+          </button>
+          <button onClick={handleRunBot} disabled={runningBot}
+            style={{background:runningBot?'rgba(200,169,110,.06)':'rgba(200,169,110,.15)',
+              border:'1px solid rgba(200,169,110,.35)',color:'var(--gold)',padding:'7px 20px',
+              fontSize:12,letterSpacing:'.08em',cursor:runningBot?'not-allowed':'pointer',
+              fontFamily:'var(--sans)',textTransform:'uppercase'}}>
+            {runningBot ? '⟳ Sending emails…' : '▶ Run OutreachBot'}
+          </button>
+        </div>
       </div>
 
-      {/* Bot result toast */}
+      {/* ── Bot result banner ── */}
       {botResult && (
-        <div style={{background:botResult.error?'rgba(248,113,113,.1)':'rgba(74,222,128,.1)',
-          border:`1px solid ${botResult.error?'rgba(248,113,113,.3)':'rgba(74,222,128,.3)'}`,
-          padding:'10px 16px',marginBottom:16,fontSize:12,color:botResult.error?'#F87171':'#4ADE80',
-          display:'flex',alignItems:'flex-start',gap:10}}>
-          <span style={{flex:1,lineHeight:1.6}}>
-            {botResult.error ? `⚠ ${botResult.error}` : `✓ Processed ${botResult.processed ?? 0} leads · ${new Date().toLocaleTimeString('en-BD',{timeZone:'Asia/Dhaka'})}`}
+        <div style={{background:botResult.ok?'rgba(74,222,128,.07)':'rgba(248,113,113,.07)',
+          border:`1px solid ${botResult.ok?'rgba(74,222,128,.25)':'rgba(248,113,113,.25)'}`,
+          padding:'10px 16px',marginBottom:16,fontSize:12,
+          color:botResult.ok?'#4ADE80':'#F87171',display:'flex',alignItems:'flex-start',gap:12}}>
+          <span style={{flex:1,lineHeight:1.7}}>
+            {botResult.ok
+              ? `✓ OutreachBot sent ${botResult.processed} email${botResult.processed!==1?'s':''}${botResult.names?' — '+botResult.names:''}`
+              : `⚠ ${botResult.msg}`}
           </span>
-          <button onClick={()=>{if(botDismissRef.current)clearTimeout(botDismissRef.current);setBotResult(null)}}
-            style={{background:'none',border:'none',color:'inherit',cursor:'pointer',fontSize:14,opacity:.7,lineHeight:1,padding:0,flexShrink:0}}>×</button>
+          <button onClick={()=>{if(botTimerRef.current)clearTimeout(botTimerRef.current);setBotResult(null)}}
+            style={{background:'none',border:'none',color:'inherit',cursor:'pointer',fontSize:18,opacity:.6,padding:0,lineHeight:1}}>×</button>
         </div>
       )}
 
-      {/* Stats strip */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:24}}>
+      {/* ── Stats strip ── */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:20}}>
         {[
           {label:'Total Leads',   val:stats.total,      color:'var(--tx2)'},
           {label:'Contacted',     val:stats.contacted,  color:'#58A6FF'},
@@ -4760,144 +4804,269 @@ function LeadPipelinePage() {
           {label:'Deal Ready 🔥', val:stats.deal_ready, color:'#4ADE80'},
         ].map(s => (
           <div key={s.label} style={{background:'var(--s4)',border:'1px solid var(--br2)',padding:'14px 18px'}}>
-            <div style={{fontFamily:'var(--mono)',fontSize:26,color:s.color,lineHeight:1}}>{s.val}</div>
-            <div style={{fontSize:10,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--tx3)',marginTop:4}}>{s.label}</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:28,color:s.color,lineHeight:1}}>{s.val}</div>
+            <div style={{fontSize:10,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--tx3)',marginTop:5}}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:16}}>
+      {/* ── Main layout ── */}
+      <div style={{display:'grid',gridTemplateColumns:selected?'1fr 320px':'1fr 280px',gap:14,alignItems:'start'}}>
 
-        {/* Lead Table */}
+        {/* LEFT — Lead Table */}
         <div style={{background:'var(--s4)',border:'1px solid var(--br2)'}}>
 
-          {/* Filter tabs */}
-          <div style={{display:'flex',borderBottom:'1px solid var(--br2)',padding:'0 16px'}}>
-            {FILTERS.map(f => (
-              <button key={f} onClick={()=>setFilter(f)}
-                style={{background:'none',border:'none',color:filter===f?'var(--gold)':'var(--tx3)',
-                  padding:'10px 14px',fontSize:11,letterSpacing:'.1em',textTransform:'uppercase',
-                  cursor:'pointer',borderBottom:filter===f?'2px solid var(--gold)':'2px solid transparent',
-                  marginBottom:-1,fontFamily:'var(--sans)'}}>
-                {f === 'all' ? `All (${leads.length})` : f === 'deal_ready' ? `Deal Ready (${stats.deal_ready})` : f}
-              </button>
-            ))}
+          {/* Tabs + search */}
+          <div style={{display:'flex',alignItems:'center',borderBottom:'1px solid var(--br2)',paddingRight:12}}>
+            <div style={{display:'flex',flex:1,overflowX:'auto',padding:'0 6px'}}>
+              {FILTERS.map(f => {
+                const cnt = f.key==='all' ? leads.length : leads.filter(l=>l.status===f.key).length
+                return (
+                  <button key={f.key} onClick={()=>setFilter(f.key)}
+                    style={{background:'none',border:'none',color:filter===f.key?'var(--gold)':'var(--tx3)',
+                      padding:'10px 11px',fontSize:11,letterSpacing:'.08em',textTransform:'uppercase',
+                      cursor:'pointer',borderBottom:filter===f.key?'2px solid var(--gold)':'2px solid transparent',
+                      marginBottom:-1,fontFamily:'var(--sans)',whiteSpace:'nowrap',flexShrink:0}}>
+                    {f.label} <span style={{opacity:.55,fontFamily:'var(--mono)',fontSize:10}}>({cnt})</span>
+                  </button>
+                )
+              })}
+            </div>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"
+              style={{background:'rgba(255,255,255,.04)',border:'1px solid var(--br2)',color:'var(--tx)',
+                padding:'5px 10px',fontSize:11,outline:'none',width:130,fontFamily:'var(--sans)'}}/>
           </div>
 
-          {loading ? (
-            <div style={{padding:40,textAlign:'center',color:'var(--tx3)',fontSize:13}}>Loading leads…</div>
-          ) : filtered.length === 0 ? (
-            <div style={{padding:40,textAlign:'center',color:'var(--tx3)',fontSize:13}}>No leads in this filter.</div>
+          {/* Table */}
+          {filtered.length === 0 ? (
+            <div style={{padding:40,textAlign:'center',color:'var(--tx3)',fontSize:13}}>
+              {search ? `No leads matching "${search}"` : 'No leads in this filter.'}
+            </div>
           ) : (
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead>
-                <tr style={{borderBottom:'1px solid var(--br2)'}}>
-                  {['Company','Contact','ICP','Status','Score','Priority'].map(h => (
-                    <th key={h} style={{textAlign:'left',padding:'10px 14px',fontSize:10,letterSpacing:'.14em',
-                      textTransform:'uppercase',color:'var(--tx3)',fontWeight:500}}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((lead, i) => {
-                  const st  = STATUS_CONFIG[lead.status] || STATUS_CONFIG.pending
-                  const icp = ICP_CONFIG[lead.icp_score]  || ICP_CONFIG.good
-                  return (
-                    <tr key={lead.id} style={{borderBottom:'1px solid rgba(200,169,110,.06)',
-                      background:i%2===0?'transparent':'rgba(255,255,255,.015)'}}>
-                      <td style={{padding:'12px 14px'}}>
-                        <div style={{fontWeight:500,fontSize:13,color:'var(--tx)'}}>{lead.company_name}</div>
-                        <div style={{fontSize:10,color:'var(--tx3)',marginTop:2,fontFamily:'var(--mono)'}}>{lead.company_address?.split(',')[0]}</div>
-                      </td>
-                      <td style={{padding:'12px 14px'}}>
-                        <div style={{fontSize:12,color:'var(--tx2)'}}>{lead.contact_title || '—'}</div>
-                        <div style={{fontSize:10,color:'var(--gold)',fontFamily:'var(--mono)',marginTop:2}}>{lead.contact_email || '—'}</div>
-                      </td>
-                      <td style={{padding:'12px 14px'}}>
-                        <span style={{fontSize:11,color:icp.color,background:`${icp.color}18`,
-                          padding:'2px 8px',border:`1px solid ${icp.color}40`}}>{icp.label}</span>
-                      </td>
-                      <td style={{padding:'12px 14px'}}>
-                        <span style={{fontSize:11,color:st.color,background:st.bg,
-                          padding:'3px 10px',border:`1px solid ${st.color}40`}}>{st.label}</span>
-                      </td>
-                      <td style={{padding:'12px 14px',fontFamily:'var(--mono)',fontSize:13,
-                        color:lead.deal_score >= 7 ? '#4ADE80' : lead.deal_score ? '#FCD34D' : 'var(--tx3)'}}>
-                        {lead.deal_score ? `${lead.deal_score}/10` : '—'}
-                      </td>
-                      <td style={{padding:'12px 14px'}}>
-                        <span style={{fontSize:10,letterSpacing:'.1em',textTransform:'uppercase',
-                          color:lead.priority==='high'?'#F87171':lead.priority==='med'?'var(--gold)':'var(--tx3)'}}>
-                          {lead.priority?.toUpperCase()}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid var(--br2)'}}>
+                    {['Company','Contact','ICP','Status','Score','Priority'].map(h => (
+                      <th key={h} style={{textAlign:'left',padding:'9px 14px',fontSize:10,
+                        letterSpacing:'.14em',textTransform:'uppercase',color:'var(--tx3)',fontWeight:400}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((lead, i) => {
+                    const st  = STATUS_CFG[lead.status]  || STATUS_CFG.pending
+                    const icp = ICP_CFG[lead.icp_score]  || ICP_CFG.good
+                    const isSel = selected?.id === lead.id
+                    return (
+                      <tr key={lead.id} onClick={()=>setSelected(isSel?null:lead)}
+                        style={{borderBottom:'1px solid rgba(200,169,110,.05)',cursor:'pointer',
+                          background:isSel?'rgba(200,169,110,.07)':i%2===0?'transparent':'rgba(255,255,255,.012)',
+                          borderLeft:isSel?'2px solid var(--gold)':'2px solid transparent'}}>
+                        <td style={{padding:'12px 14px'}}>
+                          <div style={{fontWeight:500,fontSize:13,color:'var(--tx)'}}>{lead.company_name}</div>
+                          <div style={{fontSize:10,color:'var(--tx3)',marginTop:2,fontFamily:'var(--mono)'}}>{lead.company_address?.split(',')[0] || '—'}</div>
+                        </td>
+                        <td style={{padding:'12px 14px'}}>
+                          <div style={{fontSize:12,color:'var(--tx2)'}}>{lead.contact_name || lead.contact_title || '—'}</div>
+                          <div style={{fontSize:10,color:'var(--gold)',fontFamily:'var(--mono)',marginTop:2}}>{lead.contact_email || '—'}</div>
+                        </td>
+                        <td style={{padding:'12px 14px'}}>
+                          <span style={{fontSize:11,color:icp.color,background:`${icp.color}18`,
+                            padding:'2px 8px',border:`1px solid ${icp.color}30`}}>{icp.label}</span>
+                        </td>
+                        <td style={{padding:'12px 14px'}}>
+                          <span style={{fontSize:11,color:st.color,background:st.bg,
+                            padding:'3px 10px',border:`1px solid ${st.color}30`}}>
+                            {lead.status==='deal_ready'?'🔥 ':''}{st.label}
+                          </span>
+                        </td>
+                        <td style={{padding:'12px 14px',fontFamily:'var(--mono)',fontSize:13,
+                          color:lead.deal_score?scoreColor(lead.deal_score):'var(--tx3)'}}>
+                          {lead.deal_score?`${lead.deal_score}/10`:'—'}
+                        </td>
+                        <td style={{padding:'12px 14px'}}>
+                          <span style={{fontSize:10,letterSpacing:'.1em',textTransform:'uppercase',
+                            color:lead.priority==='high'?'#F87171':lead.priority==='med'?'var(--gold)':'var(--tx3)',
+                            fontWeight:lead.priority==='high'?600:400}}>
+                            {(lead.priority||'—').toUpperCase()}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
-        {/* Activity Log sidebar */}
-        <div>
-          <div style={{background:'var(--s4)',border:'1px solid var(--br2)',padding:'16px'}}>
-            <div style={{fontSize:11,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--gold)',marginBottom:14}}>
-              Recent Activity
-            </div>
-            {recentLog.length === 0 ? (
-              <div style={{fontSize:12,color:'var(--tx3)'}}>No activity yet.</div>
-            ) : recentLog.map((entry, i) => {
-              const isInbound  = entry.direction === 'inbound'
-              const isDealReady = entry.is_deal_ready
-              return (
-                <div key={entry.id} style={{borderBottom:i<recentLog.length-1?'1px solid rgba(200,169,110,.06)':'none',
-                  paddingBottom:10,marginBottom:10}}>
-                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
-                    <span style={{fontSize:12}}>{isDealReady ? '🔥' : isInbound ? '📥' : '📤'}</span>
-                    <span style={{fontSize:11,color:isDealReady?'#4ADE80':isInbound?'#FCD34D':'#58A6FF',
-                      textTransform:'uppercase',letterSpacing:'.1em'}}>
-                      {isDealReady ? 'Deal Ready' : isInbound ? 'Reply' : 'Outreach'}
-                    </span>
-                    {entry.deal_score && (
-                      <span style={{fontSize:10,color:'#4ADE80',fontFamily:'var(--mono)',marginLeft:'auto'}}>
-                        {entry.deal_score}/10
-                      </span>
-                    )}
+        {/* RIGHT — Sidebar */}
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+
+          {/* Lead Detail Panel */}
+          {selected ? (
+            <div style={{background:'var(--s4)',border:'1px solid rgba(200,169,110,.28)',padding:18}}>
+              {/* Header */}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14}}>
+                <div>
+                  <div style={{fontFamily:'var(--serif)',fontSize:16,color:'var(--tx)',marginBottom:3}}>{selected.company_name}</div>
+                  <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:'.1em',textTransform:'uppercase'}}>{selected.industry || 'Industry Unknown'}</div>
+                </div>
+                <button onClick={()=>setSelected(null)}
+                  style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:18,lineHeight:1,padding:0,opacity:.7}}>×</button>
+              </div>
+
+              {/* Deal score bar */}
+              {selected.deal_score ? (
+                <div style={{display:'flex',alignItems:'center',gap:12,padding:'10px 12px',
+                  background:'rgba(0,0,0,.2)',border:`1px solid ${scoreColor(selected.deal_score)}25`,marginBottom:14}}>
+                  <div style={{textAlign:'center',minWidth:44}}>
+                    <div style={{fontFamily:'var(--mono)',fontSize:28,color:scoreColor(selected.deal_score),lineHeight:1}}>{selected.deal_score}</div>
+                    <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.14em',marginTop:2}}>/10</div>
                   </div>
-                  <div style={{fontSize:12,color:'var(--tx2)',fontWeight:500,marginBottom:2}}>
-                    {entry.subject ? entry.subject.substring(0,42)+'…' : '(no subject)'}
-                  </div>
-                  {entry.ceo_next_action && (
-                    <div style={{fontSize:11,color:'var(--gold)',marginBottom:2}}>→ {entry.ceo_next_action.substring(0,60)}</div>
-                  )}
-                  <div style={{fontSize:10,color:'var(--tx3)',fontFamily:'var(--mono)'}}>
-                    {new Date(entry.sent_at).toLocaleDateString('en-BD',{timeZone:'Asia/Dhaka',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:6}}>CEO Score</div>
+                    <div style={{height:3,background:'rgba(255,255,255,.07)'}}>
+                      <div style={{height:'100%',width:`${selected.deal_score*10}%`,background:scoreColor(selected.deal_score)}}/>
+                    </div>
                   </div>
                 </div>
-              )
-            })}
-          </div>
+              ) : null}
 
-          {/* Agent status card */}
-          <div style={{background:'var(--s4)',border:'1px solid var(--br2)',padding:'16px',marginTop:12}}>
-            <div style={{fontSize:11,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--gold)',marginBottom:12}}>
-              Agent Status
+              {/* Contact rows */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:8}}>Contact</div>
+                {[
+                  {lbl:'Name',  val:selected.contact_name  || '—'},
+                  {lbl:'Title', val:selected.contact_title || '—'},
+                  {lbl:'Email', val:selected.contact_email || '—', mono:true, gold:true},
+                  {lbl:'Phone', val:selected.contact_phone || '—', mono:true},
+                  {lbl:'Web',   val:selected.company_website || '—', mono:true},
+                ].map(row => (
+                  <div key={row.lbl} style={{display:'flex',gap:8,marginBottom:5}}>
+                    <div style={{fontSize:10,color:'var(--tx3)',width:34,flexShrink:0,paddingTop:1}}>{row.lbl}</div>
+                    <div style={{fontSize:11,color:row.gold?'var(--gold)':'var(--tx2)',
+                      fontFamily:row.mono?'var(--mono)':'var(--sans)',wordBreak:'break-all',lineHeight:1.4}}>{row.val}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Next action from latest audit */}
+              {leadLog.find(e=>e.ceo_next_action) && (
+                <div style={{padding:'9px 12px',background:'rgba(200,169,110,.05)',
+                  border:'1px solid rgba(200,169,110,.2)',marginBottom:14}}>
+                  <div style={{fontSize:9,color:'var(--gold)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:4}}>→ Recommended Action</div>
+                  <div style={{fontSize:12,color:'var(--tx)',lineHeight:1.6}}>
+                    {leadLog.find(e=>e.ceo_next_action).ceo_next_action}
+                  </div>
+                </div>
+              )}
+
+              {/* Deal score reasoning */}
+              {leadLog.find(e=>e.deal_score_reason) && (
+                <div style={{padding:'9px 12px',background:'rgba(0,0,0,.15)',
+                  border:'1px solid var(--br2)',marginBottom:14}}>
+                  <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:4}}>CEO Reasoning</div>
+                  <div style={{fontSize:11,color:'var(--tx2)',lineHeight:1.7}}>
+                    {leadLog.find(e=>e.deal_score_reason).deal_score_reason?.split('|')[0]?.trim()}
+                  </div>
+                </div>
+              )}
+
+              {/* Status switcher */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:8}}>Update Status</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                  {Object.entries(STATUS_CFG).map(([key,cfg]) => {
+                    const active = selected.status === key
+                    return (
+                      <button key={key}
+                        onClick={()=>!active && handleStatusChange(selected.id, key)}
+                        style={{fontSize:10,padding:'3px 8px',cursor:active?'default':'pointer',letterSpacing:'.04em',
+                          background:active?cfg.bg:'transparent',color:active?cfg.color:'var(--tx3)',
+                          border:active?`1px solid ${cfg.color}50`:'1px solid rgba(255,255,255,.07)'}}>
+                        {cfg.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selected.notes && (
+                <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.7,padding:'8px 0',borderTop:'1px solid var(--br2)',marginBottom:10}}>
+                  {selected.notes}
+                </div>
+              )}
+
+              {/* Lead activity log */}
+              {leadLog.length > 0 && (
+                <div style={{borderTop:'1px solid var(--br2)',paddingTop:12}}>
+                  <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:10}}>
+                    Activity ({leadLog.length})
+                  </div>
+                  {leadLog.slice(0,6).map(e => (
+                    <div key={e.id} style={{display:'flex',gap:8,marginBottom:10,fontSize:11}}>
+                      <span style={{fontSize:13,flexShrink:0}}>{e.is_deal_ready?'🔥':e.direction==='inbound'?'📥':'📤'}</span>
+                      <div style={{flex:1}}>
+                        <div style={{color:'var(--tx2)',marginBottom:2,lineHeight:1.4}}>{e.subject?.substring(0,44) || '(no subject)'}</div>
+                        {e.deal_score && (
+                          <div style={{color:scoreColor(e.deal_score),fontFamily:'var(--mono)',fontSize:10,marginBottom:1}}>
+                            Score: {e.deal_score}/10
+                          </div>
+                        )}
+                        <div style={{color:'var(--tx3)',fontFamily:'var(--mono)',fontSize:10}}>{fmtDate(e.sent_at)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+          ) : (
+            /* Recent Activity (when nothing selected) */
+            <div style={{background:'var(--s4)',border:'1px solid var(--br2)',padding:16}}>
+              <div style={{fontSize:11,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--gold)',marginBottom:14}}>Recent Activity</div>
+              {log.length === 0 ? (
+                <div style={{fontSize:12,color:'var(--tx3)'}}>No activity yet.</div>
+              ) : log.slice(0,8).map((entry, i) => {
+                const company = leads.find(l=>l.id===entry.lead_id)?.company_name
+                return (
+                  <div key={entry.id} style={{borderBottom:i<7?'1px solid rgba(200,169,110,.06)':'none',paddingBottom:10,marginBottom:10}}>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+                      <span style={{fontSize:11}}>{entry.is_deal_ready?'🔥':entry.direction==='inbound'?'📥':'📤'}</span>
+                      <span style={{fontSize:10,textTransform:'uppercase',letterSpacing:'.1em',
+                        color:entry.is_deal_ready?'#4ADE80':entry.direction==='inbound'?'#FCD34D':'#58A6FF'}}>
+                        {entry.is_deal_ready?'Deal Ready':entry.direction==='inbound'?'Reply':'Outreach'}
+                      </span>
+                      {entry.deal_score && <span style={{fontSize:10,color:'#4ADE80',fontFamily:'var(--mono)',marginLeft:'auto'}}>{entry.deal_score}/10</span>}
+                    </div>
+                    {company && <div style={{fontSize:11,color:'var(--gold)',marginBottom:2}}>{company}</div>}
+                    <div style={{fontSize:11,color:'var(--tx2)',marginBottom:2}}>{entry.subject?.substring(0,44) || '(no subject)'}</div>
+                    {entry.ceo_next_action && <div style={{fontSize:10,color:'var(--tx3)',fontStyle:'italic',marginBottom:2}}>→ {entry.ceo_next_action.substring(0,52)}</div>}
+                    <div style={{fontSize:10,color:'var(--tx3)',fontFamily:'var(--mono)'}}>{fmtDate(entry.sent_at)}</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Agent Status (always visible) */}
+          <div style={{background:'var(--s4)',border:'1px solid var(--br2)',padding:16}}>
+            <div style={{fontSize:11,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--gold)',marginBottom:12}}>Agent Status</div>
             {[
-              {name:'OutreachBot',   status:'Cron 9AM BDT', icon:'📤', color:'#58A6FF'},
-              {name:'ReplyIntake',   status:'Webhook live', icon:'📥', color:'#4ADE80'},
-              {name:'CEOAuditor',    status:'On demand',    icon:'🧠', color:'#A78BFA'},
-              {name:'DealAlert',     status:'Auto-trigger', icon:'🔥', color:'#FCD34D'},
+              {name:'OutreachBot',  status:'Cron 9AM BDT', icon:'📤', color:'#58A6FF'},
+              {name:'ReplyIntake',  status:'Webhook live', icon:'📥', color:'#4ADE80'},
+              {name:'CEOAuditor',   status:'On demand',    icon:'🧠', color:'#A78BFA'},
+              {name:'DealAlert',    status:'Auto-trigger', icon:'🔥', color:'#FCD34D'},
             ].map(agent => (
-              <div key={agent.name} style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+              <div key={agent.name} style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
                 <span style={{fontSize:14}}>{agent.icon}</span>
                 <div style={{flex:1}}>
                   <div style={{fontSize:12,color:'var(--tx)',fontWeight:500}}>{agent.name}</div>
                   <div style={{fontSize:10,color:agent.color}}>{agent.status}</div>
                 </div>
-                <div style={{width:6,height:6,borderRadius:'50%',background:agent.color,
-                  boxShadow:`0 0 6px ${agent.color}`}}/>
+                <div style={{width:6,height:6,borderRadius:'50%',background:agent.color,boxShadow:`0 0 6px ${agent.color}`}}/>
               </div>
             ))}
           </div>
@@ -4906,6 +5075,8 @@ function LeadPipelinePage() {
     </div>
   )
 }
+
+
 
 
 function App() {
@@ -5298,4 +5469,4 @@ function App() {
     </>
   )
 }
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));t(App));
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
