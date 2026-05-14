@@ -5294,8 +5294,8 @@ function App() {
           </div>
         </main>
       </div>
-      {toastMsg&&<Toast msg={toastMsg} type={toastType}/>}
+      {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type}/>}
     </>
   )
 }
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));t(App));
