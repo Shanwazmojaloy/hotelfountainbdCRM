@@ -8,25 +8,49 @@
 //
 // Configure in Brevo: Settings → Inbound Parsing → Webhook URL:
 //   https://fountainbd.com/api/agents/reply-intake
+//
+// Auth: all DB ops via SECURITY DEFINER RPCs (anon key — no sb_secret_* needed)
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 // Brevo inbound email schema (simplified)
 interface BrevoInboundEmail {
-  Uuid?: string;
-  MessageId?: string;
-  Subject?: string;
-  From?: { Name?: string; Address?: string } | string;
-  To?: Array<{ Name?: string; Address?: string }> | string;
-  Date?: string;
+  Uuid?:        string;
+  MessageId?:   string;
+  Subject?:     string;
+  From?:        { Name?: string; Address?: string } | string;
+  To?:          Array<{ Name?: string; Address?: string }> | string;
+  Date?:        string;
   TextContent?: string;
   HtmlContent?: string;
+}
+
+interface LeadRow {
+  id:            string;
+  company_name:  string;
+  contact_name?: string;
+  contact_email?: string;
+  status?:       string;
+}
+
+// ── Supabase RPC helper ───────────────────────────────────────────────────────
+function sbRpc(rpcName: string, params: Record<string, unknown>) {
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
+  const SB_KEY = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  return fetch(`${SB_URL}/rest/v1/rpc/${rpcName}`, {
+    method: 'POST',
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
 }
 
 function extractAddress(from: BrevoInboundEmail['From']): string {
@@ -50,11 +74,6 @@ export async function POST(req: Request) {
   // Brevo sends an array of messages
   const messages: BrevoInboundEmail[] = Array.isArray(body) ? body : [body as BrevoInboundEmail];
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
   const processed: Array<Record<string, unknown>> = [];
 
   for (const msg of messages) {
@@ -64,70 +83,73 @@ export async function POST(req: Request) {
 
     if (!senderEmail || !replyText) continue;
 
-    // Match sender to a known lead
-    const { data: leads } = await supabase
-      .from('corporate_leads')
-      .select('*')
-      .eq('tenant_id', TENANT)
-      .ilike('contact_email', senderEmail)
-      .limit(1);
+    // ── Match sender to a known lead by email ─────────────────────────────
+    let matchedLead: LeadRow | null = null;
 
-    const lead = leads?.[0] ?? null;
+    const emailRes = await sbRpc('intake_find_lead_by_email', {
+      p_tenant_id: TENANT,
+      p_email:     senderEmail,
+    });
+    if (emailRes.ok) {
+      const rows = await emailRes.json() as LeadRow[];
+      matchedLead = rows?.[0] ?? null;
+    }
 
-    // If no exact match, try domain match (e.g. someone@desco.org.bd)
-    let matchedLead = lead;
+    // ── Fallback: domain match ────────────────────────────────────────────
     if (!matchedLead) {
       const domain = senderEmail.split('@')[1];
       if (domain) {
-        const { data: domainLeads } = await supabase
-          .from('corporate_leads')
-          .select('*')
-          .eq('tenant_id', TENANT)
-          .ilike('company_website', `%${domain}%`)
-          .limit(1);
-        matchedLead = domainLeads?.[0] ?? null;
+        const domainRes = await sbRpc('intake_find_lead_by_domain', {
+          p_tenant_id: TENANT,
+          p_domain:    domain,
+        });
+        if (domainRes.ok) {
+          const rows = await domainRes.json() as LeadRow[];
+          matchedLead = rows?.[0] ?? null;
+        }
       }
     }
 
-    // Store inbound reply
-    const { data: logRow } = await supabase
-      .from('outreach_log')
-      .insert({
-        tenant_id: TENANT,
-        lead_id: matchedLead?.id ?? null,
-        direction: 'inbound',
-        channel: 'email',
-        subject,
-        body: replyText,
-        sent_at: msg.Date ?? new Date().toISOString(),
-      })
-      .select()
-      .single();
+    // ── Log inbound reply via SECURITY DEFINER RPC ────────────────────────
+    let logId: string | null = null;
+    const logRes = await sbRpc('intake_log_inbound', {
+      p_tenant_id: TENANT,
+      p_lead_id:   matchedLead?.id ?? null,
+      p_direction: 'inbound',
+      p_channel:   'email',
+      p_subject:   subject,
+      p_body:      replyText.slice(0, 4000),
+      p_sent_at:   msg.Date ?? new Date().toISOString(),
+    });
+    if (logRes.ok) {
+      const logData = await logRes.json().catch(() => null);
+      // RPC returns UUID scalar
+      logId = typeof logData === 'string' ? logData : (logData as Record<string, string>)?.id ?? null;
+    }
 
-    // Update lead status to 'replied'
+    // ── Update lead status to 'replied' ───────────────────────────────────
     if (matchedLead) {
-      await supabase
-        .from('corporate_leads')
-        .update({ status: 'replied', updated_at: new Date().toISOString() })
-        .eq('id', matchedLead.id);
+      await sbRpc('intake_mark_lead_replied', {
+        p_lead_id: matchedLead.id,
+      });
     }
 
     // ── Trigger CEO Auditor ────────────────────────────────────────────────
-    if (logRow && matchedLead) {
+    if (logId && matchedLead) {
       try {
         const auditorUrl = new URL('/api/agents/ceo-auditor', process.env.NEXT_PUBLIC_APP_URL ?? 'https://fountainbd.com');
         await fetch(auditorUrl.toString(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.CRON_SECRET}`,
+            Authorization: `Bearer ${process.env.CRON_SECRET}`,
           },
           body: JSON.stringify({
-            log_id:       logRow.id,
-            lead_id:      matchedLead.id,
-            company_name: matchedLead.company_name,
-            contact_name: matchedLead.contact_name,
-            reply_text:   replyText,
+            log_id:        logId,
+            lead_id:       matchedLead.id,
+            company_name:  matchedLead.company_name,
+            contact_name:  matchedLead.contact_name,
+            reply_text:    replyText,
             reply_subject: subject,
           }),
         });
@@ -137,10 +159,10 @@ export async function POST(req: Request) {
     }
 
     processed.push({
-      sender: senderEmail,
+      sender:       senderEmail,
       subject,
       matched_lead: matchedLead?.company_name ?? 'unknown',
-      log_id: logRow?.id,
+      log_id:       logId,
     });
   }
 

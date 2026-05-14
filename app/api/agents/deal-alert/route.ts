@@ -8,19 +8,18 @@
 //   - CEO audit score + reasoning
 //   - Recommended next action
 //
-// Also updates outreach_log.alert_sent = true
+// Auth: all DB ops via SECURITY DEFINER RPCs (anon key — no sb_secret_* needed)
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-const TENANT          = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const SHAN_EMAIL      = process.env.ALERT_EMAIL  || 'ahmedshanwaz5@gmail.com';
-const SHAN_NAME       = process.env.ALERT_NAME   || 'Hotel Owner';
-const SENDER_NAME     = `Lumea Deal Bot — ${process.env.HOTEL_NAME || 'Hotel Fountain'}`;
-const SENDER_EMAIL    = process.env.HOTEL_SENDER_EMAIL || 'hotellfountainbd@gmail.com';
+const TENANT        = process.env.NEXT_PUBLIC_TENANT_ID    || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const SHAN_EMAIL    = process.env.ALERT_EMAIL              || 'ahmedshanwaz5@gmail.com';
+const SHAN_NAME     = process.env.ALERT_NAME               || 'Hotel Owner';
+const SENDER_NAME   = `Lumea Deal Bot — ${process.env.HOTEL_NAME || 'Hotel Fountain'}`;
+const SENDER_EMAIL  = process.env.HOTEL_SENDER_EMAIL       || 'hotellfountainbd@gmail.com';
 
 interface DealAlertPayload {
   log_id:        string;
@@ -34,9 +33,24 @@ interface DealAlertPayload {
   next_action:   string;
 }
 
+// ── Supabase RPC helper ───────────────────────────────────────────────────────
+function sbRpc(rpcName: string, params: Record<string, unknown>) {
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
+  const SB_KEY = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  return fetch(`${SB_URL}/rest/v1/rpc/${rpcName}`, {
+    method: 'POST',
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+}
+
 function scoreColor(score: number): string {
-  if (score >= 9) return '#22c55e';  // green
-  if (score >= 7) return '#f59e0b';  // amber
+  if (score >= 9) return '#22c55e';
+  if (score >= 7) return '#f59e0b';
   return '#6b7280';
 }
 
@@ -146,18 +160,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  // Send alert email to Shan
+  // ── Send alert email to Shan ──────────────────────────────────────────────
   const subject = `🔥 Deal-Ready: ${payload.company_name} — Score ${payload.score}/10`;
 
   const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      'api-key': process.env.BREVO_API_KEY!,
+      'api-key': (process.env.BREVO_API_KEY || '').trim(),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -171,23 +180,23 @@ export async function POST(req: Request) {
   });
 
   const emailOk  = brevoRes.ok;
-  const brevoOut = await brevoRes.json().catch(() => ({}));
+  const brevoOut = await brevoRes.json().catch(() => ({})) as Record<string, unknown>;
 
-  // Mark alert sent
+  // ── Mark alert sent via SECURITY DEFINER RPC ──────────────────────────────
   if (emailOk) {
-    await supabase
-      .from('outreach_log')
-      .update({ alert_sent: true, alert_sent_at: new Date().toISOString() })
-      .eq('id', payload.log_id);
+    await sbRpc('deal_mark_alert_sent', {
+      p_log_id:       payload.log_id,
+      p_alert_sent_at: new Date().toISOString(),
+    });
   }
 
-  // Log to notifications_log
-  await supabase.from('notifications_log').insert({
-    tenant_id:    TENANT,
-    workflow:     'deal-alert',
-    body:         `Deal-ready alert sent for ${payload.company_name} (score ${payload.score}/10). Email: ${emailOk ? 'sent' : 'failed'}`,
-    status:       emailOk ? 'success' : 'error',
-    triggered_by: 'agent:ceo-auditor',
+  // ── Log to notifications_log via SECURITY DEFINER RPC ────────────────────
+  await sbRpc('deal_log_notification', {
+    p_tenant_id:    TENANT,
+    p_workflow:     'deal-alert',
+    p_body:         `Deal-ready alert sent for ${payload.company_name} (score ${payload.score}/10). Email: ${emailOk ? 'sent' : 'failed'}`,
+    p_status:       emailOk ? 'success' : 'error',
+    p_triggered_by: 'agent:ceo-auditor',
   });
 
   return NextResponse.json({
@@ -196,7 +205,7 @@ export async function POST(req: Request) {
     company:    payload.company_name,
     score:      payload.score,
     alerted_to: SHAN_EMAIL,
-    messageId:  (brevoOut as Record<string, unknown>).messageId ?? null,
+    messageId:  brevoOut.messageId ?? null,
     timestamp:  new Date().toISOString(),
   });
 }
