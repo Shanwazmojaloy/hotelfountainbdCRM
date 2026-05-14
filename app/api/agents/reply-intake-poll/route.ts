@@ -5,35 +5,55 @@
 // Polls hotellfountainbd@gmail.com via IMAP for unread emails from
 // corporate_leads contacts. On match: logs to outreach_log (inbound),
 // updates lead status → 'replied', triggers CEOAuditor.
+//
+// Auth: all DB ops via SECURITY DEFINER RPCs (anon key — no sb_secret_* needed)
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
+interface LeadRow {
+  id:            string;
+  company_name:  string;
+  contact_name?: string;
+  contact_email: string;
+  status?:       string;
+}
+
+// ── Supabase RPC helper ───────────────────────────────────────────────────────
+function sbRpc(rpcName: string, params: Record<string, unknown>) {
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
+  const SB_KEY = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  return fetch(`${SB_URL}/rest/v1/rpc/${rpcName}`, {
+    method: 'POST',
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+}
+
 async function runReplyPoll() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  // Load all lead emails for matching
-  const { data: leads, error: leadsErr } = await supabase
-    .from('corporate_leads')
-    .select('id, company_name, contact_name, contact_email, status')
-    .eq('tenant_id', TENANT)
-    .not('contact_email', 'is', null);
-
-  if (leadsErr) return { ok: false, error: leadsErr.message };
+  // ── Load all contactable lead emails for matching ─────────────────────────
+  const leadsRes = await sbRpc('poll_get_contactable_leads', { p_tenant_id: TENANT });
+  if (!leadsRes.ok) {
+    const txt = await leadsRes.text();
+    return { ok: false, error: `Supabase ${leadsRes.status}: ${txt}` };
+  }
+  const leads = await leadsRes.json() as LeadRow[];
 
   const emailToLead = new Map(
-    (leads ?? []).map(l => [l.contact_email.toLowerCase(), l])
+    (leads ?? [])
+      .filter(l => l.contact_email)
+      .map(l => [l.contact_email.toLowerCase(), l])
   );
 
-  // Dynamic import — imapflow is a CJS module
+  // ── Dynamic import — imapflow is a CJS module ─────────────────────────────
   const { ImapFlow } = await import('imapflow');
 
   const client = new ImapFlow({
@@ -54,7 +74,6 @@ async function runReplyPoll() {
     const lock = await client.getMailboxLock('INBOX');
 
     try {
-      // Fetch all unread messages
       const messages = client.fetch({ seen: false }, {
         envelope: true,
         bodyStructure: true,
@@ -69,52 +88,62 @@ async function runReplyPoll() {
         const subject  = msg.envelope?.subject ?? '(no subject)';
         const lead     = emailToLead.get(fromAddr);
 
-        if (!lead) continue; // Not a tracked lead — leave unread, skip
+        if (!lead) continue; // Not a tracked lead — leave unread
 
         // Extract plain-text body
         let body = '';
         for (const [, part] of msg.bodyParts ?? []) {
           body += part.toString();
         }
+        const bodyTrimmed = body.slice(0, 4000);
 
-        // 1 — Log inbound message
-        await supabase.from('outreach_log').insert({
-          tenant_id: TENANT,
-          lead_id:   lead.id,
-          direction: 'inbound',
-          channel:   'email',
-          subject,
-          body:      body.slice(0, 4000),
-          sent_at:   msg.envelope?.date?.toISOString() ?? new Date().toISOString(),
+        // ── 1: Log inbound via SECURITY DEFINER RPC ───────────────────────
+        let logId: string | null = null;
+        const logRes = await sbRpc('intake_log_inbound', {
+          p_tenant_id: TENANT,
+          p_lead_id:   lead.id,
+          p_direction: 'inbound',
+          p_channel:   'email',
+          p_subject:   subject,
+          p_body:      bodyTrimmed,
+          p_sent_at:   msg.envelope?.date?.toISOString() ?? new Date().toISOString(),
         });
-
-        // 2 — Advance lead status to 'replied' (only if not already further)
-        if (['pending', 'contacted'].includes(lead.status)) {
-          await supabase
-            .from('corporate_leads')
-            .update({ status: 'replied', updated_at: new Date().toISOString() })
-            .eq('id', lead.id);
+        if (logRes.ok) {
+          const logData = await logRes.json().catch(() => null);
+          logId = typeof logData === 'string' ? logData : (logData as Record<string, string>)?.id ?? null;
         }
 
-        // 3 — Trigger CEOAuditor to review and draft a follow-up
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fountainbd.com';
-        fetch(`${appUrl}/api/agents/ceo-auditor`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            trigger: 'reply_received',
-            lead_id: lead.id,
-            company: lead.company_name,
-            subject,
-            snippet: body.slice(0, 500),
-          }),
-        }).catch(() => {}); // fire-and-forget
+        // ── 2: Mark lead as replied via SECURITY DEFINER RPC ─────────────
+        if (['pending', 'contacted'].includes(lead.status ?? '')) {
+          await sbRpc('intake_mark_lead_replied', { p_lead_id: lead.id });
+        }
+
+        // ── 3: Trigger CEOAuditor (fire-and-forget) ───────────────────────
+        if (logId) {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fountainbd.com';
+          fetch(`${appUrl}/api/agents/ceo-auditor`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.CRON_SECRET}`,
+            },
+            body: JSON.stringify({
+              log_id:        logId,
+              lead_id:       lead.id,
+              company_name:  lead.company_name,
+              contact_name:  lead.contact_name,
+              reply_text:    bodyTrimmed,
+              reply_subject: subject,
+            }),
+          }).catch(() => {});
+        }
 
         toMark.push(msg.uid);
         processed.push({
-          lead: lead.company_name,
-          from: fromAddr,
+          lead:       lead.company_name,
+          from:       fromAddr,
           subject,
+          log_id:     logId,
           status_was: lead.status,
         });
       }
@@ -140,6 +169,7 @@ async function runReplyPoll() {
   };
 }
 
+// GET — Vercel cron (requires CRON_SECRET)
 export async function GET(req: Request) {
   const auth = req.headers.get('authorization');
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -154,7 +184,12 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST() {
+// POST — manual trigger
+export async function POST(req: Request) {
+  const auth = req.headers.get('authorization');
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const result = await runReplyPoll();
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
