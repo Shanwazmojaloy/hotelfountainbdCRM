@@ -18,6 +18,8 @@ const SENDER_EMAIL = process.env.HOTEL_SENDER_EMAIL       || 'hotellfountainbd@g
 const HOTEL_NAME   = process.env.HOTEL_NAME               || 'Hotel Fountain BD';
 const HOTEL_LOC    = process.env.HOTEL_LOCATION           || 'Nikunja 2 · Dhaka · Airport Corridor';
 const HOTEL_PHONE  = process.env.HOTEL_PHONE              || '+880 1322-840799';
+const HOTEL_ADDR   = process.env.HOTEL_ADDRESS            || 'House-05, Road-02, Nikunja-02, Dhaka-1229';
+const CONTACT_NAME = process.env.HOTEL_CONTACT_NAME       || (process.env.HOTEL_SENDER_NAME || 'Shan Ahmed — Hotel Fountain BD').split(' — ')[0];
 const MAX_PER_RUN  = 10;
 
 function buildFollowUpHtml(company: string, contactName: string | null): string {
@@ -39,11 +41,11 @@ function buildFollowUpHtml(company: string, contactName: string | null): string 
     '<p style="color:#C8BFB0;font-size:14px;line-height:1.85;margin:0 0 18px">Wanted to follow up in case it got buried. We have rooms available this week and next, and I\'d be glad to arrange a quick 20-minute walk-through whenever suits you.</p>',
     '<p style="color:#C8BFB0;font-size:14px;line-height:1.85;margin:0 0 28px">Just reply with a day that works and I\'ll confirm immediately.</p>',
     '<div style="border-top:1px solid rgba(200,169,110,.12);padding-top:20px">',
-    '<div style="font-size:15px;color:#C8A96E;font-style:italic;margin-bottom:4px">Shan Ahmed</div>',
+    `<div style="font-size:15px;color:#C8A96E;font-style:italic;margin-bottom:4px">${CONTACT_NAME}</div>`,
     `<div style="font-size:12px;color:#9A907C;line-height:1.7">Operations Manager · ${HOTEL_NAME}<br/>${HOTEL_PHONE} · ${SENDER_EMAIL}</div>`,
     '</div>',
     '</td></tr>',
-    `<tr><td style="padding:14px 44px;border-top:1px solid rgba(200,169,110,.1);text-align:center"><p style="font-size:10px;color:#5a5a4a;margin:0">${HOTEL_NAME} · Nikunja-02, Dhaka-1229</p></td></tr>`,
+    `<tr><td style="padding:14px 44px;border-top:1px solid rgba(200,169,110,.1);text-align:center"><p style="font-size:10px;color:#5a5a4a;margin:0">${HOTEL_NAME} · ${HOTEL_ADDR}</p></td></tr>`,
     '</table></td></tr></table>',
     '</body></html>',
   ].join('\n');
@@ -59,7 +61,7 @@ function buildFollowUpText(company: string, contactName: string | null): string 
     '',
     "Just reply with a day that works and I'll confirm immediately.",
     '',
-    'Shan Ahmed',
+    CONTACT_NAME,
     `Operations Manager · ${HOTEL_NAME}`,
     `${HOTEL_PHONE} · ${SENDER_EMAIL}`,
   ].join('\n');

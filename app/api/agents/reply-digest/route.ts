@@ -129,7 +129,7 @@ async function runReplyDigest() {
     headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       sender:      { name: `${HOTEL_NAME} CRM`, email: SENDER_EMAIL },
-      to:          [{ email: DIGEST_TO, name: 'Shan Ahmed' }],
+      to:          [{ email: DIGEST_TO, name: process.env.ALERT_NAME || 'Hotel Owner' }],
       subject,
       htmlContent: buildDigestHtml(replies, dateStr),
       textContent: buildDigestText(replies, dateStr),

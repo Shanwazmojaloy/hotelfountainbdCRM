@@ -111,7 +111,7 @@ function buildAlertHtml(p: DealAlertPayload): string {
   <!-- CTA BUTTONS -->
   <tr><td style="padding:28px 40px">
     <div style="margin-bottom:12px">
-      <a href="mailto:${p.contact_name ?? ''}?subject=Re: Hotel Fountain Corporate Partnership"
+      <a href="mailto:${p.contact_name ?? ''}?subject=Re: ${process.env.HOTEL_NAME || 'Hotel Fountain'} Corporate Partnership"
          style="display:inline-block;background:#C8A96E;color:#07090E;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:12px 28px">
         Reply Now →
       </a>
@@ -143,7 +143,7 @@ function buildAlertText(p: DealAlertPayload): string {
     ``,
     `NEXT ACTION: ${p.next_action}`,
     ``,
-    `— Lumea CEO Auditor Agent · Hotel Fountain BD`,
+    `— Lumea CEO Auditor Agent · ${process.env.HOTEL_NAME || 'Hotel Fountain BD'}`,
   ].join('\n');
 }
 
