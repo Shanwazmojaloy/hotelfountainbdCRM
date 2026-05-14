@@ -2,8 +2,8 @@
 // OutreachBot Agent  —  /api/agents/outreach-bot
 // Cron: daily 9:00 AM BDT (3:00 AM UTC)
 //
-// Fetches pending leads → sends personalised Coffee Tour email via Brevo →
-// logs to outreach_log → updates lead status to 'contacted'.
+// Fetches pending leads via SECURITY DEFINER RPC → sends personalised Coffee
+// Tour email via Brevo → logs to outreach_log → updates lead status to 'contacted'.
 // Max 10 leads per run (Brevo free tier guard).
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from 'next/server';
@@ -84,33 +84,28 @@ function buildOutreachText(company: string, contactName: string | null): string 
 
 async function runOutreachBot() {
   const SB_URL    = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-  // Use publishable (anon) key — tenant_read_leads RLS allows anon SELECT; write ops via SECURITY DEFINER RPCs.
-  // Legacy JWT keys (eyJ…) were rotated 2026-05-01 and are now disabled in Supabase.
-  // The sb_publishable_* key is intentionally public (NEXT_PUBLIC_ prefix) — safe to embed as fallback.
+  // Use publishable (anon) key — all write ops via SECURITY DEFINER RPCs.
+  // Legacy JWT keys (eyJ...) were rotated 2026-05-01 and are now disabled in Supabase.
   const _rawKey   = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
   const SB_KEY    = _rawKey.startsWith('eyJ')
     ? 'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh'
     : (_rawKey || 'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh');
-  if (!SB_KEY) return { ok: false, error: 'Env missing: NEXT_PUBLIC_SUPABASE_ANON_KEY' };
   const BREVO_KEY = (process.env.BREVO_API_KEY || '').trim();
   if (!BREVO_KEY) return { ok: false, error: 'Env missing: BREVO_API_KEY — add in Vercel dashboard' };
 
-  const REST = `${SB_URL}/rest/v1`;
-  const RPC  = `${SB_URL}/rest/v1/rpc`;
+  const RPC = `${SB_URL}/rest/v1/rpc`;
   const sbH: Record<string, string> = {
     apikey: SB_KEY,
     Authorization: `Bearer ${SB_KEY}`,
     'Content-Type': 'application/json',
   };
 
-  // Fetch pending leads via direct table REST query (avoids PostgREST schema-cache dependency).
-  // tenant_read_leads RLS policy allows anon SELECT; filter by status+tenant here.
-  const leadsRes = await fetch(
-    `${REST}/corporate_leads?tenant_id=eq.${TENANT}&status=eq.pending&contact_email=not.is.null` +
-    `&select=id,company_name,contact_name,contact_title,contact_email,priority` +
-    `&order=priority.asc&limit=${MAX_PER_RUN}`,
-    { headers: sbH }
-  );
+  // Fetch pending leads via SECURITY DEFINER RPC (bypasses RLS/key issues entirely).
+  const leadsRes = await fetch(`${RPC}/outreach_get_pending_leads`, {
+    method: 'POST',
+    headers: sbH,
+    body: JSON.stringify({ p_tenant_id: TENANT, p_limit: MAX_PER_RUN }),
+  });
   if (!leadsRes.ok) {
     const txt = await leadsRes.text();
     let msg = txt;
