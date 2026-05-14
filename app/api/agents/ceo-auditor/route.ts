@@ -5,37 +5,54 @@
 // Uses Claude claude-haiku-4-5 to score deal readiness 1–10.
 // Score >= 7  →  triggers DealAlert → emails Shan immediately.
 // Score <  7  →  logs result, updates lead status to 'audited'.
+//
+// Auth: all DB ops via SECURITY DEFINER RPCs (anon key — no sb_secret_* needed)
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const TENANT       = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const DEAL_THRESHOLD = 7; // score >= 7 → deal alert
+const TENANT         = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const DEAL_THRESHOLD = 7;
 
 interface AuditPayload {
-  log_id:        string;
-  lead_id:       string;
-  company_name:  string;
-  contact_name?: string;
-  reply_text:    string;
+  log_id:         string;
+  lead_id:        string;
+  company_name:   string;
+  contact_name?:  string;
+  reply_text:     string;
   reply_subject?: string;
 }
 
 interface ClaudeAuditResult {
-  score: number;           // 1–10
-  reasoning: string;       // 2–3 sentence explanation
-  signals: string[];       // positive buying signals found
-  objections: string[];    // objections / blockers mentioned
-  next_action: string;     // recommended follow-up action
-  is_deal_ready: boolean;  // true if score >= 7
+  score:         number;
+  reasoning:     string;
+  signals:       string[];
+  objections:    string[];
+  next_action:   string;
+  is_deal_ready: boolean;
 }
 
+// ── Supabase RPC helper ───────────────────────────────────────────────────────
+function sbRpc(rpcName: string, params: Record<string, unknown>) {
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
+  const SB_KEY = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  return fetch(`${SB_URL}/rest/v1/rpc/${rpcName}`, {
+    method: 'POST',
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+}
+
+// ── Claude AI audit ───────────────────────────────────────────────────────────
 async function runCEOAudit(payload: AuditPayload): Promise<ClaudeAuditResult> {
   const hotelDesc = process.env.HOTEL_DESCRIPTION || 'Hotel Fountain BD, a boutique 24-room hotel in Nikunja 2, Dhaka';
-  const prompt = `You are the CEO of ${hotelDesc}. You are reviewing a reply received from a corporate lead we reached out to for a tie-up partnership.
+  const prompt = `You are the CEO of ${hotelDesc}. Review this reply from a corporate lead.
 
 COMPANY: ${payload.company_name}
 CONTACT: ${payload.contact_name ?? 'Unknown'}
@@ -45,23 +62,21 @@ REPLY TEXT:
 ${payload.reply_text}
 """
 
-Your task: Score this reply's deal readiness from 1 to 10 and extract key signals.
-
-SCORING GUIDE:
-- 9–10: Explicitly asked for a meeting/visit, gave availability, requested pricing or terms
-- 7–8:  Positive interest expressed, asked a follow-up question, mentioned a real need
-- 5–6:  Neutral but not dismissive — "will consider", "not now but maybe later"
+Score deal readiness 1–10. SCORING GUIDE:
+- 9–10: Asked for meeting/visit, gave availability, requested pricing
+- 7–8:  Positive interest, asked follow-up question, mentioned real need
+- 5–6:  Neutral — "will consider", "not now but maybe later"
 - 3–4:  Polite rejection but left door open
-- 1–2:  Clear rejection, unsubscribe request, or auto-reply
+- 1–2:  Clear rejection, unsubscribe, or auto-reply
 
-Respond ONLY with valid JSON in this exact structure:
+Respond ONLY with valid JSON:
 {
   "score": <number 1-10>,
-  "reasoning": "<2-3 sentences explaining the score>",
-  "signals": ["<positive buying signal>", ...],
-  "objections": ["<objection or blocker>", ...],
-  "next_action": "<single recommended next step for Shan to take>",
-  "is_deal_ready": <true if score >= 7, else false>
+  "reasoning": "<2-3 sentences>",
+  "signals": ["<buying signal>"],
+  "objections": ["<objection>"],
+  "next_action": "<single recommended next step>",
+  "is_deal_ready": <true if score >= 7>
 }`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -78,14 +93,10 @@ Respond ONLY with valid JSON in this exact structure:
     }),
   });
 
-  if (!response.ok) {
-    throw new Error(`Claude API error: ${response.status} ${await response.text()}`);
-  }
+  if (!response.ok) throw new Error(`Claude API error: ${response.status} ${await response.text()}`);
 
   const data = await response.json();
   const text = data.content?.[0]?.text ?? '{}';
-
-  // Extract JSON from response
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('No JSON in Claude response');
 
@@ -94,78 +105,38 @@ Respond ONLY with valid JSON in this exact structure:
   return result;
 }
 
-export async function POST(req: Request) {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+// ── Shared audit + persist logic ──────────────────────────────────────────────
+async function auditAndPersist(payload: AuditPayload) {
+  const audit = await runCEOAudit(payload);
 
-  let payload: AuditPayload;
-  try {
-    payload = await req.json() as AuditPayload;
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
-  }
+  await sbRpc('ceo_update_log', {
+    p_log_id:            payload.log_id,
+    p_deal_score:        audit.score,
+    p_deal_score_reason: `${audit.reasoning} | Signals: ${audit.signals.join('; ')} | Objections: ${audit.objections.join('; ')}`,
+    p_ceo_next_action:   audit.next_action,
+    p_is_deal_ready:     audit.is_deal_ready,
+    p_audited_at:        new Date().toISOString(),
+  });
 
-  if (!payload.log_id || !payload.lead_id || !payload.reply_text) {
-    return NextResponse.json({ error: 'Missing required fields: log_id, lead_id, reply_text' }, { status: 400 });
-  }
+  await sbRpc('ceo_update_lead', {
+    p_lead_id:    payload.lead_id,
+    p_status:     audit.is_deal_ready ? 'deal_ready' : 'audited',
+    p_deal_score: audit.score,
+    p_updated_at: new Date().toISOString(),
+  });
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  // Run CEO audit via Claude
-  let audit: ClaudeAuditResult;
-  try {
-    audit = await runCEOAudit(payload);
-  } catch (e) {
-    return NextResponse.json({ error: `Claude API failed: ${String(e)}` }, { status: 500 });
-  }
-
-  // Update outreach_log with audit results
-  await supabase
-    .from('outreach_log')
-    .update({
-      deal_score:        audit.score,
-      deal_score_reason: `${audit.reasoning} | Signals: ${audit.signals.join('; ')} | Objections: ${audit.objections.join('; ')}`,
-      ceo_next_action:   audit.next_action,
-      is_deal_ready:     audit.is_deal_ready,
-      audited_at:        new Date().toISOString(),
-    })
-    .eq('id', payload.log_id);
-
-  // Update lead status + deal score
-  await supabase
-    .from('corporate_leads')
-    .update({
-      status:      audit.is_deal_ready ? 'deal_ready' : 'audited',
-      deal_score:  audit.score,
-      updated_at:  new Date().toISOString(),
-    })
-    .eq('id', payload.lead_id);
-
-  // ── Trigger DealAlert if score >= threshold ────────────────────────────────
   if (audit.is_deal_ready) {
     try {
       const alertUrl = new URL('/api/agents/deal-alert', process.env.NEXT_PUBLIC_APP_URL ?? 'https://fountainbd.com');
       await fetch(alertUrl.toString(), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.CRON_SECRET}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.CRON_SECRET}` },
         body: JSON.stringify({
-          log_id:       payload.log_id,
-          lead_id:      payload.lead_id,
-          company_name: payload.company_name,
-          contact_name: payload.contact_name,
-          reply_text:   payload.reply_text,
-          score:        audit.score,
-          reasoning:    audit.reasoning,
-          signals:      audit.signals,
-          next_action:  audit.next_action,
+          log_id: payload.log_id, lead_id: payload.lead_id,
+          company_name: payload.company_name, contact_name: payload.contact_name,
+          reply_text: payload.reply_text,
+          score: audit.score, reasoning: audit.reasoning,
+          signals: audit.signals, next_action: audit.next_action,
         }),
       });
     } catch (e) {
@@ -173,19 +144,38 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({
-    ok:            true,
-    agent:         'ceo-auditor',
-    lead:          payload.company_name,
-    score:         audit.score,
-    is_deal_ready: audit.is_deal_ready,
-    reasoning:     audit.reasoning,
-    next_action:   audit.next_action,
-    timestamp:     new Date().toISOString(),
-  });
+  return audit;
 }
 
-// GET: manually re-audit a specific log entry
+// ── POST: called by reply-intake ──────────────────────────────────────────────
+export async function POST(req: Request) {
+  const auth = req.headers.get('authorization');
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  let payload: AuditPayload;
+  try { payload = await req.json() as AuditPayload; }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+
+  if (!payload.log_id || !payload.lead_id || !payload.reply_text) {
+    return NextResponse.json({ error: 'Missing required fields: log_id, lead_id, reply_text' }, { status: 400 });
+  }
+
+  try {
+    const audit = await auditAndPersist(payload);
+    return NextResponse.json({
+      ok: true, agent: 'ceo-auditor',
+      lead: payload.company_name, score: audit.score,
+      is_deal_ready: audit.is_deal_ready, reasoning: audit.reasoning,
+      next_action: audit.next_action, timestamp: new Date().toISOString(),
+    });
+  } catch (e) {
+    return NextResponse.json({ error: `Audit failed: ${String(e)}` }, { status: 500 });
+  }
+}
+
+// ── GET: manually re-audit a specific log entry ───────────────────────────────
 export async function GET(req: Request) {
   const auth = req.headers.get('authorization');
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -196,36 +186,31 @@ export async function GET(req: Request) {
   const logId = searchParams.get('log_id');
   if (!logId) return NextResponse.json({ error: 'log_id required' }, { status: 400 });
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const logRes = await sbRpc('ceo_get_log_with_lead', { p_log_id: logId });
+  if (!logRes.ok) return NextResponse.json({ error: 'DB error fetching log' }, { status: 500 });
 
-  const { data: log } = await supabase
-    .from('outreach_log')
-    .select('*, corporate_leads(*)')
-    .eq('id', logId)
-    .single();
+  const rows = await logRes.json() as Record<string, string>[];
+  if (!rows?.length) return NextResponse.json({ error: 'Log not found' }, { status: 404 });
 
-  if (!log) return NextResponse.json({ error: 'Log not found' }, { status: 404 });
-
-  const lead = (log as Record<string, unknown>).corporate_leads as Record<string, string>;
-
-  const auditPayload: AuditPayload = {
-    log_id:        log.id as string,
-    lead_id:       log.lead_id as string,
-    company_name:  lead?.company_name ?? 'Unknown',
-    contact_name:  lead?.contact_name ?? undefined,
-    reply_text:    log.body as string,
-    reply_subject: log.subject as string,
+  const row = rows[0];
+  const payload: AuditPayload = {
+    log_id:        row.log_id,
+    lead_id:       row.log_lead_id,
+    company_name:  row.lead_company_name ?? 'Unknown',
+    contact_name:  row.lead_contact_name ?? undefined,
+    reply_text:    row.log_body ?? '',
+    reply_subject: row.log_subject ?? undefined,
   };
 
-  // Reuse POST logic by calling internally
-  const internalReq = new Request(req.url, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.CRON_SECRET}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(auditPayload),
-  });
-
-  return POST(internalReq);
+  try {
+    const audit = await auditAndPersist(payload);
+    return NextResponse.json({
+      ok: true, agent: 'ceo-auditor',
+      lead: payload.company_name, score: audit.score,
+      is_deal_ready: audit.is_deal_ready, reasoning: audit.reasoning,
+      next_action: audit.next_action, timestamp: new Date().toISOString(),
+    });
+  } catch (e) {
+    return NextResponse.json({ error: `Audit failed: ${String(e)}` }, { status: 500 });
+  }
 }
