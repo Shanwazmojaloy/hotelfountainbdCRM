@@ -106,9 +106,10 @@ async function runOutreachBot() {
   );
   if (!leadsRes.ok) {
     const txt = await leadsRes.text();
+    console.log('[outreach-bot] leads_fetch failed:', leadsRes.status, txt);
     let msg = txt;
     try { msg = (JSON.parse(txt) as { message?: string }).message || txt; } catch { /* use raw txt */ }
-    return { ok: false, error: `Supabase: ${msg}` };
+    return { ok: false, error: `Supabase ${leadsRes.status}: ${msg}` };
   }
   const leads: Record<string, unknown>[] = await leadsRes.json();
 
