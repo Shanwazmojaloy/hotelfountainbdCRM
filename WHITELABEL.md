@@ -89,6 +89,35 @@ window.CRM_CONFIG = {
 };
 ```
 
+### Vercel Environment Variables (required per client)
+
+| Variable | Description | Example |
+|---|---|---|
+| `NEXT_PUBLIC_TENANT_ID` | Tenant UUID from `tenants` table | `46bbc3ff-...` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Client Supabase project URL | `https://xxx.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publishable key | `sb_publishable_...` |
+| `HOTEL_NAME` | Full hotel name | `Hotel Fountain BD` |
+| `HOTEL_CONTACT_NAME` | Ops contact first name (used in email signatures) | `Shan Ahmed` |
+| `HOTEL_SENDER_NAME` | Full From: name in emails | `Shan Ahmed — Hotel Fountain BD` |
+| `HOTEL_SENDER_EMAIL` | Verified Brevo sender email | `ops@clienthotel.com` |
+| `HOTEL_LOCATION` | Short location line | `Nikunja 2 · Dhaka · Airport Corridor` |
+| `HOTEL_ADDRESS` | Full postal address | `House-05, Road-02, Nikunja-02, Dhaka-1229` |
+| `HOTEL_PHONE` | Contact phone | `+880 1322-840799` |
+| `ALERT_EMAIL` | Owner/manager email for internal alerts | `owner@clienthotel.com` |
+| `ALERT_NAME` | Owner name for internal email salutation | `Hotel Owner` |
+| `BREVO_API_KEY` | Brevo transactional email key | `xkeysib-...` |
+| `CRON_SECRET` | Vercel cron auth secret | any random string |
+| `GMAIL_USER` | Gmail for IMAP reply polling | `ops@clienthotel.com` |
+| `GMAIL_APP_PASSWORD` | Gmail app password | 16-char Google app pw |
+| `FACEBOOK_PAGE_ID` | FB Page numeric ID | `123456789` |
+| `FACEBOOK_PAGE_TOKEN` | Long-lived FB Page token | `EAAx...` |
+| `ANTHROPIC_API_KEY` | For CEOAuditor lead scoring | `sk-ant-...` |
+
+> **Note:** Cron jobs run via Vercel (not pg_cron). Schedules are defined in `vercel.json`. No pg_cron setup needed.
+
+```
+```
+
 ### `public/crm.html`
 No changes needed — title is set dynamically from `crm-config.js`.
 

@@ -18,6 +18,7 @@ const HOTEL_NAME    = process.env.HOTEL_NAME               || 'Hotel Fountain BD
 const HOTEL_LOC     = process.env.HOTEL_LOCATION           || 'Nikunja 2 · Dhaka · Airport Corridor';
 const HOTEL_ADDR    = process.env.HOTEL_ADDRESS            || 'House-05, Road-02, Nikunja-02, Dhaka-1229';
 const HOTEL_PHONE   = process.env.HOTEL_PHONE              || '+880 1322-840799';
+const CONTACT_NAME  = process.env.HOTEL_CONTACT_NAME       || (process.env.HOTEL_SENDER_NAME || 'Shan Ahmed — Hotel Fountain BD').split(' — ')[0];
 const MAX_PER_RUN   = 10;
 
 function buildOutreachHtml(company: string, contactName: string | null, title: string | null): string {
@@ -47,7 +48,7 @@ function buildOutreachHtml(company: string, contactName: string | null, title: s
     `<p style="color:#C8BFB0;font-size:14px;line-height:1.85;margin:0 0 20px">I would love to invite you for a quick coffee and a look around the property — no formal presentation, just a conversation about whether we could be useful to ${company}.</p>`,
     '<p style="color:#C8BFB0;font-size:14px;line-height:1.85;margin:0 0 28px">Any day this week or next works well. Just reply and I will confirm a time.</p>',
     '<div style="border-top:1px solid rgba(200,169,110,.12);padding-top:24px">',
-    '<div style="font-size:16px;color:#C8A96E;font-style:italic;margin-bottom:4px">Shan Ahmed</div>',
+    `<div style="font-size:16px;color:#C8A96E;font-style:italic;margin-bottom:4px">${CONTACT_NAME}</div>`,
     `<div style="font-size:12px;color:#9A907C;line-height:1.7">Operations Manager · ${HOTEL_NAME}<br/>${HOTEL_ADDR}<br/>${HOTEL_PHONE} · ${SENDER_EMAIL}</div>`,
     '</div>',
     '</td></tr>',
@@ -75,7 +76,7 @@ function buildOutreachText(company: string, contactName: string | null): string 
     '',
     'Any day this week or next works. Just reply and I will confirm a time.',
     '',
-    'Shan Ahmed',
+    CONTACT_NAME,
     `Operations Manager · ${HOTEL_NAME}`,
     HOTEL_ADDR,
     `${HOTEL_PHONE} · ${SENDER_EMAIL}`,
