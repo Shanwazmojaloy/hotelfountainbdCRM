@@ -84,9 +84,10 @@ function buildOutreachText(company: string, contactName: string | null): string 
 
 async function runOutreachBot() {
   const SB_URL    = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-  const SB_KEY    = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const SB_KEY    = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
   if (!SB_KEY) return { ok: false, error: 'Env missing: SUPABASE_SERVICE_ROLE_KEY — set sb_secret_* key in Vercel' };
-  const BREVO_KEY = process.env.BREVO_API_KEY;
+  console.log('[outreach-bot] key_prefix:', SB_KEY.substring(0, 14), '| len:', SB_KEY.length);
+  const BREVO_KEY = (process.env.BREVO_API_KEY || '').trim();
 
   if (!BREVO_KEY) return { ok: false, error: 'Env missing: BREVO_API_KEY — add in Vercel dashboard' };
 
