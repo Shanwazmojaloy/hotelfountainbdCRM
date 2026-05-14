@@ -24,17 +24,13 @@ require('dotenv').config({ path: path.resolve(__dirname, '..', '.env.local') });
 const { createClient } = require('@supabase/supabase-js');
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const SB_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-// Uses the anon/publishable key — import_corporate_leads RPC is SECURITY DEFINER.
-// No service role key required.
+// Both NEXT_PUBLIC_ — client-safe, hardcoded as fallbacks so the script
+// works even without a .env.local file present on this machine.
+const SB_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL
+             || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
              || 'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh';
 const TENANT  = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-
-if (!SB_URL) {
-  console.error('\n❌  Missing NEXT_PUBLIC_SUPABASE_URL in .env.local\n');
-  process.exit(1);
-}
 
 const supabase = createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
 
