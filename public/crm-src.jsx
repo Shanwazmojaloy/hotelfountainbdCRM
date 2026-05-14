@@ -4650,6 +4650,7 @@ function LeadPipelinePage() {
   const [filter, setFilter]     = React.useState('all')
   const [runningBot, setRunningBot] = React.useState(false)
   const [botResult, setBotResult]   = React.useState(null)
+  const botDismissRef = React.useRef(null)
 
   React.useEffect(() => {
     Promise.all([
@@ -4692,10 +4693,15 @@ function LeadPipelinePage() {
   const handleRunBot = async () => {
     setRunningBot(true)
     setBotResult(null)
+    if (botDismissRef.current) clearTimeout(botDismissRef.current)
     try {
       const res = await fetch('/api/agents/outreach-bot', { method: 'POST' })
       const data = await res.json()
       setBotResult(data)
+      // Auto-dismiss after 8s for success; keep errors visible until dismissed
+      if (!data.error) {
+        botDismissRef.current = setTimeout(() => setBotResult(null), 8000)
+      }
       // Refresh leads
       const l = await db('corporate_leads', '?select=*&order=priority.desc,created_at.asc')
       setLeads(Array.isArray(l) ? l : [])
@@ -4735,8 +4741,13 @@ function LeadPipelinePage() {
       {botResult && (
         <div style={{background:botResult.error?'rgba(248,113,113,.1)':'rgba(74,222,128,.1)',
           border:`1px solid ${botResult.error?'rgba(248,113,113,.3)':'rgba(74,222,128,.3)'}`,
-          padding:'10px 16px',marginBottom:16,fontSize:12,color:botResult.error?'#F87171':'#4ADE80'}}>
-          {botResult.error ? `⚠ ${botResult.error}` : `✓ Processed ${botResult.processed ?? 0} leads · ${new Date().toLocaleTimeString('en-BD',{timeZone:'Asia/Dhaka'})}`}
+          padding:'10px 16px',marginBottom:16,fontSize:12,color:botResult.error?'#F87171':'#4ADE80',
+          display:'flex',alignItems:'flex-start',gap:10}}>
+          <span style={{flex:1,lineHeight:1.6}}>
+            {botResult.error ? `⚠ ${botResult.error}` : `✓ Processed ${botResult.processed ?? 0} leads · ${new Date().toLocaleTimeString('en-BD',{timeZone:'Asia/Dhaka'})}`}
+          </span>
+          <button onClick={()=>{if(botDismissRef.current)clearTimeout(botDismissRef.current);setBotResult(null)}}
+            style={{background:'none',border:'none',color:'inherit',cursor:'pointer',fontSize:14,opacity:.7,lineHeight:1,padding:0,flexShrink:0}}>×</button>
         </div>
       )}
 
@@ -5283,10 +5294,8 @@ function App() {
           </div>
         </main>
       </div>
-
-      {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type} onDone={()=>setToastMsg(null)}/>}
+      {toastMsg&&<Toast msg={toastMsg} type={toastType}/>}
     </>
   )
 }
-
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));

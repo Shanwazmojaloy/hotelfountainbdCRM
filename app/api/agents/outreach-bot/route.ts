@@ -101,9 +101,14 @@ function buildOutreachText(company: string, contactName: string | null): string 
 }
 
 async function runOutreachBot() {
+  // Validate required env vars before doing any work
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL)    return { ok: false, error: 'Env missing: NEXT_PUBLIC_SUPABASE_URL' };
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY)   return { ok: false, error: 'Env missing: SUPABASE_SERVICE_ROLE_KEY' };
+  if (!process.env.BREVO_API_KEY)               return { ok: false, error: 'Env missing: BREVO_API_KEY — add in Vercel dashboard' };
+
   const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
   // Fetch pending leads that have an email address
@@ -115,7 +120,7 @@ async function runOutreachBot() {
     .not('contact_email', 'is', null)
     .limit(MAX_PER_RUN * 3); // Fetch extra — JS sort below selects top MAX_PER_RUN
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: `Supabase: ${error.message}` };
 
   // Fix: .order('priority') is alphabetical (h<l<m), so 'high' sorts LAST.
   // Sort in JS instead: high=1, med=2, low=3.
@@ -146,8 +151,13 @@ async function runOutreachBot() {
         }),
       });
 
-      const ok = brevoRes.ok;
       const brevoData = await brevoRes.json().catch(() => ({}));
+      const ok = brevoRes.ok;
+
+      // Surface Brevo auth failures early — don't silently mark sent:false for every lead
+      if (brevoRes.status === 401) {
+        return { ok: false, error: `Brevo: ${brevoData?.message || 'Invalid API key'} — check BREVO_API_KEY in Vercel` };
+      }
 
       await supabase.from('outreach_log').insert({
         tenant_id: TENANT,
