@@ -11,7 +11,7 @@ const _CFG     = window.CRM_CONFIG || {}
 const TENANT   = _CFG.tenantId     || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 const _HNAME   = _CFG.hotelName    || 'Hotel Fountain BD'
 const _HSHORT  = _CFG.hotelShort   || 'Fountain'
-const _HADDR   = _CFG.address      || 'House 05, Road 02, Nikunja 02 · Dhaka 1229, Bangladesh'
+const _HADDR   = _CFG.address      || 'House 05, Road 02, Nikunja 02 · Dhaka 1229, Bangladesh'h
 const _HLOC    = _CFG.location     || 'Nikunja 2 · Airport Corridor · Dhaka'
 const _HPHONE  = _CFG.phone        || '+880 1322-840799'
 const _HWAPP   = _CFG.whatsapp     || '+8801322840799'
@@ -2752,6 +2752,7 @@ ${dueRows}
         const displayList = (filter==='TODAY')
           ? Object.values(unifiedGroups).filter(grp => {
               if (grp.isDue) return true  // still owes money
+          if (grp.res?.status === 'CHECKED_IN') return true  // always show in-house guests
               return grp.txs.some(t => !/balance carried forward/i.test(t.type||''))  // real TX today
             })
           : Object.values(unifiedGroups)
