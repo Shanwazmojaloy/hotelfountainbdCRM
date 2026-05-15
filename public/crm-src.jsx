@@ -2793,9 +2793,10 @@ ${dueRows}
                     const chkIn = r ? fmtDate(r.check_in) : (grp.txs[0]?.check_in?fmtDate(grp.txs[0].check_in):'—')
                     const chkOut = r ? fmtDate(r.check_out) : (grp.txs[0]?.check_out?fmtDate(grp.txs[0].check_out):'—')
                     const tTotal = r ? resTotal : (grp.txs[0]?.bill_total?(+grp.txs[0].bill_total):0)
-                    // PAID column: TODAY = all real payments today (excl BCF); other filters = lifetime paid
+                    // PAID column: TODAY = only actual payment txs (excl charges like Stay Extension / BCF)
+                    const _isPaymentTx = t => /payment|settlement|advance|deposit|bkash|bank\s*transfer/i.test(t.type||'') && !/balance carried forward/i.test(t.type||'')
                     const tPaid = (filter==='TODAY')
-                      ? grp.txs.filter(t=>!/balance carried forward/i.test(t.type||'')).reduce((s,t)=>s+(+t.amount||0),0)
+                      ? grp.txs.filter(_isPaymentTx).reduce((s,t)=>s+(+t.amount||0),0)
                       : (r ? resPaid : 0)
                     const tDue = r ? resDue : 0
                     const tDiscount = r ? (+r.discount_amount||+r.discount||0) : 0
@@ -5470,7 +5471,7 @@ function App() {
           </div>
         </main>
       </div>
-      {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type}/>}
+            {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type}/>}
     </>
   )
 }
