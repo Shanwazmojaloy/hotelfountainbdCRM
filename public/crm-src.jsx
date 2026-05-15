@@ -374,7 +374,10 @@ html,body,#root{
    Shared by DashboardPage (todayRev) and BillingPage (_bizDayTotal).
    Any change here automatically applies to both surfaces.
    ─────────────────────────────────────────────────────────────────────────── */
-const _isRealPayment = t => !/balance carried forward/i.test(t.type||'') && !/final\s*settlement/i.test(t.type||'')
+// Payment-positive: only actual cash inflows count as revenue/paid.
+// Charges (Stay Extension, Room Service, Food & Bev, etc.) are excluded.
+// This single definition drives BIZ DAY, Dashboard revenue, and all report totals.
+const _isRealPayment = t => /payment|settlement|advance|deposit|bkash|bank\s*transfer/i.test(t.type||'') && !/balance carried forward/i.test(t.type||'')
 const _bizDayTotalFn = list => {
   const byKey = {}
   list.forEach(t => {
