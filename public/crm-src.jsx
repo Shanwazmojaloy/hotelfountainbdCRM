@@ -11,7 +11,7 @@ const _CFG     = window.CRM_CONFIG || {}
 const TENANT   = _CFG.tenantId     || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 const _HNAME   = _CFG.hotelName    || 'Hotel Fountain BD'
 const _HSHORT  = _CFG.hotelShort   || 'Fountain'
-const _HADDR   = _CFG.address      || 'House 05, Road 02, Nikunja 02 · Dhaka 1229, Bangladesh'h
+const _HADDR   = _CFG.address      || 'House 05, Road 02, Nikunja 02 · Dhaka 1229, Bangladesh'
 const _HLOC    = _CFG.location     || 'Nikunja 2 · Airport Corridor · Dhaka'
 const _HPHONE  = _CFG.phone        || '+880 1322-840799'
 const _HWAPP   = _CFG.whatsapp     || '+8801322840799'
@@ -2716,12 +2716,17 @@ ${dueRows}
         const unifiedGroups = {}
 
         list.forEach(t=>{
-          const guestId = guests?.find(g=>g.name===t.guest_name)?.id
-          const res = reservations?.find(r=>{
-            const roomMatch=(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number)
-            const nameMatch=!guestId||(r.guest_ids||[]).includes(guestId)||r.guest_name===t.guest_name
-            return roomMatch&&nameMatch
-          }) || reservations?.find(r=>(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number))
+          // reservation_id on the transaction is authoritative — use it first to prevent
+          // cross-guest misattribution when two reservations share the same room number.
+          const res = (t.reservation_id && reservations?.find(r=>r.id===t.reservation_id))
+            || (()=>{
+              const guestId = guests?.find(g=>g.name===t.guest_name)?.id
+              return reservations?.find(r=>{
+                const roomMatch=(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number)
+                const nameMatch=!guestId||(r.guest_ids||[]).includes(guestId)||r.guest_name===t.guest_name
+                return roomMatch&&nameMatch
+              }) || reservations?.find(r=>(r.room_ids||[]).some(id=>String(id)===String(t.room_number))||String(r.room_number)===String(t.room_number))
+            })()
           const key = res ? res.id : `tx|${t.guest_name||''}|${t.room_number||''}|${t.fiscal_day||''}`
           if(!unifiedGroups[key]) unifiedGroups[key] = { txs:[], res, guest_name:t.guest_name, room_number:t.room_number, isDue: false }
           unifiedGroups[key].txs.push(t)
