@@ -2827,7 +2827,10 @@ ${dueRows}
                           {currentUser?.role!=='housekeeping'&&(
                             <button className="btn btn-gold btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
                               const grossTotal = r ? (+r.total_amount||0) : tTotal
-                              setBillingRes({_fromRow:true,...(r||{}),room_number:rno,guest_name:gname,_resId:r?.id||null,_total:grossTotal,_paid:tPaid,_discount:tDiscount})
+                              // Use lifetime paid_amount for the modal — NOT today's tPaid (filtered txs).
+                              // tPaid resets to 0 each business day; modal must show what's actually been paid.
+                              const modalPaid = r ? (+r.paid_amount||0) : tPaid
+                              setBillingRes({_fromRow:true,...(r||{}),room_number:rno,guest_name:gname,_resId:r?.id||null,_total:grossTotal,_paid:modalPaid,_discount:tDiscount})
                               setShowAdd(true)
                             }}>+ Pay</button>
                           )}
