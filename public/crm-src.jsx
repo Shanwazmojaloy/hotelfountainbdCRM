@@ -1082,6 +1082,12 @@ function AddChargeModal({roomNo,resId,toast,onClose,onDone}) {
     setSaving(true)
     try {
       const [f]=await dbPost('folios',{room_number:roomNo,reservation_id:resId,description:desc||cat,category:cat,amount:a,tenant_id:TENANT})
+      // Keep total_amount in sync so _resDue stays accurate across the whole app
+      if(resId) {
+        const resData=await db('reservations',`?id=eq.${resId}&select=total_amount`)
+        const curTotal=+(resData?.[0]?.total_amount||0)
+        await dbPatch('reservations',resId,{total_amount:curTotal+a})
+      }
       onDone(f)
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
@@ -2469,13 +2475,15 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false
     return _resDue(r) > 0
   })
+  // Use computeBill.due (not _resDue) so folio extras (HALF DAY CHARGE, etc.)
+  // are included in the outstanding check — _resDue only reads total_amount which
+  // may lag behind folios added after the reservation was created.
+  const _billDue = r => (computeBill(r)?.due || 0)
   const activeRes = reservations.filter(r => {
     if (r.status === 'CHECKED_IN') return true
     if (r.status === 'CHECKED_OUT') {
-      if (_resDue(r) > 0) return true
-      // Show fully-paid checkouts for 3 days after checkout date so they remain
-      // visible in the TODAY billing ledger — prevents the "invisible guest" issue
-      // where a fully-settled guest disappears immediately from Billing & Invoices.
+      if (_billDue(r) > 0) return true
+      // Show recently settled checkouts (≤3 days) for invoice access
       try {
         const co = new Date(r.check_out)
         const bd = new Date(businessDate || todayStr())
@@ -2794,9 +2802,9 @@ ${dueRows}
             if(!unifiedGroups[key]) {
               const txFallbackName = transactions?.find(t=>t.reservation_id===r.id)?.guest_name
               const resolvedName = (getGN(r) !== '—' && getGN(r) !== 'Unknown') ? getGN(r) : (txFallbackName || getGN(r))
-              unifiedGroups[key] = { txs:[], res: r, guest_name: resolvedName, room_number: getRoom(r), isDue: _resDue(r)>0 }
+              unifiedGroups[key] = { txs:[], res: r, guest_name: resolvedName, room_number: getRoom(r), isDue: _billDue(r)>0 }
             } else {
-              unifiedGroups[key].isDue = _resDue(r)>0;
+              unifiedGroups[key].isDue = _billDue(r)>0;
               unifiedGroups[key].res = r;
             }
           } catch(e) {
