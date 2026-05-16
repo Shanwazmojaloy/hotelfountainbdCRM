@@ -48,20 +48,19 @@ CREATE TABLE IF NOT EXISTS public.tenants (
 );
 
 -- ── 2. RLS ──────────────────────────────────────────────────────────────────
--- Intentionally NO anon policy — tenants config is server-side only.
--- Service role bypasses RLS by default (Supabase default behaviour).
+-- tenants table is server-side only. Service role bypasses RLS (Supabase default).
+-- Anon + authenticated users: NO access. All reads/writes go through service role
+-- or SECURITY DEFINER RPCs only.
+--
+-- NOTE: Do NOT add a "FOR ALL USING (false)" policy — it conflicts with SELECT
+-- policies when both are permissive (they are OR'd). Just enable RLS with no
+-- permissive policies → all non-service-role access is denied by default.
 
 ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
 
--- Authenticated users can only read their own tenant row (for future admin panel)
-CREATE POLICY "tenant_self_read"
-  ON public.tenants FOR SELECT
-  USING (auth.uid() IS NOT NULL);
-
--- Deny all mutations from client (server-side only via service role)
-CREATE POLICY "tenant_no_client_write"
-  ON public.tenants FOR ALL
-  USING (false);
+-- Drop any stale conflicting policies from previous migration attempts
+DROP POLICY IF EXISTS "tenant_self_read"      ON public.tenants;
+DROP POLICY IF EXISTS "tenant_no_client_write" ON public.tenants;
 
 -- ── 3. ENFORCE tenant_id ON EXISTING TABLES ─────────────────────────────────
 -- All tables already have tenant_id uuid columns (NULL for Hotel Fountain BD).

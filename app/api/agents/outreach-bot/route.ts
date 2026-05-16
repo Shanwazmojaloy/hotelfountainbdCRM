@@ -93,10 +93,8 @@ async function runOutreachBot(req: NextRequest) {
   const SB_URL    = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://mynwfkgksqqwlqowlscj.supabase.co';
   // Use publishable (anon) key — all write ops via SECURITY DEFINER RPCs.
   // Legacy JWT keys (eyJ...) were rotated 2026-05-01 and are now disabled in Supabase.
-  const _rawKey   = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
-  const SB_KEY    = _rawKey.startsWith('eyJ')
-    ? 'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh'
-    : (_rawKey || 'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh');
+  const SB_KEY    = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  if (!SB_KEY) return { ok: false, error: 'Env missing: NEXT_PUBLIC_SUPABASE_ANON_KEY' };
   const BREVO_KEY = (tenant.brevo_api_key || process.env.BREVO_API_KEY || '').trim();
   if (!BREVO_KEY) return { ok: false, error: 'Env missing: BREVO_API_KEY — add in Vercel dashboard or tenants table' };
 
