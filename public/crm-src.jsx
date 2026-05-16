@@ -1272,7 +1272,8 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
           if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
         }
       }
-      const updates={status,paid_amount:paidNum,discount_amount:discountNum,notes,check_in:checkInDate,check_out:checkOut,room_ids:newRoomNos,total_amount:totalAmt}
+      const _resGuestName = guests.find(g=>g.id===(res.guest_ids||[])[0])?.name || res.guest_name || null
+      const updates={status,paid_amount:paidNum,discount_amount:discountNum,notes,check_in:checkInDate,check_out:checkOut,room_ids:newRoomNos,total_amount:totalAmt,guest_name:_resGuestName}
       if(checkOut&&checkOut!==String(res.check_out||'').slice(0,10)){
         updates.check_out=checkOut
         if(nights>0) updates.total_amount=nights*ratesSum
@@ -1545,8 +1546,10 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
       const isCheckIn=f.stayType==='CHECK_IN'
       const totalAmt=+f.total||autoTotal
       const selectedRooms=f.roomNos.filter(Boolean)
+      const _guestName = guests.find(g=>g.id===f.guestId)?.name || null
       const [newRes]=await dbPost('reservations',{
         guest_ids:[f.guestId], room_ids:selectedRooms,
+        guest_name:_guestName,
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
         total_amount:totalAmt, paid_amount:+f.paid||0,
@@ -2468,7 +2471,17 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   })
   const activeRes = reservations.filter(r => {
     if (r.status === 'CHECKED_IN') return true
-    if (r.status === 'CHECKED_OUT') return _resDue(r) > 0
+    if (r.status === 'CHECKED_OUT') {
+      if (_resDue(r) > 0) return true
+      // Show fully-paid checkouts for 3 days after checkout date so they remain
+      // visible in the TODAY billing ledger — prevents the "invisible guest" issue
+      // where a fully-settled guest disappears immediately from Billing & Invoices.
+      try {
+        const co = new Date(r.check_out)
+        const bd = new Date(businessDate || todayStr())
+        return (bd - co) / 86400000 <= 3
+      } catch { return false }
+    }
     return false
   })
 
