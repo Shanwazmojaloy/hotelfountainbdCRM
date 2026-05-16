@@ -2783,39 +2783,45 @@ ${dueRows}
           unifiedGroups[key].txs.push(t)
         })
 
-        if (!search) {
-          // Use activeRes (all CHECKED_IN + CHECKED_OUT with balance) so fully-paid
-          // CHECKED_IN guests still appear in the ledger
-          activeRes.forEach(r=>{
-            try {
-              if(!r || !r.id) return
-              const key = r.id;
-              if(!unifiedGroups[key]) {
-                // When reservation.guest_name is null (paid via modal, no TX), fall back to
-                // any existing TX guest_name so the billing row shows the real name, not "—"
-                const txFallbackName = transactions?.find(t=>t.reservation_id===r.id)?.guest_name
-                const resolvedName = (getGN(r) !== '—' && getGN(r) !== 'Unknown') ? getGN(r) : (txFallbackName || getGN(r))
-                unifiedGroups[key] = { txs:[], res: r, guest_name: resolvedName, room_number: getRoom(r), isDue: _resDue(r)>0 }
-              } else {
-                unifiedGroups[key].isDue = _resDue(r)>0;
-                unifiedGroups[key].res = r;
-              }
-            } catch(e) {
-              console.warn('[ledger] skip malformed reservation', r?.id, e)
+        // Always inject activeRes — guests with outstanding due MUST appear on every
+        // view (TODAY, DATE, MONTH, ALL) regardless of search state.
+        // Rule: CHECKED_OUT with _resDue > 0 is permanent in the ledger until fully paid.
+        // Search filtering is applied at displayList level below.
+        activeRes.forEach(r=>{
+          try {
+            if(!r || !r.id) return
+            const key = r.id;
+            if(!unifiedGroups[key]) {
+              const txFallbackName = transactions?.find(t=>t.reservation_id===r.id)?.guest_name
+              const resolvedName = (getGN(r) !== '—' && getGN(r) !== 'Unknown') ? getGN(r) : (txFallbackName || getGN(r))
+              unifiedGroups[key] = { txs:[], res: r, guest_name: resolvedName, room_number: getRoom(r), isDue: _resDue(r)>0 }
+            } else {
+              unifiedGroups[key].isDue = _resDue(r)>0;
+              unifiedGroups[key].res = r;
             }
-          })
-        }
+          } catch(e) {
+            console.warn('[ledger] skip malformed reservation', r?.id, e)
+          }
+        })
 
-        // TODAY view: show only guests who OWE MONEY or made a real payment today.
-        // BCF-only + due=0 = ghost row (fully settled — hide after day close).
-        // Guest reappears when a new cash/bkash/folio TX is recorded today.
-        const displayList = (filter==='TODAY')
+        // Build base list — business rules:
+        //   TODAY  : isDue guests always shown (no time limit); ghost BCF-only+settled hidden.
+        //   DATE   : all groups shown; activeRes injection means due guests appear even with
+        //            no TX on that date. Payment-date rule: a payment TX on date X lands in
+        //            calT, so guest ALWAYS appears when filtering DATE=X.
+        //   MONTH/ALL: all groups shown.
+        const _baseList = (filter==='TODAY')
           ? Object.values(unifiedGroups).filter(grp => {
-              if (grp.isDue) return true  // still owes money
-          if (grp.res?.status === 'CHECKED_IN') return true  // always show in-house guests
-              return grp.txs.some(t => !/balance carried forward/i.test(t.type||''))  // real TX today
+              if (grp.isDue) return true              // outstanding balance — always visible
+              if (grp.res?.status === 'CHECKED_IN') return true   // in-house always
+              return grp.txs.some(t => !/balance carried forward/i.test(t.type||''))
             })
           : Object.values(unifiedGroups)
+        // Apply search at group level — covers activeRes-injected guests with no TX on the
+        // filtered date (they have name/room but empty txs array).
+        const displayList = search
+          ? (()=>{ const q=search.toLowerCase(); return _baseList.filter(grp=>grp.guest_name?.toLowerCase().includes(q)||String(grp.room_number||'').includes(q)||grp.txs.some(t=>t.type?.toLowerCase().includes(q)||t.guest_name?.toLowerCase().includes(q))) })()
+          : _baseList
 
         return (
           <div className="card" style={{marginBottom:12}}>
