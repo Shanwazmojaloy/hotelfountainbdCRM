@@ -20,6 +20,8 @@
 - +PAY button does NOT auto-update `reservation.paid_amount` — after recording payment, manually: `UPDATE reservations SET paid_amount = <total> WHERE id = '<id>'`
 - `computeBill` rawTotal: `canonical>0 ? canonical + extras : sub` — extras (folio charges) ALWAYS add on top of `total_amount`. Never discard extras when canonical is set.
 - NEVER update `paid_amount` directly in reservations without also INSERTing a matching row in `transactions` (type='Room Payment (Cash)', fiscal_day=today, reservation_id). Skipping the TX row makes Billing & Invoices page blind to the payment.
+- `ReservationDetail.save()` now auto-creates TX when `paid_amount` increases: `payIncrease = paidNum - prevPaid; if (payIncrease>0) dbPost('transactions',{type:'Advance Payment', amount:payIncrease,...})`. PERMANENT — do not remove.
+- Billing `activeRes` seed uses `txFallbackName` for null-name reservations — looks up TX guest_name by `reservation_id` so billing rows never show `—` when reservation.guest_name is null.
 - After `git filter-repo`, run `git reflog expire --expire=now --all && git gc --prune=now` before pushing
 
 ## File Organization

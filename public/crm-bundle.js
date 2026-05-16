@@ -2197,6 +2197,21 @@ function ReservationDetail({
           });
         }
       }
+      // Auto-create payment TX when paid_amount increases via Save Changes.
+      // Without this, Billing & Invoices is blind to the payment (no TX row = invisible).
+      const prevPaid = +res.paid_amount || 0;
+      const payIncrease = paidNum - prevPaid;
+      if (payIncrease > 0) {
+        await dbPost('transactions', {
+          room_number: newRoomNos[0] || '?',
+          guest_name: gn,
+          type: 'Advance Payment',
+          amount: payIncrease,
+          fiscal_day: businessDate || todayStr(),
+          reservation_id: res.id,
+          tenant_id: TENANT
+        });
+      }
       await dbPatch('reservations', res.id, updates);
       toast(extCharge > 0 ? `Reservation updated · Extension ৳${extCharge.toLocaleString()} charged ✓` : 'Reservation updated ✓');
       reload();
@@ -4861,10 +4876,14 @@ ${dueRows}
           if (!r || !r.id) return;
           const key = r.id;
           if (!unifiedGroups[key]) {
+            // When reservation.guest_name is null (paid via modal, no TX), fall back to
+            // any existing TX guest_name so the billing row shows the real name, not "—"
+            const txFallbackName = transactions?.find(t => t.reservation_id === r.id)?.guest_name;
+            const resolvedName = getGN(r) !== '—' && getGN(r) !== 'Unknown' ? getGN(r) : txFallbackName || getGN(r);
             unifiedGroups[key] = {
               txs: [],
               res: r,
-              guest_name: getGN(r),
+              guest_name: resolvedName,
               room_number: getRoom(r),
               isDue: _resDue(r) > 0
             };
