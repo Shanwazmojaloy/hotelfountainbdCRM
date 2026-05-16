@@ -21,7 +21,7 @@ interface AuditPayload {
   lead_id:         string;
   company_name:    string;
   contact_name?:   string;
-  contact_email?:  string;
+  contact_email?:  string;   // sender email, threaded from reply-intake
   reply_text:      string;
   reply_subject?:  string;
 }
@@ -133,12 +133,16 @@ async function auditAndPersist(payload: AuditPayload) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.CRON_SECRET}` },
         body: JSON.stringify({
-          log_id: payload.log_id, lead_id: payload.lead_id,
-          company_name: payload.company_name, contact_name: payload.contact_name,
-          contact_email: payload.contact_email,
-          reply_text: payload.reply_text,
-          score: audit.score, reasoning: audit.reasoning,
-          signals: audit.signals, next_action: audit.next_action,
+          log_id:        payload.log_id,
+          lead_id:       payload.lead_id,
+          company_name:  payload.company_name,
+          contact_name:  payload.contact_name,
+          contact_email: payload.contact_email,   // pass through for payment-send
+          reply_text:    payload.reply_text,
+          score:         audit.score,
+          reasoning:     audit.reasoning,
+          signals:       audit.signals,
+          next_action:   audit.next_action,
         }),
       });
     } catch (e) {

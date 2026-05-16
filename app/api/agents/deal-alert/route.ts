@@ -26,7 +26,7 @@ interface DealAlertPayload {
   lead_id:        string;
   company_name:   string;
   contact_name?:  string;
-  contact_email?: string;
+  contact_email?: string;   // threaded from reply-intake sender address
   reply_text:     string;
   score:          number;
   reasoning:      string;
@@ -47,6 +47,26 @@ function sbRpc(rpcName: string, params: Record<string, unknown>) {
     },
     body: JSON.stringify(params),
   });
+}
+
+// ── Build Shan's one-tap activation link ──────────────────────────────────────
+function confirmUrl(p: DealAlertPayload): string {
+  const APP_URL    = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fountainbd.com';
+  const token      = process.env.ADMIN_SECRET        ?? '';
+  const slug       = p.company_name.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 30);
+  const params = new URLSearchParams({
+    token,
+    lead_id:       p.lead_id,
+    plan:          'starter',              // Shan can change the URL before clicking
+    slug,
+    hotel_name:    p.company_name,
+    contact_email: p.contact_email ?? '',
+    contact_name:  p.contact_name  ?? '',
+  });
+  return `${APP_URL}/api/agents/payment-confirm?${params.toString()}`;
 }
 
 function scoreColor(score: number): string {
@@ -112,14 +132,21 @@ function buildAlertHtml(p: DealAlertPayload): string {
   <!-- CTA BUTTONS -->
   <tr><td style="padding:28px 40px">
     <div style="margin-bottom:12px">
-      <a href="mailto:${p.contact_email ?? ''}?subject=Re: ${process.env.HOTEL_NAME || 'Hotel Fountain'} Corporate Partnership"
-         style="display:inline-block;background:#C8A96E;color:#07090E;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:12px 28px">
+      <a href="mailto:${p.contact_email ?? p.contact_name ?? ''}?subject=Re: Lumea CRM for ${p.company_name}"
+         style="display:inline-block;background:#C8A96E;color:#07090E;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:12px 28px;margin-right:8px">
         Reply Now →
+      </a>
+    </div>
+    <div style="margin-bottom:20px">
+      <a href="${confirmUrl(p)}"
+         style="display:inline-block;background:#22c55e;color:#07090E;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:12px 28px">
+        ✅ Confirm Payment Received — Activate Now
       </a>
     </div>
     <div style="font-size:11px;color:#6a6a5a">
       This alert was generated automatically by the Lumea CEO Auditor agent.<br/>
-      Score threshold: 7/10. This lead scored <strong style="color:${color}">${p.score}/10</strong>.
+      Score threshold: 7/10. This lead scored <strong style="color:${color}">${p.score}/10</strong>.<br/>
+      Payment instructions were auto-sent to the lead by email.
     </div>
   </td></tr>
 
@@ -186,9 +213,34 @@ export async function POST(req: Request) {
   // ── Mark alert sent via SECURITY DEFINER RPC ──────────────────────────────
   if (emailOk) {
     await sbRpc('deal_mark_alert_sent', {
-      p_log_id:       payload.log_id,
+      p_log_id:        payload.log_id,
       p_alert_sent_at: new Date().toISOString(),
     });
+  }
+
+  // ── Auto-send payment instructions to the lead ────────────────────────────
+  // Fire-and-forget: send payment email to prospect immediately
+  try {
+    const paymentSendUrl = new URL(
+      '/api/agents/payment-send',
+      process.env.NEXT_PUBLIC_APP_URL ?? 'https://fountainbd.com',
+    );
+    await fetch(paymentSendUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.CRON_SECRET}`,
+      },
+      body: JSON.stringify({
+        lead_id:       payload.lead_id,
+        company_name:  payload.company_name,
+        contact_name:  payload.contact_name,
+        contact_email: payload.contact_email,
+        plan:          'starter',          // default plan; Shan confirms in payment-confirm
+      }),
+    });
+  } catch (e) {
+    console.error('[deal-alert] Failed to auto-trigger payment-send:', e);
   }
 
   // ── Log to notifications_log via SECURITY DEFINER RPC ────────────────────
