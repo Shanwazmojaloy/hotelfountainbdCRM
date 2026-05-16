@@ -2415,7 +2415,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const vatPct=0, svcPct=0, tax=0, svc=0
     const discount=+r.discount_amount||+r.discount||0
     const canonical=+r.total_amount||0
-    const rawTotal = canonical>0 ? canonical : (sub>0 ? sub : 0)
+    const rawTotal = canonical>0 ? canonical + extras : (sub>0 ? sub : 0)
     const total=Math.max(0,rawTotal-discount)
     const paid=+r.paid_amount||0
     const due=Math.max(0,total-paid)
@@ -5481,4 +5481,4 @@ function App() {
     </>
   )
 }
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null))

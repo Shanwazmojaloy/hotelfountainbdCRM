@@ -1,1 +1,11548 @@
-const{useState:useState,useEffect:useEffect,useRef:useRef,useCallback:useCallback,useMemo:useMemo}=React,SB_URL="https://mynwfkgksqqwlqowlscj.supabase.co",SB_KEY=window.__env&&window.__env.SB_KEY||"sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh",_CFG=window.CRM_CONFIG||{},TENANT=_CFG.tenantId||"46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8",_HNAME=_CFG.hotelName||"Hotel Fountain BD",_HSHORT=_CFG.hotelShort||"Fountain",_HADDR=_CFG.address||"House 05, Road 02, Nikunja 02 · Dhaka 1229, Bangladesh",_HLOC=_CFG.location||"Nikunja 2 · Airport Corridor · Dhaka",_HPHONE=_CFG.phone||"+880 1322-840799",_HWAPP=_CFG.whatsapp||"+8801322840799",_HEMAIL=_CFG.email||"hotellfountainbd@gmail.com",_HSITE=_CFG.website||"hotelfountainbd.vercel.app",_TAGLINE=_CFG.tagline||"The Gilded Threshold · Luxury In Comfort",_CURR=_CFG.currency||"৳",_CCITY=_CFG.city||"Dhaka, Bangladesh",_VRATE=void 0!==_CFG.vatPct?_CFG.vatPct:15,_SRATE=void 0!==_CFG.svcPct?_CFG.svcPct:5,BDT=e=>_CURR+Number(e||0).toLocaleString("en-BD"),fmtDate=e=>e?String(e).slice(0,10):"—",_dhakaParts=(e=new Date)=>{const t=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Dhaka",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(e),a=e=>t.find(t=>t.type===e)?.value||"00";return{y:a("year"),m:a("month"),d:a("day"),H:a("hour"),M:a("minute"),S:a("second")}},todayStr=()=>{const e=_dhakaParts();return`${e.y}-${e.m}-${e.d}`},todayDhaka=()=>{const e=_dhakaParts();return new Date(`${e.y}-${e.m}-${e.d}T${e.H}:${e.M}:${e.S}`)},nightsCount=(e,t)=>e&&t?Math.max(0,Math.round((new Date(t)-new Date(e))/864e5)):0,AVC=["#C8A96E","#2EC4B6","#E05C7A","#58A6FF","#3FB950","#9B72CF","#F0A500"],avColor=e=>AVC[e?e.charCodeAt(0)%AVC.length:0],initials=e=>e?e.trim().split(" ").map(e=>e[0]).join("").slice(0,2).toUpperCase():"?",sleep=e=>new Promise(t=>setTimeout(t,e)),H={apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,"Content-Type":"application/json",Prefer:"return=representation"},H2={apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,"Content-Type":"application/json"},db=async(e,t="")=>{const a=await fetch(`${SB_URL}/rest/v1/${e}${t}`,{headers:H});if(!a.ok)throw new Error(await a.text());return a.json()},dbAll=async(e,t="",a=1e3)=>{const n=[];let r=0;for(;;){const l=r+a-1,o=await fetch(`${SB_URL}/rest/v1/${e}${t}`,{headers:{...H,Range:`${r}-${l}`,"Range-Unit":"items"}});if(!o.ok)throw new Error(await o.text());const c=await o.json();if(n.push(...c),c.length<a)break;if(r+=a,r>5e4)break}return n},dbPost=async(e,t)=>{const a=await fetch(`${SB_URL}/rest/v1/${e}`,{method:"POST",headers:H,body:JSON.stringify(t)});if(!a.ok)throw new Error(await a.text());return a.json()},dbPatch=async(e,t,a)=>{const n=await fetch(`${SB_URL}/rest/v1/${e}?id=eq.${t}`,{method:"PATCH",headers:H2,body:JSON.stringify(a)});if(!n.ok){const t=await n.text();throw new Error(`PATCH ${e} ${n.status}: ${t}`)}},dbDelete=async(e,t)=>{const a=await fetch(`${SB_URL}/rest/v1/${e}?id=eq.${t}`,{method:"DELETE",headers:H2});if(!a.ok)throw new Error(await a.text())},ROLES={owner:{label:"Founder / Owner",color:"#C8A96E",pages:["dashboard","rooms","reservations","guests","housekeeping","billing","reports","leads","settings"]},manager:{label:"General Manager",color:"#2EC4B6",pages:["dashboard","rooms","reservations","guests","housekeeping","billing","reports","leads"]},receptionist:{label:"Receptionist",color:"#58A6FF",pages:["dashboard","rooms","reservations","guests","billing"]},housekeeping:{label:"Housekeeping Staff",color:"#F0A500",pages:["dashboard","rooms","housekeeping","billing"]},accountant:{label:"Accountant",color:"#3FB950",pages:["dashboard","billing","reports"]}},INIT_STAFF=[{id:1,name:"Shanwaz Ahmed",email:"owner@hotelfountain.com",pwh:"e37838828f7335c08e5249022d9537a4d8c1f350be1b84af32f8296647bd28b9",role:"owner",av:"SA",device:"Admin / Founder"},{id:2,name:"Front Desk (FO)",email:"fo.hotelfountain799@gmail.com",pwh:"e2244795ea58b8fc1d2f00fd55bf3a3591a018984b622d62e89ce188b92b89ad",role:"receptionist",av:"FD",device:"Front Desk Terminal"},{id:3,name:"HK Staff",email:"hotelfountain.hk@gmail.com",pwh:"5e9b65e235bfbd8c61a769aabe08b27e4f9db7055f971392c686b73a6f355357",role:"housekeeping",av:"HK",device:"Housekeeping Terminal"},{id:4,name:"Manager",email:"manager@hotelfountain.com",pwh:"311a5b001353c76385d5b47516f05102975b44a2f617d3b564862b9612e608d9",role:"manager",av:"MG",device:"Manager Office"},{id:5,name:"Accounts",email:"accounts@hotelfountain.com",pwh:"e147ec11b5c183b8958e7bffe6ce93f588a5b63a4b4306ed7468be462c454022",role:"accountant",av:"AC",device:"Accounts Terminal"}],_hashPw=async e=>{const t=await crypto.subtle.digest("SHA-256",(new TextEncoder).encode(e));return[...new Uint8Array(t)].map(e=>e.toString(16).padStart(2,"0")).join("")},CSS="\n/* ── RESET & ROOT TOKENS ──────────────────────────────────────── */\n*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}\n\n:root{\n  --bg:   #1C1510;\n  --s1:   #1C1510;\n  --s2:   #262626;\n  --s3:   #1E1A16;\n  --s4:   #2A2420;\n  --gold: #C8A96E;\n  --gold2:#A07840;\n  --gold-light:#C8A96E;\n  --gdim: rgba(200,169,110,.07);\n  --rose: #F87171;\n  --grn:  #4ADE80;\n  --teal: #2DD4BF;\n  --sky:  #60A5FA;\n  --amb:  #FCD34D;\n  --pur:  #A78BFA;\n  --tx:  #EEE8DC;\n  --tx2: #C8B89A;\n  --tx3: #7A6A5A;\n  --tx-inv:#EEE8DC;\n  --tx-inv2:rgba(238,228,210,.55);\n  --br:  rgba(200,169,110,.22);\n  --br2: rgba(200,169,110,.10);\n  --br-side:rgba(200,169,110,.18);\n  --serif:'Libre Baskerville',Georgia,serif;\n  --sans: 'DM Sans',system-ui,sans-serif;\n  --mono: 'IBM Plex Mono',monospace;\n  --r: 0px;\n}\n\nhtml,body,#root{\n  height:100%;background:var(--bg);color:var(--tx);\n  font-family:var(--sans);font-weight:400;\n  -webkit-font-smoothing:antialiased;overflow:hidden;color-scheme:dark;\n}\n::-webkit-scrollbar{width:4px;height:4px}\n::-webkit-scrollbar-track{background:rgba(0,0,0,.3)}\n::-webkit-scrollbar-thumb{background:rgba(200,169,110,.35)}\n::-webkit-scrollbar-thumb:hover{background:var(--gold)}\n\n/* ── LAYOUT ── */\n.app{display:flex;height:100vh;overflow:hidden}\n.sidebar{width:232px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--br-side);display:flex;flex-direction:column;overflow:hidden}\n.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}\n\n/* ── SIDEBAR ── */\n.s-head{padding:22px 20px 18px;border-bottom:1px solid rgba(200,169,110,.15);flex-shrink:0}\n.s-brand{font-family:var(--serif);font-size:20px;font-weight:700;color:var(--gold-light);letter-spacing:.02em;line-height:1.1}\n.s-brand em{font-style:italic;font-weight:400;color:#E0C585}\n.s-tag{font-family:var(--sans);font-size:7.5px;color:rgba(200,169,110,.38);letter-spacing:.2em;text-transform:uppercase;margin-top:5px;font-weight:300}\n.s-hotel{font-family:var(--sans);font-size:11px;color:rgba(238,228,210,.4);margin-top:7px;font-weight:300;letter-spacing:.03em}\n.s-nav{flex:1;padding:10px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}\n.s-sect{font-family:var(--sans);font-size:7px;letter-spacing:.24em;color:rgba(200,169,110,.3);padding:12px 10px 5px;text-transform:uppercase;font-weight:500}\n.nav-item{display:flex;align-items:center;gap:10px;padding:10px;cursor:pointer;font-family:var(--sans);font-size:12.5px;font-weight:400;color:var(--tx-inv2);border-left:3px solid transparent;border-right:3px solid transparent;transition:all .2s cubic-bezier(0.4,0,0.2,1);user-select:none;letter-spacing:.02em}\n.nav-item:hover{background:rgba(200,169,110,.1);color:rgba(238,228,210,.9);border-left-color:rgba(200,169,110,.4);transform:translateX(2px)}\n.nav-item.on{background:rgba(200,169,110,.12);color:var(--gold-light);border-left-color:var(--gold-light);font-weight:500}\n.nav-item .ico{font-size:13px;width:16px;text-align:center;flex-shrink:0;opacity:.7}\n.nav-item.on .ico{opacity:1}\n.n-badge{margin-left:auto;background:var(--rose);color:#fff;font-size:7.5px;padding:2px 7px;font-weight:600;letter-spacing:.04em}\n.s-foot{padding:14px 16px;border-top:1px solid rgba(200,169,110,.12);flex-shrink:0}\n\n/* ── TOPBAR ── */\n.topbar{height:54px;flex-shrink:0;background:var(--s2);border-bottom:1px solid rgba(200,169,110,.3);display:flex;align-items:center;padding:0 24px;gap:14px;position:relative;z-index:10}\n.tb-title{font-family:var(--serif);font-size:18px;font-weight:700;color:var(--tx);flex:1;letter-spacing:.01em}\n.tb-title em{font-style:italic;color:var(--gold);font-weight:400}\n.tb-meta{font-family:var(--mono);font-size:9px;color:var(--tx3);letter-spacing:.04em;white-space:nowrap}\n.content{flex:1;overflow-y:auto;padding:20px 24px;background:var(--bg)}\n\n/* ── CARDS ── */\n.card{background:var(--s2);border:1px solid var(--br);border-top:3px solid var(--gold-light);transition:transform .2s,box-shadow .2s;overflow:hidden;margin-bottom:16px}\n.rooms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px;margin-bottom:16px}\n.room-card{background:rgba(38,38,38,.55);border:1px solid rgba(200,169,110,.15);padding:14px 12px 12px;cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;backdrop-filter:blur(6px)}\n.room-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;transition:opacity .2s}\n.room-card.AVAILABLE{background:rgba(31,111,84,.2);border-color:rgba(74,222,128,.22);box-shadow:inset 0 0 24px rgba(74,222,128,.06)}\n.room-card.AVAILABLE::before{background:linear-gradient(90deg,#4ADE80,#2DD4BF)}\n.room-card.OCCUPIED{background:rgba(30,58,138,.28);border-color:rgba(96,165,250,.28);box-shadow:inset 0 0 24px rgba(200,169,110,.07)}\n.room-card.OCCUPIED::before{background:linear-gradient(90deg,#60A5FA,#C8A96E)}\n.room-card.DIRTY{background:rgba(120,53,15,.25);border-color:rgba(252,211,77,.25);box-shadow:inset 0 0 20px rgba(252,211,77,.06)}\n.room-card.DIRTY::before{background:linear-gradient(90deg,#FCD34D,#F97316)}\n.room-card.OUT_OF_ORDER{background:rgba(127,29,29,.25);border-color:rgba(248,113,113,.22);box-shadow:inset 0 0 20px rgba(248,113,113,.06)}\n.room-card.OUT_OF_ORDER::before{background:linear-gradient(90deg,#F87171,#7F1D1D)}\n.room-card.RESERVED{background:rgba(88,28,135,.22);border-color:rgba(167,139,250,.22);box-shadow:inset 0 0 20px rgba(167,139,250,.06)}\n.room-card.RESERVED::before{background:linear-gradient(90deg,#A78BFA,#7C3AED)}\n.room-card.AVAILABLE::before\n.room-card.OCCUPIED::before{background:var(--sky)}\n.room-card.DIRTY::before{background:var(--amb)}\n.room-card.OUT_OF_ORDER::before{background:var(--rose)}\n.room-card.RESERVED::before{background:var(--pur)}\n.room-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.55),0 0 0 1px rgba(200,169,110,.35)}\n.room-no{font-family:var(--serif);font-size:24px;font-weight:700;color:var(--gold-light);margin-bottom:6px;line-height:1}\n.room-cat{font-family:var(--sans);font-size:10px;color:var(--tx3);margin-bottom:2px;letter-spacing:.02em}\n.room-price{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--tx2);margin-top:6px;border-top:1px solid var(--br2);padding-top:6px}\n.card:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,0,0,.35)}.card-hd{padding:14px 18px;border-bottom:1px solid var(--br2);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:48px;background:var(--s4)}\n.card-title{font-family:var(--serif);font-size:16px;font-weight:700;color:var(--tx);letter-spacing:.01em}\n.card-title em{font-style:italic;color:var(--gold);font-weight:400}\n.card-body{padding:16px 18px}\n\n/* ── STATS ── */\n.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}\n.stat{background:var(--s2);border:1px solid var(--br);border-top:3px solid var(--ac,var(--gold-light));padding:16px 18px;position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s;cursor:default}\n.stat:hover{box-shadow:0 4px 24px rgba(200,169,110,.15),0 2px 8px rgba(0,0,0,.4);transform:translateY(-2px)}\n.stat-ico{font-size:18px;margin-bottom:8px;opacity:.75}\n.stat-lbl{font-family:var(--sans);font-size:8px;letter-spacing:.16em;color:var(--tx3);text-transform:uppercase;margin-bottom:6px;font-weight:500}\n.stat-val{font-family:var(--serif);font-size:28px;color:var(--tx);line-height:1;font-weight:700}\n.stat-sub{font-family:var(--sans);font-size:11px;color:var(--tx2);margin-top:4px;font-weight:400}\n\n/* ── BUTTONS ── */\n.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 18px;font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}\n.btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important}\n.btn-gold{background:var(--s1);color:var(--gold-light);border:2px solid var(--s1)}\n.btn-gold:hover:not(:disabled){background:var(--gold2);color:var(--gold-light);border-color:var(--gold2)}\n.btn-ghost{background:transparent;color:var(--tx2);border:1px solid var(--br)}\n.btn-ghost:hover:not(:disabled){background:var(--s3);color:var(--tx);border-color:var(--br)}\n.btn-danger{background:rgba(185,28,28,.06);color:var(--rose);border:1px solid rgba(185,28,28,.2)}\n.btn-danger:hover:not(:disabled){background:rgba(185,28,28,.12)}\n.btn-success{background:rgba(21,128,61,.06);color:var(--grn);border:1px solid rgba(21,128,61,.2)}\n.btn-success:hover:not(:disabled){background:rgba(21,128,61,.12)}\n.btn-info{background:rgba(29,78,216,.06);color:var(--sky);border:1px solid rgba(29,78,216,.2)}\n.btn-sm{padding:4px 11px;font-size:9.5px}\n\n/* ── BADGES ── */\n.badge{display:inline-flex;align-items:center;padding:2px 9px;font-family:var(--sans);font-size:9px;letter-spacing:.06em;font-weight:600;white-space:nowrap;text-transform:uppercase}\n.bg  {background:rgba(74,222,128,.12);color:var(--grn); border:1px solid rgba(74,222,128,.35)}\n.bb  {background:rgba(96,165,250,.12);color:var(--sky); border:1px solid rgba(96,165,250,.35)}\n.ba  {background:rgba(252,211,77,.1); color:var(--amb); border:1px solid rgba(252,211,77,.35)}\n.br_ {background:rgba(248,113,113,.1);color:var(--rose);border:1px solid rgba(248,113,113,.35)}\n.bgold{background:rgba(200,169,110,.12);color:var(--gold);border:1px solid rgba(200,169,110,.35)}\n.bteal{background:rgba(45,212,191,.1); color:var(--teal);border:1px solid rgba(45,212,191,.35)}\n\n/* ── TABLES ── */\n.tbl{width:100%;border-collapse:collapse}\n.tbl th{font-family:var(--sans);font-size:8px;letter-spacing:.16em;color:var(--tx3);text-transform:uppercase;padding:10px 12px;text-align:left;border-bottom:1px solid rgba(200,169,110,.35);white-space:nowrap;font-weight:600;background:var(--s4)}\n.tbl td{padding:10px 12px;border-bottom:1px solid var(--br2);font-family:var(--sans);font-size:12.5px;font-weight:400;color:var(--tx);vertical-align:middle}\n.tbl tr:last-child td{border-bottom:none}\n.tbl tr:hover td{background:var(--s3)}\n.tbl-wrap{overflow-x:auto}\n\n/* ── FORMS ── */\n.finput{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(200,169,110,.25);color:var(--tx);font-family:var(--sans);font-size:13px;font-weight:400;padding:9px 12px;outline:none;transition:border-color .15s,box-shadow .15s}\n.finput:focus{border-color:var(--gold-light);box-shadow:0 0 0 3px rgba(200,169,110,.12)}\n.finput::placeholder{color:var(--tx3);font-weight:300}\n.finput:disabled{background:rgba(0,0,0,.4);color:var(--tx3);cursor:not-allowed}\n.fselect{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(200,169,110,.25);color-scheme:dark;color:var(--tx);font-family:var(--sans);font-size:13px;font-weight:400;padding:9px 12px;outline:none;cursor:pointer;transition:border-color .15s;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C8A96E' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}\n.fselect:focus{border-color:var(--gold-light)}.fselect option{background:#1C1510;color:#EEE8DC}\n.flbl{display:block;font-family:var(--sans);font-size:9px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase;font-weight:600;margin-bottom:5px}\n.fg{flex:1;min-width:0;margin-bottom:12px}\n.frow{display:flex;gap:12px;flex-wrap:wrap}\n.frow>.fg{flex:1;min-width:140px}\n\n/* ── MODALS ── */\n.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(2px)}\n.modal{background:var(--s2);border:1px solid var(--br);border-top:4px solid var(--gold-light);width:100%;max-width:540px;max-height:92vh;overflow-y:auto;background:#1C1510;box-shadow:0 24px 80px rgba(28,21,16,.25);animation:mIn .2s ease}\n.modal-w{max-width:820px}\n@keyframes mIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}\n.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(200,169,110,.18);background:rgba(200,169,110,.07);flex-shrink:0}\n.modal-title{font-family:var(--serif);font-size:18px;font-weight:700;color:var(--tx)}\n.modal-x{background:none;border:none;cursor:pointer;color:var(--tx3);font-size:20px;line-height:1;padding:2px 6px;transition:color .15s}\n.modal-x:hover{color:var(--rose)}\n.modal-body{padding:20px}\n.modal-ft{padding:14px 20px;border-top:1px solid rgba(200,169,110,.18);display:flex;justify-content:flex-end;gap:8px;background:rgba(200,169,110,.05)}\n\n/* ── TABS ── */\n.tabs{display:flex;gap:0;border-bottom:2px solid var(--s1);margin-bottom:16px;overflow-x:auto}\n.tab{padding:9px 18px;font-family:var(--sans);font-size:11px;font-weight:500;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap}\n.tab:hover{color:var(--tx);background:var(--s3)}\n.tab.on,.tab.active{color:var(--gold);font-weight:700;border-bottom-color:var(--gold);background:var(--s4)}\n\n/* ── INFO BOX ── */\n.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}\n.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}\n.info-box{background:var(--s4);border:1px solid var(--br2);padding:10px 12px}\n.info-lbl{font-family:var(--sans);font-size:8px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase;font-weight:600;margin-bottom:4px}\n.info-val{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--tx)}\n\n/* ── AVATAR ── */\n.av{display:inline-flex;align-items:center;justify-content:center;font-family:var(--sans);font-weight:700;font-size:12px;color:#fff;flex-shrink:0;text-transform:uppercase;letter-spacing:.04em}\n\n/* ── TOAST ── */\n.toast{position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--s1);color:var(--gold-light);padding:12px 20px;border-left:4px solid var(--gold-light);font-family:var(--sans);font-size:12.5px;font-weight:500;box-shadow:0 8px 32px rgba(28,21,16,.3);animation:mIn .2s ease;max-width:320px;letter-spacing:.02em}\n.toast.err{border-left-color:var(--rose);color:var(--rose)}\n.toast.inf{border-left-color:var(--sky);color:var(--sky)}\n\n/* ── SEARCH ── */\n.srch{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--br);padding:8px 12px;min-width:200px;transition:border-color .15s}\n.srch:focus-within{border-color:var(--s1)}\n.srch input{background:none;border:none;outline:none;color:var(--tx);font-family:var(--sans);font-size:12.5px;font-weight:400;flex:1;min-width:0}\n.srch input::placeholder{color:var(--tx3);font-weight:300}\n\n/* ── SPINNER ── */\n.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(28,21,16,.15);border-top-color:var(--s1);border-radius:50%;animation:spin .7s linear infinite}\n@keyframes spin{to{transform:rotate(360deg)}}\n\n/* ── UTILITIES ── */\n.flex{display:flex}.fac{align-items:center}.fjb{justify-content:space-between}.fje{justify-content:flex-end}\n.gap2{gap:8px}.gap3{gap:12px}.gap4{gap:16px}\n.mb2{margin-bottom:8px}.mb3{margin-bottom:12px}.mb4{margin-bottom:16px}\n.mt2{margin-top:8px}.mt3{margin-top:12px}.mt4{margin-top:16px}\n.pb4{padding-bottom:16px}.pt4{padding-top:16px}\n.bold{font-weight:700}.sm{font-size:12px}.xs{font-size:11px}\n.mono{font-family:var(--mono)}.muted{color:var(--tx3)}.gold{color:var(--gold)}.w100{width:100%}\n.divider{border:none;border-top:1px solid var(--br2);margin:8px 0}\n.folio-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--br2);font-size:12.5px}\n.folio-row:last-child{border-bottom:none}\n.folio-total{display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding-top:8px;color:var(--tx)}\n.tbl-wrap{overflow-x:auto}\n\n/* ── BAR CHART ── */\n.bar-chart{display:flex;align-items:flex-end;gap:3px;height:80px;padding:4px 0}\n.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}\n.bar-fill{width:100%;background:var(--br);transition:height .3s,background .2s;min-height:2px}\n.bar-col:hover .bar-fill{background:var(--gold)!important}\n.bar-lbl{font-family:var(--mono);font-size:7px;color:var(--tx3);text-align:center}\n\n/* ── LOGIN PAGE ── */\n/* ── LOGIN PAGE — GILDED THRESHOLD ── */\n.login-bg{min-height:100vh;display:flex;flex-direction:row;overflow:hidden;background:#1A1816}\n/* LEFT PANEL */\n.lp-left{width:42%;flex-shrink:0;background:#1A1816;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:52px 60px;overflow:hidden}\n.lp-left::before{content:'';position:absolute;inset:0;background-image:url(\"/lp-bg.jpg\");background-size:cover;background-position:center;pointer-events:none}\n.lp-left::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(8,6,4,.88) 0%,rgba(8,6,4,.74) 35%,rgba(8,6,4,.80) 70%,rgba(8,6,4,.90) 100%);pointer-events:none}\n/* top / bottom bars inside left panel */\n.lp-bar{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:2;pointer-events:none}\n.lp-bar.top{top:0;padding-top:22px}\n.lp-bar.bot{bottom:0;padding-bottom:18px}\n.lp-rule{width:calc(100% - 100px);height:1px;background:linear-gradient(90deg,transparent,rgba(197,160,89,.9),transparent)}\n.lp-rule.dim{background:linear-gradient(90deg,transparent,rgba(197,160,89,.5),transparent)}\n.lp-label{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:rgba(197,160,89,.95);text-transform:uppercase}\n/* LOGO */\n.lp-logo-wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;margin-bottom:20px}\n.lp-logo-img{width:260px;height:auto;filter:drop-shadow(0 0 32px rgba(197,160,89,.6)) brightness(1.15);display:block;mix-blend-mode:screen}\n.lp-brand-sub{font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:rgba(197,160,89,.9);text-transform:uppercase;margin-top:12px;text-align:center}\n/* feature list */\n.lp-features{position:relative;z-index:2;width:100%;margin-top:28px;display:flex;flex-direction:column;gap:0}\n.lp-feat{padding:14px 0;border-bottom:1px solid rgba(197,160,89,.1);display:flex;align-items:flex-start;gap:14px}\n.lp-feat:first-child{border-top:1px solid rgba(197,160,89,.1)}\n.lp-feat-bullet{width:6px;height:6px;background:#E8C278;transform:rotate(45deg);flex-shrink:0;margin-top:6px;box-shadow:0 0 6px rgba(197,160,89,.6)}\n.lp-feat-text{}\n.lp-feat-title{font-family:var(--sans);font-size:12.5px;font-weight:700;color:#FFFFFF;letter-spacing:.02em;margin-bottom:2px;text-shadow:0 1px 8px rgba(0,0,0,.8)}\n.lp-feat-desc{font-family:var(--mono);font-size:10.5px;color:rgba(220,200,160,.85);letter-spacing:.02em}\n/* RIGHT PANEL */\n.lp-right{flex:1;background:#1C1510;display:flex;align-items:center;justify-content:center;position:relative}\n.lp-right::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(200,169,110,.12) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}\n.lp-right-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:20px 40px;pointer-events:none}\n.lp-right-meta{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:rgba(200,169,110,.55);text-transform:uppercase}\n.lp-right-ver{font-family:var(--mono);font-size:9.5px;color:rgba(200,169,110,.55);letter-spacing:.1em}\n.lp-right-bot{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:rgba(200,169,110,.4);letter-spacing:.18em;text-transform:uppercase;pointer-events:none}\n/* divider between panels */\n.lp-vdivide{position:absolute;left:0;top:40px;bottom:40px;width:1px;background:linear-gradient(to bottom,transparent,rgba(197,160,89,.35) 20%,rgba(197,160,89,.35) 80%,transparent)}\n/* CARD */\n.login-card{background:#262626;border-radius:4px;border-top:5px solid #C5A059;box-shadow:0 24px 80px rgba(0,0,0,.55),0 4px 12px rgba(40,34,28,.08);padding:48px 48px 40px;width:100%;max-width:500px;position:relative;z-index:1;animation:mIn .35s ease}\n.lc-inner-top{height:1px;background:rgba(200,169,110,.25);margin-bottom:30px}\n.lc-signin-label{font-family:var(--mono);font-size:10px;letter-spacing:.28em;color:rgba(197,160,89,.8);text-transform:uppercase;text-align:center;margin-bottom:6px}\n.lc-ornament{text-align:center;color:rgba(197,160,89,.4);font-size:10px;margin-bottom:22px}\n/* ROLE GRID */\n.role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:28px}\n.rpill{padding:14px 8px 12px;border:1px solid rgba(200,169,110,.2);background:#2A2420;cursor:pointer;transition:all .18s cubic-bezier(.4,0,.2,1);text-align:center;color:var(--tx-inv);font-family:var(--sans);border-radius:3px;position:relative;overflow:hidden}\n.rpill::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:#C5A059;transform:scaleX(0);transition:transform .18s cubic-bezier(.4,0,.2,1)}\n.rpill:hover{border-color:rgba(200,169,110,.5);background:#333028}\n.rpill.sel{border-color:var(--gold-light);background:#1C1510;color:#F9F7F2}\n.rpill.sel::before{transform:scaleX(1)}\n.rpill .ri{font-size:20px;margin-bottom:6px;display:block}\n.rpill .rl{font-size:9.5px;letter-spacing:.06em;font-weight:600;text-transform:uppercase;color:inherit}\n.rpill.sel .rl{color:rgba(197,160,89,.9)}\n/* EMAIL DISPLAY */\n.lc-email-display{margin-bottom:22px}\n.lc-email-lbl{font-family:var(--sans);font-size:8.5px;font-weight:700;letter-spacing:.16em;color:rgba(200,169,110,.65);text-transform:uppercase;margin-bottom:6px}\n.lc-email-val{font-family:var(--sans);font-size:15.5px;color:#EEE8DC;font-weight:400;padding-bottom:8px;border-bottom:1.5px solid #C8A96E;display:flex;justify-content:space-between;align-items:baseline}\n.lc-change{font-family:var(--serif);font-size:11px;font-style:italic;color:rgba(197,160,89,.7);cursor:pointer}\n/* override finput focus */\n.login-card .finput:focus{border-color:var(--gold);outline:none;box-shadow:none}\n/* button override */\n.login-card .btn-gold{justify-content:center;padding:15px;font-size:10px;letter-spacing:.22em;margin-top:6px;border-radius:3px}\n/* error */\n.lc-error{background:rgba(224,92,122,.06);border:1px solid rgba(224,92,122,.18);padding:10px 14px;font-family:var(--sans);font-size:11px;color:var(--rose);margin-bottom:14px;border-radius:2px;letter-spacing:.02em}\n\n/* ── GUEST SEARCH ── */\n.gsearch-wrap{position:relative}\n.gsearch-list{position:absolute;top:calc(100% + 2px);left:0;right:0;background:#1C1510;border:1px solid rgba(200,169,110,.25);border-top:2px solid var(--gold-light);z-index:500;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}\n.gsearch-item{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:12.5px;transition:background .12s;border-bottom:1px solid var(--br2)}\n.gsearch-item:last-child{border-bottom:none}\n.gsearch-item:hover{background:var(--s3)}\n\n/* ── NOTIFICATION PANEL ── */\n.notif-panel{position:absolute;top:58px;right:12px;width:320px;background:#1C1510;border:1px solid rgba(200,169,110,.25);border-top:3px solid var(--gold-light);box-shadow:0 16px 48px rgba(0,0,0,.5);z-index:200;animation:mIn .2s ease}\n\n",_isRealPayment=e=>/payment|settlement|advance|deposit|bkash|bank\s*transfer/i.test(e.type||"")&&!/balance carried forward/i.test(e.type||""),_bizDayTotalFn=e=>{const t={};return e.forEach(e=>{if(/balance carried forward/i.test(e.type||""))return;const a=`${e.room_number||""}|${e.guest_name||""}`;t[a]||(t[a]={pay:0,fsPos:0,hasReal:!1});const n=+e.amount||0;_isRealPayment(e)?(t[a].pay+=n,t[a].hasReal=!0):/final\s*settlement/i.test(e.type||"")&&n>0&&(t[a].fsPos+=n)}),Object.values(t).reduce((e,t)=>e+(t.hasReal?t.pay:t.fsPos),0)};function Toast({msg:e,type:t,onDone:a}){return useEffect(()=>{const e=setTimeout(a,3400);return()=>clearTimeout(e)},[]),React.createElement("div",{className:"toast"+("error"===t?" err":"info"===t?" inf":"")},"error"===t?"⚠ ":"✓ ",e)}function Av({name:e,size:t=32}){return React.createElement("div",{className:"av",style:{width:t,height:t,fontSize:.33*t,background:`linear-gradient(135deg,${avColor(e)},rgba(0,0,0,.4))`,color:"#EEE9E2"}},initials(e))}function SBadge({status:e}){return React.createElement("span",{className:`badge ${{CHECKED_IN:"bb",RESERVED:"bteal",PENDING:"ba",CHECKED_OUT:"bgold",CANCELLED:"br_",confirmed:"bg",pending:"ba","in-progress":"ba",completed:"bg",high:"br_",medium:"ba",low:"bg"}[e]||"bgold"}`},String(e).replace(/_/g," "))}function Modal({title:e,onClose:t,children:a,footer:n,wide:r}){return useEffect(()=>{const e=e=>{"Escape"===e.key&&t()};return document.addEventListener("keydown",e),()=>document.removeEventListener("keydown",e)},[]),React.createElement("div",{className:"modal-bg",onClick:t},React.createElement("div",{className:"modal"+(r?" modal-w":""),onClick:e=>e.stopPropagation()},React.createElement("div",{className:"modal-hd"},React.createElement("div",{className:"modal-title"},e),React.createElement("button",{className:"modal-x",onClick:t},"×")),React.createElement("div",{className:"modal-body"},a),n&&React.createElement("div",{className:"modal-ft"},n)))}function BarChart({data:e,active:t,onHover:a}){const n=Math.max(...e.map(e=>e.v),1),r=useRef(null);return useEffect(()=>{if("undefined"==typeof gsap||!r.current)return;const e=r.current.querySelectorAll(".bar-fill");gsap.from(e,{scaleY:0,transformOrigin:"bottom center",stagger:.04,duration:.65,ease:"power3.out"})},[e.length]),React.createElement("div",{className:"bar-chart",ref:r},e.map((e,r)=>React.createElement("div",{key:r,className:"bar-col",onMouseEnter:()=>a(r),title:`${e.ds}: ${BDT(e.v)}`},React.createElement("div",{className:"bar-fill",style:{height:`${Math.max(3,e.v/n*76)}px`,background:r===t?"var(--gold)":"rgba(200,169,110,.28)"}}),React.createElement("span",{className:"bar-lbl"},e.d))))}function LoginPage({onLogin:e,staffList:t}){useEffect(()=>{"undefined"!=typeof gsap&&(gsap.set(".lp-left",{opacity:0,x:-50}),gsap.set(".lp-right",{opacity:0,x:50}),gsap.set(".login-card",{opacity:0,y:30,scale:.97}),gsap.to(".lp-left",{opacity:1,x:0,duration:.9,ease:"power3.out"}),gsap.to(".lp-right",{opacity:1,x:0,duration:.9,ease:"power3.out"}),gsap.to(".login-card",{opacity:1,y:0,scale:1,duration:.7,ease:"power3.out",delay:.35}),gsap.from(".lp-feat",{x:-22,opacity:0,stagger:.1,duration:.5,ease:"power2.out",delay:.55}))},[]);const[a,n]=useState(null),[r,l]=useState(""),[o,c]=useState(""),[s,i]=useState(!1),[d,m]=useState(""),[p,g]=useState(!1);function u(){if(!r||!o)return m("Please enter your email and password.");g(!0),_hashPw(o).then(a=>{const n=t.find(e=>e.email.toLowerCase()===r.trim().toLowerCase()&&e.pwh===a);n?e({...n}):(m("Invalid email or password."),g(!1))})}return React.createElement("div",{className:"login-bg"},React.createElement("div",{className:"lp-left"},React.createElement("div",{className:"lp-bar top"},React.createElement("div",{className:"lp-rule"}),React.createElement("div",{className:"lp-label"},"Staff Portal · ",_HNAME),React.createElement("div",{className:"lp-rule dim"})),React.createElement("div",{className:"lp-logo-wrap"},React.createElement("img",{src:"/lp-logo.png",alt:_HNAME,className:"lp-logo-img"}),React.createElement("div",{className:"lp-brand-sub"},"Management CRM · Powered by Lumea")),React.createElement("div",{className:"lp-features"},[["Room Matrix","Live availability & status grid"],["Guest Ledger","Automated billing in BDT"],["Reservation Engine","Full booking lifecycle"]].map(([e,t])=>React.createElement("div",{key:e,className:"lp-feat"},React.createElement("div",{className:"lp-feat-bullet"}),React.createElement("div",{className:"lp-feat-text"},React.createElement("div",{className:"lp-feat-title"},e),React.createElement("div",{className:"lp-feat-desc"},t))))),React.createElement("div",{className:"lp-bar bot"},React.createElement("div",{className:"lp-rule dim"}),React.createElement("div",{className:"lp-label"},"Lumea · The Pulse of Modern Hospitality"),React.createElement("div",{className:"lp-rule"}))),React.createElement("div",{className:"lp-right"},React.createElement("div",{className:"lp-vdivide"}),React.createElement("div",{className:"lp-right-top"},React.createElement("span",{className:"lp-right-meta"},"Secure Staff Portal"),React.createElement("span",{className:"lp-right-ver"},"v2.4.1")),React.createElement("div",{className:"login-card"},React.createElement("form",{onSubmit:e=>{e.preventDefault(),u()},autoComplete:"off"},React.createElement("div",{className:"lc-inner-top"}),React.createElement("div",{className:"lc-signin-label"},"Sign In"),React.createElement("div",{className:"lc-ornament"},"◆ · ◆ · ◆"),React.createElement("div",{className:"role-grid"},[{key:"owner",ico:"👑",label:"Founder / Owner"},{key:"receptionist",ico:"🛎️",label:"Receptionist"},{key:"housekeeping",ico:"🧹",label:"Housekeeping"}].map(e=>React.createElement("div",{key:e.key,className:"rpill"+(a===e.key?" sel":""),onClick:()=>function(e){n(e);const a=t.find(t=>t.role===e);a&&l(a.email),c(""),m("")}(e.key)},React.createElement("span",{className:"ri"},e.ico),React.createElement("span",{className:"rl"},e.label)))),React.createElement("div",{className:"lc-email-display"},React.createElement("div",{className:"lc-email-lbl"},"Email"),a?React.createElement("div",{className:"lc-email-val"},React.createElement("span",null,t.find(e=>e.role===a)?.email),React.createElement("span",{className:"lc-change",onClick:()=>{n(null),l(""),m("")}},"change")):React.createElement("input",{className:"finput",type:"email",value:r,onChange:e=>{l(e.target.value),m("")},onKeyDown:e=>"Enter"===e.key&&u(),placeholder:"your@email.com",autoComplete:"off","data-form-type":"other",style:{borderBottom:"1.5px solid #C5A059",borderTop:"none",borderLeft:"none",borderRight:"none",borderRadius:0,background:"transparent",paddingLeft:0}})),React.createElement("div",{className:"fg",style:{marginBottom:8}},React.createElement("label",{className:"flbl"},"Password"),React.createElement("div",{style:{position:"relative"}},React.createElement("input",{className:"finput",type:s?"text":"password",value:o,onChange:e=>{c(e.target.value),m("")},onKeyDown:e=>"Enter"===e.key&&u(),placeholder:"Enter your password",autoComplete:"new-password","data-form-type":"other",style:{paddingRight:40}}),React.createElement("span",{style:{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",cursor:"pointer",fontSize:13,color:"var(--tx3)",userSelect:"none"},onClick:()=>i(e=>!e)},s?"🙈":"👁"))),d&&React.createElement("div",{className:"lc-error"},d),React.createElement("button",{className:"btn btn-gold w100 login-card",style:{justifyContent:"center",padding:"14px",fontSize:10,letterSpacing:".22em",marginTop:10,borderRadius:3,background:"#2D2A26",color:"#F9F7F2",border:"none"},disabled:p,onClick:u},p?React.createElement(React.Fragment,null,React.createElement("span",{className:"spinner",style:{width:12,height:12,border:"1.5px solid rgba(249,247,242,.2)",borderTopColor:"#F9F7F2"}})," ","Signing in…"):"SIGN IN →"),React.createElement("div",{style:{textAlign:"center",marginTop:28,fontFamily:"var(--mono)",fontSize:9,color:"rgba(150,135,112,.55)",letterSpacing:".14em",lineHeight:1.7}},"Access is role-restricted.",React.createElement("br",null),"Contact your administrator if you have not received credentials."))),React.createElement("div",{className:"lp-right-bot"},"Lumea · ",_HNAME," Management CRM")))}function Dashboard({rooms:e,guests:t,reservations:a,transactions:n,setPage:r,businessDate:l}){const[o,c]=useState(13),s=l||todayStr(),i=e.filter(e=>"OCCUPIED"===e.status).length,d=e.length?Math.round(i/e.length*100):0,m={};for(const e of n){if(!e.guest_name||!e.fiscal_day)continue;const t=`${e.guest_name}__${e.fiscal_day}`;m[t]||(m[t]={...e,amount:0,type:[],due:0,paid:0,id:[]}),m[t].amount+=Number(e.amount)||0,m[t].due+=Number(e.due)||0,m[t].paid+=Number(e.paid)||0,e.type&&!m[t].type.includes(e.type)&&m[t].type.push(e.type),e.id&&!m[t].id.includes(e.id)&&m[t].id.push(e.id)}const p=Object.values(m).map(e=>({...e,type:e.type.join(", "),id:e.id.join(", ")})),g=(p.filter(e=>e.fiscal_day===s),_bizDayTotalFn((n||[]).filter(e=>e.fiscal_day===s))),u=a.filter(e=>"CHECKED_IN"===e.status).length,f=a.filter(e=>"PENDING"===e.status).length,b=Array.from({length:14},(e,t)=>{const a=new Date(todayDhaka());a.setDate(a.getDate()-(13-t));const n=`${a.getFullYear()}-${String(a.getMonth()+1).padStart(2,"0")}-${String(a.getDate()).padStart(2,"0")}`;return{d:n.slice(8),v:p.filter(e=>e.fiscal_day===n).reduce((e,t)=>e+(+t.amount||0),0),ds:n}}),v=a.filter(e=>"CHECKED_IN"===e.status).slice(0,6);useEffect(()=>{"undefined"!=typeof gsap&&(gsap.from(".stats-row .stat",{opacity:0,y:28,stagger:.1,duration:.6,ease:"power3.out",clearProps:"all"}),gsap.from(".g2 .card",{opacity:0,y:18,stagger:.08,duration:.55,ease:"power3.out",delay:.2,clearProps:"all"}),setTimeout(()=>{document.querySelectorAll(".stat-val").forEach(e=>{const t=e.textContent.trim().match(/^([^\d]*)([0-9,]+)(.*)$/);if(!t)return;const[,a,n,r]=t,l=parseFloat(n.replace(/,/g,""));if(isNaN(l)||0===l)return;const o={v:0};gsap.to(o,{v:l,duration:1.4,ease:"power2.out",onUpdate(){e.textContent=a+Math.round(o.v).toLocaleString("en-BD")+r}})})},150))},[g,d,u,f]);const y=e=>{const a=String((e||[])[0]||""),n=t.find(e=>String(e.id)===a);return n?n.name:"Unknown"};return React.createElement("div",null,React.createElement("div",{className:"stats-row"},[{lbl:"Today's Revenue",val:BDT(g),ico:"💰",sub:`${a.filter(e=>"CHECKED_IN"===e.status).length} in-house`,ac:"var(--gold)"},{lbl:"Occupancy",val:`${d}%`,ico:"🛏",sub:`${i}/${e.length} rooms occupied`,ac:"var(--sky)"},{lbl:"In-House Guests",val:u,ico:"👥",sub:"Currently checked in",ac:"var(--teal)"},{lbl:"Pending",val:f,ico:"📅",sub:"Awaiting confirmation",ac:"var(--rose)"}].map(e=>React.createElement("div",{key:e.lbl,className:"stat",style:{"--ac":e.ac}},React.createElement("div",{className:"stat-ico"},e.ico),React.createElement("div",{className:"stat-lbl"},e.lbl),React.createElement("div",{className:"stat-val"},e.val),React.createElement("div",{className:"stat-sub"},e.sub)))),React.createElement("div",{className:"g2 mb4"},React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Revenue — Last 14 Days"),React.createElement("span",{className:"badge bgold"},b[o]?.ds?.slice(5)," · ",BDT(b[o]?.v))),React.createElement("div",{className:"card-body"},React.createElement(BarChart,{data:b,active:o,onHover:c}))),React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Room Status Overview")),React.createElement("div",{className:"card-body"},[["AVAILABLE","grn"],["OCCUPIED","sky"],["DIRTY","amb"],["OUT_OF_ORDER","rose"],["RESERVED","pur"]].map(([t,a])=>{const n=e.filter(e=>e.status===t).length;return React.createElement("div",{key:t,className:"flex fac fjb",style:{padding:"5px 0",borderBottom:"1px solid var(--br2)"}},React.createElement("div",{className:"flex fac gap2"},React.createElement("span",{className:`rdot ${t}`}),React.createElement("span",{className:"xs"},t.replace("_"," "))),React.createElement("div",{className:"flex fac gap2"},React.createElement("span",{className:"xs gold"},n),React.createElement("div",{style:{height:4,width:e.length?Math.round(n/e.length*80):2,background:`var(--${a})`,borderRadius:2}})))})))),React.createElement("div",{className:"g2"},React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Currently In-House"),React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:()=>r("reservations")},"View All →")),React.createElement("div",{className:"card-body",style:{padding:"6px 13px"}},0===v.length?React.createElement("div",{style:{padding:"18px 0",textAlign:"center",color:"var(--tx3)",fontSize:12}},"No active check-ins"):v.map(e=>React.createElement("div",{key:e.id,className:"flex fac gap2",style:{padding:"8px 0",borderBottom:"1px solid var(--br2)"}},React.createElement(Av,{name:y(e.guest_ids),size:28}),React.createElement("div",{style:{flex:1,minWidth:0}},React.createElement("div",{style:{fontSize:12,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},y(e.guest_ids)),React.createElement("div",{className:"xs muted"},"Rm ",(e.room_ids||[]).join(",")," · Out: ",fmtDate(e.check_out))),React.createElement("span",{className:"badge bb"},BDT(e.total_amount)))))),React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Recent Transactions"),React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:()=>r("billing")},"View All →")),React.createElement("div",{className:"card-body",style:{padding:"6px 13px"}},p.slice(0,8).map(e=>React.createElement("div",{key:e.id,className:"flex fac fjb",style:{padding:"6px 0",borderBottom:"1px solid var(--br2)"}},React.createElement("div",{style:{flex:1,minWidth:0}},React.createElement("div",{className:"xs",style:{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},e.guest_name||"—"),React.createElement("div",{className:"xs muted"},"Rm ",e.room_number||"?"," · ",e.type||"Payment")),React.createElement("span",{className:"xs gold"},BDT(e.amount))))))))}function RoomsPage({rooms:e,guests:t,reservations:a,toast:n,currentUser:r,reload:l,businessDate:o}){const[c,s]=useState("ALL"),[i,d]=useState(null),[m,p]=useState(!1),g=["owner","manager","receptionist"].includes(r?.role),u="housekeeping"===r?.role,f="owner"===r?.role,b=e.reduce((e,t)=>(e[t.status]=(e[t.status]||0)+1,e),{}),v="ALL"===c?e:e.filter(e=>e.status===c);return React.createElement("div",null,React.createElement("div",{className:"flex fac fjb mb4",style:{flexWrap:"wrap",gap:8}},React.createElement("div",{className:"tabs",style:{marginBottom:0}},["ALL","AVAILABLE","OCCUPIED","DIRTY","OUT_OF_ORDER","RESERVED"].map(t=>React.createElement("button",{key:t,className:"tab"+(c===t?" on":""),onClick:()=>s(t)},"ALL"===t?`All (${e.length})`:`${t.replace("_"," ")} (${b[t]||0})`))),f&&React.createElement("button",{className:"btn btn-gold",onClick:()=>p(!0)},"+ Add Room")),React.createElement("div",{className:"flex fac gap3 mb4",style:{flexWrap:"wrap"}},[["AVAILABLE","grn"],["OCCUPIED","sky"],["DIRTY","amb"],["OUT_OF_ORDER","rose"],["RESERVED","pur"]].map(([e])=>React.createElement("span",{key:e,className:"flex fac xs muted"},React.createElement("span",{className:`rdot ${e}`}),e.replace("_"," "))),React.createElement("span",{className:"xs muted",style:{marginLeft:4}},"· Click room to open folio/billing")),React.createElement("div",{className:"rooms-grid"},v.map(e=>React.createElement("div",{key:e.id,className:`room-card ${e.status}`,onClick:()=>d(e)},"OCCUPIED"===e.status&&React.createElement("div",{style:{position:"absolute",top:5,right:5,fontSize:7,background:"rgba(88,166,255,.25)",color:"var(--sky)",borderRadius:3,padding:"1px 5px",border:"1px solid rgba(88,166,255,.3)"}},"FOLIO"),React.createElement("div",{className:"room-no"},e.room_number),React.createElement("div",{className:"flex fac",style:{marginBottom:4}},React.createElement("span",{className:`rdot ${e.status}`}),React.createElement("span",{className:"room-cat"},e.status.replace("_"," "))),React.createElement("div",{className:"room-cat"},e.category||"Standard"),React.createElement("div",{className:"room-price"},BDT(e.price),"/night")))),i&&React.createElement(RoomModal,{key:i.id,room:i,guests:t,reservations:a,rooms:e,canEdit:g,canHKStatus:u,isSA:f,toast:n,businessDate:o,onClose:()=>d(null),reload:()=>{l(),d(null)}}),m&&f&&React.createElement(AddRoomModal,{toast:n,onClose:()=>p(!1),reload:l,rooms:e}))}function RoomModal({room:e,guests:t,reservations:a,rooms:n,canEdit:r,canHKStatus:l,isSA:o,toast:c,onClose:s,reload:i,businessDate:d}){const[m,p]=useState(e.status),[g,u]=useState([]),[f,b]=useState(!0),[v,y]=useState(!1),[E,h]=useState(!1),[R,x]=useState(!1),[N,S]=useState(""),[k,_]=useState(!1),w=a.find(t=>(t.room_ids||[]).includes(e.room_number)&&"CHECKED_IN"===t.status),C=w?t.find(e=>String(e.id)===String((w.guest_ids||[])[0]||"")):null;useEffect(()=>{if(u([]),b(!0),!w?.id)return void b(!1);let e=!1;const t=w.id;return db("folios",`?reservation_id=eq.${t}&order=created_at`).then(a=>{if(e)return;const n=(Array.isArray(a)?a:[]).filter(e=>String(e.reservation_id)===String(t));u(n),b(!1)}).catch(()=>{e||b(!1)}),()=>{e=!0}},[w?.id]);const A=+e.price||0,D=w?nightsCount(w.check_in,w.check_out):0,T=A*D,z=/receivable|payment|settlement|advance|refund/i,B=g.filter(e=>!z.test(String(e.category||"")+" "+String(e.description||""))),$=T+B.reduce((e,t)=>e+(+t.amount||0),0),F=+(w?.discount_amount||w?.discount||0),I=(w?.room_ids||[]).filter(Boolean),P=I.length>1,L=P?I.reduce((e,t)=>e+(+(n||[]).find(e=>String(e.room_number)===String(t))?.price||0),0):A,O=P&&L>0?Math.round(F*(A/L)):F,M=Math.max(0,$-O),j=+(w?.paid_amount||0),H=P&&L>0?Math.round(j*(A/L)):j,W=Math.max(0,M-H);return React.createElement(Modal,{title:`Room ${e.room_number} — ${e.category||"Standard"}`,onClose:s,wide:!!w,footer:React.createElement("div",{className:"flex gap2",style:{flexWrap:"wrap",width:"100%"}},w&&r&&React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-info btn-sm",onClick:()=>y(!0)},"+ Add Charge"),React.createElement("button",{className:"btn btn-danger btn-sm",onClick:()=>h(!0)},"🚪 Check Out")),React.createElement("div",{style:{flex:1}}),(r||l)&&React.createElement("button",{className:"btn btn-gold btn-sm",disabled:R||!r&&l&&"DIRTY"!==e.status,onClick:async function(){x(!0);try{await dbPatch("rooms",e.id,{status:m}),c(`Room ${e.room_number} → ${m}`),i()}catch(e){c(e.message,"error"),x(!1)}}},R?"Saving…":"Save Status"),React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:s},"Close"))},w&&C&&React.createElement("div",{style:{background:"linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))",border:"1px solid rgba(200,169,110,.18)",borderRadius:9,padding:"12px 14px",marginBottom:14}},React.createElement("div",{className:"flex fac fjb",style:{flexWrap:"wrap",gap:8}},React.createElement("div",{className:"flex fac gap3"},React.createElement(Av,{name:C.name,size:40}),React.createElement("div",null,React.createElement("div",{style:{fontWeight:700,fontSize:16}},C.name),React.createElement("div",{className:"xs muted"},"Room ",e.room_number," · ",fmtDate(w.check_in)," → ",fmtDate(w.check_out)),React.createElement("div",{className:"xs",style:{color:"var(--amb)",marginTop:2}},D," night",1!==D?"s":""," · ",BDT(A),"/night"))),React.createElement("div",{style:{textAlign:"right"}},React.createElement("div",{className:"xs muted"},"Balance Due"),React.createElement("div",{style:{fontWeight:700,fontSize:22,color:W>0?"var(--rose)":"var(--grn)"}},BDT(W))))),w&&React.createElement("div",{style:{background:"var(--s2)",borderRadius:8,border:"1px solid var(--br2)",overflow:"hidden",marginBottom:14}},React.createElement("div",{style:{padding:"7px 12px",background:"rgba(200,169,110,.04)",borderBottom:"1px solid var(--br2)",fontSize:8,letterSpacing:".1em",color:"var(--tx2)",textTransform:"uppercase",display:"flex",justifyContent:"space-between",alignItems:"center"}},React.createElement("span",null,"Folio Charges"),r&&!l&&React.createElement("button",{className:"btn btn-ghost btn-sm",style:{fontSize:10},onClick:()=>y(!0)},"+ Add")),React.createElement("div",{style:{padding:"0 12px"}},f&&React.createElement("div",{className:"xs muted",style:{padding:"12px 0",textAlign:"center"}},"Loading folio…"),!f&&0===B.length&&0===D&&React.createElement("div",{className:"xs muted",style:{padding:"12px 0",textAlign:"center"}},"No extra charges"),!f&&D>0&&React.createElement("div",{className:"folio-row"},React.createElement("div",null,React.createElement("span",null,"Room charge")," ",React.createElement("span",{className:"badge bgold",style:{fontSize:8,marginLeft:6}},D,"×",BDT(A))),React.createElement("span",{className:"xs gold"},BDT(T))),B.map(e=>React.createElement("div",{key:e.id,className:"folio-row"},React.createElement("div",null,React.createElement("span",null,e.description),React.createElement("span",{className:"badge bgold",style:{marginLeft:6,fontSize:8}},e.category)),React.createElement("div",{className:"flex fac gap2"},React.createElement("span",{className:"xs gold"},BDT(e.amount)),o&&React.createElement("button",{style:{background:"none",border:"none",cursor:"pointer",color:"var(--rose)",fontSize:13,padding:"0 2px",lineHeight:1},title:"Delete charge",onClick:async()=>{if(window.confirm("Delete folio charge?"))try{await dbDelete("folios",e.id),u(t=>t.filter(t=>t.id!==e.id)),c("Charge removed")}catch(e){c(e.message,"error")}}},"×"))))),React.createElement("div",{style:{padding:"9px 12px",background:"rgba(200,169,110,.03)",borderTop:"1px solid var(--br2)"}},React.createElement("div",{className:"flex fjb xs muted",style:{marginBottom:3}},React.createElement("span",null,"Subtotal"),React.createElement("span",null,BDT($))),O>0&&React.createElement("div",{className:"flex fjb xs",style:{marginBottom:3,color:"var(--grn)"}},React.createElement("span",null,"Discount",P?" (prorated)":""),React.createElement("span",null,"- ",BDT(O))),React.createElement("div",{className:"divider",style:{margin:"6px 0"}}),React.createElement("div",{className:"flex fjb xs",style:{marginBottom:3,fontWeight:600}},React.createElement("span",null,"Total"),React.createElement("span",null,BDT(M))),React.createElement("div",{className:"flex fjb xs",style:{marginBottom:3,color:"var(--grn)"}},React.createElement("span",null,"Paid",P?" (prorated)":""),React.createElement("span",null,"- ",BDT(H))),React.createElement("div",{className:"divider",style:{margin:"6px 0"}}),React.createElement("div",{className:"flex fjb",style:{fontSize:13,fontWeight:700,color:W>0?"var(--rose)":"var(--grn)"}},React.createElement("span",null,"Balance Due"),React.createElement("span",null,BDT(W))))),w&&r&&React.createElement("div",{style:{background:"rgba(200,169,110,.06)",border:"1px solid var(--br)",padding:"12px 14px",marginBottom:14}},React.createElement("div",{className:"flbl",style:{marginBottom:8}},"💰 Collect Payment"),React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center"}},React.createElement("input",{type:"number",className:"finput",value:N,onChange:e=>S(e.target.value),placeholder:`Due: ${BDT(Math.max(0,M-(+w.paid_amount||0)))}`,style:{flex:1}}),React.createElement("button",{className:"btn btn-gold",disabled:k,onClick:async function(){const t=+N;if(!t||t<=0)return c("Enter valid amount","error");_(!0);try{await dbPatch("reservations",w.id,{paid_amount:t}),await dbPost("transactions",{type:"Advance Payment",amount:t,room_number:e.room_number,guest_name:C?.name,fiscal_day:todayStr(),reservation_id:w?.id||null,tenant_id:TENANT}),c(`৳${t.toLocaleString()} collected`),i()}catch(e){c(e.message,"error")}finally{_(!1)}},style:{whiteSpace:"nowrap"}},k?"Saving…":"Save Payment")),(+w.paid_amount||0)>0&&React.createElement("div",{className:"xs muted",style:{marginTop:6}},"Already paid: ",BDT(w.paid_amount)," · Balance: ",BDT(Math.max(0,M-(+w.paid_amount||0))))),React.createElement("div",{className:"g2 mb4"},[["Category",e.category||"Standard"],["Rate/Night",BDT(e.price)],["Floor",e.floor||e.room_number.slice(0,-2)||"—"],["Beds",e.beds||"Double"]].map(([e,t])=>React.createElement("div",{key:e,className:"info-box"},React.createElement("div",{className:"info-lbl"},e),React.createElement("div",{className:"info-val"},t)))),(r||l)&&React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Change Status"),l&&!r?"DIRTY"===e.status?React.createElement("select",{className:"fselect",value:m,onChange:e=>p(e.target.value)},React.createElement("option",{value:"DIRTY"},"DIRTY"),React.createElement("option",{value:"AVAILABLE"},"AVAILABLE — Mark as Clean")):React.createElement("div",{className:"finput",style:{opacity:.5,cursor:"not-allowed"}},e.status," — No changes allowed"):React.createElement("select",{className:"fselect",value:m,onChange:e=>p(e.target.value)},["AVAILABLE","OCCUPIED","DIRTY","OUT_OF_ORDER","RESERVED"].map(e=>React.createElement("option",{key:e,value:e},e.replace("_"," "))))),v&&React.createElement(AddChargeModal,{roomNo:e.room_number,resId:w?.id,toast:c,onClose:()=>y(!1),onDone:async function(e){if(!w?.id||String(e?.reservation_id)!==String(w.id))return c("Charge rejected: reservation mismatch","error"),void y(!1);u(t=>[...t.filter(t=>t.id!==e.id),e]),c(`Charge ${BDT(e.amount)} added`),y(!1)}}),E&&React.createElement(Modal,{title:"Confirm Guest Checkout",onClose:()=>h(!1),footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:()=>h(!1)},"Cancel"),React.createElement("button",{className:"btn btn-danger",onClick:()=>{!async function(){try{await dbPatch("reservations",w.id,{status:"CHECKED_OUT"}),await dbPatch("rooms",e.id,{status:"DIRTY"}),c(W>0?`${C?.name||"Guest"} checked out · ${BDT(W)} carried to outstanding`:`${C?.name||"Guest"} checked out ✓`),i()}catch(e){c(e.message,"error")}}(),h(!1)}},"✓ Confirm Checkout"))},React.createElement("div",{style:{textAlign:"center",padding:"8px 0 12px"}},React.createElement("div",{style:{fontSize:32,marginBottom:10}},"🚪"),React.createElement("div",{style:{fontWeight:700,fontSize:17,marginBottom:4}},C?.name||"Guest"),React.createElement("div",{className:"xs muted",style:{marginBottom:12}},"Room ",e.room_number," · ",D," night",1!==D?"s":""),[["Total Bill",BDT(M)],["Paid",BDT(H)]].map(([e,t])=>React.createElement("div",{key:e,className:"flex fjb xs muted",style:{maxWidth:240,margin:"3px auto"}},React.createElement("span",null,e),React.createElement("span",null,t))),React.createElement("div",{className:"divider",style:{maxWidth:240,margin:"8px auto"}}),React.createElement("div",{className:"flex fjb",style:{maxWidth:240,margin:"4px auto",fontSize:13,fontWeight:700,color:W>0?"var(--rose)":"var(--grn)"}},React.createElement("span",null,W>0?"Outstanding Due":"Balance"),React.createElement("span",null,BDT(W))),W>0?React.createElement("div",{className:"xs",style:{color:"var(--rose)",marginTop:10,maxWidth:280,margin:"10px auto 0"}},"⚠ ",BDT(W)," will be carried forward as Outstanding Due. No payment will be auto-posted."):React.createElement("div",{className:"xs",style:{color:"var(--grn)",marginTop:10}},"✓ Folio fully settled"),React.createElement("div",{className:"xs muted mt3"},"Room will move to Dirty / Housekeeping"))))}function AddChargeModal({roomNo:e,resId:t,toast:a,onClose:n,onDone:r}){const[l,o]=useState("Room Service"),[c,s]=useState(""),[i,d]=useState(""),[m,p]=useState(!1);return React.createElement(Modal,{title:`Add Charge — Room ${e}`,onClose:n,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:n},"Cancel"),React.createElement("button",{className:"btn btn-gold",disabled:m,onClick:async function(){const n=parseFloat(c);if(!n||n<=0)return a("Enter a valid amount","error");if(!t)return a("No active reservation — cannot add charge","error");p(!0);try{const[a]=await dbPost("folios",{room_number:e,reservation_id:t,description:i||l,category:l,amount:n,tenant_id:TENANT});r(a)}catch(e){a(e.message,"error"),p(!1)}}},m?"Adding…":"Add Charge"))},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Category"),React.createElement("select",{className:"fselect",value:l,onChange:e=>o(e.target.value)},["Room Charge","Room Service","Restaurant","Spa","Minibar","Laundry","Parking","Airport Transfer","Phone","Misc"].map(e=>React.createElement("option",{key:e},e)))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Amount (BDT) *"),React.createElement("input",{type:"number",className:"finput",value:c,onChange:e=>s(e.target.value),placeholder:"0",autoFocus:!0})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Description"),React.createElement("input",{className:"finput",value:i,onChange:e=>d(e.target.value),placeholder:"Optional detail"})))}function AddRoomModal({toast:e,onClose:t,reload:a,rooms:n}){const[r,l]=useState({room_number:"",category:"Fountain Deluxe",price:4e3,status:"AVAILABLE"}),[o,c]=useState(!1),s=e=>t=>l(a=>({...a,[e]:t.target.value}));return React.createElement(Modal,{title:"Add New Room",onClose:t,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:t},"Cancel"),React.createElement("button",{className:"btn btn-gold",disabled:o,onClick:async function(){if(!r.room_number)return e("Room number required","error");if(n.find(e=>e.room_number===r.room_number))return e(`Room ${r.room_number} already exists`,"error");c(!0);try{await dbPost("rooms",{...r,price:+r.price,tenant_id:TENANT}),e(`Room ${r.room_number} added`),a(),t()}catch(t){e(t.message,"error"),c(!1)}}},"Add Room"))},React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Room Number *"),React.createElement("input",{className:"finput",value:r.room_number,onChange:s("room_number"),placeholder:"e.g. 601",autoFocus:!0})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Category"),React.createElement("select",{className:"fselect",value:r.category,onChange:s("category")},["Fountain Deluxe","Premium Deluxe","Superior Deluxe","Twin Deluxe","Royal Suite"].map(e=>React.createElement("option",{key:e},e))))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Rate (BDT/night)"),React.createElement("input",{type:"number",className:"finput",value:r.price,onChange:s("price")})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Initial Status"),React.createElement("select",{className:"fselect",value:r.status,onChange:s("status")},["AVAILABLE","OUT_OF_ORDER"].map(e=>React.createElement("option",{key:e,value:e},e.replace("_"," ")))))))}function ReservationsPage({reservations:e,guests:t,rooms:a,toast:n,currentUser:r,reload:l,businessDate:o,transactions:c}){const[s,i]=useState("ALL"),[d,m]=useState(""),[p,g]=useState(null),[u,f]=useState(!1),b=e.reduce((e,t)=>(e[t.status]=(e[t.status]||0)+1,e),{}),v=e=>Math.max(0,(+e.total_amount||0)-(+e.discount_amount||+e.discount||0)-(+e.paid_amount||0)),y=e.filter(e=>("CHECKED_IN"===e.status||"CHECKED_OUT"===e.status)&&v(e)>0).length,E=e=>{const a=String((e||[])[0]||""),n=t.find(e=>String(e.id)===a);return n?n.name:"Unknown"};let h;if(h="ALL"===s?e:"DUE"===s?e.filter(e=>("CHECKED_IN"===e.status||"CHECKED_OUT"===e.status)&&v(e)>0):e.filter(e=>e.status===s),d){const e=d.toLowerCase();h=h.filter(t=>E(t.guest_ids).toLowerCase().includes(e)||(t.room_ids||[]).join("").includes(e)||t.on_duty_officer?.toLowerCase().includes(e))}return React.createElement("div",null,React.createElement("div",{className:"flex fac fjb mb4",style:{flexWrap:"wrap",gap:8}},React.createElement("div",{className:"tabs",style:{marginBottom:0}},["ALL","CHECKED_IN","RESERVED","PENDING","CHECKED_OUT","DUE","CANCELLED"].map(t=>React.createElement("button",{key:t,className:"tab"+(s===t?" on":""),onClick:()=>i(t),style:"DUE"===t&&s!==t?{color:"var(--rose)"}:{}},"ALL"===t?`All (${e.length})`:"DUE"===t?`Due (${y})`:`${t.replace("_"," ")} (${b[t]||0})`))),React.createElement("div",{className:"flex gap2"},React.createElement("div",{className:"srch"},React.createElement("span",{className:"xs muted"},"⌕"),React.createElement("input",{placeholder:"Search guest, room…",value:d,onChange:e=>m(e.target.value)})),React.createElement("button",{className:"btn btn-gold",onClick:()=>f(!0)},"+ New Reservation"))),React.createElement("div",{className:"card"},React.createElement("div",{className:"tbl-wrap"},React.createElement("table",{className:"tbl"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Guest"),React.createElement("th",null,"Rooms"),React.createElement("th",null,"Check-In"),React.createElement("th",null,"Check-Out"),React.createElement("th",null,"Nights"),React.createElement("th",null,"Total"),React.createElement("th",null,"Discount"),React.createElement("th",null,"Paid"),React.createElement("th",null,"Balance"),React.createElement("th",null,"Status"),React.createElement("th",null))),React.createElement("tbody",null,h.slice(0,80).map(e=>{const t=E(e.guest_ids),a=nightsCount(e.check_in,e.check_out),n=v(e);return React.createElement("tr",{key:e.id},React.createElement("td",null,React.createElement("div",{className:"flex fac gap2"},React.createElement(Av,{name:t,size:24}),React.createElement("span",null,t))),React.createElement("td",null,React.createElement("span",{className:"badge bb"},(e.room_ids||[]).join(", "))),React.createElement("td",{className:"xs muted"},fmtDate(e.check_in)),React.createElement("td",{className:"xs muted"},fmtDate(e.check_out)),React.createElement("td",{className:"xs gold"},a||"—"),React.createElement("td",{className:"xs gold"},BDT(e.total_amount)),React.createElement("td",{className:"xs",style:{color:"var(--amb)"}},(+e.discount_amount||+e.discount||0)>0?"− "+BDT(+e.discount_amount||+e.discount||0):"—"),React.createElement("td",{className:"xs",style:{color:+e.paid_amount>0?"var(--grn)":"var(--tx2)"}},BDT(e.paid_amount)),React.createElement("td",{className:"xs",style:{color:n>0?"var(--rose)":"var(--grn)"}},BDT(n)),React.createElement("td",null,React.createElement(SBadge,{status:e.status})),React.createElement("td",null,React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:()=>g(e)},"View")))}))))),p&&React.createElement(ReservationDetail,{res:p,guests:t,rooms:a,toast:n,onClose:()=>g(null),reload:()=>{l(),g(null)},isOwner:"owner"===r?.role,businessDate:o,transactions:c}),u&&React.createElement(NewReservationModal,{guests:t,rooms:a,toast:n,onClose:()=>f(!1),reload:l,businessDate:o}))}function ReservationDetail({res:e,guests:t,rooms:a,toast:n,onClose:r,reload:l,isOwner:o,businessDate:c,transactions:s}){const[i,d]=useState(e.status),[m,p]=useState(String(e.paid_amount||"")),[g,u]=useState(String(e.discount_amount||e.discount||"")),[f,b]=useState(e.notes||""),[v,y]=useState(!1),[E,h]=useState(null),[R,x]=useState(e.check_out?String(e.check_out).slice(0,10):""),[N,S]=useState(e.check_in?String(e.check_in).slice(0,10):""),[k,_]=useState((e.room_ids||[]).length?e.room_ids:[""]),w=(k.filter(Boolean).join(", "),t.find(t=>String(t.id)===String((e.guest_ids||[])[0]||""))?.name||"Unknown"),C=nightsCount(N||e.check_in,R||e.check_out),A=nightsCount(e.check_in,e.check_out),D=Math.max(0,C-A),T=k.filter(Boolean).reduce((e,t)=>e+(+a.find(e=>String(e.room_number)===String(t))?.price||0),0),z=D>0?D*T:0,B=T*C,$=B>0?B:+e.total_amount||0,F=+m||0,I=+g||0,P=Math.max(0,$-I-F),L=a.filter(e=>"AVAILABLE"===e.status||k.includes(e.room_number));return React.createElement(Modal,{title:`Reservation — ${w}`,onClose:r,wide:!0,footer:React.createElement("div",{className:"flex gap2",style:{flexWrap:"wrap",width:"100%"}},("RESERVED"===e.status||"PENDING"===e.status)&&React.createElement("button",{className:"btn btn-success",disabled:v,onClick:async function(){y(!0);try{for(const t of e.room_ids||[]){const e=a.find(e=>e.room_number===t);e&&await dbPatch("rooms",e.id,{status:"OCCUPIED"})}await dbPatch("reservations",e.id,{status:"CHECKED_IN",check_in:(new Date).toISOString()}),n(`${w} checked in to Rm ${(e.room_ids||[]).join(",")} ✓`),l()}catch(e){n(e.message,"error"),y(!1)}}},"✓ Check In Now"),o&&React.createElement("button",{className:"btn btn-danger btn-sm",onClick:async()=>{if(window.confirm(`Delete reservation for ${w}?\nThis will:\n• Delete related transactions\n• Reset rooms to Available\n\nThis cannot be undone.`))try{for(const t of e.room_ids||[]){const e=a.find(e=>String(e.room_number)===String(t));e&&await dbPatch("rooms",e.id,{status:"AVAILABLE"})}const t=(s||[]).filter(t=>(e.room_ids||[]).some(e=>String(t.room_number)===String(e))&&(!t.guest_name||t.guest_name===w));for(const e of t)await dbDelete("transactions",e.id);await dbDelete("reservations",e.id),n(`Reservation deleted · ${t.length} transaction(s) removed · Rooms freed ✓`),l()}catch(e){n(e.message,"error")}}},"🗑 Delete"),React.createElement("div",{style:{flex:1}}),React.createElement("button",{className:"btn btn-ghost",onClick:r},"Close"),React.createElement("button",{className:"btn btn-gold",disabled:v,onClick:async function(){y(!0);try{const t=k.filter(Boolean),r=e.room_ids||[],o=r.filter(e=>!t.includes(e));for(const e of o){const t=a.find(t=>t.room_number===e);t&&await dbPatch("rooms",t.id,{status:"AVAILABLE"})}if("CHECKED_IN"===i&&"CHECKED_IN"!==e.status)for(const e of t){const t=a.find(t=>t.room_number===e);t&&await dbPatch("rooms",t.id,{status:"OCCUPIED"})}if("CHECKED_IN"===i){const e=t.filter(e=>!r.includes(e));for(const t of e){const e=a.find(e=>e.room_number===t);e&&await dbPatch("rooms",e.id,{status:"OCCUPIED"})}}if("CHECKED_OUT"===i&&"CHECKED_OUT"!==e.status)for(const e of t){const t=a.find(t=>t.room_number===e);t&&await dbPatch("rooms",t.id,{status:"DIRTY"})}const s={status:i,paid_amount:F,discount_amount:I,notes:f,check_in:N,check_out:R,room_ids:t,total_amount:$};R&&R!==String(e.check_out||"").slice(0,10)&&(s.check_out=R,C>0&&(s.total_amount=C*T),z>0&&await dbPost("transactions",{room_number:t[0]||"?",guest_name:w,type:`Stay Extension (+${D} night${1!==D?"s":""})`,amount:z,fiscal_day:c||todayStr(),reservation_id:e.id,tenant_id:TENANT})),await dbPatch("reservations",e.id,s),n(z>0?`Reservation updated · Extension ৳${z.toLocaleString()} charged ✓`:"Reservation updated ✓"),l()}catch(e){n(e.message,"error"),y(!1)}}},v?"Saving…":"Save Changes"))},React.createElement("div",{className:"g2 mb4"},React.createElement("div",{className:"info-box"},React.createElement("div",{className:"info-lbl"},"Guest"),React.createElement("div",{className:"info-val"},w)),React.createElement("div",{className:"info-box",style:{gridColumn:"span 2"}},React.createElement("div",{className:"info-lbl"},"Rooms (editable · multi)"),React.createElement("div",{style:{marginTop:4}},k.map((t,a)=>React.createElement("div",{key:a,style:{display:"flex",gap:6,marginBottom:4,alignItems:"center"}},React.createElement("select",{className:"fselect",style:{flex:1,fontSize:12,padding:"4px 8px"},value:t,onChange:e=>{const t=[...k];t[a]=e.target.value,_(t)}},React.createElement("option",{value:""},"— select room —"),L.filter(e=>e.room_number===t||!k.includes(e.room_number)).map(e=>React.createElement("option",{key:e.id,value:e.room_number},e.room_number," — ",e.category," — ",BDT(e.price),"/n"))),t&&e.id&&("CHECKED_IN"===i||"CHECKED_OUT"===i||"CHECKED_IN"===e.status||"CHECKED_OUT"===e.status)&&React.createElement("button",{type:"button",title:`Add charge to Room ${t}`,style:{background:"rgba(88,166,255,.08)",border:"1px solid rgba(88,166,255,.35)",color:"var(--info,#58a6ff)",cursor:"pointer",padding:"3px 8px",fontSize:10,letterSpacing:".04em",whiteSpace:"nowrap"},onClick:()=>h(t)},"+ Charge"),k.length>1&&React.createElement("button",{type:"button",style:{background:"none",border:"1px solid rgba(248,113,113,.3)",color:"var(--rose)",cursor:"pointer",padding:"3px 7px",fontSize:11},onClick:()=>_(k.filter((e,t)=>t!==a))},"✕"))),L.filter(e=>!k.includes(e.room_number)).length>0&&React.createElement("button",{type:"button",style:{background:"none",border:"1px dashed rgba(200,169,110,.35)",color:"var(--gold)",cursor:"pointer",padding:"4px 8px",fontSize:10,letterSpacing:".08em",width:"100%",marginTop:2},onClick:()=>_([...k,""])},"+ Add Room"))),React.createElement("div",{className:"info-box"},React.createElement("div",{className:"info-lbl"},"Check-In"),React.createElement("input",{type:"date",className:"finput",style:{marginTop:4,fontSize:12,padding:"4px 8px"},value:N,onChange:e=>S(e.target.value)})),React.createElement("div",{className:"info-box"},React.createElement("div",{className:"info-lbl"},"Check-Out"),React.createElement("input",{type:"date",className:"finput",style:{marginTop:4,fontSize:12,padding:"4px 8px"},value:R,onChange:e=>x(e.target.value),min:N})),React.createElement("div",{className:"info-box"},React.createElement("div",{className:"info-lbl"},"Nights"),React.createElement("div",{className:"info-val"},C||"—")),React.createElement("div",{className:"info-box"},React.createElement("div",{className:"info-lbl"},"Total Amount"),React.createElement("div",{className:"info-val"},BDT($))),React.createElement("div",{className:"info-box"},React.createElement("div",{className:"info-lbl"},"Payment Method"),React.createElement("div",{className:"info-val"},e.payment_method||"—")),React.createElement("div",{className:"info-box"},React.createElement("div",{className:"info-lbl"},"On-Duty Officer"),React.createElement("div",{className:"info-val"},e.on_duty_officer||"—"))),e.special_requests&&React.createElement("div",{className:"info-box mb4"},React.createElement("div",{className:"info-lbl"},"Special Requests"),React.createElement("div",{className:"info-val",style:{marginTop:4}},e.special_requests)),"CHECKED_IN"===e.status&&React.createElement("div",{style:{background:"rgba(200,169,110,.06)",border:"1px solid rgba(200,169,110,.2)",padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}},React.createElement("span",{style:{fontSize:10,color:"var(--gold)",letterSpacing:".1em",textTransform:"uppercase",whiteSpace:"nowrap"}},"✦ Stay Extension"),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},React.createElement("span",{style:{fontSize:11,color:"var(--tx3)"}},"New Check-Out:"),React.createElement("input",{type:"date",className:"finput",value:R,onChange:e=>x(e.target.value),min:String(e.check_in||"").slice(0,10),style:{width:150,padding:"4px 8px",fontSize:12}})),D>0&&React.createElement("span",{style:{fontSize:11,color:"var(--gold)",fontWeight:600}},"+",D," night",1!==D?"s":""," · +",BDT(z)),R&&R!==String(e.check_out||"").slice(0,10)&&0===D&&C<A&&React.createElement("span",{style:{fontSize:11,color:"var(--rose)"}},"⚠ Shortening stay — no auto-charge")),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Status"),React.createElement("select",{className:"fselect",value:i,onChange:e=>d(e.target.value)},["PENDING","RESERVED","CHECKED_IN","CHECKED_OUT","CANCELLED"].map(e=>React.createElement("option",{key:e,value:e},e.replace("_"," "))))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Amount Paid (BDT)"),React.createElement("input",{type:"number",className:"finput",value:m,onChange:e=>p(e.target.value),min:"0"}),React.createElement("div",{className:"xs mt3",style:{color:P>0?"var(--rose)":"var(--grn)"}},"Balance due: ",BDT(P)))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Discount Amount (BDT)"),React.createElement("input",{type:"number",className:"finput",value:g,onChange:e=>u(e.target.value),min:"0",placeholder:"0"})),React.createElement("div",{className:"fg"})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Notes"),React.createElement("textarea",{className:"ftextarea",value:f,onChange:e=>b(e.target.value),style:{minHeight:50},placeholder:"Internal notes…"})),E&&React.createElement(AddChargeModal,{roomNo:E,resId:e.id,toast:n,onClose:()=>h(null),onDone:()=>{h(null),l()}}))}function GuestSearchInput({guests:e,value:t,onChange:a}){const[n,r]=useState(""),[l,o]=useState(!1),[c,s]=useState(0),i=useRef(null),d=useRef(null),m=e.find(e=>e.id===t),p=n.trim()?e.filter(e=>e.name?.toLowerCase().includes(n.toLowerCase())||e.phone?.includes(n)).slice(0,40):e.slice(0,40);function g(e){a(e.id),r(""),o(!1)}return useEffect(()=>{if(!l)return;const e=e=>{d.current&&!d.current.contains(e.target)&&i.current&&!i.current.contains(e.target)&&(o(!1),r(""))};return document.addEventListener("mousedown",e),()=>document.removeEventListener("mousedown",e)},[l]),React.createElement("div",{style:{position:"relative"}},React.createElement("div",{style:{position:"relative"}},React.createElement("input",{ref:i,className:"finput",value:l?n:m?m.name:"",onChange:e=>{r(e.target.value),o(!0),s(0)},onFocus:()=>{o(!0),r(""),s(0)},onKeyDown:function(e){l?"ArrowDown"===e.key?(e.preventDefault(),s(e=>Math.min(e+1,p.length-1))):"ArrowUp"===e.key?(e.preventDefault(),s(e=>Math.max(e-1,0))):"Enter"===e.key?(e.preventDefault(),p[c]&&g(p[c])):"Escape"===e.key&&(o(!1),r("")):"ArrowDown"!==e.key&&"Enter"!==e.key||o(!0)},placeholder:"Type to search guest…",autoComplete:"off",style:{paddingRight:28}}),React.createElement("span",{style:{position:"absolute",right:9,top:"50%",transform:"translateY(-50%)",fontSize:9,color:"var(--tx3)",pointerEvents:"none"}},"▼")),l&&React.createElement("div",{ref:d,style:{position:"absolute",top:"calc(100% + 3px)",left:0,right:0,background:"var(--s1)",border:"1px solid var(--br)",zIndex:600,maxHeight:220,overflowY:"auto",boxShadow:"0 12px 40px rgba(0,0,0,.7)"}},0===p.length?React.createElement("div",{style:{padding:"10px 12px",fontSize:11,color:"var(--tx3)"}},"No guests found"):p.map((e,t)=>React.createElement("div",{key:e.id,onMouseDown:()=>g(e),onMouseEnter:()=>s(t),style:{padding:"9px 12px",cursor:"pointer",fontSize:12,fontWeight:300,color:"var(--tx)",background:t===c?"rgba(200,169,110,.1)":"transparent",borderBottom:"1px solid var(--br2)",display:"flex",alignItems:"center",justifyContent:"space-between"}},React.createElement("span",null,e.name),e.phone&&React.createElement("span",{style:{fontSize:10,color:"var(--tx3)"}},e.phone)))))}function NewReservationModal({guests:e,rooms:t,toast:a,onClose:n,reload:r,businessDate:l}){const o=t.filter(e=>"AVAILABLE"===e.status),[c,s]=useState({guestId:"",roomNos:[o[0]?.room_number||""],checkIn:todayStr(),checkOut:"",total:"",paid:"",discount:"",method:"Cash",notes:"",officer:"",stayType:"CHECK_IN"}),i=e=>t=>s(a=>({...a,[e]:t.target.value})),[d,m]=useState(!1),[p,g]=useState(o),[u,f]=useState(!1);useEffect(()=>{"CHECK_IN"!==c.stayType?!c.checkIn||!c.checkOut||c.checkIn>=c.checkOut?g(t.filter(e=>"OUT_OF_ORDER"!==e.status&&"DIRTY"!==e.status)):(f(!0),db("reservations",`?select=room_ids&status=in.(RESERVED,CHECKED_IN,CONFIRMED)&check_in=lt.${c.checkOut}&check_out=gt.${c.checkIn}`).then(e=>{const a=new Set((e||[]).flatMap(e=>e.room_ids||[]).map(String));g(t.filter(e=>!a.has(String(e.room_number))&&"OUT_OF_ORDER"!==e.status&&"DIRTY"!==e.status))}).catch(()=>g(t.filter(e=>"OUT_OF_ORDER"!==e.status&&"DIRTY"!==e.status))).finally(()=>f(!1))):g(o)},[c.checkIn,c.checkOut,c.stayType]);const b=c.checkIn&&c.checkOut?nightsCount(c.checkIn,c.checkOut):0,v=c.roomNos.filter(Boolean).reduce((e,a)=>{const n=t.find(e=>e.room_number===a);return e+(n&&b?+n.price*b:0)},0);return useEffect(()=>{v>0&&s(e=>({...e,total:String(v)}))},[JSON.stringify(c.roomNos),c.checkIn,c.checkOut]),React.createElement(Modal,{title:"New Reservation / Check-In",onClose:n,wide:!0,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:n},"Cancel"),React.createElement("button",{className:"btn btn-gold",disabled:d,onClick:async function(){if(!c.guestId)return a("Select a guest","error");if(!c.roomNos.filter(Boolean).length)return a("Select at least one room","error");if(!c.checkIn||!c.checkOut)return a("Set check-in and check-out dates","error");if(b<=0)return a("Check-out must be after check-in","error");m(!0);try{const o="CHECK_IN"===c.stayType,s=+c.total||v,i=c.roomNos.filter(Boolean),[d]=await dbPost("reservations",{guest_ids:[c.guestId],room_ids:i,check_in:c.checkIn,check_out:c.checkOut,status:o?"CHECKED_IN":"RESERVED",total_amount:s,paid_amount:+c.paid||0,discount_amount:+c.discount||0,payment_method:c.method,special_requests:c.notes||null,on_duty_officer:c.officer||null,stay_type:c.stayType,tenant_id:TENANT});if(o)for(const e of i){const a=t.find(t=>t.room_number===e);a&&await dbPatch("rooms",a.id,{status:"OCCUPIED"})}(+c.paid||0)>0&&await dbPost("transactions",{room_number:i[0],guest_name:e.find(e=>e.id===c.guestId)?.name||"",type:`Room Payment (${c.method})`,amount:+c.paid,fiscal_day:l||todayStr(),reservation_id:d?.id||null,tenant_id:TENANT}),a(o?`Check-in complete — Rm ${i.join(",")} ✓`:"Reservation created ✓"),await r(),n()}catch(e){a(e.message||"Save failed","error"),m(!1)}}},d?React.createElement(React.Fragment,null,React.createElement("span",{className:"spinner",style:{width:12,height:12}})," Saving…"):"CHECK_IN"===c.stayType?"✓ Check In Now":"Create Reservation"))},React.createElement("div",{className:"tabs",style:{marginBottom:14}},[["CHECK_IN","✓ Direct Check-In"],["RESERVATION","📅 Future Reservation"]].map(([e,t])=>React.createElement("button",{key:e,className:"tab"+(c.stayType===e?" on":""),onClick:()=>s(t=>({...t,stayType:e}))},t))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Guest * — type name or phone to search"),React.createElement(GuestSearchInput,{guests:e,value:c.guestId,onChange:e=>s(t=>({...t,guestId:e}))})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Room(s) * ",u?React.createElement("span",{style:{color:"var(--gold)",fontSize:10}}," Checking availability…"):0===p.length&&React.createElement("span",{style:{color:"var(--rose)"}},"— no available rooms")),c.roomNos.map((e,t)=>React.createElement("div",{key:t,style:{display:"flex",gap:6,marginBottom:5,alignItems:"center"}},React.createElement("select",{className:"fselect",style:{flex:1},value:e,onChange:e=>{const a=[...c.roomNos];a[t]=e.target.value,s(e=>({...e,roomNos:a}))}},React.createElement("option",{value:""},"— select room —"),p.filter(t=>t.room_number===e||!c.roomNos.includes(t.room_number)).map(e=>React.createElement("option",{key:e.id,value:e.room_number},e.room_number," — ",e.category," — ",BDT(e.price),"/n"))),c.roomNos.length>1&&React.createElement("button",{type:"button",style:{background:"none",border:"1px solid rgba(248,113,113,.3)",color:"var(--rose)",cursor:"pointer",padding:"4px 8px",fontSize:12},onClick:()=>s(e=>({...e,roomNos:e.roomNos.filter((e,a)=>a!==t)}))},"✕"))),p.filter(e=>!c.roomNos.includes(e.room_number)).length>0&&React.createElement("button",{type:"button",style:{background:"none",border:"1px dashed rgba(200,169,110,.35)",color:"var(--gold)",cursor:"pointer",padding:"5px 10px",fontSize:10,letterSpacing:".08em",width:"100%",marginTop:2},onClick:()=>s(e=>({...e,roomNos:[...e.roomNos,""]}))},"+ Add Room"))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Check-In Date *"),React.createElement("input",{type:"date",className:"finput",value:c.checkIn,onChange:i("checkIn")})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Check-Out Date *"),React.createElement("input",{type:"date",className:"finput",value:c.checkOut,onChange:i("checkOut")}))),b>0&&React.createElement("div",{style:{background:"rgba(200,169,110,.07)",border:"1px solid rgba(200,169,110,.18)",padding:"9px 12px",marginBottom:10,fontSize:12,color:"var(--tx)"}},b," night",1!==b?"s":""," × ",c.roomNos.filter(Boolean).length," room",1!==c.roomNos.filter(Boolean).length?"s":""," = ",React.createElement("strong",{style:{color:"var(--gold)"}},BDT(v))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Total Amount (BDT)"),React.createElement("input",{type:"number",className:"finput",value:c.total,onChange:i("total"),placeholder:String(v||0)})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Paid Amount (BDT)"),React.createElement("input",{type:"number",className:"finput",value:c.paid,onChange:i("paid"),placeholder:"0"}))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Discount Amount (BDT)"),React.createElement("input",{type:"number",className:"finput",value:c.discount,onChange:i("discount"),placeholder:"0",min:"0"})),React.createElement("div",{className:"fg"})),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Payment Method"),React.createElement("select",{className:"fselect",value:c.method,onChange:i("method")},["Cash","Bkash","Nagad","Card","Bank Transfer","Corporate","Complimentary"].map(e=>React.createElement("option",{key:e},e)))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"On-Duty Officer"),React.createElement("input",{className:"finput",value:c.officer,onChange:i("officer"),placeholder:"Staff name"}))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Special Requests / Notes"),React.createElement("textarea",{className:"ftextarea",value:c.notes,onChange:i("notes"),style:{minHeight:50},placeholder:"Optional"})))}function GuestsPage({guests:e,reservations:t,toast:a,currentUser:n,reload:r}){const[l,o]=useState(""),[c,s]=useState(1),[i,d]=useState(null),[m,p]=useState(!1),g=useMemo(()=>{const e={},a={};return(t||[]).forEach(t=>{const n=(e=>Math.max(0,(+e.total_amount||0)-(+e.discount_amount||+e.discount||0)-(+e.paid_amount||0)))(t);if(n<=0)return;(t.guest_ids||[]).forEach(t=>{const a=String(t);e[a]=(e[a]||0)+n});const r=String(t.guest_name||"").trim().toLowerCase();r&&(a[r]=(a[r]||0)+n)}),{byId:e,byName:a}},[t]),u=e=>{const t=g.byId[String(e.id)];return null!=t?t:g.byName[String(e.name||"").trim().toLowerCase()]||0};let f=e;if(l){const e=l.toLowerCase();f=f.filter(t=>t.name?.toLowerCase().includes(e)||t.phone?.includes(e)||t.email?.toLowerCase().includes(e))}useEffect(()=>s(1),[l]);const b=Math.max(1,Math.ceil(f.length/50)),v=f.slice(50*(c-1),50*c);return React.createElement("div",null,React.createElement("div",{className:"flex fac fjb mb4",style:{flexWrap:"wrap",gap:8}},React.createElement("div",{className:"srch"},React.createElement("span",{className:"xs muted"},"⌕"),React.createElement("input",{placeholder:"Search name, phone, email…",value:l,onChange:e=>o(e.target.value)})),React.createElement("div",{className:"flex gap2",style:{alignItems:"center"}},React.createElement("span",{className:"badge bgold"},f.length," ",l?"found":"of "+e.length+" guests"),React.createElement("button",{className:"btn btn-gold",onClick:()=>p(!0)},"+ Add Guest"))),React.createElement("div",{className:"card"},React.createElement("div",{className:"tbl-wrap"},React.createElement("table",{className:"tbl"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Name"),React.createElement("th",null,"Phone"),React.createElement("th",null,"Email"),React.createElement("th",null,"ID"),React.createElement("th",null,"City"),React.createElement("th",null,"Balance"),React.createElement("th",null,"VIP"),React.createElement("th",null))),React.createElement("tbody",null,v.map(e=>React.createElement("tr",{key:e.id},React.createElement("td",null,React.createElement("div",{className:"flex fac gap2"},React.createElement(Av,{name:e.name,size:24}),React.createElement("span",null,e.name))),React.createElement("td",{className:"xs muted"},e.phone||"—"),React.createElement("td",{className:"xs muted"},e.email||"—"),React.createElement("td",{className:"xs muted"},e.id_type?`${e.id_type}: ${e.id_number||""}`:e.id_card||"—"),React.createElement("td",{className:"xs muted"},e.city||"—"),React.createElement("td",{className:"xs",style:{color:u(e)>0?"var(--rose)":"var(--grn)"}},BDT(u(e))),React.createElement("td",null,e.vip?React.createElement("span",{className:"badge bgold"},"VIP"):null),React.createElement("td",null,React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:()=>d(e)},"View")))))))),b>1&&React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 4px",flexWrap:"wrap",gap:8}},React.createElement("div",{className:"xs muted"},"Showing ",50*(c-1)+1,"–",Math.min(50*c,f.length)," of ",f.length," guests"),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:4}},React.createElement("button",{className:"btn btn-ghost btn-sm",disabled:1===c,onClick:()=>s(1),style:{padding:"4px 8px",opacity:1===c?.35:1}},"«"),React.createElement("button",{className:"btn btn-ghost btn-sm",disabled:1===c,onClick:()=>s(e=>e-1),style:{padding:"4px 10px",opacity:1===c?.35:1}},"‹ Prev"),Array.from({length:b},(e,t)=>t+1).filter(e=>1===e||e===b||Math.abs(e-c)<=2).reduce((e,t,a,n)=>(a>0&&n[a-1]!==t-1&&e.push("..."),e.push(t),e),[]).map((e,t)=>"..."===e?React.createElement("span",{key:"e"+t,className:"xs muted",style:{padding:"0 4px"}},"…"):React.createElement("button",{key:e,className:"btn btn-sm"+(e===c?" btn-gold":" btn-ghost"),style:{padding:"4px 9px",minWidth:30},onClick:()=>s(e)},e)),React.createElement("button",{className:"btn btn-ghost btn-sm",disabled:c===b,onClick:()=>s(e=>e+1),style:{padding:"4px 10px",opacity:c===b?.35:1}},"Next ›"),React.createElement("button",{className:"btn btn-ghost btn-sm",disabled:c===b,onClick:()=>s(b),style:{padding:"4px 8px",opacity:c===b?.35:1}},"»"))),i&&React.createElement(GuestModal,{guest:i,reservations:t,toast:a,onClose:()=>d(null),reload:r,isSA:"owner"===n?.role}),m&&React.createElement(AddGuestModal,{toast:a,onClose:()=>p(!1),reload:r}))}function GuestModal({guest:e,reservations:t,toast:a,onClose:n,reload:r,isSA:l}){const o=String(e.name||"").trim().toLowerCase(),c=t.filter(t=>!!(t.guest_ids||[]).map(String).includes(String(e.id))||!(!t.guest_name||String(t.guest_name).trim().toLowerCase()!==o)),s=c.reduce((e,t)=>e+Math.max(0,(+t.total_amount||0)-(+t.discount_amount||+t.discount||0)-(+t.paid_amount||0)),0),i=c.slice().sort((e,t)=>String(t.check_in||"").localeCompare(String(e.check_in||""))).slice(0,10),[d,m]=useState(!1);return React.createElement(React.Fragment,null,React.createElement(Modal,{title:e.name,onClose:n,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:n},"Close"),l&&React.createElement("button",{className:"btn btn-danger btn-sm",onClick:()=>{window.confirm("Delete this guest?")&&async function(){try{await dbDelete("guests",e.id),a("Guest deleted"),r(),n()}catch(e){a(e.message,"error")}}()}},"🗑 Delete"),React.createElement("button",{className:"btn btn-ghost",onClick:()=>m(!0)},"✏ Edit"),React.createElement("button",{className:"btn btn-gold",onClick:async function(){try{await dbPatch("guests",e.id,{vip:!e.vip}),a(e.vip?"VIP status removed":"Marked as VIP ★"),r(),n()}catch(e){a(e.message,"error")}}},e.vip?"Remove VIP":"★ Mark VIP"))},React.createElement("div",{className:"flex fac gap3 mb4"},React.createElement(Av,{name:e.name,size:44}),React.createElement("div",null,e.vip&&React.createElement("span",{className:"badge bgold",style:{marginBottom:4,display:"inline-flex"}},"VIP"),React.createElement("div",{style:{fontWeight:700,fontSize:18}},e.name),React.createElement("div",{className:"xs muted"},[e.nationality,e.city,e.country].filter(Boolean).join(" · ")))),React.createElement("div",{className:"g2 mb4"},[["Phone",e.phone||"—"],["Email",e.email||"—"],["ID Type",e.id_type||"—"],["ID Number",e.id_number||e.id_card||"—"],["Balance",BDT(s)],["Address",e.address||"—"]].map(([e,t])=>React.createElement("div",{key:e,className:"info-box"},React.createElement("div",{className:"info-lbl"},e),React.createElement("div",{className:"info-val"},t)))),i.length>0&&React.createElement(React.Fragment,null,React.createElement("div",{className:"flbl",style:{marginBottom:6}},"Stay History"),i.map(e=>React.createElement("div",{key:e.id,className:"flex fac fjb",style:{padding:"6px 0",borderBottom:"1px solid var(--br2)"}},React.createElement("span",{className:"xs"},"Rm ",(e.room_ids||[]).join(",")," · ",fmtDate(e.check_in)," → ",fmtDate(e.check_out)),React.createElement(SBadge,{status:e.status})))),e.preferences&&React.createElement("div",{className:"info-box mt3"},React.createElement("div",{className:"info-lbl"},"Preferences"),React.createElement("div",{className:"info-val",style:{marginTop:4}},e.preferences))),d&&React.createElement(EditGuestModal,{guest:e,toast:a,onClose:()=>m(!1),reload:()=>{r(),m(!1),n()}}))}function EditGuestModal({guest:e,toast:t,onClose:a,reload:n}){const[r,l]=useState({name:e.name||"",phone:e.phone||"",email:e.email||"",id_type:e.id_type||"NID",id_number:e.id_number||e.id_card||"",nationality:e.nationality||"",city:e.city||"",address:e.address||""}),o=e=>t=>l(a=>({...a,[e]:t.target.value})),[c,s]=useState(!1);return React.createElement(Modal,{title:`Edit — ${e.name}`,onClose:a,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:a},"Cancel"),React.createElement("button",{className:"btn btn-gold",disabled:c,onClick:async function(){if(!r.name.trim())return t("Name required","error");s(!0);try{const a={...r};a.email=a.email?.trim()||null,a.phone=a.phone?.trim()||null,await dbPatch("guests",e.id,a),t("Guest updated ✓"),n()}catch(e){t(e.message,"error"),s(!1)}}},c?"Saving…":"Save Changes"))},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Full Name *"),React.createElement("input",{className:"finput",value:r.name,onChange:o("name"),autoFocus:!0})),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Phone"),React.createElement("input",{className:"finput",value:r.phone,onChange:o("phone"),placeholder:"+880…"})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Email"),React.createElement("input",{type:"email",className:"finput",value:r.email,onChange:o("email")}))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"ID Type"),React.createElement("select",{className:"fselect",value:r.id_type,onChange:o("id_type")},["NID","Passport","Driving License","Birth Certificate","Other"].map(e=>React.createElement("option",{key:e},e)))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"ID Number"),React.createElement("input",{className:"finput",value:r.id_number,onChange:o("id_number")}))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Nationality"),React.createElement("input",{className:"finput",value:r.nationality,onChange:o("nationality")})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"City"),React.createElement("input",{className:"finput",value:r.city,onChange:o("city")}))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Address"),React.createElement("textarea",{className:"ftextarea",value:r.address,onChange:o("address"),style:{minHeight:44}})))}function AddGuestModal({toast:e,onClose:t,reload:a}){const[n,r]=useState({name:"",phone:"",email:"",id_type:"NID",id_number:"",nationality:"",city:"",address:""}),l=e=>t=>r(a=>({...a,[e]:t.target.value})),[o,c]=useState(!1);return React.createElement(Modal,{title:"Add New Guest",onClose:t,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:t},"Cancel"),React.createElement("button",{className:"btn btn-gold",disabled:o,onClick:async function(){if(!n.name.trim())return e("Name required","error");if(!n.phone.trim())return e("Contact Number required","error");c(!0);try{const r={...n,tenant_id:TENANT};r.email=r.email?.trim()||null,r.phone=r.phone?.trim()||null,await dbPost("guests",r),e(`Guest "${n.name}" added`),a(),t()}catch(t){e(t.message,"error"),c(!1)}}},"Add Guest"))},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Full Name ",React.createElement("span",{style:{color:"var(--rose)"}},"*")),React.createElement("input",{className:"finput",value:n.name,onChange:l("name"),placeholder:"Guest full name",autoFocus:!0})),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Contact Number ",React.createElement("span",{style:{color:"var(--rose)"}},"*")),React.createElement("input",{className:"finput",value:n.phone,onChange:l("phone"),placeholder:"+880…"})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Email"),React.createElement("input",{type:"email",className:"finput",value:n.email,onChange:l("email"),placeholder:"guest@email.com"}))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"ID Type"),React.createElement("select",{className:"fselect",value:n.id_type,onChange:l("id_type")},["NID","Passport","Driving License","Birth Certificate","Other"].map(e=>React.createElement("option",{key:e},e)))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"ID Number"),React.createElement("input",{className:"finput",value:n.id_number,onChange:l("id_number"),placeholder:"ID number"}))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Nationality"),React.createElement("input",{className:"finput",value:n.nationality,onChange:l("nationality"),placeholder:"e.g. Bangladeshi"})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"City"),React.createElement("input",{className:"finput",value:n.city,onChange:l("city"),placeholder:"Dhaka"}))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Address"),React.createElement("textarea",{className:"ftextarea",value:n.address,onChange:l("address"),placeholder:"Full address",style:{minHeight:44}})))}function HousekeepingPage({tasks:e,rooms:t,toast:a,currentUser:n,reload:r}){const l="owner"===n?.role,[o,c]=useState("ALL"),[s,i]=useState(!1),d=t.filter(e=>"DIRTY"===e.status);let m=e;return"DIRTY"===o?m=d.map(e=>({id:"r_"+e.id,room_number:e.room_number,task_type:"Standard Clean",priority:"high",status:"pending",assignee:"—",_dirty:!0})):"ALL"!==o&&(m=e.filter(e=>e.status===o)),React.createElement("div",null,React.createElement("div",{className:"flex fac fjb mb4",style:{flexWrap:"wrap",gap:8}},React.createElement("div",{className:"tabs",style:{marginBottom:0}},[["ALL","All Tasks"],["pending","Pending"],["in-progress","In Progress"],["completed","Completed"],["DIRTY",`Dirty Rooms (${d.length})`]].map(([e,t])=>React.createElement("button",{key:e,className:"tab"+(o===e?" on":""),onClick:()=>c(e)},t))),React.createElement("button",{className:"btn btn-gold",onClick:()=>i(!0)},"+ Add Task")),React.createElement("div",{className:"card"},React.createElement("div",{className:"tbl-wrap"},React.createElement("table",{className:"tbl"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Room"),React.createElement("th",null,"Task"),React.createElement("th",null,"Priority"),React.createElement("th",null,"Assignee"),React.createElement("th",null,"Time"),React.createElement("th",null,"Notes"),React.createElement("th",null,"Status"),React.createElement("th",null,"Update"))),React.createElement("tbody",null,m.slice(0,60).map(e=>React.createElement("tr",{key:e.id},React.createElement("td",null,React.createElement("span",{style:{fontWeight:800,fontSize:18,color:"var(--gold)"}},e.room_number)),React.createElement("td",{className:"sm"},e.task_type),React.createElement("td",null,React.createElement("div",{className:"flex fac gap2"},React.createElement("span",{className:`pdot ${e.priority||"medium"}`}),React.createElement("span",{className:"xs"},e.priority||"medium"))),React.createElement("td",{className:"xs muted"},e.assignee||"—"),React.createElement("td",{className:"xs muted"},e.scheduled_time||"—"),React.createElement("td",{className:"xs muted",style:{maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},e.notes||"—"),React.createElement("td",null,React.createElement(SBadge,{status:e.status||"pending"})),React.createElement("td",null,React.createElement("div",{className:"flex gap2"},!e._dirty&&React.createElement("select",{className:"fselect",style:{padding:"3px 22px 3px 7px",fontSize:10,minWidth:110},value:e.status||"pending",onChange:t=>async function(e,t){try{await dbPatch("housekeeping_tasks",e,{status:t,completed_at:"completed"===t?(new Date).toISOString():null}),a(`Task → ${t}`),r()}catch(e){a(e.message,"error")}}(e.id,t.target.value)},["pending","in-progress","completed"].map(e=>React.createElement("option",{key:e,value:e},e))),l&&!e._dirty&&React.createElement("button",{className:"btn btn-danger btn-sm",style:{padding:"3px 8px",fontSize:10},onClick:async()=>{if(window.confirm("Delete task?"))try{await dbDelete("housekeeping_tasks",e.id),a("Task deleted"),r()}catch(e){a(e.message,"error")}}},"✕"))))))))),s&&React.createElement(AddTaskModal,{rooms:t,toast:a,onClose:()=>i(!1),reload:r}))}function AddTaskModal({rooms:e,toast:t,onClose:a,reload:n}){const[r,l]=useState({room_number:e[0]?.room_number||"",task_type:"Standard Clean",priority:"medium",assignee:"",scheduled_time:"",notes:""}),o=e=>t=>l(a=>({...a,[e]:t.target.value})),[c,s]=useState(!1);return React.createElement(Modal,{title:"Add Housekeeping Task",onClose:a,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:a},"Cancel"),React.createElement("button",{className:"btn btn-gold",disabled:c,onClick:async function(){if(!r.room_number)return t("Room required","error");s(!0);try{await dbPost("housekeeping_tasks",{...r,status:"pending",department:"Housekeeping",tenant_id:TENANT}),t("Task added"),n(),a()}catch(e){t(e.message,"error"),s(!1)}}},"Add Task"))},React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Room *"),React.createElement("select",{className:"fselect",value:r.room_number,onChange:o("room_number")},e.map(e=>React.createElement("option",{key:e.id,value:e.room_number},e.room_number," — ",e.status.replace("_"," "))))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Task Type"),React.createElement("select",{className:"fselect",value:r.task_type,onChange:o("task_type")},["Standard Clean","Deep Clean","Turndown","VIP Turndown","Inspection","Extra Towels","Maintenance","AC Repair","Plumbing"].map(e=>React.createElement("option",{key:e},e))))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Priority"),React.createElement("select",{className:"fselect",value:r.priority,onChange:o("priority")},["low","medium","high"].map(e=>React.createElement("option",{key:e,value:e},e)))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Scheduled Time"),React.createElement("input",{type:"time",className:"finput",value:r.scheduled_time,onChange:o("scheduled_time")}))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Assignee"),React.createElement("input",{className:"finput",value:r.assignee,onChange:o("assignee"),placeholder:"Staff member name"})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Notes"),React.createElement("textarea",{className:"ftextarea",value:r.notes,onChange:o("notes"),placeholder:"Optional details",style:{minHeight:44}})))}function printPDF(e,t){const a=window.open("","_blank","width=1100,height=700");return a?(a.document.write(e),a.document.close(),new Promise(e=>{a.onload=()=>{setTimeout(()=>{a.focus(),a.print(),e()},600)}})):(alert("Please allow popups to print PDF"),Promise.resolve())}function downloadBillingPDF(e,t,a,n,r,l,o,c,s){let i="TODAY"===t?"Today":"MONTH"===t?"This Month":"All Time";if("DATE"===t&&o){const[e,t,a]=o.split("-");i=`${+a}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+t-1]}-${e}`}const d=e=>String(null==e?"":e).replace(/[&<>"']/g,e=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[e])),m=(new Date).toLocaleString("en-BD",{timeZone:"Asia/Dhaka",year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"}),p=e=>`৳${Number(e||0).toLocaleString()}`,g=e=>e?String(e).slice(0,10):"—",u=(e||[]).map(e=>`<tr>\n    <td>${d(e.guest_name||"—")}</td>\n    <td>${d(e.room_number||"—")}</td>\n    <td class="mono">${g(e.check_in)}<br/><span class="muted">→ ${g(e.check_out)}</span></td>\n    <td class="num">${p(e.bill_total)}</td>\n    <td class="num">${p(e.paid)}</td>\n    <td class="num due">${p(e.balance_due)}</td>\n    <td><span class="pm pm-${String(e.payment_method||"").toLowerCase().replace(/[^a-z]/g,"")}">${d(e.payment_method||"—")}</span></td>\n    <td class="num pos">${p(e.collected_amount)}</td>\n  </tr>`).join(""),f=+(c||0),b=(+a||0)-f;printPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${_HNAME} — Billing ${i}</title>\n  <style>\n    @page{size:A4 portrait;margin:6mm 6mm}\n    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}\n    *{box-sizing:border-box;margin:0;padding:0}\n    html,body{width:100%}\n    body{font-family:'Segoe UI',Arial,sans-serif;color:#1C1510;font-size:8px;background:#fff;line-height:1.25}\n    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;padding-bottom:4px;border-bottom:1.5px solid #1C1510}\n    .hotel-name{font-size:15px;font-weight:800;color:#1C1510;font-family:Georgia,serif;line-height:1}\n    .hotel-name em{color:#C8A96E;font-style:italic;font-weight:400}\n    .hotel-sub{font-size:6.5px;color:#8D6F57;margin-top:2px;letter-spacing:.1em;text-transform:uppercase}\n    .report-title{text-align:right}\n    .report-title h2{font-size:10px;font-weight:700;color:#1C1510}\n    .report-title .meta{font-size:6.5px;color:#8D6F57;margin-top:2px}\n    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}\n    .stat-box{background:#FBF8F3;border:1px solid #8D6F57;padding:3px 6px}\n    .stat-box .lbl{font-size:5.5px;letter-spacing:.1em;color:#8D6F57;text-transform:uppercase;margin-bottom:1px;font-weight:600}\n    .stat-box .val{font-size:10px;font-weight:800;color:#1C1510;font-family:'IBM Plex Mono',monospace}\n    .stat-box.hi{background:#FBF8F3;border-color:#C8A96E;border-top:2px solid #C8A96E}\n    .stat-box.cash{border-top:2px solid #1F6F54}\n    .stat-box.cash .val{color:#1F6F54}\n    .stat-box.bkash{border-top:2px solid #D02A77}\n    .stat-box.bkash .val{color:#D02A77}\n    .stat-box.out{border-top:2px solid #950101}\n    .stat-box.out .val{color:#950101}\n    .sec-hdr{margin-top:4px;padding:3px 6px;background:#1C1510;color:#FBF8F3;font-size:7px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}\n    .sec-hdr.due{background:#950101}\n    table{width:100%;border-collapse:collapse;table-layout:fixed}\n    thead tr{background:#3A2D22}\n    thead th{padding:3px 4px;text-align:left;font-size:6.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#FBF8F3}\n    thead th.num{text-align:right}\n    .due-table thead tr{background:#950101}\n    tbody tr:nth-child(even){background:#FBF8F3}\n    tbody tr:nth-child(odd){background:#fff}\n    tbody td{padding:2.5px 4px;border-bottom:1px solid #EAE6DD;font-size:7.5px;color:#1C1510;vertical-align:middle;word-wrap:break-word;line-height:1.2}\n    tbody td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}\n    tbody td.mono{font-family:'IBM Plex Mono',monospace;font-size:7px}\n    tbody td .muted{color:#8D6F57;font-size:6.5px}\n    tbody td.due{color:#950101;font-weight:700}\n    tbody td.pos{color:#1F6F54}\n    tfoot tr{background:#FBE9E9}\n    tfoot td{padding:3px 4px;font-size:7.5px;font-weight:700;color:#950101}\n    tfoot td.num{text-align:right;font-family:'IBM Plex Mono',monospace}\n    .pm{display:inline-block;padding:1px 4px;border-radius:2px;font-size:6.5px;font-weight:700;letter-spacing:.04em;background:#EAE6DD;color:#1C1510}\n    .pm-cash{background:#E4F0EA;color:#1F6F54}\n    .pm-bkash{background:#FCE4EF;color:#D02A77}\n    .closing-box{margin-top:6px;border:1px solid #8D6F57;border-top:2px solid #C8A96E;padding:5px 9px;background:#FBF8F3}\n    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:1.5px 0;font-size:8px;color:#1C1510}\n    .closing-row.total{border-top:1px solid #C8A96E;margin-top:2px;padding-top:3px;font-weight:700}\n    .closing-row.token{color:#8D6F57}\n    .closing-row.final{border-top:1px solid #C8A96E;border-bottom:2px solid #C8A96E;margin-top:3px;padding:4px 0;font-size:11px;font-weight:800;color:#1C1510}\n    .footer{margin-top:5px;padding-top:3px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:center}\n    .total-row{font-size:8px;font-weight:700;color:#1C1510}\n    .footer-note{font-size:6.5px;color:#8D6F57;letter-spacing:.04em}\n    .trend-pos{color:#1F6F54;font-weight:700}\n    .trend-neg{color:#950101;font-weight:700}\n    col.c-g{width:18%} col.c-r{width:6%} col.c-d{width:13%} col.c-n{width:10%}\n    col.c-pm{width:9%}\n  </style></head><body>\n  <div class="header"><div><div class="hotel-name">Hotel <em>Fountain</em></div><div class="hotel-sub">Billing &amp; Invoices Report</div></div><div class="report-title"><h2>Period: ${i}</h2><div class="meta">Generated: ${m}</div></div></div>\n  <div class="stats">\n    <div class="stat-box hi"><div class="lbl">${"Today"===i?"Today's Total":i+" Total"}</div><div class="val">${p(a)}</div></div>\n    <div class="stat-box cash"><div class="lbl">Cash Total</div><div class="val">${p(n)}</div></div>\n    <div class="stat-box bkash"><div class="lbl">Bkash Total</div><div class="val">${p(r)}</div></div>\n    <div class="stat-box out"><div class="lbl">Outstanding Due</div><div class="val">${p(l)}</div></div>\n  </div>\n  <div class="sec-hdr">Collected Transactions — ${d(i)}</div>\n  <table>\n    <colgroup><col style="width:19%"/><col style="width:7%"/><col style="width:14%"/><col style="width:11%"/><col style="width:10%"/><col style="width:11%"/><col style="width:13%"/><col style="width:15%"/></colgroup>\n    <thead><tr>\n      <th>Guest Name</th><th>Room</th><th>Check-In / Out</th>\n      <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance Due</th>\n      <th>Payment Method</th><th class="num">Collected</th>\n    </tr></thead>\n    <tbody>${u||'<tr><td colspan="8" style="text-align:center;padding:14px;color:#aaa">No transactions</td></tr>'}</tbody>\n  </table>\n  ${(()=>{const e=(s||[]).filter(e=>+e.balance_due>0);if(!e.length)return"";const t=e.reduce((e,t)=>e+(+t.balance_due||0),0),a=e.reduce((e,t)=>e+(+t.paid||0),0),n=e.reduce((e,t)=>e+(+t.bill_total||0),0),r=e.map(e=>`<tr>\n      <td>${d(e.guest_name||"—")}</td>\n      <td>${d(e.room_number||"—")}</td>\n      <td class="mono">${g(e.check_in)}<br/><span class="muted">→ ${g(e.check_out)}</span></td>\n      <td class="num">${p(e.bill_total)}</td>\n      <td class="num pos">${p(e.paid)}</td>\n      <td class="num due">${p(e.balance_due)}</td>\n      <td><span class="pm" style="background:#FBE9E9;color:#950101">${d(e.status||"PENDING")}</span></td>\n    </tr>`).join("");return`\n  <div class="sec-hdr due">⚠ Pending Dues — Outstanding Balance (${e.length} guest${1!==e.length?"s":""})</div>\n  <table class="due-table">\n    <colgroup><col style="width:22%"/><col style="width:8%"/><col style="width:16%"/><col style="width:13%"/><col style="width:13%"/><col style="width:14%"/><col style="width:14%"/></colgroup>\n    <thead><tr>\n      <th>Guest Name</th><th>Room</th><th>Check-In / Out</th>\n      <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance Due</th><th>Status</th>\n    </tr></thead>\n    <tbody>${r}</tbody>\n    <tfoot><tr>\n      <td colspan="3">Total Outstanding · ${e.length} guest${1!==e.length?"s":""}</td>\n      <td class="num">${p(n)}</td>\n      <td class="num pos">${p(a)}</td>\n      <td class="num due">${p(t)}</td>\n      <td></td>\n    </tr></tfoot>\n  </table>`})()}\n  <div class="closing-box">\n    <div class="closing-row total"><span>${i} Total Collection</span><span class="trend-pos">${p(a)}</span></div>\n    <div class="closing-row"><span>Cash Collected</span><span class="trend-pos">${p(n)}</span></div>\n    <div class="closing-row"><span>Bkash Collected</span><span class="trend-pos">${p(r)}</span></div>\n    <div class="closing-row token"><span>Token Amount (Deducted)</span><span>− ${p(f)}</span></div>\n    <div class="closing-row final"><span>Closing Balance</span><span>${p(b)}</span></div>\n  </div>\n  <div class="footer"><div class="total-row">${i}: ${p(a)} · ${(e||[]).length} transaction${1!==(e||[]).length?"s":""}</div><div class="footer-note">${_HNAME} CRM · Lumea PMS · Confidential</div></div>\n  </body></html>`)}function printInvoice(e,t,a,n,r,l,o,c){const s=(new Date).toLocaleString("en-BD",{timeZone:"Asia/Dhaka",year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"}),i="INV-"+(t?.id?String(t.id).slice(-8):Date.now().toString().slice(-8)),d=e=>String(null==e?"":e).replace(/[&<>"']/g,e=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[e])),m=o?.nights||(t?nightsCount(t.check_in,t.check_out):0)||1,p=o?.perRoom||[],g=o?.topFolios||[],u=o?.discount||0,f=o?.roomCharge||0,b=o?.extras||0,v=o?.sub||a+u,y=null!=o?.total?o.total:a,E=null!=o?.paid?o.paid:n,h=null!=o?.due?o.due:r,R=p.length>0?p.map(e=>`\n    <tr style="background:#1C1510">\n      <td colspan="4" style="padding:8px 12px;color:#C8A96E;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-top:2px solid #C8A96E">\n        Room ${d(e.room_number)} · ${d(e.category)}\n      </td>\n    </tr>\n    <tr style="background:#FBF8F3">\n      <td style="padding:6px 12px;font-size:9px;color:#8D6F57">${fmtDate(t?.check_in)} → ${fmtDate(t?.check_out)}</td>\n      <td style="padding:6px 12px;font-size:9px;color:#1C1510">Room charge · ${m} night${1!==m?"s":""} × ৳${Number(e.rate).toLocaleString()}</td>\n      <td style="padding:6px 12px;font-size:9px;color:#1C1510;text-align:right">৳${Number(e.rate).toLocaleString()}/n</td>\n      <td style="padding:6px 12px;text-align:right;font-size:10px;font-weight:600;color:#1C1510;font-family:monospace">৳${Number(e.roomSubtotal).toLocaleString()}</td>\n    </tr>\n    ${(e.folios||[]).map((e,t)=>`\n      <tr style="background:${t%2==0?"#fff":"#FBF8F3"}">\n        <td style="padding:6px 12px;font-size:9px;color:#8D6F57">${d(String(e.created_at||"").slice(0,10))}</td>\n        <td style="padding:6px 12px;font-size:9px;color:#1C1510">${d(e.description||e.category||"Extra")}</td>\n        <td style="padding:6px 12px;font-size:9px;color:#8D6F57;text-align:right">${d(e.category||"—")}</td>\n        <td style="padding:6px 12px;text-align:right;font-size:10px;font-weight:600;color:#1C1510;font-family:monospace">৳${Number(e.amount||0).toLocaleString()}</td>\n      </tr>\n    `).join("")}\n    ${e.extras>0?`<tr style="background:rgba(200,169,110,.1)"><td colspan="3" style="padding:5px 12px;font-size:9px;color:#8D6F57;font-style:italic">Room ${d(e.room_number)} subtotal</td><td style="padding:5px 12px;text-align:right;font-size:10px;font-weight:700;color:#C8A96E;font-family:monospace">৳${Number(e.subtotal).toLocaleString()}</td></tr>`:""}\n  `).join(""):"",x=g.length>0?`\n    <tr style="background:#1C1510">\n      <td colspan="4" style="padding:8px 12px;color:#58A6FF;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-top:2px solid #58A6FF">\n        Additional Charges\n      </td>\n    </tr>\n    ${g.map((e,t)=>`\n      <tr style="background:${t%2==0?"#fff":"#FBF8F3"}">\n        <td style="padding:6px 12px;font-size:9px;color:#8D6F57">${d(String(e.created_at||"").slice(0,10))}</td>\n        <td style="padding:6px 12px;font-size:9px;color:#1C1510">${d(e.description||e.category||"Extra")}</td>\n        <td style="padding:6px 12px;font-size:9px;color:#8D6F57;text-align:right">${d(e.category||"—")}</td>\n        <td style="padding:6px 12px;text-align:right;font-size:10px;font-weight:600;color:#1C1510;font-family:monospace">৳${Number(e.amount||0).toLocaleString()}</td>\n      </tr>\n    `).join("")}\n  `:"",N=p.length||g.length?"":(e.txs||[]).filter(e=>"Balance Carried Forward"!==e.type).map((e,t)=>`\n    <tr style="background:${t%2==0?"#fff":"#FBF8F3"}">\n      <td style="padding:7px 12px;font-size:9px;color:#8D6F57">${d(e.fiscal_day||"—")}</td>\n      <td style="padding:7px 12px;font-size:9px;color:#1C1510">${d(e.type||"Charge")}</td>\n      <td style="padding:7px 12px;font-size:9px;color:#8D6F57;text-align:right">${d(e.room_number||"")}</td>\n      <td style="padding:7px 12px;text-align:right;font-size:10px;font-weight:600;color:#1C1510;font-family:monospace">৳${Number(e.amount||0).toLocaleString()}</td>\n    </tr>`).join(""),S=Object.entries(l||{}).map(([e,t])=>`\n    <tr>\n      <td colspan="3" style="padding:6px 12px;font-size:9px;color:#8D6F57;letter-spacing:.04em">${d(e)}</td>\n      <td style="padding:6px 12px;text-align:right;font-size:10px;color:#1C1510;font-weight:600;font-family:monospace">৳${Number(t).toLocaleString()}</td>\n    </tr>`).join(""),k=(t?.room_ids||[e.room_number]).filter(Boolean).join(", "),_=c?`\n    ${c.phone?`<div style="font-size:9px;color:#8D6F57;margin-top:2px">📞 ${d(c.phone)}</div>`:""}\n    ${c.email?`<div style="font-size:9px;color:#8D6F57;margin-top:2px">✉ ${d(c.email)}</div>`:""}\n    ${c.id_type||c.id_card?`<div style="font-size:9px;color:#8D6F57;margin-top:2px">🆔 ${d(c.id_type||"")} ${d(c.id_number||c.id_card||"")}</div>`:""}\n    ${c.city?`<div style="font-size:9px;color:#8D6F57;margin-top:2px">📍 ${d(c.city)}</div>`:""}\n  `:"";printPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice — ${d(e.guest_name||"Guest")}</title>\n  <style>\n    @page{size:A4 portrait;margin:10mm 12mm}\n    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}\n    *{box-sizing:border-box;margin:0;padding:0}\n    body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;background:#fff;color:#1C1510;font-size:10px;line-height:1.5}\n    table{width:100%;border-collapse:collapse}\n    .serif{font-family:Georgia,'Times New Roman',serif}\n  </style></head><body>\n  \x3c!-- ══ HEADER ══ --\x3e\n  <table style="margin-bottom:18px">\n    <tr>\n      <td width="52%" style="background:#1C1510;padding:20px 22px;vertical-align:middle">\n        <div class="serif" style="font-size:24px;font-weight:800;color:#C8A96E;letter-spacing:.02em">${_HNAME}</div>\n        <div style="font-size:7.5px;color:rgba(255,255,255,.5);letter-spacing:.22em;text-transform:uppercase;margin-top:6px">${_TAGLINE}</div>\n        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:10px">${_HADDR}</div>\n        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">WhatsApp ${_HWAPP} · ${_HEMAIL}</div>\n        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">${_HSITE}</div>\n        <div style="font-size:6.5px;color:rgba(200,169,110,.45);margin-top:10px;letter-spacing:.08em">MANAGEMENT CRM · POWERED BY LUMEA</div>\n      </td>\n      <td width="48%" style="padding:20px 0 20px 14px;vertical-align:top;text-align:right;border-bottom:3px solid #1C1510">\n        <div style="font-size:18px;font-weight:800;color:#1C1510;letter-spacing:.22em;margin-bottom:10px">INVOICE</div>\n        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.16em;text-transform:uppercase;margin-bottom:2px">Invoice No.</div>\n        <div style="font-size:13px;font-weight:700;color:#1C1510;margin-bottom:8px;font-family:monospace">${d(i)}</div>\n        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px">Issued</div>\n        <div style="font-size:9px;color:#1C1510;margin-bottom:10px">${d(s)}</div>\n        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase">Amount Due</div>\n        <div class="serif" style="font-size:26px;font-weight:800;color:${h>0?"#C8A96E":"#3FB950"};font-family:monospace">${h>0?"৳"+Number(h).toLocaleString():"PAID"}</div>\n      </td>\n    </tr>\n  </table>\n\n  \x3c!-- ══ BILLED TO / STAY DETAILS ══ --\x3e\n  <table style="margin-bottom:14px">\n    <tr>\n      <td width="55%" style="padding:10px 12px;border:1px solid #8D6F57;vertical-align:top">\n        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px">Billed To</div>\n        <div style="font-size:14px;font-weight:700;color:#1C1510">${d(e.guest_name||"—")}</div>\n        ${_}\n      </td>\n      <td width="2%"></td>\n      <td width="43%" style="padding:10px 12px;border:1px solid #8D6F57;vertical-align:top">\n        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px">Stay Details</div>\n        <div style="font-size:10px;color:#1C1510;margin-bottom:2px"><strong>Room${(t?.room_ids||[]).length>1?"s":""}:</strong> ${d(k||"—")}</div>\n        <div style="font-size:9px;color:#8D6F57;margin-bottom:2px">Check-In: ${t?fmtDate(t.check_in):"—"}</div>\n        <div style="font-size:9px;color:#8D6F57;margin-bottom:2px">Check-Out: ${t?fmtDate(t.check_out):"—"}</div>\n        <div style="font-size:9px;color:#8D6F57;margin-bottom:2px">Nights: ${m}</div>\n        <div style="font-size:9px;color:#8D6F57">Status: ${d(t?.status||"—")}</div>\n      </td>\n    </tr>\n  </table>\n\n  \x3c!-- ══ CHARGES (Per-Room Breakdown) ══ --\x3e\n  <table style="margin-bottom:0;border:1px solid #1C1510">\n    <thead>\n      <tr style="background:#1C1510">\n        <th style="padding:10px 12px;text-align:left;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#C8A96E;font-weight:700;width:18%">Date</th>\n        <th style="padding:10px 12px;text-align:left;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#C8A96E;font-weight:700">Description</th>\n        <th style="padding:10px 12px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#C8A96E;font-weight:700;width:16%">Rate / Cat.</th>\n        <th style="padding:10px 12px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#C8A96E;font-weight:700;width:18%">Amount (BDT)</th>\n      </tr>\n    </thead>\n    <tbody>\n      ${R||N||'<tr><td colspan="4" style="padding:20px;text-align:center;color:#8D6F57">No charges recorded</td></tr>'}\n      ${x}\n    </tbody>\n  </table>\n\n  \x3c!-- ══ TOTALS PANEL ══ --\x3e\n  <table style="margin-top:0">\n    <tr>\n      <td width="50%" style="padding:10px 12px;vertical-align:top">\n        ${S?`\n          <div style="font-size:8px;color:#8D6F57;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px;border-bottom:1px solid #8D6F57;padding-bottom:3px">Payments Received</div>\n          <table>${S}</table>\n        `:""}\n      </td>\n      <td width="50%" style="padding:10px 12px;vertical-align:top;background:#FBF8F3;border:1px solid #C8A96E">\n        <table>\n          <tr><td style="padding:4px 0;font-size:9.5px;color:#8D6F57">Room Charges</td><td style="padding:4px 0;text-align:right;font-size:10px;font-family:monospace;color:#1C1510">৳${Number(f).toLocaleString()}</td></tr>\n          ${b>0?`<tr><td style="padding:4px 0;font-size:9.5px;color:#8D6F57">Extra Charges (F&amp;B etc.)</td><td style="padding:4px 0;text-align:right;font-size:10px;font-family:monospace;color:#1C1510">৳${Number(b).toLocaleString()}</td></tr>`:""}\n          <tr><td style="padding:4px 0;border-top:1px solid #C8A96E;font-size:10px;font-weight:700;color:#1C1510">Subtotal</td><td style="padding:4px 0;border-top:1px solid #C8A96E;text-align:right;font-size:11px;font-weight:700;font-family:monospace;color:#1C1510">৳${Number(v).toLocaleString()}</td></tr>\n          ${u>0?`<tr><td style="padding:4px 0;font-size:9.5px;color:#3FB950">Discount Applied</td><td style="padding:4px 0;text-align:right;font-size:10px;font-family:monospace;color:#3FB950">− ৳${Number(u).toLocaleString()}</td></tr>`:""}\n          <tr><td style="padding:6px 0;border-top:2px solid #1C1510;font-size:11px;font-weight:800;color:#1C1510">TOTAL</td><td style="padding:6px 0;border-top:2px solid #1C1510;text-align:right;font-size:13px;font-weight:800;font-family:monospace;color:#1C1510">৳${Number(y).toLocaleString()}</td></tr>\n          <tr><td style="padding:4px 0;font-size:9.5px;color:#3FB950">Paid</td><td style="padding:4px 0;text-align:right;font-size:10px;font-family:monospace;color:#3FB950">৳${Number(E).toLocaleString()}</td></tr>\n          <tr><td style="padding:10px 0 4px;border-top:1px solid #C8A96E;font-size:12px;font-weight:800;color:${h>0?"#E05C7A":"#3FB950"}">${h>0?"BALANCE DUE":"PAID IN FULL"}</td><td style="padding:10px 0 4px;border-top:1px solid #C8A96E;text-align:right;font-size:16px;font-weight:800;font-family:monospace;color:${h>0?"#E05C7A":"#3FB950"}">৳${Number(h).toLocaleString()}</td></tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n\n  ${t?.special_requests?`<div style="margin-top:12px;padding:10px 12px;border-left:3px solid #C8A96E;background:#FBF8F3;font-size:9px;color:#8D6F57"><strong style="color:#1C1510">Special Requests:</strong> ${d(t.special_requests)}</div>`:""}\n\n  \x3c!-- ══ FOOTER ══ --\x3e\n  <div style="margin-top:20px;padding:14px 0 0;border-top:2px solid #1C1510">\n    <table>\n      <tr>\n        <td width="60%" style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase">${_HNAME} · Lumea PMS · Confidential</td>\n        <td width="40%" style="font-size:7.5px;color:#8D6F57;text-align:right">Computer-generated invoice — no signature required</td>\n      </tr>\n      <tr>\n        <td colspan="2" style="padding-top:6px;font-size:8px;color:#8D6F57;text-align:center;font-style:italic">Thank you for choosing ${_HNAME}. We look forward to welcoming you again.</td>\n      </tr>\n    </table>\n  </div>\n  </body></html>`)}function BillingPage({transactions:e,reservations:t,toast:a,reload:n,currentUser:r,rooms:l,guests:o,businessDate:c}){const[s,i]=useState("TODAY"),[d,m]=useState(""),[p,g]=useState({vat:"0",svc:"0"});useEffect(()=>{db("hotel_settings",`?tenant_id=eq.${TENANT}&select=key,value`).then(e=>{if(!Array.isArray(e))return;const t={};e.forEach(e=>{t[e.key]=e.value}),g({vat:t.vat_rate||"0",svc:t.service_charge||"0"})}).catch(()=>{})},[]);const[u,f]=useState(""),[b,v]=useState(!1),[y,E]=useState(null),[h,R]=useState(!1),[x,N]=useState(null),[S,k]=useState({}),[_,w]=useState(!1),[C,A]=useState(""),[D,T]=useState(0),[z,B]=useState(!1),$=c||todayStr(),F=$.slice(0,7),I=(todayStr(),e.filter(e=>e.fiscal_day===$)),P=I.filter(e=>{if("Balance Carried Forward"===e.type){const a=t.find(t=>(t.room_ids||[]).some(t=>String(t)===String(e.room_number))||String(t.room_number)===String(e.room_number));if("CHECKED_OUT"===a?.status){if(Math.max(0,+(a.total_amount||0)-+(a.discount_amount||a.discount||0)-+(a.paid_amount||0))<=0)return!1}return!0}return!0}),L=e.filter(e=>e.fiscal_day?.startsWith(F)),O=d?e.filter(e=>e.fiscal_day===d):[];useEffect(()=>{w(!0),db("folios",`?tenant_id=eq.${TENANT}&select=*&order=created_at`).then(e=>{const t={};(Array.isArray(e)?e:[]).forEach(e=>{const a=e.reservation_id||e.room_number;t[a]||(t[a]=[]),t[a].push(e)}),k(t)}).catch(()=>{}).finally(()=>w(!1))},[]);const M=e=>{if(Array.isArray(e))return e;if("string"==typeof e)try{const t=JSON.parse(e);return Array.isArray(t)?t:[e]}catch{return[e]}return null==e?[]:[e]},j=e=>{if(!e)return"—";if(e.guest_name)return e.guest_name;const t=String(M(e.guest_ids).concat(e.guest_id?[e.guest_id]:[]).filter(Boolean)[0]||""),a=o?.find(e=>String(e.id)===t);return a?a.name:t?`ID:${t}`:"—"},H=e=>{if(!e)return"—";return M(e.room_ids).concat(e.room_number?[e.room_number]:[]).filter(Boolean).join(", ")||"—"},W=_bizDayTotalFn,U=((()=>{const e=new Set;let a=0;P.forEach(n=>{const r=o?.find(e=>e.name===n.guest_name)?.id,l=t?.find(e=>{const t=(e.room_ids||[]).some(e=>String(e)===String(n.room_number))||String(e.room_number)===String(n.room_number),a=!r||(e.guest_ids||[]).includes(r)||e.guest_name===n.guest_name;return t&&a})||t?.find(e=>(e.room_ids||[]).some(e=>String(e)===String(n.room_number))||String(e.room_number)===String(n.room_number));l&&!e.has(l.id)&&(e.add(l.id),a+=G(l)?.paid||0)});t.filter(e=>("CHECKED_IN"===e.status||"CHECKED_OUT"===e.status)&&(e=>Math.max(0,(+e.total_amount||0)-(+e.discount_amount||+e.discount||0)-(+e.paid_amount||0)))(e)>0).forEach(t=>{t?.id&&!e.has(t.id)&&(e.add(t.id),a+=G(t)?.paid||0)})})(),W(L));function G(e){const t=(e.room_ids||[e.room_number]).filter(Boolean),a=nightsCount(e.check_in,e.check_out)||1,n=[...S[e.id]||[],...t.flatMap(t=>(S[t]||[]).filter(t=>!t.reservation_id||t.reservation_id===e.id))].filter((e,t,a)=>a.findIndex(t=>t.id===e.id)===t),r=t.map(t=>{const r=l?.find(e=>String(e.room_number)===String(t)),o=+r?.price||+e.rate_per_night||0,c=o*a,s=n.filter(e=>String(e.room_number)===String(t)),i=s.reduce((e,t)=>e+(+t.amount||0),0);return{room_number:t,category:r?.category||"—",rate:o,nights:a,roomSubtotal:c,extras:i,folios:s,subtotal:c+i}}),o=r.reduce((e,t)=>e+t.roomSubtotal,0),c=n.filter(e=>!e.room_number||!t.map(String).includes(String(e.room_number))),s=c.reduce((e,t)=>e+(+t.amount||0),0),i=r.reduce((e,t)=>e+t.extras,0)+s,d=[...r.flatMap(e=>e.folios.map(t=>({...t,__room:e.room_number}))),...c],m=o+i,p=+e.discount_amount||+e.discount||0,g=+e.total_amount||0,u=g>0?g:m>0?m:0,f=Math.max(0,u-p),b=+e.paid_amount||0,v=Math.max(0,f-b),y=r[0]?.rate||0;return{roomCharge:o,extras:i,sub:m,tax:0,svc:0,discount:p,total:f,paid:b,due:v,folios:d,nights:a,roomRate:y,vatPct:0,svcPct:0,perRoom:r,topFolios:c}}const Y=e=>Math.max(0,(+e.total_amount||0)-(+e.discount_amount||+e.discount||0)-(+e.paid_amount||0)),K=t.filter(e=>"CHECKED_IN"===e.status||"CHECKED_OUT"===e.status).reduce((e,t)=>e+Y(t),0),q=t.filter(e=>("CHECKED_IN"===e.status||"CHECKED_OUT"===e.status)&&Y(e)>0),V=t.filter(e=>"CHECKED_IN"===e.status||"CHECKED_OUT"===e.status&&Y(e)>0),J="TODAY"===s?I:"MONTH"===s?L:"DATE"===s?O:e;return React.createElement("div",null,React.createElement("div",{className:"stats-row",style:{gridTemplateColumns:"repeat(3,1fr)"}},React.createElement("div",{className:"stat",style:{"--ac":"var(--gold)"}},React.createElement("div",{className:"stat-ico"},"💰"),React.createElement("div",{className:"stat-lbl"},"DATE"===s&&d?(()=>{const[e,t,a]=d.split("-");return`${+a}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+t-1]}-${e}`})():(()=>{const[e,t,a]=($||todayStr()).split("-");return`${+a}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+t-1]}-${e}`})()," ",React.createElement("span",{style:{fontSize:9,color:"var(--gold-light)",marginLeft:4,fontFamily:"var(--mono)"}},"BIZ DAY")),React.createElement("div",{className:"stat-val"},BDT(W("DATE"===s?O:I))),React.createElement("div",{className:"stat-sub"},"DATE"===s?`${O.filter(e=>_isRealPayment(e)).length} payments`:`${t.filter(e=>"CHECKED_IN"===e.status).length} in-house`)),React.createElement("div",{className:"stat",style:{"--ac":"var(--teal)"}},React.createElement("div",{className:"stat-ico"},"📈"),React.createElement("div",{className:"stat-lbl"},"This Month"),React.createElement("div",{className:"stat-val"},BDT(U)),React.createElement("div",{className:"stat-sub"},L.filter(e=>"Balance Carried Forward"!==e.type).length," transactions")),React.createElement("div",{className:"stat",style:{"--ac":"var(--rose)"}},React.createElement("div",{className:"stat-ico"},"⚠"),React.createElement("div",{className:"stat-lbl"},"Outstanding"),React.createElement("div",{className:"stat-val"},BDT(K)),React.createElement("div",{className:"stat-sub"},"In-house balance due"))),React.createElement("div",{className:"flex fac fjb mb4",style:{flexWrap:"wrap",gap:8}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:0}},React.createElement("div",{className:"tabs",style:{marginBottom:0}},(()=>{const[e,t,a]=($||todayStr()).split("-");return[["TODAY",`${+a}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+t-1]}-${e}`],["MONTH","MONTH"],["ALL","ALL"]]})().map(([e,t])=>React.createElement("button",{key:e,className:"tab"+(s===e?" on":""),onClick:()=>{i(e),m("")}},t))),React.createElement("div",{style:{position:"relative",display:"inline-flex",alignItems:"center"}},React.createElement("input",{type:"date",value:d,onChange:e=>{m(e.target.value),e.target.value&&i("DATE")},style:{opacity:0,position:"absolute",left:0,top:0,width:"100%",height:"100%",cursor:"pointer",zIndex:2},title:"Pick a specific date"}),React.createElement("button",{className:"tab"+("DATE"===s?" on":""),style:{borderLeft:"none",display:"flex",alignItems:"center",gap:5,minWidth:d?"auto":38},title:"Pick specific date"},"📅",d&&React.createElement("span",{style:{fontSize:10,letterSpacing:".04em"}},(e=>{if(!e)return null;const[t,a,n]=e.split("-");return`${+n}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+a-1]}-${t}`})(d))))),React.createElement("div",{className:"flex gap2",style:{alignItems:"center"}},"housekeeping"!==r?.role&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,background:"rgba(200,169,110,.06)",border:"1px solid var(--br)",padding:"4px 10px"}},React.createElement("span",{style:{fontSize:9,letterSpacing:".12em",color:"var(--tx3)",textTransform:"uppercase",whiteSpace:"nowrap"}},"Token"),React.createElement("input",{type:"number",className:"finput",value:C,onChange:e=>A(e.target.value),placeholder:"0",style:{width:90,padding:"4px 8px",fontSize:12}}),React.createElement("button",{className:"btn btn-ghost btn-sm",style:{padding:"4px 10px",fontSize:9},disabled:z,onClick:async function(){const e=+C;if(!e||e<0)a("Enter valid token amount","error");else{B(!0);try{await fetch(`${SB_URL}/rest/v1/hotel_settings`,{method:"POST",headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify({key:"daily_token_amount",value:String(e),tenant_id:TENANT})}),T(e),a(`Token amount ${BDT(e)} saved`)}catch(e){a(e.message,"error")}finally{B(!1)}}}},z?"…":"Save"),React.createElement("button",{className:"btn btn-ghost btn-sm",style:{padding:"4px 10px",fontSize:9,marginLeft:6,borderLeft:"1px solid var(--br)",paddingLeft:10},onClick:function(){const e=J.filter(e=>"Balance Carried Forward"!==e.type),a=e=>{const t=String(e?.type||""),a=t.match(/\(([^)]+)\)/);return a?a[1].trim():/cash/i.test(t)?"Cash":/bkash/i.test(t)?"Bkash":/nagad/i.test(t)?"Nagad":/card/i.test(t)?"Card":t||"—"},n=e.reduce((e,t)=>e+(+t.amount||0),0),r=e.filter(e=>/cash/i.test(e.type||"")).reduce((e,t)=>e+(+t.amount||0),0),l=e.filter(e=>/bkash/i.test(e.type||"")).reduce((e,t)=>e+(+t.amount||0),0),o=e.map(e=>{const n=(e=>{const a=e.reservation_id||e.res_id;return a?t.find(e=>String(e.id)===String(a)):t.find(t=>(t.room_ids||[t.room_number]).map(String).includes(String(e.room_number))&&e.fiscal_day>=(t.check_in||"").slice(0,10)&&e.fiscal_day<=(t.check_out||"9999-12-31").slice(0,10))})(e),r=n?G(n):null;return{guest_name:e.guest_name||(n?j(n):"—"),room_number:e.room_number||(n?(n.room_ids||[n.room_number]).filter(Boolean).join(","):"—"),check_in:n?.check_in||"",check_out:n?.check_out||"",bill_total:r?+n.total_amount||r.sub:0,discount:r?r.discount:n&&(+n.discount_amount||+n.discount)||0,paid:r?r.paid:n&&+n.paid_amount||0,balance_due:r?r.due:n?Math.max(0,(+n.total_amount||0)-(+n.discount_amount||+n.discount||0)-(+n.paid_amount||0)):0,payment_method:a(e),collected_amount:+e.amount||0,fiscal_day:e.fiscal_day}}),c=(q||[]).map(e=>{const t=G(e);return{guest_name:j(e),room_number:(e.room_ids||[e.room_number]).filter(Boolean).join(",")||"—",check_in:e.check_in||"",check_out:e.check_out||"",bill_total:+e.total_amount||t?.sub||0,paid:t?t.paid:+e.paid_amount||0,balance_due:t?t.due:Math.max(0,(+e.total_amount||0)-(+e.paid_amount||0)),status:e.status||""}}).filter(e=>e.balance_due>0);downloadBillingPDF(o,s,n,r,l,K,d,D,c)},title:"Download specific date report"},"📥 Download Report")),React.createElement("button",{className:"btn btn-gold btn-sm",style:{gap:5,whiteSpace:"nowrap"},onClick:async function(){const t=todayStr(),r=(()=>{const e=new Date($);return e.setDate(e.getDate()+1),`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`})();if(r>t)return void a(`Closing already complete for ${t}. BIZ DAY is ${$} — cannot advance further.`,"error");if(!window.confirm(`Close BIZ DAY ${$} and advance to ${r}?\n\nThis is a one-way operation. Verify all payments are recorded.`))return;const l=+C;if(l&&l>=0&&l!==D)try{await fetch(`${SB_URL}/rest/v1/hotel_settings`,{method:"POST",headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify({key:"daily_token_amount",value:String(l),tenant_id:TENANT})}),T(l)}catch{}const o=e.filter(e=>e.fiscal_day===$&&"Balance Carried Forward"!==e.type),c=o.reduce((e,t)=>e+(+t.amount||0),0),s=l||D||0,i=c-s,d=(new Date).toLocaleString("en-BD",{timeZone:"Asia/Dhaka",year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"}),m=q.map(e=>{const t=(e.room_ids||[e.room_number]).filter(Boolean).join(", ")||"—",a=j(e),n=+e.total_amount||0,r=+e.discount_amount||+e.discount||0,l=+e.paid_amount||0;return{gname:a,room:t,total:n,discount:r,paid:l,due:Math.max(0,n-r-l),check_in:e.check_in,check_out:e.check_out,resId:e.id}}),p=m.reduce((e,t)=>e+t.due,0),g=o.map(e=>`<tr><td>${e.fiscal_day||"—"}</td><td>${e.guest_name||"—"}</td><td>${e.room_number||"—"}</td><td>${e.type||"Payment"}</td><td style="text-align:right;font-weight:600">৳${Number(e.amount||0).toLocaleString()}</td></tr>`).join(""),u=m.length>0?`\n      <h3 style="margin:20px 0 8px;font-size:13px;color:#E05C7A;border-bottom:1px solid #f0c0ca;padding-bottom:4px">⚠ Outstanding Dues — Carried to Next Day</h3>\n      <table><thead><tr style="background:#E05C7A"><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>\n        ${m.map((e,t)=>`<tr style="${t%2?"background:#fdf6f6":""}"><td>${e.gname}</td><td>${e.room}</td><td>${e.check_in?.slice(0,10)||"—"}</td><td>${e.check_out?.slice(0,10)||"—"}</td><td>৳${e.total.toLocaleString()}</td><td>৳${e.paid.toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#E05C7A">৳${e.due.toLocaleString()}</td></tr>`).join("")}\n      </tbody></table>`:"";printPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>\n<style>\n@page{size:A4 portrait;margin:5.08mm}\n@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}\n*{box-sizing:border-box;margin:0;padding:0}\nbody{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}\n.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}\n.hotel-name{font-size:18px;font-weight:700;color:#000}.hotel-sub{font-size:9px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}\n.report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700}.report-title .meta{font-size:8px;color:#444;margin-top:3px}\ntable{width:100%;border-collapse:collapse;margin-top:6px}\nthead tr{background:#000;color:#fff}\nthead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}\nthead th:last-child{text-align:right}\ntbody tr:nth-child(even){background:#f2f2f2}\ntbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}\ntbody td:last-child{text-align:right;font-weight:600}\nh3{font-size:11px;font-weight:700;color:#000;margin:14px 0 6px;border-bottom:1px solid #000;padding-bottom:3px}\n.closing-box{margin-top:16px;border:2px solid #000;padding:12px 16px;background:#f8f8f8}\n.closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#000}\n.closing-row.total{border-top:1px solid #ccc;margin-top:4px;padding-top:6px;font-weight:700}\n.closing-row.due{color:#000;font-style:italic}\n.closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}\n.footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between;font-size:8px;color:#555}\n</style></head><body>\n<div class="header"><div><div class="hotel-name">Hotel <em>Fountain</em></div><div class="hotel-sub">Daily Closing Report</div></div><div class="report-title"><h2>Closing: ${$}</h2><div class="meta">Generated: ${d}</div></div></div>\n<table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead><tbody>${g||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions today</td></tr>'}</tbody></table>\n${u}\n<div class="closing-box">\n  <div class="closing-row total"><span>Total Paid Amount</span><span>৳${c.toLocaleString()}</span></div>\n  <div class="closing-row"><span>Token Amount</span><span>− ৳${s.toLocaleString()}</span></div>\n  ${p>0?`<div class="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${p.toLocaleString()}</span></div>`:""}\n  <div class="closing-row final"><span>Closing Balance</span><span>৳${i.toLocaleString()}</span></div>\n</div>\n<div className="footer"><span>{_HNAME} CRM · Lumea PMS · Confidential</span><span>${o.length} transaction${1!==o.length?"s":""} · ${m.length} pending due${1!==m.length?"s":""}</span></div>\n</body></html>`).then(async()=>{const t=new Date($);t.setDate(t.getDate()+1);const r=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;try{const t=e.filter(e=>e.fiscal_day===r&&"Balance Carried Forward"===e.type);t.length>0&&await Promise.all(t.map(e=>dbDelete("transactions",e.id))),m.length>0&&await Promise.all(m.map(e=>dbPost("transactions",{tenant_id:TENANT,fiscal_day:r,guest_name:e.gname,room_number:e.room,amount:e.due,type:"Balance Carried Forward",reservation_id:e.resId||null}))),await fetch(`${SB_URL}/rest/v1/hotel_settings`,{method:"POST",headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify({key:"active_fiscal_day",value:r,tenant_id:TENANT})}),a(`✓ Day closed · Fiscal day → ${r}`,"info"),n()}catch(e){a("Report open — could not advance fiscal day: "+e.message,"error")}})}},"✓ Closing Complete")))),(()=>{let l="TODAY"===s?P:"DATE"===s?O:"MONTH"===s?L:e;if(u){const e=u.toLowerCase();l=l.filter(t=>t.guest_name?.toLowerCase().includes(e)||t.room_number?.includes(e)||t.type?.toLowerCase().includes(e))}const c=e=>{if(!e)return"Today";const[t,a,n]=e.split("-");return`${+n}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+a-1]}-${t}`},i="TODAY"===s?c(""):"DATE"===s?c(d):"MONTH"===s?"This Month":"All Time",m={};l.forEach(e=>{const a=e.reservation_id&&t?.find(t=>t.id===e.reservation_id)||(()=>{const a=o?.find(t=>t.name===e.guest_name)?.id;return t?.find(t=>{const n=(t.room_ids||[]).some(t=>String(t)===String(e.room_number))||String(t.room_number)===String(e.room_number),r=!a||(t.guest_ids||[]).includes(a)||t.guest_name===e.guest_name;return n&&r})||t?.find(t=>(t.room_ids||[]).some(t=>String(t)===String(e.room_number))||String(t.room_number)===String(e.room_number))})(),n=a?a.id:`tx|${e.guest_name||""}|${e.room_number||""}|${e.fiscal_day||""}`;m[n]||(m[n]={txs:[],res:a,guest_name:e.guest_name,room_number:e.room_number,isDue:!1}),m[n].txs.push(e)}),u||V.forEach(e=>{try{if(!e||!e.id)return;const t=e.id;m[t]?(m[t].isDue=Y(e)>0,m[t].res=e):m[t]={txs:[],res:e,guest_name:j(e),room_number:H(e),isDue:Y(e)>0}}catch(t){console.warn("[ledger] skip malformed reservation",e?.id,t)}});const p="TODAY"===s?Object.values(m).filter(e=>!!e.isDue||("CHECKED_IN"===e.res?.status||e.txs.some(e=>!/balance carried forward/i.test(e.type||"")))):Object.values(m);return React.createElement("div",{className:"card",style:{marginBottom:12}},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title",style:{fontSize:14}},"Active Billing Ledger — ",i),React.createElement("span",{className:"badge bgold"},p.length," records")),React.createElement("div",{className:"tbl-wrap"},React.createElement("table",{className:"tbl"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Guest"),React.createElement("th",null,"Room"),React.createElement("th",null,"Check-In"),React.createElement("th",null,"Check-Out"),React.createElement("th",null,"Bill Total"),React.createElement("th",null,"Discount"),React.createElement("th",null,"Paid"),React.createElement("th",null,"Balance Due"),React.createElement("th",null,"Payments (Filtered)"),React.createElement("th",null,"Action"))),React.createElement("tbody",null,0===p.length?React.createElement("tr",null,React.createElement("td",{colSpan:10,style:{textAlign:"center",padding:"20px 0",color:"var(--tx3)",fontSize:12}},"No billing activity or dues for this period")):p.map(e=>{const t=e.res,{total:l,paid:c,due:i}=t?G(t):{total:0,paid:0,due:0},d=e.txs.some(e=>/cash|bkash/i.test(e.type||"")),m={};e.txs.forEach(e=>{if(d&&/final\s*settlement/i.test(e.type||""))return;const t=e.type||"Payment";m[t]||(m[t]=0),m[t]+=+e.amount||0});const p=t?j(t):e.guest_name||"—",g=t?H(t):e.room_number||"—",u=t?fmtDate(t.check_in):e.txs[0]?.check_in?fmtDate(e.txs[0].check_in):"—",f=t?fmtDate(t.check_out):e.txs[0]?.check_out?fmtDate(e.txs[0].check_out):"—",b=t?l:e.txs[0]?.bill_total?+e.txs[0].bill_total:0,y="TODAY"===s?e.txs.filter(e=>/payment|settlement|advance|deposit|bkash|bank\s*transfer/i.test(e.type||"")&&!/balance carried forward/i.test(e.type||"")).reduce((e,t)=>e+(+t.amount||0),0):t?c:0,h=t?i:0,x=t&&(+t.discount_amount||+t.discount)||0;return React.createElement("tr",{key:t?t.id:e.guest_name+"|"+e.room_number},React.createElement("td",{className:"xs"},p),React.createElement("td",null,React.createElement("span",{className:"badge bb"},g)),React.createElement("td",{className:"xs muted"},u),React.createElement("td",{className:"xs muted"},f),React.createElement("td",{className:"xs gold"},BDT(b)),React.createElement("td",{className:"xs",style:{color:"var(--amb)"}},x>0?"− "+BDT(x):"—"),React.createElement("td",{className:"xs",style:{color:"var(--grn)"}},BDT(y)),React.createElement("td",{className:"xs",style:{color:h>0?"var(--rose)":"var(--grn)",fontWeight:h>0?600:400}},BDT(h)),React.createElement("td",{className:"xs",style:{lineHeight:1.8}},0===Object.keys(m).length?React.createElement("span",{className:"muted xs",style:{fontSize:10}},"— No Pymt in Period —"):Object.entries(m).map(([e,t])=>React.createElement("div",{key:e,style:{display:"flex",justifyContent:"space-between",gap:12,minWidth:140}},React.createElement("span",{className:"badge bgold",style:{fontSize:8}},e),React.createElement("span",{style:{color:"var(--gold)",fontWeight:500}},BDT(t))))),React.createElement("td",{style:{whiteSpace:"nowrap"}},"housekeeping"!==r?.role&&React.createElement("button",{className:"btn btn-gold btn-sm",style:{padding:"3px 9px",fontSize:9,marginRight:4},onClick:()=>{const e=t?+t.total_amount||0:b,a=t?+t.paid_amount||0:y;E({_fromRow:!0,...t||{},room_number:g,guest_name:p,_resId:t?.id||null,_total:e,_paid:a,_discount:x}),v(!0)}},"+ Pay"),"housekeeping"!==r?.role&&React.createElement("button",{className:"btn btn-ghost btn-sm",style:{padding:"3px 9px",fontSize:9,marginRight:4},onClick:()=>{const a={...m};t&&0===Object.keys(a).length&&y>0&&(a[t.payment_method||"Cash"]=y);const n=t?G(t):null,r=t?o?.find(e=>String(e.id)===String((t.guest_ids||[])[0])):null;printInvoice({guest_name:p,room_number:g,txs:e.txs},t,b,y,h,a,n,r)}},"🖨 Print"),"housekeeping"!==r?.role&&t&&React.createElement("button",{className:"btn btn-ghost btn-sm",style:{padding:"3px 9px",fontSize:9,marginRight:4},onClick:()=>function(e){N(e),R(!0)}(t)},"Detail"),"owner"===r?.role&&e.txs.length>0&&React.createElement("button",{className:"btn btn-danger btn-sm",style:{padding:"3px 7px",fontSize:9},onClick:async()=>{if(window.confirm(`Delete all ${e.txs.length} filtered transaction(s) for ${p}?`))try{for(const t of e.txs)await dbDelete("transactions",t.id);a(`${e.txs.length} transaction(s) deleted`),n()}catch(e){a(e.message,"error")}}},"✕")))})))))})(),b&&React.createElement(RecordPayModal,{toast:a,guests:o,onClose:()=>{v(!1),E(null)},reload:()=>{n(),db("folios","?select=*&order=created_at").then(e=>{const t={};(Array.isArray(e)?e:[]).forEach(e=>{const a=e.reservation_id||e.room_number;t[a]||(t[a]=[]),t[a].push(e)}),k(t)})},prefill:y,reservations:t,businessDate:c}),h&&x&&(()=>{const{roomCharge:t,sub:a,tax:n,svc:r,discount:l,total:o,paid:c,due:s,folios:i,nights:d,roomRate:m,vatPct:p,svcPct:g,perRoom:u,topFolios:f}=G(x),b=(x.room_ids||[x.room_number]).filter(Boolean),v=e.filter(e=>b.includes(e.room_number)&&"Balance Carried Forward"!==e.type);return React.createElement("div",{style:{background:"linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))",border:"1px solid rgba(200,169,110,.18)",padding:"12px 14px",marginBottom:14}},React.createElement("div",{className:"flex fac fjb",style:{flexWrap:"wrap",gap:8}},React.createElement("div",{className:"flex fac gap3"},React.createElement(Av,{name:x.guest_name,size:40}),React.createElement("div",null,React.createElement("div",{style:{fontWeight:700,fontSize:16}},x.guest_name),React.createElement("div",{className:"xs muted"},"Room",b.length>1?"s":""," ",b.join(", ")," · ",fmtDate(x.check_in)," → ",fmtDate(x.check_out)),React.createElement("div",{className:"xs",style:{color:"var(--amb)",marginTop:2}},d," night",1!==d?"s":""," · ",b.length," room",1!==b.length?"s":""))),React.createElement("div",{style:{textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}},React.createElement("div",null,React.createElement("div",{className:"xs muted"},"Total Due"),React.createElement("div",{style:{fontWeight:700,fontSize:22,color:"var(--gold)"}},BDT(s))),React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:()=>{R(!1),N(null)}},"✕ Close"))),React.createElement("div",{className:"g2 mb4"},[["Check-In",fmtDate(x.check_in)],["Check-Out",fmtDate(x.check_out)],["Nights",d],["Payment Method",x.payment_method||"—"],["On-Duty Officer",x.on_duty_officer||"—"],["Status",x.status||"—"]].map(([e,t])=>React.createElement("div",{key:e,className:"info-box"},React.createElement("div",{className:"info-lbl"},e),React.createElement("div",{className:"info-val"},t)))),React.createElement("div",{style:{background:"var(--s2)",border:"1px solid var(--br2)",overflow:"hidden",marginBottom:8}},(u||[]).map((e,t)=>React.createElement("div",{key:e.room_number+t,style:{borderBottom:t<u.length-1?"1px solid var(--br2)":"none"}},React.createElement("div",{style:{padding:"8px 12px",background:"rgba(200,169,110,.06)",borderBottom:"1px solid var(--br2)",display:"flex",justifyContent:"space-between",alignItems:"center"}},React.createElement("span",{style:{fontSize:11,fontWeight:600,color:"var(--gold)"}},"🛏 Room ",e.room_number," · ",e.category),React.createElement("span",{className:"xs",style:{color:"var(--gold)"}},d,"×",BDT(e.rate)," = ",BDT(e.roomSubtotal))),0===e.folios.length&&0===e.extras?React.createElement("div",{className:"xs muted",style:{padding:"6px 14px"}},"No extras charged to this room"):e.folios.map(e=>React.createElement("div",{key:e.id,className:"folio-row",style:{paddingLeft:20}},React.createElement("div",null,React.createElement("span",null,e.description),React.createElement("span",{className:"badge bgold",style:{marginLeft:6,fontSize:8}},e.category)),React.createElement("span",{className:"xs gold"},BDT(e.amount)))),e.extras>0&&React.createElement("div",{className:"folio-row",style:{paddingLeft:20,background:"rgba(200,169,110,.03)",fontWeight:600}},React.createElement("span",{className:"xs muted"},"Room ",e.room_number," subtotal"),React.createElement("span",{className:"xs gold"},BDT(e.subtotal))))),(f||[]).length>0&&React.createElement("div",{style:{borderTop:"1px solid var(--br2)"}},React.createElement("div",{style:{padding:"6px 12px",background:"rgba(88,166,255,.05)",fontSize:10,color:"var(--sky)",letterSpacing:".1em",textTransform:"uppercase"}},"Unattributed Extras"),f.map(e=>React.createElement("div",{key:e.id,className:"folio-row"},React.createElement("div",null,React.createElement("span",null,e.description),React.createElement("span",{className:"badge bb",style:{marginLeft:6,fontSize:8}},e.category)),React.createElement("span",{className:"xs gold"},BDT(e.amount))))),v.map(e=>React.createElement("div",{key:e.id,className:"folio-row",style:{opacity:.75}},React.createElement("div",null,React.createElement("span",{style:{color:"var(--tx2)"}},e.type||"Charge"),React.createElement("span",{className:"badge bb",style:{marginLeft:6,fontSize:8}},e.fiscal_day)),React.createElement("span",{className:"xs",style:{color:"var(--sky)"}},BDT(e.amount))))),React.createElement("div",{style:{padding:"9px 12px",background:"rgba(200,169,110,.03)",borderTop:"1px solid var(--br2)"}},[["Subtotal",a]].map(([e,t])=>React.createElement("div",{key:e,className:"flex fjb xs muted",style:{marginBottom:3}},React.createElement("span",null,e),React.createElement("span",null,BDT(t)))),l>0&&React.createElement("div",{className:"flex fjb xs",style:{marginBottom:3,color:"var(--grn)"}},React.createElement("span",null,"Discount"),React.createElement("span",null,"- ",BDT(l))),[[`VAT ${p||15}%`,n],[`Service Charge ${g||5}%`,r]].map(([e,t])=>React.createElement("div",{key:e,className:"flex fjb xs muted",style:{marginBottom:3}},React.createElement("span",null,e),React.createElement("span",null,BDT(t)))),React.createElement("div",{className:"divider",style:{margin:"6px 0"}}),React.createElement("div",{className:"flex fjb",style:{fontSize:13,fontWeight:700,color:"var(--gold)"}},React.createElement("span",null,"Total"),React.createElement("span",null,BDT(o))),React.createElement("div",{className:"flex fjb xs",style:{marginTop:4}},React.createElement("span",{style:{color:"var(--grn)"}},"Paid: ",BDT(c)),s>0&&React.createElement("span",{style:{color:"var(--rose)",fontWeight:700}},"Due: ",BDT(s)))))})())}function RecordPayModal({toast:e,onClose:t,reload:a,prefill:n,reservations:r,guests:l,businessDate:o}){const c=!0===n?._fromRow,s=e=>Math.max(0,(+e.total_amount||0)-(+e.discount_amount||+e.discount||0)-(+e.paid_amount||0)),i=(r||[]).filter(e=>("CHECKED_IN"===e.status||"CHECKED_OUT"===e.status)&&s(e)>0),d=c?n.room_number||"":null,m=c?n.guest_name||"":null,p=c?n._resId:null,g=c&&+n._discount||0,u=c?Math.max(0,(+n._total||0)-g-(+n._paid||0)):0,f=!c&&n?.id?n:c||1!==i.length?null:i[0],[b,v]=useState(f),[y,E]=useState(f?`${f.room_number||""} — ${f.guest_name||""}`:""),[h,R]=useState(!1),x=b?s(b):0,[N,S]=useState(c&&u>0?String(u):x>0?String(x):""),[k,_]=useState("Room Payment (Cash)"),[w,C]=useState(o||todayStr()),[A,D]=useState(!1);return React.createElement(Modal,{title:"Record Payment",onClose:t,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:t},"Cancel"),React.createElement("button",{className:"btn btn-gold",disabled:A,onClick:async function(){const r=+N;if(!r||r<=0)return e("Enter valid amount","error");if(!c&&!b&&!y)return e("Select a guest / room","error");D(!0);const l=c?d:b?.room_number||y,o=c?m:b?.guest_name||y,s=c?p:b?.id,i=c?+n._total||0:+b?.total_amount||0,u=c?g:+b?.discount_amount||+b?.discount||0,f=c?+n._paid||0:+b?.paid_amount||0,v=Math.max(0,i-u);try{await dbPost("transactions",{room_number:l,guest_name:o,type:k,amount:r,fiscal_day:w,reservation_id:s||null,tenant_id:TENANT}),s&&await dbPatch("reservations",s,{paid_amount:Math.min(v,f+r)}),e(`Payment ${BDT(r)} recorded`),a(),t()}catch(t){e(t.message,"error"),D(!1)}}},A?"Saving…":"Record Payment"))},c&&React.createElement("div",{style:{border:"1px solid var(--br)",marginBottom:14,overflow:"hidden"}},React.createElement("div",{style:{background:"rgba(200,169,110,.08)",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid var(--br)"}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},React.createElement("span",{className:"badge bb",style:{padding:"3px 10px",fontSize:11}},d||"—"),React.createElement("span",{style:{fontWeight:600,fontSize:13}},m||"—")),u>0?React.createElement("span",{style:{fontSize:12,fontWeight:700,color:"var(--rose)",background:"rgba(224,92,122,.1)",border:"1px solid rgba(224,92,122,.25)",padding:"3px 10px"}},"DUE ",BDT(u)):React.createElement("span",{style:{fontSize:11,color:"var(--grn)"}},"✓ Settled")),React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr"}},[["Check-In",fmtDate(n.check_in)],["Check-Out",fmtDate(n.check_out)],["Nights",nightsCount(n.check_in,n.check_out)||"—"],["Method",n.payment_method||"—"],["Officer",n.on_duty_officer||"—"],["Status",n.status||"—"]].map(([e,t])=>React.createElement("div",{key:e,style:{padding:"6px 12px",borderBottom:"1px solid var(--br2)",borderRight:"1px solid var(--br2)"}},React.createElement("div",{style:{fontSize:8,letterSpacing:".1em",color:"var(--tx3)",textTransform:"uppercase",marginBottom:1}},e),React.createElement("div",{style:{color:"var(--tx)",fontSize:12}},t)))),React.createElement("div",{style:{display:"grid",gridTemplateColumns:g>0?"1fr 1fr 1fr 1fr":"1fr 1fr 1fr",background:"rgba(200,169,110,.03)"}},[["Total",BDT(+n._total||0),"var(--gold)"],...g>0?[["Discount","− "+BDT(g),"var(--amb)"]]:[],["Paid",BDT(+n._paid||0),"var(--grn)"],["Balance Due",BDT(u),u>0?"var(--rose)":"var(--grn)"]].map(([e,t,a])=>React.createElement("div",{key:e,style:{padding:"8px 12px",textAlign:"center",borderRight:"1px solid var(--br2)"}},React.createElement("div",{style:{fontSize:8,letterSpacing:".1em",color:"var(--tx3)",textTransform:"uppercase",marginBottom:2}},e),React.createElement("div",{style:{color:a,fontWeight:700,fontSize:13}},t))))),!c&&React.createElement("div",{style:{marginBottom:12,position:"relative"}},React.createElement("label",{className:"flbl"},"Guest / Room ",React.createElement("span",{style:{color:"var(--rose)"}},"*")),React.createElement("div",{style:{display:"flex",gap:6,alignItems:"center"}},React.createElement("input",{className:"finput",value:y,placeholder:0===i.length?"No unsettled reservations":"Search room or guest name…",onChange:e=>{E(e.target.value),v(null),R(!0)},onFocus:()=>R(!0),autoFocus:!0,style:{flex:1}}),b&&React.createElement("button",{style:{background:"none",border:"none",color:"var(--tx3)",cursor:"pointer",fontSize:16,lineHeight:1,padding:"0 4px"},onClick:function(){v(null),E(""),S(""),R(!0)}},"✕")),h&&i.length>0&&React.createElement("div",{style:{position:"absolute",top:"100%",left:0,right:0,zIndex:60,background:"var(--s1)",border:"1px solid var(--br)",boxShadow:"0 8px 24px rgba(0,0,0,.6)",maxHeight:180,overflowY:"auto"}},i.filter(e=>{const t=y.toLowerCase();return!t||e.room_number?.toLowerCase().includes(t)||e.guest_name?.toLowerCase().includes(t)}).map(e=>{const t=s(e);return React.createElement("div",{key:e.id,onClick:()=>function(e){v(e),E(`${e.room_number||""} — ${e.guest_name||""}`);const t=s(e);t>0&&S(String(t)),R(!1)}(e),style:{padding:"9px 14px",cursor:"pointer",borderBottom:"1px solid var(--br2)",display:"flex",justifyContent:"space-between",alignItems:"center"},onMouseEnter:e=>e.currentTarget.style.background="var(--gdim)",onMouseLeave:e=>e.currentTarget.style.background="transparent"},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},React.createElement("span",{className:"badge bb"},e.room_number||"—"),React.createElement("span",{style:{fontSize:12}},e.guest_name||"—")),React.createElement("span",{style:{fontSize:11,color:"var(--rose)",fontWeight:600}},BDT(t)," due"))})),b&&(()=>{const e=+b.discount_amount||+b.discount||0;return React.createElement("div",{style:{marginTop:6,background:"rgba(200,169,110,.06)",border:"1px solid var(--br)",padding:"8px 12px",fontSize:11,display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}},React.createElement("span",{style:{color:"var(--tx2)"}},"Total: ",React.createElement("strong",{style:{color:"var(--tx)"}},BDT(b.total_amount||0)),e>0&&React.createElement(React.Fragment,null," · Discount: ",React.createElement("strong",{style:{color:"var(--amb)"}},"− ",BDT(e))),"· Paid: ",React.createElement("strong",{style:{color:"var(--grn)"}},BDT(b.paid_amount||0))),React.createElement("span",{style:{color:x>0?"var(--rose)":"var(--grn)",fontWeight:600}},"Due: ",BDT(x)))})()),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Amount (BDT) *"),React.createElement("input",{type:"number",className:"finput",value:N,onChange:e=>S(e.target.value),placeholder:"0",autoFocus:c})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Date"),React.createElement("input",{type:"date",className:"finput",value:w,onChange:e=>C(e.target.value)}))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Payment Type"),React.createElement("select",{className:"fselect",value:k,onChange:e=>_(e.target.value)},["Room Payment (Cash)","Room Payment (Bkash)","Room Payment (Nagad)","Room Payment (Card)","Room Service","Restaurant","Laundry","Misc"].map(e=>React.createElement("option",{key:e},e)))))}function ReportsPage({transactions:e,rooms:t,reservations:a,guests:n}){const[r,l]=useState(13),o=Array.from({length:14},(t,a)=>{const n=new Date(todayDhaka());n.setDate(n.getDate()-(13-a));const r=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;return{d:r.slice(8),v:e.filter(e=>e.fiscal_day===r).reduce((e,t)=>e+(+t.amount||0),0),ds:r}}),c=e.reduce((e,t)=>e+(+t.amount||0),0),s=t.filter(e=>"OCCUPIED"===e.status).length,i=t.length?Math.round(s/t.length*100):0,d=t.length?Math.round(t.reduce((e,t)=>e+(+t.price||0),0)/t.length):0,m=Math.round(d*i/100),p=e.reduce((e,t)=>(t.type&&(e[t.type]=(e[t.type]||0)+(+t.amount||0)),e),{}),g=Object.entries(p).sort((e,t)=>t[1]-e[1]).slice(0,8);return React.createElement("div",null,React.createElement("div",{className:"stats-row"},React.createElement("div",{className:"stat",style:{"--ac":"var(--gold)"}},React.createElement("div",{className:"stat-lbl"},"Total Revenue"),React.createElement("div",{className:"stat-val"},BDT(c))),React.createElement("div",{className:"stat",style:{"--ac":"var(--sky)"}},React.createElement("div",{className:"stat-lbl"},"Occupancy"),React.createElement("div",{className:"stat-val"},i,"%"),React.createElement("div",{className:"stat-sub"},s,"/",t.length," rooms")),React.createElement("div",{className:"stat",style:{"--ac":"var(--teal)"}},React.createElement("div",{className:"stat-lbl"},"ADR"),React.createElement("div",{className:"stat-val"},BDT(d)),React.createElement("div",{className:"stat-sub"},"Avg Daily Rate")),React.createElement("div",{className:"stat",style:{"--ac":"var(--pur)"}},React.createElement("div",{className:"stat-lbl"},"RevPAR"),React.createElement("div",{className:"stat-val"},BDT(m)),React.createElement("div",{className:"stat-sub"},"Revenue/Available Room"))),React.createElement("div",{className:"g2 mb4"},React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Daily Revenue — Last 14 Days"),React.createElement("span",{className:"badge bgold"},o[r]?.ds?.slice(5)," · ",BDT(o[r]?.v))),React.createElement("div",{className:"card-body"},React.createElement(BarChart,{data:o,active:r,onHover:l}),React.createElement("div",{className:"divider"}),React.createElement("div",{className:"flex fjb xs muted"},React.createElement("span",null,"14-day total"),React.createElement("span",{className:"gold"},BDT(o.reduce((e,t)=>e+t.v,0)))))),React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Revenue by Category")),React.createElement("div",{className:"card-body"},g.map(([e,t])=>React.createElement("div",{key:e,className:"flex fac fjb",style:{padding:"5px 0",borderBottom:"1px solid var(--br2)"}},React.createElement("span",{className:"xs"},e),React.createElement("div",{className:"flex fac gap2"},React.createElement("span",{className:"xs gold"},BDT(t)),React.createElement("div",{style:{height:4,width:Math.round(t/(g[0]?.[1]||1)*60),background:"rgba(200,169,110,.4)",borderRadius:2}}))))))),React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Room Category Performance")),React.createElement("div",{className:"tbl-wrap"},React.createElement("table",{className:"tbl"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Category"),React.createElement("th",null,"Total Rooms"),React.createElement("th",null,"Rate/Night"),React.createElement("th",null,"Occupied"),React.createElement("th",null,"Occupancy %"),React.createElement("th",null,"RevPAR"))),React.createElement("tbody",null,["Fountain Deluxe","Premium Deluxe","Superior Deluxe","Twin Deluxe","Royal Suite"].map(e=>{const a=t.filter(t=>t.category===e);if(!a.length)return null;const n=a[0]?.price||0,r=a.filter(e=>"OCCUPIED"===e.status).length,l=Math.round(r/a.length*100);return React.createElement("tr",{key:e},React.createElement("td",null,React.createElement("span",{className:"badge bgold"},e)),React.createElement("td",{className:"xs"},a.length),React.createElement("td",{className:"xs gold"},BDT(n)),React.createElement("td",{className:"xs"},r),React.createElement("td",{className:"xs"},l,"%"),React.createElement("td",{className:"xs gold"},BDT(Math.round(n*l/100))))}))))))}function SettingsPage({currentUser:e,toast:t,staffList:a,setStaffList:n,reservations:r,rooms:l,guests:o}){const c="owner"===e?.role,[s,i]=useState("hotel"),[d,m]=useState({hotelName:_HNAME,city:_CCITY,currency:_CFG.currencyCode||"BDT",checkIn:_CFG.checkInTime||"14:00",checkOut:_CFG.checkOutTime||"12:00",vat:String(_VRATE),svc:String(_SRATE)}),[p,g]=useState(!1),u=e=>t=>m(a=>({...a,[e]:t.target.value})),[f,b]=useState(!1),[v,y]=useState(null);return useEffect(()=>{!async function(){try{const e=await db("hotel_settings",`?tenant_id=eq.${TENANT}&select=key,value`);if(e&&e.length>0){const t={};e.forEach(e=>{t[e.key]=e.value}),m(e=>({hotelName:t.hotel_name||e.hotelName,city:t.city||e.city,currency:t.currency||e.currency,checkIn:t.check_in||e.checkIn,checkOut:t.check_out||e.checkOut,vat:t.vat_rate||e.vat,svc:t.service_charge||e.svc}))}}catch(e){console.warn("Settings load:",e.message)}}()},[]),React.createElement("div",{style:{maxWidth:700}},React.createElement("div",{className:"tabs mb4"},[["hotel","🏨 Hotel Info"],["users","👥 Staff & Users"],["devices","📱 Devices"],["system","⚙ System"]].map(([e,t])=>React.createElement("button",{key:e,className:"tab"+(s===e?" on":""),onClick:()=>i(e)},t))),"hotel"===s&&React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Hotel Information"),!c&&React.createElement("span",{className:"badge ba"},"View Only")),React.createElement("div",{className:"card-body"},React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Hotel Name"),React.createElement("input",{className:"finput",value:d.hotelName,onChange:u("hotelName"),disabled:!c})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"City / Location"),React.createElement("input",{className:"finput",value:d.city,onChange:u("city"),disabled:!c}))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Currency"),React.createElement("select",{className:"fselect",value:d.currency,onChange:u("currency"),disabled:!c},React.createElement("option",{value:"BDT"},"BDT — Bangladeshi Taka (৳)"),React.createElement("option",{value:"USD"},"USD — US Dollar ($)"),React.createElement("option",{value:"EUR"},"EUR — Euro (€)"))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Timezone"),React.createElement("select",{className:"fselect",disabled:!c},React.createElement("option",null,"Asia/Dhaka (UTC+6)")))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Standard Check-In"),React.createElement("input",{type:"time",className:"finput",value:d.checkIn,onChange:u("checkIn"),disabled:!c})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Standard Check-Out"),React.createElement("input",{type:"time",className:"finput",value:d.checkOut,onChange:u("checkOut"),disabled:!c}))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"VAT Rate (%)"),React.createElement("input",{type:"number",className:"finput",value:d.vat,onChange:u("vat"),disabled:!c,min:"0",max:"30"})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Service Charge (%)"),React.createElement("input",{type:"number",className:"finput",value:d.svc,onChange:u("svc"),disabled:!c,min:"0",max:"30"}))),c?React.createElement("button",{className:"btn btn-gold mt3",disabled:p,onClick:async function(){g(!0);try{const e=[["hotel_name",d.hotelName],["city",d.city],["currency",d.currency],["check_in",d.checkIn],["check_out",d.checkOut],["vat_rate",d.vat],["service_charge",d.svc]];for(const[t,a]of e)await fetch(`${SB_URL}/rest/v1/hotel_settings`,{method:"POST",headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify({key:t,value:String(a),tenant_id:TENANT})});t("Hotel settings saved ✓")}catch(e){t("Save failed: "+e.message,"error")}finally{g(!1)}}},p?"Saving…":"Save Settings"):React.createElement("p",{className:"xs muted mt3"},"Only the Owner can edit hotel settings."))),"users"===s&&React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Staff Accounts"),c&&React.createElement("button",{className:"btn btn-gold btn-sm",onClick:()=>b(!0)},"+ Add Staff")),React.createElement("div",{className:"card-body",style:{padding:"0 15px"}},a.map(e=>React.createElement("div",{key:e.id,className:"user-row"},React.createElement(Av,{name:e.name,size:36}),React.createElement("div",{style:{flex:1,minWidth:0}},React.createElement("div",{style:{fontWeight:500,fontSize:13}},e.name),React.createElement("div",{className:"xs muted"},e.email),React.createElement("div",{className:"xs mt3",style:{color:ROLES[e.role]?.color||"var(--tx2)"}},ROLES[e.role]?.label)),"owner"===e.role?React.createElement("span",{className:"badge bgold"},"★ OWNER"):React.createElement("span",{className:"badge bb"},e.role),c&&"owner"!==e.role&&React.createElement("div",{className:"flex gap2"},React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:()=>y(e)},"Edit"),React.createElement("button",{className:"btn btn-danger btn-sm",onClick:()=>async function(e){if(window.confirm("Remove this staff account?"))try{await dbDelete("staff",e),n(t=>t.filter(t=>t.id!==e)),t("Staff account removed")}catch(e){t("Delete failed: "+e.message,"error")}}(e.id)},"Remove")))))),"devices"===s&&React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Authorized Devices / Terminals"),React.createElement("span",{className:"badge bgold"},a.length," accounts")),React.createElement("div",{className:"card-body",style:{padding:"0 15px"}},a.map(e=>React.createElement("div",{key:e.id,className:"user-row"},React.createElement("div",{style:{width:10,height:10,borderRadius:"50%",background:ROLES[e.role]?.color,flexShrink:0,boxShadow:`0 0 6px ${ROLES[e.role]?.color}`}}),React.createElement("div",{style:{flex:1,minWidth:0}},React.createElement("div",{style:{fontWeight:500,fontSize:13}},e.device||`${e.name}'s Device`),React.createElement("div",{className:"xs muted"},e.email)),React.createElement("span",{className:"badge "+("owner"===e.role?"bgold":"housekeeping"===e.role?"bteal":"bb")},ROLES[e.role]?.label))))),"system"===s&&React.createElement("div",null,React.createElement("div",{className:"card mb4"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Lumea Founder Mode")),React.createElement("div",{className:"card-body"},React.createElement("div",{style:{background:"rgba(200,169,110,.06)",border:"1px solid rgba(200,169,110,.18)",padding:"12px 14px",marginBottom:14}},React.createElement("div",{style:{fontSize:12,fontWeight:500,color:"var(--gold)",marginBottom:5}},"★ Admin Bypass Active — No Subscription Required"),React.createElement("div",{className:"xs muted",style:{lineHeight:1.8}},"Accessing Hotel Fountain CRM as the Lumea founder. All modules unlocked with full read/write access to production database ",React.createElement("span",{style:{color:"var(--gold)",fontWeight:500}},"mynwfkgksqqwlqowlscj"),".")),React.createElement("div",{className:"g2"},[["Database","mynwfkgksqqwlqowlscj"],["Region","us-east-1 (N. Virginia)"],["Tenant ID",TENANT.slice(0,18)+"…"],["Plan","Founder Bypass — Unlimited"]].map(([e,t])=>React.createElement("div",{key:e,className:"info-box"},React.createElement("div",{className:"info-lbl"},e),React.createElement("div",{className:"info-val",style:{fontSize:11}},t)))))),React.createElement(WorkflowMonitor,{toast:t}),React.createElement(GoogleSheetsCard,{toast:t})),f&&c&&React.createElement(AddStaffModal,{toast:t,onClose:()=>b(!1),onAdd:e=>{n(t=>[...t,e]),t(`${e.name} added as ${ROLES[e.role]?.label}`),b(!1)},existingIds:a.map(e=>e.id)}),v&&c&&React.createElement(EditStaffModal,{user:v,toast:t,onClose:()=>y(null),onSave:e=>{n(t=>t.map(t=>t.id===e.id?e:t)),t("Staff account updated"),y(null)}}))}function AddStaffModal({toast:e,onClose:t,onAdd:a,existingIds:n}){const[r,l]=useState({name:"",email:"",pw:"",role:"receptionist",device:""}),o=e=>t=>l(a=>({...a,[e]:t.target.value})),[c,s]=useState(!1);return React.createElement(Modal,{title:"Add Staff Account",onClose:t,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:t},"Cancel"),React.createElement("button",{className:"btn btn-gold",onClick:async function(){if(!r.name||!r.email||!r.pw)return e("Name, email and password required","error");s(!0);const t={id:Math.max(...n,0)+1,...r,av:r.name.split(" ").map(e=>e[0]).join("").slice(0,2).toUpperCase(),tenant_id:TENANT};try{await dbPost("staff",t),a(t)}catch(t){e("Save failed: "+t.message,"error")}finally{s(!1)}}},"Add Staff"))},React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Full Name *"),React.createElement("input",{className:"finput",value:r.name,onChange:o("name"),placeholder:"Staff name",autoFocus:!0})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Role *"),React.createElement("select",{className:"fselect",value:r.role,onChange:o("role")},Object.entries(ROLES).filter(([e])=>"owner"!==e).map(([e,t])=>React.createElement("option",{key:e,value:e},t.label))))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Email *"),React.createElement("input",{type:"email",className:"finput",value:r.email,onChange:o("email"),placeholder:"staff@hotel.com"})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Password *"),React.createElement("input",{className:"finput",value:r.pw,onChange:o("pw"),placeholder:"Set password"}))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Device / Terminal Name"),React.createElement("input",{className:"finput",value:r.device,onChange:o("device"),placeholder:"e.g. Front Desk Terminal"})))}function EditStaffModal({user:e,toast:t,onClose:a,onSave:n}){const[r,l]=useState({...e}),o=e=>t=>l(a=>({...a,[e]:t.target.value})),[c,s]=useState(!1);return React.createElement(Modal,{title:`Edit — ${e.name}`,onClose:a,footer:React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-ghost",onClick:a},"Cancel"),React.createElement("button",{className:"btn btn-gold",disabled:c,onClick:async function(){if(!r.name||!r.email)return t("All fields required","error");s(!0);try{const t={name:r.name,email:r.email,role:r.role,device:r.device};r.pw&&(t.pwh=await _hashPw(r.pw)),await dbPatch("staff",e.id,t),n({...r,av:r.name.split(" ").map(e=>e[0]).join("").slice(0,2).toUpperCase()})}catch(e){t("Save failed: "+e.message,"error")}finally{s(!1)}}},c?"Saving…":"Save Changes"))},React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Full Name"),React.createElement("input",{className:"finput",value:r.name,onChange:o("name")})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Role"),React.createElement("select",{className:"fselect",value:r.role,onChange:o("role")},Object.entries(ROLES).filter(([e])=>"owner"!==e).map(([e,t])=>React.createElement("option",{key:e,value:e},t.label))))),React.createElement("div",{className:"frow"},React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Email"),React.createElement("input",{type:"email",className:"finput",value:r.email,onChange:o("email")})),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Password"),React.createElement("input",{className:"finput",value:r.pw,onChange:o("pw")}))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Device / Terminal"),React.createElement("input",{className:"finput",value:r.device||"",onChange:o("device")})))}function AIAgentsPanel({toast:e}){const t=SB_KEY,[a,n]=useState("event planners in Dhaka needing hotel rooms"),[r,l]=useState(null),[o,c]=useState(!1),[s,i]=useState(""),[d,m]=useState(null),[p,g]=useState(!1),[u,f]=useState(null),[b,v]=useState(!1),[y,E]=useState(!1);async function h(e,a={}){try{const n=await fetch("https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/ai-agents",{method:"POST",headers:{Authorization:`Bearer ${t}`,"Content-Type":"application/json"},body:JSON.stringify({action:e,...a})}),r=await n.text();try{return JSON.parse(r)}catch{return{error:"Non-JSON response",raw:r.slice(0,500)}}}catch(e){return{error:String(e?.message||e)}}}const R=(e,t,a,n,r)=>React.createElement("div",{className:"card mb4",style:{borderColor:a+"33"}},React.createElement("div",{className:"card-hd",style:{background:a+"0d"}},React.createElement("span",{style:{fontSize:18,marginRight:8}},e),React.createElement("span",{className:"card-title"},t),React.createElement("span",{className:"xs muted",style:{marginLeft:8}},n)),React.createElement("div",{className:"card-body",style:{padding:16}},r));return React.createElement("div",null,React.createElement("div",{style:{background:"rgba(155,114,207,.08)",border:"1px solid rgba(155,114,207,.2)",padding:"10px 14px",marginBottom:16,fontSize:11,color:"var(--pur)"}},"🤖 AI Agents powered by Gemini 1.5 Flash — Connected to your live Supabase data"),R("🔍","Agent A — The Prospector","#58A6FF","Finds potential leads & saves them to your leads table",React.createElement("div",null,React.createElement("div",{className:"fg mb4"},React.createElement("label",{className:"flbl"},"Search Query"),React.createElement("input",{className:"finput",value:a,onChange:e=>n(e.target.value),placeholder:"e.g. event planners in Dhaka needing hotel rooms"})),React.createElement("button",{className:"btn btn-info",disabled:o,onClick:async function(){c(!0),l(null);try{l(await h("prospect",{query:a}))}catch(t){e(t.message,"error")}finally{c(!1)}}},o?"🔍 Scanning…":"🔍 Find Leads"),r&&React.createElement("div",{style:{marginTop:12}},r.error?React.createElement("div",null,React.createElement("div",{style:{color:"var(--rose)",fontSize:11,marginBottom:6}},"⚠ ",r.error),r.raw&&React.createElement("details",null,React.createElement("summary",{className:"xs muted",style:{cursor:"pointer"}},"Raw Gemini output"),React.createElement("div",{style:{background:"var(--s2)",border:"1px solid var(--br)",padding:10,fontSize:10,whiteSpace:"pre-wrap",fontFamily:"monospace",marginTop:6,maxHeight:200,overflow:"auto"}},r.raw))):React.createElement("div",null,React.createElement("div",{className:"xs muted mb4"},"✓ ",r.leads_found," leads found, saved & emailed"),(r.raw_leads||r.leads||[]).map((e,t)=>React.createElement("div",{key:t,style:{background:"var(--s2)",border:"1px solid var(--br2)",padding:"10px 12px",marginBottom:8}},React.createElement("div",{style:{fontWeight:600,fontSize:12}},e.name," ",React.createElement("span",{className:"xs muted"},"· ",e.company)),React.createElement("div",{className:"xs muted"},e.email," · ",e.phone),React.createElement("div",{className:"xs",style:{color:"var(--sky)",marginTop:4}},e.notes),e.source&&React.createElement("div",{className:"xs muted",style:{marginTop:3}},"Source: ",e.source))))))),R("✉️","Agent B — The Closer","#C8A96E","Writes personalized outreach email for a lead using Gemini",React.createElement("div",null,React.createElement("div",{className:"fg mb4"},React.createElement("label",{className:"flbl"},"Lead ID (from leads table)"),React.createElement("input",{className:"finput",value:s,onChange:e=>i(e.target.value),placeholder:"e.g. 123e4567-e89b-12d3..."})),React.createElement("button",{className:"btn btn-gold",disabled:p,onClick:async function(){if(s.trim()){g(!0),m(null);try{m(await h("close",{lead_id:s.trim()}))}catch(t){e(t.message,"error")}finally{g(!1)}}else e("Enter a Lead ID","error")}},p?"✍️ Writing…":"✍️ Write Outreach"),d&&React.createElement("div",{style:{marginTop:12}},d.error?React.createElement("div",{style:{color:"var(--rose)",fontSize:11}},d.error):React.createElement("div",null,React.createElement("div",{className:"xs muted mb4"},"Draft written for ",React.createElement("strong",null,d.lead_name)," — saved to lead notes"),React.createElement("div",{style:{background:"var(--s2)",border:"1px solid var(--br)",padding:"12px 14px",fontSize:11,lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"monospace",color:"var(--tx2)"}},d.email_draft))))),R("📊","Agent C — The Analyst","#3FB950","Monitors transactions, spots patterns, suggests discounts",React.createElement("div",null,React.createElement("button",{className:"btn btn-ghost",disabled:b,onClick:async function(){v(!0),f(null);try{f(await h("analyze"))}catch(t){e(t.message,"error")}finally{v(!1)}},style:{marginBottom:12}},b?"📊 Analyzing…":"📊 Run Analysis"),u&&React.createElement("div",null,u.error?React.createElement("div",{style:{color:"var(--rose)",fontSize:11}},u.error):React.createElement("div",null,React.createElement("div",{className:"g2 mb4"},Object.entries(u.day_averages||{}).sort(([,e],[,t])=>t-e).map(([e,t])=>React.createElement("div",{key:e,className:"info-box",style:{borderColor:e===u.lowest_day?"rgba(224,92,122,.3)":e===u.highest_day?"rgba(63,185,80,.3)":"var(--br2)"}},React.createElement("div",{className:"info-lbl"},e),React.createElement("div",{className:"info-val",style:{color:e===u.lowest_day?"var(--rose)":e===u.highest_day?"var(--grn)":"var(--tx)"}},BDT(t))))),React.createElement("div",{style:{background:"var(--s2)",border:"1px solid var(--br)",padding:"12px 14px",fontSize:11,lineHeight:1.8,whiteSpace:"pre-wrap",color:"var(--tx2)",marginBottom:12}},u.analysis),u.needs_approval&&!y&&React.createElement("div",{style:{background:"rgba(200,169,110,.08)",border:"1px solid var(--br)",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}},React.createElement("div",null,React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--gold)"}},"Suggested Discount"),React.createElement("div",{className:"xs muted"},u.suggested_discount)),React.createElement("button",{className:"btn btn-gold btn-sm",onClick:async function(){E(!0),e(`✅ Discount approved: ${u?.suggested_discount}`),await fetch(`${SB_URL}/rest/v1/hotel_settings`,{method:"POST",headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify({key:"approved_discount",value:u?.suggested_discount,tenant_id:TENANT})}).catch(()=>{})}},"✓ Approve & Apply")),y&&React.createElement("div",{style:{color:"var(--grn)",fontSize:11,padding:"8px 0"}},"✅ Discount approved and saved — other agents will factor this in"))))))}function AIResearchPanel({toast:e}){const[t,a]=useState([]),[n,r]=useState(!0),[l,o]=useState("ALL"),[c,s]=useState(""),[i,d]=useState(null),m=()=>{r(!0),db("leads","?select=*&order=created_at.desc&limit=200").then(e=>{a(Array.isArray(e)?e:[]),r(!1)}).catch(()=>r(!1)),db("hotel_settings","?key=eq.front_desk_brief&select=value,updated_at&limit=1").then(e=>{const t=Array.isArray(e)?e[0]?.value:null;if(t)try{d({..."string"==typeof t?JSON.parse(t):t,updated_at:e[0]?.updated_at})}catch{}}).catch(()=>{})};useEffect(()=>{m()},[]);const p=t.reduce((e,t)=>(e[t.status||"new"]=(e[t.status||"new"]||0)+1,e),{});let g="ALL"===l?t:t.filter(e=>(e.status||"new")===l);if(c){const e=c.toLowerCase();g=g.filter(t=>(t.name||"").toLowerCase().includes(e)||(t.company||"").toLowerCase().includes(e)||(t.email||"").toLowerCase().includes(e)||(t.notes||"").toLowerCase().includes(e))}return React.createElement("div",null,React.createElement("div",{style:{background:"rgba(63,185,80,.08)",border:"1px solid rgba(63,185,80,.2)",padding:"10px 14px",marginBottom:16,fontSize:11,color:"var(--grn)"}},"🧠 Research history — all leads generated by AI Prospector, with outreach drafts and status timeline"),i&&React.createElement("div",{className:"card mb4",style:{borderColor:"rgba(200,169,110,.3)"}},React.createElement("div",{className:"card-hd",style:{background:"rgba(200,169,110,.06)"}},React.createElement("span",{className:"card-title"},"📋 Latest Front Desk Brief"),React.createElement("span",{className:"xs muted",style:{marginLeft:8}},i.updated_at?new Date(i.updated_at).toLocaleString():"")),React.createElement("div",{className:"card-body",style:{whiteSpace:"pre-wrap",fontSize:11,lineHeight:1.8,color:"var(--tx2)"}},i.brief||"")),React.createElement("div",{className:"flex fac fjb mb4",style:{flexWrap:"wrap",gap:8}},React.createElement("div",{className:"tabs",style:{marginBottom:0}},["ALL","new","email_drafted","briefed_to_front_desk","contacted","converted"].map(e=>React.createElement("button",{key:e,className:"tab"+(l===e?" on":""),onClick:()=>o(e)},"ALL"===e?`All (${t.length})`:`${e.replace(/_/g," ")} (${p[e]||0})`))),React.createElement("div",{className:"flex gap2"},React.createElement("div",{className:"srch"},React.createElement("span",{className:"xs muted"},"⌕"),React.createElement("input",{placeholder:"Search lead, company, email…",value:c,onChange:e=>s(e.target.value)})),React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:m},"↻ Refresh"))),n?React.createElement("div",{className:"xs muted"},"Loading research history…"):0===g.length?React.createElement("div",{className:"xs muted",style:{padding:20,textAlign:"center"}},"No AI research yet. Run Agent A (Prospector) to generate leads."):React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:10}},g.map(t=>React.createElement("div",{key:t.id,className:"card",style:{borderColor:"var(--br2)"}},React.createElement("div",{className:"card-body",style:{padding:14}},React.createElement("div",{className:"flex fac fjb",style:{gap:12,flexWrap:"wrap"}},React.createElement("div",{style:{flex:1,minWidth:220}},React.createElement("div",{style:{fontWeight:600,fontSize:13,color:"var(--tx)"}},t.name||"Unknown"," ",React.createElement("span",{className:"xs muted"},"· ",t.company||"—")),React.createElement("div",{className:"xs muted",style:{marginTop:2}},t.email||"no email"," · ",t.phone||"no phone"),React.createElement("div",{className:"xs",style:{color:"var(--sky)",marginTop:6,lineHeight:1.6}},t.notes||"—")),React.createElement("div",{style:{textAlign:"right",minWidth:120}},React.createElement("span",{className:"badge "+("converted"===t.status?"bgold":"briefed_to_front_desk"===t.status?"bteal":"email_drafted"===t.status?"bb":"ba")},(t.status||"new").replace(/_/g," ")),React.createElement("div",{className:"xs muted",style:{marginTop:4}},t.created_at?new Date(t.created_at).toLocaleDateString():""),React.createElement("div",{className:"xs muted"},"Source: ",t.source||"AI"))),t.email_draft&&React.createElement("details",{style:{marginTop:10}},React.createElement("summary",{className:"xs",style:{cursor:"pointer",color:"var(--gold)"}},"✉ View email draft"),React.createElement("div",{style:{background:"var(--s2)",border:"1px solid var(--br)",padding:"10px 12px",marginTop:6,fontSize:11,lineHeight:1.7,whiteSpace:"pre-wrap",fontFamily:"monospace",color:"var(--tx2)"}},t.email_draft),React.createElement("button",{className:"btn btn-ghost btn-sm",style:{marginTop:6},onClick:()=>{return t.id,a=t.email_draft,void navigator.clipboard?.writeText(a||"").then(()=>e("Email draft copied")).catch(()=>e("Copy failed","error"));var a}},"📋 Copy")))))))}function B2BSwarmPanel({toast:e}){const[t,a]=useState("recruiter"),[n,r]=useState([]),[l,o]=useState(!0),[c,s]=useState(null),[i,d]=useState(null),[m,p]=useState(null),[g,u]=useState(null);async function f(){o(!0);try{const e=await fetch(`${SB_URL}/rest/v1/b2b_partners?tenant_id=eq.${TENANT}&select=*&order=created_at`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}}),t=await e.json();r(Array.isArray(t)?t:[])}catch(t){e(t.message,"error")}finally{o(!1)}}async function b(e){return(await fetch("https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/b2b-agents",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY},body:JSON.stringify(e)})).json()}useEffect(()=>{f()},[]);const v=e=>"vip"===e?"var(--gold)":"active"===e?"var(--grn)":"inactive"===e?"var(--rose)":"var(--tx3)",y=e=>"vip"===e?"rgba(200,169,110,.15)":"active"===e?"rgba(63,185,80,.12)":"inactive"===e?"rgba(224,92,122,.12)":"rgba(255,255,255,.05)";return React.createElement("div",null,React.createElement("div",{style:{background:"linear-gradient(135deg,rgba(63,185,80,.06),rgba(200,169,110,.04))",border:"1px solid rgba(63,185,80,.2)",padding:"10px 14px",marginBottom:16,fontSize:11,color:"var(--grn)",display:"flex",alignItems:"center",justifyContent:"space-between"}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},React.createElement("span",null,"🤝"),React.createElement("span",null,"B2B Partner Swarm — 3 AI Agents · Gemini 2.5 Flash")),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},n.length," partners · ",n.filter(e=>"active"===e.status||"vip"===e.status).length," active")),React.createElement("div",{className:"tabs mb4"},[["recruiter","🔍 Agent 1 — Recruiter"],["butler","🛎 Agent 2 — Portal Butler"],["billing","💰 Agent 3 — Billing Analyst"]].map(([e,n])=>React.createElement("button",{key:e,className:"tab"+(t===e?" on":""),onClick:()=>a(e)},n))),"recruiter"===t&&React.createElement("div",null,React.createElement("div",{className:"card mb4"},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:14}},React.createElement("span",{style:{fontSize:22}},"🔍"),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:15,color:"var(--tx)"}},"Agent 1 — The Recruiter"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Scans for travel agencies in Dhaka, Chittagong & Sylhet · Sends WhatsApp invites · Generates joining letters"))),React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap"}},React.createElement("button",{className:"btn btn-gold",onClick:async function(){s("scan");try{const t=await b({agent:"recruiter",action:"scan"});if(t.error)return void e(t.error,"error");e(`✓ ${t.agencies_found} new agencies found & saved`),f()}catch(t){e(t.message,"error")}finally{s(null)}},disabled:"scan"===c},"scan"===c?"🔄 Scanning…":"🌐 Scan for New Agencies"),React.createElement("button",{className:"btn btn-ghost",onClick:f,disabled:l},l?"Loading…":"↻ Refresh"))),React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Partner Agencies (",n.length,")")),l?React.createElement("div",{style:{textAlign:"center",padding:"20px 0",color:"var(--tx3)",fontSize:12}},"Loading partners…"):React.createElement("table",{className:"tbl"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Agency"),React.createElement("th",null,"City"),React.createElement("th",null,"Contact"),React.createElement("th",null,"Status"),React.createElement("th",null,"Rate/Night"),React.createElement("th",null,"Bookings"),React.createElement("th",null,"Actions"))),React.createElement("tbody",null,0===n.length?React.createElement("tr",null,React.createElement("td",{colSpan:7,style:{textAlign:"center",padding:"20px 0",color:"var(--tx3)"}},"No partners yet — click Scan to find agencies")):n.map(t=>React.createElement("tr",{key:t.id},React.createElement("td",null,React.createElement("div",{style:{fontWeight:600,fontSize:12,color:"var(--tx)"}},t.agency_name),React.createElement("div",{style:{fontSize:10,color:"var(--sky)"}},t.email)),React.createElement("td",{className:"xs muted"},t.city),React.createElement("td",null,React.createElement("div",{style:{fontSize:11,color:"var(--tx)"}},t.contact_name||"—"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},t.phone||"—")),React.createElement("td",null,React.createElement("span",{style:{fontSize:9,padding:"2px 8px",background:y(t.status),color:v(t.status),letterSpacing:".08em",textTransform:"uppercase",fontWeight:600}},"vip"===t.status?"⭐ VIP":t.status)),React.createElement("td",{className:"xs gold"},"৳",Number(t.wholesale_rate||2800).toLocaleString()),React.createElement("td",{className:"xs",style:{color:"var(--tx3)"}},t.total_bookings||0),React.createElement("td",null,React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap"}},React.createElement("button",{className:"btn btn-sm",style:{fontSize:9,padding:"3px 8px",background:t.whatsapp_sent?"rgba(63,185,80,.1)":"rgba(37,211,102,.15)",color:t.whatsapp_sent?"var(--grn)":"#25D366",border:"1px solid currentColor"},disabled:c===`invite:${t.id}`,onClick:()=>async function(t,a){s(`invite:${t}`),p(null);try{const n=await b({agent:"recruiter",action:"invite",partner_id:t});if(n.error)return void e(n.error,"error");p({type:"invite",partner:a,content:n.whatsapp_message,portal_link:n.portal_link}),e(`✓ WhatsApp invite generated for ${a}`),f()}catch(t){e(t.message,"error")}finally{s(null)}}(t.id,t.agency_name)},c===`invite:${t.id}`?"Sending…":t.whatsapp_sent?"✓ Resend WA":"📱 WhatsApp Invite"),React.createElement("button",{className:"btn btn-sm btn-gold",style:{fontSize:9,padding:"3px 8px",opacity:t.joining_letter_sent?.9:1},disabled:c===`letter:${t.id}`,onClick:()=>async function(t,a){s(`letter:${t}`),p(null);try{const n=await b({agent:"recruiter",action:"joining_letter",partner_id:t});if(n.error)return void e(n.error,"error");p({type:"letter",partner:a,content:n.letter}),e(`✓ Joining letter generated — ${a} marked Active`),f()}catch(t){e(t.message,"error")}finally{s(null)}}(t.id,t.agency_name)},c===`letter:${t.id}`?"Generating…":t.joining_letter_sent?"✓ Re-generate Letter":"📄 Joining Letter")))))))),m&&React.createElement("div",{className:"card",style:{marginTop:12}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--tx)"}},"invite"===m.type?"📱 WhatsApp Invite":"📄 Joining Letter"," — ",m.partner),"invite"===m.type&&m.portal_link&&React.createElement("div",{style:{fontSize:10,color:"var(--sky)",fontFamily:"monospace",wordBreak:"break-all"}},m.portal_link.slice(0,60),"…")),React.createElement("div",{style:{background:"rgba(0,0,0,.3)",padding:"12px 14px",fontSize:11,color:"var(--tx2)",whiteSpace:"pre-wrap",lineHeight:1.7,maxHeight:300,overflow:"auto",fontFamily:"monospace"}},m.content),"invite"===m.type&&React.createElement("div",{style:{marginTop:8,fontSize:10,color:"var(--tx3)"}},"💡 Copy this message and send via WhatsApp to ",m.partner))),"butler"===t&&React.createElement("div",null,React.createElement("div",{className:"card mb4"},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:12}},React.createElement("span",{style:{fontSize:22}},"🛎"),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:15,color:"var(--tx)"}},"Agent 2 — The Portal Butler"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Authenticates partners via Secret Key · Handles bookings · Answers room questions · Checks availability")))),React.createElement("div",{className:"card mb4"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Active Partner Portal Keys")),React.createElement("table",{className:"tbl"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Agency"),React.createElement("th",null,"Status"),React.createElement("th",null,"Secret Key (Portal Auth)"),React.createElement("th",null,"Portal Link"))),React.createElement("tbody",null,n.filter(e=>"active"===e.status||"vip"===e.status).map(e=>React.createElement("tr",{key:e.id},React.createElement("td",{style:{fontWeight:600,fontSize:12}},e.agency_name),React.createElement("td",null,React.createElement("span",{style:{fontSize:9,padding:"2px 7px",background:y(e.status),color:v(e.status),letterSpacing:".08em",textTransform:"uppercase"}},e.status)),React.createElement("td",null,React.createElement("code",{style:{fontSize:10,color:"var(--gold)",background:"rgba(0,0,0,.3)",padding:"2px 6px"}},e.secret_key?.slice(0,16),"…")),React.createElement("td",null,React.createElement("a",{href:`https://hotelfountainbd-crm.vercel.app?b2b=${e.secret_key}`,target:"_blank",style:{fontSize:10,color:"var(--sky)"}},"Open Portal ↗")))),0===n.filter(e=>"active"===e.status||"vip"===e.status).length&&React.createElement("tr",null,React.createElement("td",{colSpan:4,style:{textAlign:"center",padding:"16px 0",color:"var(--tx3)",fontSize:11}},"No active partners yet — activate via joining letter in Agent 1"))))),React.createElement("div",{className:"card",style:{background:"rgba(88,166,255,.03)",border:"1px solid rgba(88,166,255,.15)"}},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--sky)",marginBottom:10}},"How Agent 2 Works Automatically"),React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}},[["🔐 Authentication","Partner visits portal link with secret key → Agent 2 verifies identity → grants access to wholesale rates"],["📅 Booking","Partner selects dates & room → Agent 2 confirms rate (৳2,800/night) → creates reservation → notifies front desk"],["❓ Q&A",'Partner asks "Does room have balcony?" → Agent 2 answers from hotel knowledge base instantly'],["🏨 Availability","Agent 2 checks both main reservations + B2B bookings to show real-time availability grid"]].map(([e,t],a)=>React.createElement("div",{key:a,style:{background:"rgba(0,0,0,.2)",padding:"10px 12px"}},React.createElement("div",{style:{fontSize:11,fontWeight:600,color:"var(--tx)",marginBottom:4}},e),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",lineHeight:1.5}},t)))))),"billing"===t&&React.createElement("div",null,React.createElement("div",{className:"card mb4"},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:12}},React.createElement("span",{style:{fontSize:22}},"💰"),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:15,color:"var(--tx)"}},"Agent 3 — The Billing Analyst"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Runs every Sunday 10 PM · Tracks commissions · Sends statements · Re-engages inactive partners · Awards VIP status"))),React.createElement("div",{style:{display:"flex",gap:8}},React.createElement("button",{className:"btn btn-gold",onClick:async function(){s("dashboard");try{const t=await b({agent:"billing_analyst",action:"get_dashboard"});if(t.error)return void e(t.error,"error");d(t)}catch(t){e(t.message,"error")}finally{s(null)}},disabled:"dashboard"===c},"dashboard"===c?"📊 Loading…":"📊 Load B2B Dashboard"),React.createElement("button",{className:"btn btn-gold",onClick:async function(){s("weekly"),u(null);try{const t=await b({agent:"billing_analyst",action:"weekly_run"});if(t.error)return void e(t.error,"error");u(t),e(`✓ Weekly run complete — ${t.partners_processed} partners processed`)}catch(t){e(t.message,"error")}finally{s(null)}},disabled:"weekly"===c},"weekly"===c?"⚙ Running…":"⚡ Run Weekly Cycle Now"))),i&&React.createElement("div",null,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}},[["Total Partners",i.summary?.total_partners||0,"var(--sky)"],["Active",i.summary?.active_partners||0,"var(--grn)"],["⭐ VIP",i.summary?.vip_partners||0,"var(--gold)"],["Total B2B Revenue",`৳${(i.summary?.total_revenue||0).toLocaleString()}`,"var(--gold)"]].map(([e,t,a],n)=>React.createElement("div",{key:n,style:{background:"rgba(0,0,0,.2)",border:"1px solid var(--br)",padding:"10px 12px",textAlign:"center"}},React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:4}},e),React.createElement("div",{style:{fontSize:20,color:a,fontFamily:"var(--serif)",fontWeight:600}},t)))),i.recent_bookings?.length>0&&React.createElement("div",{className:"card mb3"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Recent B2B Bookings")),React.createElement("table",{className:"tbl"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Partner"),React.createElement("th",null,"Guest"),React.createElement("th",null,"Room"),React.createElement("th",null,"Check-In"),React.createElement("th",null,"Check-Out"),React.createElement("th",null,"Revenue"),React.createElement("th",null,"Commission"))),React.createElement("tbody",null,i.recent_bookings.map(e=>React.createElement("tr",{key:e.id},React.createElement("td",{style:{fontSize:11,fontWeight:500}},e.partner_name),React.createElement("td",{style:{fontSize:11}},e.guest_name||"—"),React.createElement("td",null,React.createElement("span",{className:"badge bb"},e.room_number||"—")),React.createElement("td",{className:"xs muted"},e.check_in),React.createElement("td",{className:"xs muted"},e.check_out),React.createElement("td",{className:"xs gold"},"৳",Number(e.total_amount||0).toLocaleString()),React.createElement("td",{className:"xs",style:{color:"var(--grn)"}},"৳",Number(e.commission_amount||0).toLocaleString()))))))),g&&React.createElement("div",{className:"card"},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--tx)",marginBottom:10}},"⚡ Weekly Run Results — ",g.partners_processed," partners processed"),(g.results||[]).map((e,t)=>React.createElement("div",{key:t,style:{background:"rgba(0,0,0,.2)",border:"1px solid var(--br)",padding:"10px 12px",marginBottom:6}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}},React.createElement("div",{style:{fontWeight:600,fontSize:12,color:"var(--tx)"}},e.partner),React.createElement("span",{style:{fontSize:9,padding:"2px 8px",background:"commission_sent"===e.action?"rgba(63,185,80,.12)":"re-engagement_sent"===e.action?"rgba(224,92,122,.12)":"rgba(255,255,255,.05)",color:"commission_sent"===e.action?"var(--grn)":"re-engagement_sent"===e.action?"var(--rose)":"var(--tx3)",letterSpacing:".08em",textTransform:"uppercase"}},"commission_sent"===e.action?"💰 Commission Sent":"re-engagement_sent"===e.action?"📨 Re-engaged":"✓ No Action")),"commission_sent"===e.action&&React.createElement("div",{style:{fontSize:10,color:"var(--gold)"}},"Commission: ৳",Number(e.commission||0).toLocaleString()," · ",e.bookings," booking",1!==e.bookings?"s":""," this week"),"re-engagement_sent"===e.action&&React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Inactive ",e.days_inactive," days · Discount offer sent"),(e.statement||e.message)&&React.createElement("div",{style:{marginTop:6,fontSize:10,color:"var(--tx2)",background:"rgba(0,0,0,.3)",padding:"8px 10px",fontFamily:"monospace",whiteSpace:"pre-wrap",maxHeight:120,overflow:"auto"}},e.statement||e.message)))),!i&&!g&&React.createElement("div",{className:"card",style:{background:"rgba(200,169,110,.03)",border:"1px solid rgba(200,169,110,.15)"}},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--gold)",marginBottom:10}},"⏰ Automated Schedule"),[["Every Sunday 10 PM","Run weekly cycle — commission statements + re-engagement offers"],["Active partners (any bookings)","Commission statement emailed + VIP check (≥10 total bookings)"],["Inactive ≥14 days","Re-engagement WhatsApp: ৳200 discount code generated"],["VIP threshold","Auto-upgrade to VIP status at 10 total bookings"]].map(([e,t],a)=>React.createElement("div",{key:a,style:{display:"flex",gap:10,marginBottom:8,padding:"8px 10px",background:"rgba(0,0,0,.2)"}},React.createElement("div",{style:{fontSize:10,color:"var(--gold)",minWidth:160,fontWeight:500}},e),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},t))))))}function PlanGPanel({toast:e,reservations:t,rooms:a,guests:n}){const[r,l]=useState("dashboard"),[o,c]=useState(null),[s,i]=useState([]),[d,m]=useState(null),[p,g]=useState(null),[u,f]=useState(""),[b,v]=useState(!0);async function y(e){return(await fetch("https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/plan-g-upsell",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY},body:JSON.stringify(e)})).json()}async function E(){v(!0);try{const e=await fetch(`${SB_URL}/rest/v1/upsell_offers?tenant_id=eq.${TENANT}&order=created_at.desc&limit=50`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}}),t=await e.json();i(Array.isArray(t)?t:[])}catch(e){}finally{v(!1)}}async function h(){try{const e=await y({action:"dashboard"});c(e)}catch(e){}}async function R(t,a){m(t),g(null);try{const n=a?{action:t,reservation_id:a}:{action:t},r=await y(n);if(r.error)return void e(r.error,"error");g(r),E(),h();const l=r.results?.length||r.processed||0;e(`✓ ${"pre_arrival"===t?"Pre-arrival":"Room customizer"} — ${l} guest${1!==l?"s":""} messaged`)}catch(t){e(t.message,"error")}finally{m(null)}}useEffect(()=>{E(),h()},[]);const x=e=>{const t=String((e.guest_ids||[])[0]||""),a=n?.find(e=>String(e.id)===t);return a?.name||"Unknown Guest"},N=e=>"accepted"===e?"var(--grn)":"declined"===e?"var(--rose)":"sent"===e?"var(--sky)":"var(--tx3)",S=e=>"airport_pickup"===e?"🚗":"early_checkin"===e?"🌅":"jet_lag_menu"===e?"🍽":"room_upgrade"===e?"👑":"sim_card"===e?"📱":"late_checkout"===e?"🌙":"✨",k=(t||[]).filter(e=>"RESERVED"===e.status||"PENDING"===e.status).slice(0,10);return React.createElement("div",null,React.createElement("div",{style:{background:"linear-gradient(135deg,rgba(200,169,110,.08),rgba(88,166,255,.04))",border:"1px solid rgba(200,169,110,.2)",padding:"12px 16px",marginBottom:16}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:16,color:"var(--gold)"}},"Plan G — Premium Transit Experience"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",marginTop:3}},"3-Agent upsell engine · Turns ৳3,500 ADR → ৳5,000+ through perfectly timed offers")),o&&React.createElement("div",{style:{display:"flex",gap:16,textAlign:"right"}},React.createElement("div",null,React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",textTransform:"uppercase",letterSpacing:".1em"}},"Upsell Revenue"),React.createElement("div",{style:{fontSize:18,color:"var(--gold)",fontFamily:"var(--serif)"}},"৳",Number(o.summary?.total_upsell_revenue||0).toLocaleString())),React.createElement("div",null,React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",textTransform:"uppercase",letterSpacing:".1em"}},"Conversion"),React.createElement("div",{style:{fontSize:18,color:"var(--grn)",fontFamily:"var(--serif)"}},o.summary?.conversion_rate||0,"%"))))),React.createElement("div",{className:"tabs mb4"},[["dashboard","📊 Dashboard"],["agent1","✈ Agent 1 · Pre-Arrival"],["agent2","🍽 Agent 2 · Room Customizer"],["offers","📋 All Offers"]].map(([e,t])=>React.createElement("button",{key:e,className:"tab"+(r===e?" on":""),onClick:()=>l(e)},t))),"dashboard"===r&&React.createElement("div",null,o&&React.createElement("div",null,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}},[["Offers Sent",o.summary?.total_offers_sent||0,"var(--sky)"],["Accepted",o.summary?.total_accepted||0,"var(--grn)"],["Conversion Rate",`${o.summary?.conversion_rate||0}%`,"var(--gold)"],["Upsell Revenue",`৳${Number(o.summary?.total_upsell_revenue||0).toLocaleString()}`,"var(--gold)"]].map(([e,t,a],n)=>React.createElement("div",{key:n,style:{background:"rgba(0,0,0,.2)",border:"1px solid var(--br)",padding:"12px",textAlign:"center"}},React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:4}},e),React.createElement("div",{style:{fontSize:22,color:a,fontFamily:"var(--serif)",fontWeight:600}},t)))),o?.by_type&&Object.keys(o.by_type).length>0&&React.createElement("div",{className:"card mb4"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Performance by Offer Type")),React.createElement("table",{className:"tbl"},React.createElement("thead",null,React.createElement("tr",null,React.createElement("th",null,"Offer"),React.createElement("th",null,"Sent"),React.createElement("th",null,"Accepted"),React.createElement("th",null,"Conversion"),React.createElement("th",null,"Revenue"))),React.createElement("tbody",null,Object.entries(o.by_type).map(([e,t])=>React.createElement("tr",{key:e},React.createElement("td",null,React.createElement("span",{style:{marginRight:6}},S(e)),e.replace(/_/g," ").replace(/\w/g,e=>e.toUpperCase())),React.createElement("td",{className:"xs muted"},t.sent),React.createElement("td",{className:"xs",style:{color:"var(--grn)"}},t.accepted),React.createElement("td",{className:"xs gold"},t.sent>0?Math.round(t.accepted/t.sent*100):0,"%"),React.createElement("td",{className:"xs gold"},"৳",Number(t.revenue||0).toLocaleString())))))),React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Upsell Catalog — Plan G Offers")),React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},[["🚗","airport_pickup","Airport Pickup","৳500","24h before","Private car from any Dhaka airport → hotel"],["🌅","early_checkin","Early Check-in (9AM-12PM)","৳1,000","24h before","Guaranteed room from 9:00 AM for morning arrivals"],["🍽","jet_lag_menu","Chef Samim's Jet Lag Menu","৳850","4h before","Light recovery meal ready in room on arrival"],["👑","room_upgrade","Royal Suite Upgrade","৳4,000","4h before","Room 303 — balcony, premium amenities"],["📱","sim_card","Welcome SIM Pack","৳800","4h before","Local SIM + 10GB data waiting in room"],["🌙","late_checkout","Late Check-out (till 6PM)","৳1,500","Day of","Keep room for guests with late flights"]].map(([e,t,a,n,r,l])=>React.createElement("div",{key:t,style:{background:"rgba(200,169,110,.03)",border:"1px solid var(--br)",padding:"10px 12px",display:"flex",gap:10,alignItems:"flex-start"}},React.createElement("span",{style:{fontSize:18,flexShrink:0}},e),React.createElement("div",null,React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--tx)"}},a),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",marginTop:2}},l),React.createElement("div",{style:{display:"flex",gap:12,marginTop:6}},React.createElement("span",{style:{fontSize:11,color:"var(--gold)",fontWeight:600}},n),React.createElement("span",{style:{fontSize:10,color:"var(--tx3)"}},r))))))))),"agent1"===r&&React.createElement("div",null,React.createElement("div",{className:"card mb4"},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:14}},React.createElement("span",{style:{fontSize:24}},"✈"),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:15,color:"var(--tx)"}},"Agent 1 — Pre-Arrival Specialist"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Sends personalized WhatsApp 24h before check-in · Offers Airport Pickup (৳500) + Early Check-in (৳1,000)"))),React.createElement("div",{style:{background:"rgba(88,166,255,.05)",border:"1px solid rgba(88,166,255,.15)",padding:"10px 14px",marginBottom:14,fontSize:11,color:"var(--sky)"}},"💡 ",React.createElement("strong",null,"Why it works:")," Pre-arrival messages have 80% higher acceptance than check-in offers"),React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}},React.createElement("button",{className:"btn btn-gold",onClick:()=>R("pre_arrival",null),disabled:"pre_arrival"===d},"pre_arrival"===d?"🔄 Running…":"✈ Run for Tomorrow's Arrivals")),React.createElement("div",{style:{paddingTop:12,borderTop:"1px solid var(--br2)"}},React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",letterSpacing:".12em",textTransform:"uppercase",marginBottom:8}},"Or trigger for a specific reservation"),React.createElement("div",{style:{display:"flex",gap:8}},React.createElement("select",{className:"finput",style:{flex:1},value:u,onChange:e=>f(e.target.value)},React.createElement("option",{value:""},"— Select upcoming reservation —"),k.map(e=>React.createElement("option",{key:e.id,value:e.id},x(e)," · ",(e.room_ids||[]).join(",")," · ",e.check_in?.slice(0,10)))),React.createElement("button",{className:"btn btn-gold btn-sm",style:{padding:"0 14px",whiteSpace:"nowrap"},disabled:!u||"pre_arrival"===d,onClick:()=>R("pre_arrival",u)},"Send Offers")))),"PreArrival"===p?.agent&&React.createElement("div",{className:"card"},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--grn)",marginBottom:10}},"✓ Agent 1 processed ",p.processed," reservation",1!==p.processed?"s":""),(p.results||[]).map((e,t)=>React.createElement("div",{key:t,style:{background:"rgba(0,0,0,.2)",border:"1px solid var(--br)",padding:"12px",marginBottom:8}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:8}},React.createElement("div",null,React.createElement("div",{style:{fontWeight:600,fontSize:13,color:"var(--tx)"}},e.guest),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Room ",e.room," · Check-in: ",e.check_in," · ",e.phone)),e.skipped?React.createElement("span",{style:{fontSize:10,color:"var(--tx3)"}},"⏭ ",e.skipped):React.createElement("span",{style:{fontSize:9,background:"rgba(88,166,255,.12)",color:"var(--sky)",padding:"2px 8px",letterSpacing:".1em"}},"SENT")),e.whatsapp_message&&React.createElement("div",{style:{background:"rgba(37,211,102,.05)",border:"1px solid rgba(37,211,102,.2)",padding:"10px 12px",fontSize:11,color:"var(--tx2)",lineHeight:1.6}},React.createElement("div",{style:{fontSize:9,color:"#25D366",fontWeight:600,marginBottom:6,letterSpacing:".1em"}},"📱 WHATSAPP MESSAGE"),e.whatsapp_message))))),"agent2"===r&&React.createElement("div",null,React.createElement("div",{className:"card mb4"},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:14}},React.createElement("span",{style:{fontSize:24}},"🍽"),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:15,color:"var(--tx)"}},"Agent 2 — Room Customizer"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Sends targeted upsells 4h before arrival · Jet Lag Menu (৳850) · Room Upgrade · SIM Pack · Smart targeting for international guests"))),React.createElement("div",{style:{background:"rgba(200,169,110,.05)",border:"1px solid rgba(200,169,110,.15)",padding:"10px 14px",marginBottom:14,fontSize:11,color:"var(--gold)"}},"🎯 ",React.createElement("strong",null,"Smart targeting:")," International guests → Jet Lag Menu + SIM Pack · Local guests → Jet Lag Menu + Royal Suite Upgrade"),React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}},React.createElement("button",{className:"btn btn-gold",onClick:()=>R("room_customizer",null),disabled:"room_customizer"===d},"room_customizer"===d?"🔄 Running…":"🍽 Run for Today's Arrivals")),React.createElement("div",{style:{paddingTop:12,borderTop:"1px solid var(--br2)"}},React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",letterSpacing:".12em",textTransform:"uppercase",marginBottom:8}},"Or trigger for specific reservation"),React.createElement("div",{style:{display:"flex",gap:8}},React.createElement("select",{className:"finput",style:{flex:1},value:u,onChange:e=>f(e.target.value)},React.createElement("option",{value:""},"— Select reservation —"),k.map(e=>React.createElement("option",{key:e.id,value:e.id},x(e)," · ",(e.room_ids||[]).join(",")," · ",e.check_in?.slice(0,10)))),React.createElement("button",{className:"btn btn-gold btn-sm",style:{padding:"0 14px",whiteSpace:"nowrap"},disabled:!u||"room_customizer"===d,onClick:()=>R("room_customizer",u)},"Send Offers")))),"RoomCustomizer"===p?.agent&&React.createElement("div",{className:"card"},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--grn)",marginBottom:10}},"✓ Agent 2 processed ",p.processed," reservation",1!==p.processed?"s":""),(p.results||[]).map((e,t)=>React.createElement("div",{key:t,style:{background:"rgba(0,0,0,.2)",border:"1px solid var(--br)",padding:"12px",marginBottom:8}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:8}},React.createElement("div",null,React.createElement("div",{style:{fontWeight:600,fontSize:13,color:"var(--tx)"}},e.guest),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Room ",e.room," · Arrival: ",e.arrival_time," · ",e.international?"🌍 International":"🇧🇩 Local")),e.skipped?React.createElement("span",{style:{fontSize:10,color:"var(--tx3)"}},"⏭ ",e.skipped):React.createElement("div",{style:{display:"flex",gap:4}},(e.offers_sent||[]).map(e=>React.createElement("span",{key:e,style:{fontSize:9,background:"rgba(200,169,110,.15)",color:"var(--gold)",padding:"2px 8px",letterSpacing:".08em"}},e.replace(/_/g," ").toUpperCase())))),e.whatsapp_message&&React.createElement("div",{style:{background:"rgba(37,211,102,.05)",border:"1px solid rgba(37,211,102,.2)",padding:"10px 12px",fontSize:11,color:"var(--tx2)",lineHeight:1.6}},React.createElement("div",{style:{fontSize:9,color:"#25D366",fontWeight:600,marginBottom:6,letterSpacing:".1em"}},"📱 WHATSAPP MESSAGE"),e.whatsapp_message))))),"offers"===r&&React.createElement("div",null,React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},React.createElement("div",{style:{fontSize:12,color:"var(--tx3)"}},"All upsell offers — click Accept to bill folio + alert front desk"),React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:()=>{E(),h()}},"↻ Refresh")),b?React.createElement("div",{style:{textAlign:"center",padding:"24px",color:"var(--tx3)",fontSize:12}},"Loading offers…"):React.createElement("div",null,0===s.length&&React.createElement("div",{className:"card",style:{textAlign:"center",padding:"24px",color:"var(--tx3)",fontSize:12}},"No offers yet — run Agent 1 or Agent 2 to generate upsell messages"),s.map(t=>{return React.createElement("div",{key:t.id,style:{background:"rgba(0,0,0,.15)",border:"1px solid "+("accepted"===t.status?"rgba(63,185,80,.3)":"declined"===t.status?"rgba(224,92,122,.2)":"var(--br)"),padding:"12px 14px",marginBottom:6}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}},React.createElement("div",{style:{flex:1}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},React.createElement("span",{style:{fontSize:16}},S(t.offer_type)),React.createElement("div",null,React.createElement("span",{style:{fontWeight:600,fontSize:12,color:"var(--tx)"}},t.offer_title),React.createElement("span",{style:{marginLeft:8,fontSize:11,color:"var(--gold)",fontWeight:500}},"৳",Number(t.offer_price).toLocaleString())),React.createElement("span",{style:{fontSize:9,padding:"2px 8px",background:(a=t.status,"accepted"===a?"rgba(63,185,80,.12)":"declined"===a?"rgba(224,92,122,.12)":"sent"===a?"rgba(88,166,255,.1)":"rgba(255,255,255,.05)"),color:N(t.status),letterSpacing:".08em",textTransform:"uppercase",fontWeight:600}},t.status)),React.createElement("div",{style:{fontSize:11,color:"var(--tx2)"}},t.guest_name," · Room ",t.room_number," · Check-in: ",t.check_in),t.alert_message&&"accepted"===t.status&&React.createElement("div",{style:{marginTop:6,fontSize:10,color:"var(--grn)",background:"rgba(63,185,80,.06)",border:"1px solid rgba(63,185,80,.2)",padding:"6px 8px"}},"🔔 ",t.alert_message," · Assigned: ",React.createElement("strong",null,t.assigned_to))),"sent"===t.status&&React.createElement("div",{style:{display:"flex",gap:4,flexShrink:0}},React.createElement("button",{className:"btn btn-success btn-sm",style:{fontSize:10,padding:"4px 10px"},disabled:d===`accept:${t.id}`,onClick:()=>async function(t,a){m(`accept:${t}`);try{const n=await y({action:"accept_offer",offer_id:t,guest_reply:"yes"});if(n.error)return void e(n.error,"error");e(`✓ ৳${Number(n.amount).toLocaleString()} added to ${a}'s folio · ${n.assigned_to} alerted`),E(),h()}catch(t){e(t.message,"error")}finally{m(null)}}(t.id,t.guest_name)},d===`accept:${t.id}`?"Processing…":"✓ Accept + Bill"),React.createElement("button",{className:"btn btn-sm",style:{fontSize:10,padding:"4px 8px",background:"rgba(224,92,122,.1)",color:"var(--rose)",border:"1px solid rgba(224,92,122,.3)"},disabled:d===`decline:${t.id}`,onClick:()=>async function(t){m(`decline:${t}`);try{await y({action:"accept_offer",offer_id:t,guest_reply:"no"}),e("Offer marked as declined"),E()}catch(t){e(t.message,"error")}finally{m(null)}}(t.id)},"✕")),"accepted"===t.status&&React.createElement("div",{style:{fontSize:10,color:"var(--grn)",textAlign:"right",flexShrink:0}},React.createElement("div",null,"✓ Billed ",t.billed?"✓":""),React.createElement("div",{style:{color:"var(--tx3)"}},t.assigned_to))));var a}))))}function LeadGenSwarmPanel({toast:e}){const[t,a]=useState("dashboard"),[n,r]=useState([]),[l,o]=useState(null),[c,s]=useState(null),[i,d]=useState(null),[m,p]=useState(null),[g,u]=useState(null),[f,b]=useState(null),[v,y]=useState(""),[E,h]=useState("corporate"),[R,x]=useState(80),[N,S]=useState(!0);async function k(e){return(await fetch("https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/lead-gen-swarm",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY},body:JSON.stringify(e)})).json()}async function _(){S(!0);try{const e=await fetch(`${SB_URL}/rest/v1/swarm_leads?tenant_id=eq.${TENANT}&select=*&order=intent_score.desc&limit=50`,{headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}}),t=await e.json();r(Array.isArray(t)?t:[])}catch(e){}finally{S(!1)}}async function w(){try{const e=await k({action:"dashboard"});o(e)}catch(e){}}async function C(t,a){s(`outreach:${t}`);try{const n=await k({action:"outreach",lead_id:t,channel:a});if(n.error)return void e(n.error,"error");e(`✓ Outreach drafted for ${n.lead_name} via ${n.channel}`),_()}catch(t){e(t.message,"error")}finally{s(null)}}async function A(t,a){s(`sync:${t}`);try{const n=await k({action:"crm_sync",lead_id:t,reply_text:a});if(n.error)return void e(n.error,"error");e(`✓ ${n.lead_name} synced to CRM · Front desk notified · Priority: ${n.urgency}`),b(null),y(""),_(),w()}catch(t){e(t.message,"error")}finally{s(null)}}useEffect(()=>{_(),w()},[]);const D=e=>e>=80?"var(--grn)":e>=60?"var(--gold)":e>=40?"var(--sky)":"var(--tx3)",T=e=>e>=80?"rgba(63,185,80,.12)":e>=60?"rgba(200,169,110,.12)":e>=40?"rgba(88,166,255,.08)":"rgba(255,255,255,.04)",z=e=>"corporate"===e?"🏢":"event_organizer"===e?"🎪":"long_stay"===e?"🏠":"👤",B=e=>({new:{color:"var(--tx3)",bg:"rgba(255,255,255,.05)",label:"New"},scored:{color:"var(--sky)",bg:"rgba(88,166,255,.1)",label:"Scored"},outreach_sent:{color:"var(--gold)",bg:"rgba(200,169,110,.12)",label:"Outreach Sent"},replied:{color:"var(--grn)",bg:"rgba(63,185,80,.12)",label:"Replied"},converted:{color:"var(--grn)",bg:"rgba(63,185,80,.2)",label:"Converted"},rejected:{color:"var(--rose)",bg:"rgba(224,92,122,.1)",label:"Rejected"}}[e]||{color:"var(--tx3)",bg:"rgba(255,255,255,.04)",label:e});return React.createElement("div",null,React.createElement("div",{style:{background:"linear-gradient(135deg,rgba(88,166,255,.06),rgba(200,169,110,.04))",border:"1px solid rgba(88,166,255,.2)",padding:"12px 16px",marginBottom:16}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:16,color:"var(--sky)"}},"🎯 Lead Gen Swarm — 3 AI Agents"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",marginTop:3}},"Scout → Score → Outreach → CRM Sync · Corporate · Event Organizers · Long-Stay Expats")),l&&React.createElement("div",{style:{display:"flex",gap:16,textAlign:"right"}},React.createElement("div",null,React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",textTransform:"uppercase",letterSpacing:".1em"}},"Total Leads"),React.createElement("div",{style:{fontSize:18,color:"var(--sky)",fontFamily:"var(--serif)"}},l.total_leads)),React.createElement("div",null,React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",textTransform:"uppercase",letterSpacing:".1em"}},"High Priority"),React.createElement("div",{style:{fontSize:18,color:"var(--rose)",fontFamily:"var(--serif)"}},l.high_priority)),React.createElement("div",null,React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",textTransform:"uppercase",letterSpacing:".1em"}},"Replied"),React.createElement("div",{style:{fontSize:18,color:"var(--grn)",fontFamily:"var(--serif)"}},l.replied))))),React.createElement("div",{className:"tabs mb4"},[["dashboard","📊 Dashboard"],["scout","🔍 Agent 1 · Scout"],["analyst","🧠 Agent 2 · Analyst"],["outreach","📨 Agent 3 · Outreach"],["leads","📋 All Leads"]].map(([e,n])=>React.createElement("button",{key:e,className:"tab"+(t===e?" on":""),onClick:()=>a(e)},n))),f&&React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"},onClick:()=>b(null)},React.createElement("div",{style:{background:"var(--bg2)",border:"1px solid var(--br)",padding:24,width:480,maxWidth:"90vw"},onClick:e=>e.stopPropagation()},React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:15,color:"var(--tx)",marginBottom:16}},"Log Reply — ",f.name),React.createElement("div",{className:"fg mb3"},React.createElement("label",{className:"flbl"},"Paste their reply message"),React.createElement("textarea",{className:"finput",rows:4,value:v,onChange:e=>y(e.target.value),placeholder:"e.g. Yes, we're interested! Can we schedule a site visit next week?",style:{resize:"vertical"}})),React.createElement("div",{style:{display:"flex",gap:8,justifyContent:"flex-end"}},React.createElement("button",{className:"btn btn-ghost",onClick:()=>b(null)},"Cancel"),React.createElement("button",{className:"btn btn-gold",disabled:!v.trim()||c===`sync:${f.leadId}`,onClick:()=>A(f.leadId,v)},c===`sync:${f.leadId}`?"Syncing…":"✓ Sync to CRM + Notify Front Desk")))),"dashboard"===t&&React.createElement("div",null,l&&React.createElement("div",null,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}},[["Total Leads",l.total_leads,"var(--sky)"],["High Priority (80+)",l.high_priority,"var(--rose)"],["Outreach Sent",l.by_status?.outreach_sent||0,"var(--gold)"],["Replied",l.replied,"var(--grn)"]].map(([e,t,a],n)=>React.createElement("div",{key:n,style:{background:"rgba(0,0,0,.2)",border:"1px solid var(--br)",padding:"12px",textAlign:"center"}},React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:4}},e),React.createElement("div",{style:{fontSize:24,color:a,fontFamily:"var(--serif)",fontWeight:600}},t)))),React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}},React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"By Lead Type")),Object.entries(l.by_type||{}).map(([e,t])=>React.createElement("div",{key:e,style:{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid var(--br2)",fontSize:12}},React.createElement("span",null,z(e)," ",e.replace(/_/g," ").replace(/\w/g,e=>e.toUpperCase())),React.createElement("span",{style:{color:"var(--gold)",fontWeight:600}},t)))),React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"By Status")),Object.entries(l.by_status||{}).map(([e,t])=>{const a=B(e);return React.createElement("div",{key:e,style:{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid var(--br2)",fontSize:12}},React.createElement("span",{style:{color:a.color}},a.label),React.createElement("span",{style:{color:"var(--gold)",fontWeight:600}},t))}))),l.top_leads?.length>0&&React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("span",{className:"card-title"},"Top Priority Leads (Score ≥70)")),l.top_leads.map(e=>React.createElement("div",{key:e.id,style:{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid var(--br2)"}},React.createElement("div",{style:{width:36,height:36,background:T(e.intent_score),display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--serif)",fontSize:13,color:D(e.intent_score),fontWeight:700,flexShrink:0}},e.intent_score),React.createElement("div",{style:{flex:1,minWidth:0}},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--tx)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},e.full_name," ",React.createElement("span",{style:{fontSize:10,color:"var(--tx3)"}},"· ",e.title)),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},z(e.lead_type)," ",e.company_name," · ",e.area)),React.createElement("span",{style:{fontSize:9,padding:"2px 8px",background:B(e.outreach_status).bg,color:B(e.outreach_status).color,letterSpacing:".08em",textTransform:"uppercase",flexShrink:0}},B(e.outreach_status).label)))))),"scout"===t&&React.createElement("div",null,React.createElement("div",{className:"card mb4"},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:14}},React.createElement("span",{style:{fontSize:24}},"🔍"),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:15,color:"var(--tx)"}},"Agent 1 — The Digital Scout"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Discovers leads from LinkedIn, corporate directories, Facebook groups · 3 lead types: Corporate, Event Organizers, Long-Stay Expats"))),React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr auto",gap:10,marginBottom:14}},React.createElement("div",null,React.createElement("label",{className:"flbl"},"Lead Type to Scout"),React.createElement("select",{className:"finput",value:E,onChange:e=>h(e.target.value)},React.createElement("option",{value:"corporate"},"🏢 Corporate — HR/Travel Managers in Nikunja, Khilkhet, Uttara"),React.createElement("option",{value:"event_organizer"},"🎪 Event Organizers — Training coordinators, seminar planners"),React.createElement("option",{value:"long_stay"},"🏠 Long-Stay — Expats, consultants moving to Dhaka"))),React.createElement("div",{style:{display:"flex",flexDirection:"column",justifyContent:"flex-end"}},React.createElement("button",{className:"btn btn-gold",onClick:async function(){s("scout"),d(null);try{const t=await k({action:"scout",lead_type:E});if(t.error)return void e(t.error,"error");d(t),e(`✓ ${t.leads_found} ${E} leads found & saved`),_(),w()}catch(t){e(t.message,"error")}finally{s(null)}},disabled:"scout"===c,style:{whiteSpace:"nowrap"}},"scout"===c?"🔄 Scouting…":"🔍 Scout Now"))),[{type:"corporate",icon:"🏢",title:"Airport Transit Strategy",target:"HR & Travel Managers at multinationals in Nikunja/Khilkhet/Uttara",pitch:"Dedicated Corporate Wing · 24/7 check-in · High-speed WiFi · Corporate rates"},{type:"event_organizer",icon:"🎪",title:"Small Gathering Strategy",target:"Event planners, training coordinators needing space for 10-30 people",pitch:"30-room boutique · Private meeting room · Chef Samim's Day-Use lunch package"},{type:"long_stay",icon:"🏠",title:"Long-Stay Strategy",target:'Expats & consultants moving to Dhaka, Facebook "Expats in Dhaka" groups',pitch:"Home-Away-From-Home · 24/7 security · Airport proximity · Weekly/monthly rates"}].map(e=>React.createElement("div",{key:e.type,style:{background:E===e.type?"rgba(200,169,110,.06)":"rgba(0,0,0,.1)",border:"1px solid "+(E===e.type?"rgba(200,169,110,.3)":"var(--br)"),padding:"10px 12px",marginBottom:6,cursor:"pointer"},onClick:()=>h(e.type)},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--tx)"}},e.icon," ",e.title),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",marginTop:3}},"Target: ",e.target),React.createElement("div",{style:{fontSize:10,color:"var(--gold)",marginTop:2}},"Pitch: ",e.pitch)))),i&&React.createElement("div",{className:"card"},React.createElement("div",{style:{fontSize:12,color:"var(--grn)",fontWeight:600,marginBottom:10}},"✓ ",i.leads_found," leads found (",i.lead_type,")"),(i.leads||[]).map((e,t)=>React.createElement("div",{key:t,style:{background:"rgba(0,0,0,.15)",border:"1px solid var(--br)",padding:"10px 12px",marginBottom:6}},React.createElement("div",{style:{fontWeight:600,fontSize:12,color:"var(--tx)"}},e.full_name," ",React.createElement("span",{style:{fontSize:10,color:"var(--tx3)",fontWeight:400}},"· ",e.title)),React.createElement("div",{style:{fontSize:11,color:"var(--sky)",marginTop:2}},e.company_name," · ",e.area),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",marginTop:3}},e.qualification_notes),e.email&&React.createElement("div",{style:{fontSize:10,color:"var(--tx2)",marginTop:2}},e.email," ",e.phone&&`· ${e.phone}`))))),"analyst"===t&&React.createElement("div",null,React.createElement("div",{className:"card mb4"},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:14}},React.createElement("span",{style:{fontSize:24}},"🧠"),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:15,color:"var(--tx)"}},"Agent 2 — The Intent Analyst"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Scores leads 0-100 · Analyzes transit needs, event frequency, travel policy · Score ≥80 → auto-queued for outreach"))),React.createElement("div",{style:{background:"rgba(88,166,255,.05)",border:"1px solid rgba(88,166,255,.15)",padding:"10px 14px",marginBottom:14,fontSize:11,color:"var(--sky)"}},"📊 ",React.createElement("strong",null,"Scoring logic:")," Corporate in Nikunja +30 · Travel/HR role +25 · Multinational +20 · Event frequency +40 · Expat/consultant +40"),React.createElement("button",{className:"btn btn-gold",onClick:async function(){s("analyze"),p(null);try{const t=await k({action:"analyze"});if(t.error)return void e(t.error,"error");p(t),e(`✓ ${t.scored} leads scored · ${t.high_priority_count} high priority`),_(),w()}catch(t){e(t.message,"error")}finally{s(null)}},disabled:"analyze"===c},"analyze"===c?"🧠 Analyzing…":"🧠 Analyze All Unscored Leads")),m&&React.createElement("div",{className:"card"},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--grn)",marginBottom:10}},"✓ ",m.scored," leads scored · ",m.high_priority_count," high priority (≥80)"),(m.results||[]).map((e,t)=>React.createElement("div",{key:t,style:{display:"flex",gap:10,padding:"8px 0",borderBottom:"1px solid var(--br2)",alignItems:"flex-start"}},React.createElement("div",{style:{width:44,height:44,background:T(e.score),display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--serif)",fontSize:16,color:D(e.score),fontWeight:700,flexShrink:0}},e.score),React.createElement("div",{style:{flex:1}},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--tx)"}},e.name," ",React.createElement("span",{style:{fontSize:10,color:"var(--tx3)"}},"· ",e.company)),React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginTop:4}},(e.signals||[]).map((e,t)=>React.createElement("span",{key:t,style:{fontSize:9,padding:"2px 6px",background:"rgba(88,166,255,.08)",color:"var(--sky)",border:"1px solid rgba(88,166,255,.2)"}},e))),e.high_priority&&React.createElement("span",{style:{display:"inline-block",marginTop:4,fontSize:9,padding:"2px 8px",background:"rgba(224,92,122,.12)",color:"var(--rose)",letterSpacing:".08em"}},"🔴 HIGH PRIORITY")))))),"outreach"===t&&React.createElement("div",null,React.createElement("div",{className:"card mb4"},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:14}},React.createElement("span",{style:{fontSize:24}},"📨"),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:15,color:"var(--tx)"}},"Agent 3 — The Outreach Specialist"),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)"}},"Sends personalized LinkedIn/email/WhatsApp · Auto-outreach for score ≥80 · Post-reply: syncs to CRM + alerts front desk"))),React.createElement("div",{style:{display:"flex",gap:8,alignItems:"flex-end",marginBottom:14}},React.createElement("div",{style:{flex:1}},React.createElement("label",{className:"flbl"},"Auto-outreach score threshold"),React.createElement("input",{type:"range",min:50,max:95,step:5,value:R,onChange:e=>x(+e.target.value),style:{width:"100%",marginTop:6}}),React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--tx3)",marginTop:2}},React.createElement("span",null,"50 (broad)"),React.createElement("span",{style:{color:"var(--gold)",fontWeight:600}},"Current: ",R,"+"),React.createElement("span",null,"95 (strict)"))),React.createElement("button",{className:"btn btn-gold",onClick:async function(){s("bulk_outreach"),u(null);try{const t=await k({action:"outreach",score_threshold:R});if(t.error)return void e(t.error,"error");u(t),e(`✓ ${t.sent} outreach messages generated`),_(),w()}catch(t){e(t.message,"error")}finally{s(null)}},disabled:"bulk_outreach"===c,style:{whiteSpace:"nowrap",marginBottom:0}},"bulk_outreach"===c?"📨 Sending…":`📨 Send to All ≥${R}`)),React.createElement("div",{style:{background:"rgba(63,185,80,.05)",border:"1px solid rgba(63,185,80,.15)",padding:"10px 14px",fontSize:11,color:"var(--grn)"}},"🔄 ",React.createElement("strong",null,"CRM Sync flow:")," Guest replies → log reply below → Agent 3 analyzes intent → creates guest profile in CRM → notifies front desk with priority level")),g&&React.createElement("div",{className:"card mb4"},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:"var(--grn)",marginBottom:10}},"✓ ",g.sent," messages sent (threshold: ",g.threshold,")"),(g.results||[]).map((e,t)=>React.createElement("div",{key:t,style:{background:"rgba(0,0,0,.15)",border:"1px solid var(--br)",padding:"12px",marginBottom:8}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:8}},React.createElement("div",null,React.createElement("span",{style:{fontWeight:600,fontSize:12,color:"var(--tx)"}},e.lead_name)," ",React.createElement("span",{style:{fontSize:10,color:"var(--tx3)"}},"· ",e.company," · Score: ",e.score)),React.createElement("span",{style:{fontSize:9,padding:"2px 8px",background:"rgba(200,169,110,.12)",color:"var(--gold)",letterSpacing:".08em",textTransform:"uppercase"}},e.channel)),e.message&&React.createElement("div",{style:{fontSize:11,color:"var(--tx2)",background:"rgba(0,0,0,.3)",padding:"8px 10px",fontFamily:"monospace",lineHeight:1.6}},e.message),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",marginTop:6}},"Contact: ",e.contact||"—"))))),"leads"===t&&React.createElement("div",null,React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},React.createElement("div",{style:{fontSize:12,color:"var(--tx3)"}},n.length," leads total — sorted by score"),React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:()=>{_(),w()}},"↻ Refresh")),N?React.createElement("div",{style:{textAlign:"center",padding:"24px",color:"var(--tx3)",fontSize:12}},"Loading…"):0===n.length?React.createElement("div",{className:"card",style:{textAlign:"center",padding:"24px",color:"var(--tx3)",fontSize:12}},"No leads yet — run Agent 1 to scout"):n.map(t=>{const a=B(t.outreach_status),n="string"==typeof t.intent_signals?JSON.parse(t.intent_signals||"[]"):t.intent_signals||[];return React.createElement("div",{key:t.id,style:{background:"rgba(0,0,0,.12)",border:"1px solid var(--br)",padding:"12px 14px",marginBottom:6}},React.createElement("div",{style:{display:"flex",gap:10,alignItems:"flex-start"}},t.intent_score>0&&React.createElement("div",{style:{width:40,height:40,background:T(t.intent_score),display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--serif)",fontSize:14,color:D(t.intent_score),fontWeight:700,flexShrink:0}},t.intent_score),React.createElement("div",{style:{flex:1,minWidth:0}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:4}},React.createElement("div",null,React.createElement("span",{style:{fontWeight:600,fontSize:12,color:"var(--tx)"}},t.full_name),React.createElement("span",{style:{fontSize:10,color:"var(--tx3)",marginLeft:6}},t.title),React.createElement("span",{style:{fontSize:9,padding:"1px 6px",background:"rgba(88,166,255,.08)",color:"var(--sky)",marginLeft:6,letterSpacing:".06em"}},z(t.lead_type)," ",t.lead_type.replace(/_/g," "))),React.createElement("span",{style:{fontSize:9,padding:"2px 8px",background:a.bg,color:a.color,letterSpacing:".08em",textTransform:"uppercase",flexShrink:0,fontWeight:600}},a.label)),React.createElement("div",{style:{fontSize:11,color:"var(--sky)"}},t.company_name," · ",t.area),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",marginTop:2}},t.email," ",t.phone&&`· ${t.phone}`),n.length>0&&React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:3,marginTop:5}},n.map((e,t)=>React.createElement("span",{key:t,style:{fontSize:9,padding:"1px 6px",background:"rgba(88,166,255,.06)",color:"var(--sky)",border:"1px solid rgba(88,166,255,.15)"}},e))),t.outreach_message&&React.createElement("details",{style:{marginTop:6}},React.createElement("summary",{style:{fontSize:10,color:"var(--gold)",cursor:"pointer"}},"📨 View outreach message ▾"),React.createElement("div",{style:{marginTop:4,fontSize:10,color:"var(--tx2)",background:"rgba(0,0,0,.3)",padding:"8px 10px",fontFamily:"monospace",lineHeight:1.6,maxHeight:150,overflow:"auto"}},t.outreach_message))),React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:4,flexShrink:0}},"new"===t.outreach_status&&React.createElement("button",{className:"btn btn-sm",style:{fontSize:9,padding:"3px 8px",background:"rgba(88,166,255,.1)",color:"var(--sky)",border:"1px solid rgba(88,166,255,.3)"},disabled:c===`analyze:${t.id}`,onClick:()=>async function(t){s(`analyze:${t}`);try{const a=await k({action:"analyze",lead_id:t});e(`✓ Lead scored: ${a.results?.[0]?.score||"?"}/100`),_(),w()}catch(t){e(t.message,"error")}finally{s(null)}}(t.id)},c===`analyze:${t.id}`?"Scoring…":"🧠 Score"),("scored"===t.outreach_status||t.intent_score>0)&&"outreach_sent"!==t.outreach_status&&"replied"!==t.outreach_status&&React.createElement(React.Fragment,null,React.createElement("button",{className:"btn btn-sm btn-gold",style:{fontSize:9,padding:"3px 8px"},disabled:!!c,onClick:()=>C(t.id,"linkedin")},"💼 LinkedIn"),React.createElement("button",{className:"btn btn-sm",style:{fontSize:9,padding:"3px 8px",background:"rgba(37,211,102,.1)",color:"#25D366",border:"1px solid rgba(37,211,102,.3)"},disabled:!!c,onClick:()=>C(t.id,"whatsapp")},"📱 WhatsApp")),"outreach_sent"===t.outreach_status&&React.createElement("button",{className:"btn btn-sm",style:{fontSize:9,padding:"3px 8px",background:"rgba(63,185,80,.1)",color:"var(--grn)",border:"1px solid rgba(63,185,80,.3)"},onClick:()=>{b({leadId:t.id,name:t.full_name}),y("")}},"✉ Log Reply"),"replied"===t.outreach_status&&!t.crm_synced&&React.createElement("button",{className:"btn btn-sm btn-gold",style:{fontSize:9,padding:"3px 8px"},disabled:!!c,onClick:()=>A(t.id,"interested")},"🔄 Sync CRM"),t.crm_synced&&React.createElement("span",{style:{fontSize:9,color:"var(--grn)"}},"✓ CRM"))))})))}function WorkflowMonitor({toast:e}){const[t,a]=useState([]),[n,r]=useState(!0),[l,o]=useState(null),c=SB_KEY,s=[{id:"morning-briefing",label:"Morning Briefing",slug:"wf-morning-briefing",time:"7:00 AM daily",body:"{}"},{id:"checkout-reminder",label:"Checkout Reminder",slug:"wf-checkout-alerts",time:"10:30 AM daily",body:'{"mode":"reminder"}'},{id:"overdue-alert",label:"Overdue Alert",slug:"wf-checkout-alerts",time:"12:30 PM daily",body:'{"mode":"overdue"}'},{id:"evening-revenue",label:"Evening Revenue Report",slug:"wf-evening-report",time:"9:00 PM daily",body:"{}"},{id:"weekly-summary",label:"Weekly Summary",slug:"wf-period-reports",time:"Mon 8:00 AM",body:'{"mode":"weekly"}'},{id:"monthly-report",label:"Monthly Report",slug:"wf-period-reports",time:"1st of month",body:'{"mode":"monthly"}'},{id:"competitor-monitor",label:"Competitor Monitor",slug:"wf-competitor-monitor",time:"6:00 AM daily",body:"{}"},{id:"backup-verification",label:"Backup Verification",slug:"wf-backup-verify",time:"Sunday 11 PM",body:"{}"}];useEffect(()=>{db("workflow_runs","?select=workflow_name,status,duration_ms,records_processed,ran_at&order=ran_at.desc&limit=50").then(e=>{a(Array.isArray(e)?e:[]),r(!1)}).catch(()=>r(!1))},[]);return React.createElement("div",{className:"card mb4"},React.createElement("div",{className:"card-hd"},React.createElement("div",{className:"flex fac gap2"},React.createElement("span",{style:{fontSize:16}},"⚡"),React.createElement("span",{className:"card-title"},"Email ",React.createElement("em",{style:{fontStyle:"italic",color:"var(--gold)"}},"Workflows"))),React.createElement("div",{className:"flex fac gap2"},React.createElement("div",{className:"sync-dot"}),React.createElement("span",{className:"xs muted"},"10 cron jobs active"))),React.createElement("div",{className:"card-body",style:{padding:0}},n?React.createElement("div",{className:"xs muted",style:{padding:"18px",textAlign:"center"}},"Loading workflow history…"):s.map((n,r)=>{const i=(d=n.id,t.find(e=>e.workflow_name===d));var d;const m="success"===i?.status,p=l===n.id;return React.createElement("div",{key:n.id,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:r<s.length-1?"1px solid var(--br2)":"none"}},React.createElement("div",{style:{width:7,height:7,borderRadius:"50%",flexShrink:0,background:i?m?"var(--grn)":"var(--rose)":"var(--tx3)",boxShadow:i?m?"0 0 5px var(--grn)":"0 0 5px var(--rose)":"none"}}),React.createElement("div",{style:{flex:1,minWidth:0}},React.createElement("div",{style:{fontSize:12,fontWeight:300,color:"var(--tx)"}},n.label),React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",letterSpacing:".08em",marginTop:1,display:"flex",gap:8}},React.createElement("span",null,"🕐 ",n.time),i&&React.createElement("span",{style:{color:m?"var(--grn)":"var(--rose)"}},"Last: ",(g=i.ran_at)?new Date(g).toLocaleString("en",{timeZone:"Asia/Dhaka",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):"Never"),i?.duration_ms&&React.createElement("span",null,i.duration_ms,"ms"))),i&&React.createElement("span",{className:"badge "+(m?"bg":"br_"),style:{fontSize:8}},i.status),React.createElement("button",{className:"btn btn-ghost btn-sm",disabled:!!l,onClick:()=>async function(t){o(t.id);try{const n=await fetch(`https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/${t.slug}`,{method:"POST",headers:{"Content-Type":"application/json",apikey:c},body:t.body}),r=await n.json();r.error?e(`${t.label}: ${r.error}`,"error"):e(`${t.label} triggered ✓`);const l=await db("workflow_runs","?select=workflow_name,status,duration_ms,records_processed,ran_at&order=ran_at.desc&limit=50");a(Array.isArray(l)?l:[])}catch(t){e(t.message,"error")}o(null)}(n),style:{fontSize:9,padding:"3px 10px",letterSpacing:".1em"}},p?React.createElement(React.Fragment,null,React.createElement("span",{className:"spinner",style:{width:10,height:10}})):"▶ Run"));var g}),React.createElement("div",{style:{padding:"10px 16px",background:"rgba(200,169,110,.03)",borderTop:"1px solid var(--br2)",display:"flex",justifyContent:"space-between",alignItems:"center"}},React.createElement("span",{className:"xs muted"},"All emails → ",_HEMAIL),React.createElement("span",{className:"xs muted"},t.length," runs logged"))))}function GoogleSheetsCard({toast:e}){const[t,a]=useState(!1),[n,r]=useState(null),[l,o]=useState(null),[c,s]=useState("1uekoRKGuhMLXBW8AY3ONr-vPTyml9QDoJgRYA3HsPNU"),i=SB_KEY;return React.createElement("div",{className:"card"},React.createElement("div",{className:"card-hd"},React.createElement("div",{className:"flex fac gap2"},React.createElement("span",{style:{fontSize:16}},"📊"),React.createElement("span",{className:"card-title"},"Google Sheets ",React.createElement("em",{style:{fontStyle:"italic",color:"var(--gold)"}},"Backup"))),n&&React.createElement("span",{className:"badge bg"},"Synced ",new Date(n).toLocaleTimeString())),React.createElement("div",{className:"card-body"},React.createElement("div",{style:{background:"rgba(63,185,80,.05)",border:"1px solid rgba(63,185,80,.15)",padding:"10px 13px",marginBottom:14}},React.createElement("div",{style:{fontSize:11,fontWeight:400,color:"var(--grn)",marginBottom:3}},"🔄 Auto-Sync Active"),React.createElement("div",{className:"xs muted"},"Every INSERT/UPDATE on all 6 tables syncs to Google Sheets in real-time via database triggers.")),l&&React.createElement("div",{className:"g2 mb4"},[["🛏 Rooms",l.rooms],["👤 Guests",l.guests],["📅 Reservations",l.reservations],["💰 Transactions",l.transactions],["🧾 Folios",l.folios],["🧹 Housekeeping",l.housekeeping_tasks]].map(([e,t])=>React.createElement("div",{key:e,className:"info-box"},React.createElement("div",{className:"info-lbl"},e),React.createElement("div",{className:"info-val gold"},t," rows")))),React.createElement("div",{className:"fg"},React.createElement("label",{className:"flbl"},"Spreadsheet ID"),React.createElement("input",{className:"finput",value:c,onChange:e=>s(e.target.value.trim()),placeholder:"Paste Spreadsheet ID"})),React.createElement("div",{className:"flex gap2",style:{flexWrap:"wrap"}},React.createElement("button",{className:"btn btn-gold",disabled:t,onClick:async function(){a(!0);try{const t=await fetch("https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/sync-to-sheets",{method:"POST",headers:{"Content-Type":"application/json",apikey:i},body:"{}"}),a=await t.json();a.error?e(a.error,"error"):(r(a.synced_at),o(a.counts),e("All data synced to Google Sheets ✓"))}catch(t){e("Sync failed: "+t.message,"error")}finally{a(!1)}}},t?React.createElement(React.Fragment,null,React.createElement("span",{className:"spinner",style:{width:12,height:12}})," ","Syncing…"):"📊 Sync All Data Now"),c&&React.createElement("a",{href:`https://docs.google.com/spreadsheets/d/${c}/edit`,target:"_blank",rel:"noopener",className:"btn btn-ghost"},"↗ Open Sheet"))))}function LeadPipelinePage_REMOVED(){const[e,t]=React.useState([]),[a,n]=React.useState([]),[r,l]=React.useState(!0),[o,c]=React.useState(!1),[s,i]=React.useState("all"),[d,m]=React.useState(""),[p,g]=React.useState(null),[u,f]=React.useState(!1),[b,v]=React.useState(null),y=React.useRef(null),E={pending:{label:"Pending",color:"#7A6A5A",bg:"rgba(122,106,90,.18)"},contacted:{label:"Contacted",color:"#58A6FF",bg:"rgba(88,166,255,.12)"},replied:{label:"Replied",color:"#FCD34D",bg:"rgba(252,211,77,.12)"},audited:{label:"Audited",color:"#A78BFA",bg:"rgba(167,139,250,.12)"},deal_ready:{label:"Deal Ready",color:"#4ADE80",bg:"rgba(74,222,128,.12)"},closed_won:{label:"Closed Won",color:"#C8A96E",bg:"rgba(200,169,110,.15)"},not_interested:{label:"Not Interested",color:"#F87171",bg:"rgba(248,113,113,.10)"}},h={strong:{label:"Strong",color:"#4ADE80"},good:{label:"Good",color:"#58A6FF"},partial:{label:"Partial",color:"#FCD34D"}},R=e=>e>=9?"#4ADE80":e>=7?"#FCD34D":e>=4?"#F97316":"#F87171",x=e=>e?new Date(e).toLocaleDateString("en-BD",{timeZone:"Asia/Dhaka",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):"—",N=React.useCallback(async e=>{e?c(!0):l(!0);try{const[e,a]=await Promise.all([db("corporate_leads",`?tenant_id=eq.${TENANT}&select=*&order=priority.asc,created_at.asc`),db("outreach_log",`?tenant_id=eq.${TENANT}&select=*&order=sent_at.desc&limit=100`)]),r=Array.isArray(e)?e:[],l=Array.isArray(a)?a:[];t(r),n(l),g(e=>e&&r.find(t=>t.id===e.id)||null)}catch(e){console.error("[LeadPipeline] load error",e)}finally{l(!1),c(!1)}},[]);React.useEffect(()=>{N()},[N]);const S={total:e.length,contacted:e.filter(e=>["contacted","replied","audited","deal_ready","closed_won"].includes(e.status)).length,replied:e.filter(e=>["replied","audited","deal_ready","closed_won"].includes(e.status)).length,deal_ready:e.filter(e=>"deal_ready"===e.status).length},k=d.toLowerCase(),_=e.filter(e=>("all"===s||e.status===s)&&!(k&&!e.company_name?.toLowerCase().includes(k)&&!e.contact_name?.toLowerCase().includes(k)&&!e.contact_email?.toLowerCase().includes(k))),w=p?a.filter(e=>e.lead_id===p.id):[],C=React.useCallback(async()=>{f(!0),v(null),y.current&&clearTimeout(y.current);try{const e=await fetch("/api/agents/outreach-bot",{method:"POST"}),t=await e.json();if(t.error){const e=t.error.includes("schema cache")?"DB function not ready — wait 30s and retry":t.error.includes("BREVO")?"Email service error — check BREVO_API_KEY in Vercel":t.error.includes("Env missing")?"Missing env var: "+t.error.split(":")[1]:t.error;v({ok:!1,msg:e})}else{const e=(t.results||[]).filter(e=>e.sent).map(e=>e.lead).join(", ");v({ok:!0,processed:t.processed??0,names:e}),y.current=setTimeout(()=>v(null),1e4),await N(!0)}}catch(e){v({ok:!1,msg:String(e)})}f(!1)},[N]),A=React.useCallback(async(e,t)=>{try{await dbPatch("corporate_leads",e,{status:t,updated_at:(new Date).toISOString()}),await N(!0)}catch(e){console.error("[LeadPipeline] status patch error",e)}},[N]);return r?React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",color:"var(--tx3)",fontSize:13}},"Loading lead pipeline…"):React.createElement("div",{style:{padding:"24px 28px",overflowY:"auto",height:"100%",background:"var(--bg)",boxSizing:"border-box"}},React.createElement("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}},React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:22,color:"var(--gold)",marginBottom:4}},"Corporate ",React.createElement("em",null,"Lead Pipeline")),React.createElement("div",{style:{fontSize:11,color:"var(--tx3)",letterSpacing:".12em",textTransform:"uppercase"}},_HLOC)),React.createElement("div",{style:{display:"flex",gap:8}},React.createElement("button",{onClick:()=>N(!0),disabled:o,style:{background:"none",border:"1px solid var(--br2)",color:o?"var(--gold)":"var(--tx3)",padding:"7px 14px",fontSize:11,letterSpacing:".08em",cursor:"pointer",fontFamily:"var(--sans)",textTransform:"uppercase"}},o?"⟳":"↻ Refresh"),React.createElement("button",{onClick:C,disabled:u,style:{background:u?"rgba(200,169,110,.06)":"rgba(200,169,110,.15)",border:"1px solid rgba(200,169,110,.35)",color:"var(--gold)",padding:"7px 20px",fontSize:12,letterSpacing:".08em",cursor:u?"not-allowed":"pointer",fontFamily:"var(--sans)",textTransform:"uppercase"}},u?"⟳ Sending emails…":"▶ Run OutreachBot"))),b&&React.createElement("div",{style:{background:b.ok?"rgba(74,222,128,.07)":"rgba(248,113,113,.07)",border:"1px solid "+(b.ok?"rgba(74,222,128,.25)":"rgba(248,113,113,.25)"),padding:"10px 16px",marginBottom:16,fontSize:12,color:b.ok?"#4ADE80":"#F87171",display:"flex",alignItems:"flex-start",gap:12}},React.createElement("span",{style:{flex:1,lineHeight:1.7}},b.ok?`✓ OutreachBot sent ${b.processed} email${1!==b.processed?"s":""}${b.names?" — "+b.names:""}`:`⚠ ${b.msg}`),React.createElement("button",{onClick:()=>{y.current&&clearTimeout(y.current),v(null)},style:{background:"none",border:"none",color:"inherit",cursor:"pointer",fontSize:18,opacity:.6,padding:0,lineHeight:1}},"×")),React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}},[{label:"Total Leads",val:S.total,color:"var(--tx2)"},{label:"Contacted",val:S.contacted,color:"#58A6FF"},{label:"Replied",val:S.replied,color:"#FCD34D"},{label:"Deal Ready 🔥",val:S.deal_ready,color:"#4ADE80"}].map(e=>React.createElement("div",{key:e.label,style:{background:"var(--s4)",border:"1px solid var(--br2)",padding:"14px 18px"}},React.createElement("div",{style:{fontFamily:"var(--mono)",fontSize:28,color:e.color,lineHeight:1}},e.val),React.createElement("div",{style:{fontSize:10,letterSpacing:".14em",textTransform:"uppercase",color:"var(--tx3)",marginTop:5}},e.label)))),React.createElement("div",{style:{display:"grid",gridTemplateColumns:p?"1fr 320px":"1fr 280px",gap:14,alignItems:"start"}},React.createElement("div",{style:{background:"var(--s4)",border:"1px solid var(--br2)"}},React.createElement("div",{style:{display:"flex",alignItems:"center",borderBottom:"1px solid var(--br2)",paddingRight:12}},React.createElement("div",{style:{display:"flex",flex:1,overflowX:"auto",padding:"0 6px"}},[{key:"all",label:"All"},{key:"pending",label:"Pending"},{key:"contacted",label:"Contacted"},{key:"replied",label:"Replied"},{key:"deal_ready",label:"Deal Ready"},{key:"audited",label:"Audited"}].map(t=>{const a="all"===t.key?e.length:e.filter(e=>e.status===t.key).length;return React.createElement("button",{key:t.key,onClick:()=>i(t.key),style:{background:"none",border:"none",color:s===t.key?"var(--gold)":"var(--tx3)",padding:"10px 11px",fontSize:11,letterSpacing:".08em",textTransform:"uppercase",cursor:"pointer",borderBottom:s===t.key?"2px solid var(--gold)":"2px solid transparent",marginBottom:-1,fontFamily:"var(--sans)",whiteSpace:"nowrap",flexShrink:0}},t.label," ",React.createElement("span",{style:{opacity:.55,fontFamily:"var(--mono)",fontSize:10}},"(",a,")"))})),React.createElement("input",{value:d,onChange:e=>m(e.target.value),placeholder:"Search…",style:{background:"rgba(255,255,255,.04)",border:"1px solid var(--br2)",color:"var(--tx)",padding:"5px 10px",fontSize:11,outline:"none",width:130,fontFamily:"var(--sans)"}})),0===_.length?React.createElement("div",{style:{padding:40,textAlign:"center",color:"var(--tx3)",fontSize:13}},d?`No leads matching "${d}"`:"No leads in this filter."):React.createElement("div",{style:{overflowX:"auto"}},React.createElement("table",{style:{width:"100%",borderCollapse:"collapse"}},React.createElement("thead",null,React.createElement("tr",{style:{borderBottom:"1px solid var(--br2)"}},["Company","Contact","ICP","Status","Score","Priority"].map(e=>React.createElement("th",{key:e,style:{textAlign:"left",padding:"9px 14px",fontSize:10,letterSpacing:".14em",textTransform:"uppercase",color:"var(--tx3)",fontWeight:400}},e)))),React.createElement("tbody",null,_.map((e,t)=>{const a=E[e.status]||E.pending,n=h[e.icp_score]||h.good,r=p?.id===e.id;return React.createElement("tr",{key:e.id,onClick:()=>g(r?null:e),style:{borderBottom:"1px solid rgba(200,169,110,.05)",cursor:"pointer",background:r?"rgba(200,169,110,.07)":t%2==0?"transparent":"rgba(255,255,255,.012)",borderLeft:r?"2px solid var(--gold)":"2px solid transparent"}},React.createElement("td",{style:{padding:"12px 14px"}},React.createElement("div",{style:{fontWeight:500,fontSize:13,color:"var(--tx)"}},e.company_name),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",marginTop:2,fontFamily:"var(--mono)"}},e.company_address?.split(",")[0]||"—")),React.createElement("td",{style:{padding:"12px 14px"}},React.createElement("div",{style:{fontSize:12,color:"var(--tx2)"}},e.contact_name||e.contact_title||"—"),React.createElement("div",{style:{fontSize:10,color:"var(--gold)",fontFamily:"var(--mono)",marginTop:2}},e.contact_email||"—")),React.createElement("td",{style:{padding:"12px 14px"}},React.createElement("span",{style:{fontSize:11,color:n.color,background:`${n.color}18`,padding:"2px 8px",border:`1px solid ${n.color}30`}},n.label)),React.createElement("td",{style:{padding:"12px 14px"}},React.createElement("span",{style:{fontSize:11,color:a.color,background:a.bg,padding:"3px 10px",border:`1px solid ${a.color}30`}},"deal_ready"===e.status?"🔥 ":"",a.label)),React.createElement("td",{style:{padding:"12px 14px",fontFamily:"var(--mono)",fontSize:13,color:e.deal_score?R(e.deal_score):"var(--tx3)"}},e.deal_score?`${e.deal_score}/10`:"—"),React.createElement("td",{style:{padding:"12px 14px"}},React.createElement("span",{style:{fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:"high"===e.priority?"#F87171":"med"===e.priority?"var(--gold)":"var(--tx3)",fontWeight:"high"===e.priority?600:400}},(e.priority||"—").toUpperCase())))}))))),React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:12}},p?React.createElement("div",{style:{background:"var(--s4)",border:"1px solid rgba(200,169,110,.28)",padding:18}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}},React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--serif)",fontSize:16,color:"var(--tx)",marginBottom:3}},p.company_name),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",letterSpacing:".1em",textTransform:"uppercase"}},p.industry||"Industry Unknown")),React.createElement("button",{onClick:()=>g(null),style:{background:"none",border:"none",color:"var(--tx3)",cursor:"pointer",fontSize:18,lineHeight:1,padding:0,opacity:.7}},"×")),p.deal_score?React.createElement("div",{style:{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"rgba(0,0,0,.2)",border:`1px solid ${R(p.deal_score)}25`,marginBottom:14}},React.createElement("div",{style:{textAlign:"center",minWidth:44}},React.createElement("div",{style:{fontFamily:"var(--mono)",fontSize:28,color:R(p.deal_score),lineHeight:1}},p.deal_score),React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",letterSpacing:".14em",marginTop:2}},"/10")),React.createElement("div",{style:{flex:1}},React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",letterSpacing:".12em",textTransform:"uppercase",marginBottom:6}},"CEO Score"),React.createElement("div",{style:{height:3,background:"rgba(255,255,255,.07)"}},React.createElement("div",{style:{height:"100%",width:10*p.deal_score+"%",background:R(p.deal_score)}})))):null,React.createElement("div",{style:{marginBottom:14}},React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",letterSpacing:".12em",textTransform:"uppercase",marginBottom:8}},"Contact"),[{lbl:"Name",val:p.contact_name||"—"},{lbl:"Title",val:p.contact_title||"—"},{lbl:"Email",val:p.contact_email||"—",mono:!0,gold:!0},{lbl:"Phone",val:p.contact_phone||"—",mono:!0},{lbl:"Web",val:p.company_website||"—",mono:!0}].map(e=>React.createElement("div",{key:e.lbl,style:{display:"flex",gap:8,marginBottom:5}},React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",width:34,flexShrink:0,paddingTop:1}},e.lbl),React.createElement("div",{style:{fontSize:11,color:e.gold?"var(--gold)":"var(--tx2)",fontFamily:e.mono?"var(--mono)":"var(--sans)",wordBreak:"break-all",lineHeight:1.4}},e.val)))),w.find(e=>e.ceo_next_action)&&React.createElement("div",{style:{padding:"9px 12px",background:"rgba(200,169,110,.05)",border:"1px solid rgba(200,169,110,.2)",marginBottom:14}},React.createElement("div",{style:{fontSize:9,color:"var(--gold)",letterSpacing:".12em",textTransform:"uppercase",marginBottom:4}},"→ Recommended Action"),React.createElement("div",{style:{fontSize:12,color:"var(--tx)",lineHeight:1.6}},w.find(e=>e.ceo_next_action).ceo_next_action)),w.find(e=>e.deal_score_reason)&&React.createElement("div",{style:{padding:"9px 12px",background:"rgba(0,0,0,.15)",border:"1px solid var(--br2)",marginBottom:14}},React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",letterSpacing:".12em",textTransform:"uppercase",marginBottom:4}},"CEO Reasoning"),React.createElement("div",{style:{fontSize:11,color:"var(--tx2)",lineHeight:1.7}},w.find(e=>e.deal_score_reason).deal_score_reason?.split("|")[0]?.trim())),React.createElement("div",{style:{marginBottom:14}},React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",letterSpacing:".12em",textTransform:"uppercase",marginBottom:8}},"Update Status"),React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:5}},Object.entries(E).map(([e,t])=>{const a=p.status===e;return React.createElement("button",{key:e,onClick:()=>!a&&A(p.id,e),style:{fontSize:10,padding:"3px 8px",cursor:a?"default":"pointer",letterSpacing:".04em",background:a?t.bg:"transparent",color:a?t.color:"var(--tx3)",border:a?`1px solid ${t.color}50`:"1px solid rgba(255,255,255,.07)"}},t.label)}))),p.notes&&React.createElement("div",{style:{fontSize:11,color:"var(--tx3)",lineHeight:1.7,padding:"8px 0",borderTop:"1px solid var(--br2)",marginBottom:10}},p.notes),w.length>0&&React.createElement("div",{style:{borderTop:"1px solid var(--br2)",paddingTop:12}},React.createElement("div",{style:{fontSize:9,color:"var(--tx3)",letterSpacing:".12em",textTransform:"uppercase",marginBottom:10}},"Activity (",w.length,")"),w.slice(0,6).map(e=>React.createElement("div",{key:e.id,style:{display:"flex",gap:8,marginBottom:10,fontSize:11}},React.createElement("span",{style:{fontSize:13,flexShrink:0}},e.is_deal_ready?"🔥":"inbound"===e.direction?"📥":"📤"),React.createElement("div",{style:{flex:1}},React.createElement("div",{style:{color:"var(--tx2)",marginBottom:2,lineHeight:1.4}},e.subject?.substring(0,44)||"(no subject)"),e.deal_score&&React.createElement("div",{style:{color:R(e.deal_score),fontFamily:"var(--mono)",fontSize:10,marginBottom:1}},"Score: ",e.deal_score,"/10"),React.createElement("div",{style:{color:"var(--tx3)",fontFamily:"var(--mono)",fontSize:10}},x(e.sent_at))))))):React.createElement("div",{style:{background:"var(--s4)",border:"1px solid var(--br2)",padding:16}},React.createElement("div",{style:{fontSize:11,letterSpacing:".14em",textTransform:"uppercase",color:"var(--gold)",marginBottom:14}},"Recent Activity"),0===a.length?React.createElement("div",{style:{fontSize:12,color:"var(--tx3)"}},"No activity yet."):a.slice(0,8).map((t,a)=>{const n=e.find(e=>e.id===t.lead_id)?.company_name;return React.createElement("div",{key:t.id,style:{borderBottom:a<7?"1px solid rgba(200,169,110,.06)":"none",paddingBottom:10,marginBottom:10}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:3}},React.createElement("span",{style:{fontSize:11}},t.is_deal_ready?"🔥":"inbound"===t.direction?"📥":"📤"),React.createElement("span",{style:{fontSize:10,textTransform:"uppercase",letterSpacing:".1em",color:t.is_deal_ready?"#4ADE80":"inbound"===t.direction?"#FCD34D":"#58A6FF"}},t.is_deal_ready?"Deal Ready":"inbound"===t.direction?"Reply":"Outreach"),t.deal_score&&React.createElement("span",{style:{fontSize:10,color:"#4ADE80",fontFamily:"var(--mono)",marginLeft:"auto"}},t.deal_score,"/10")),n&&React.createElement("div",{style:{fontSize:11,color:"var(--gold)",marginBottom:2}},n),React.createElement("div",{style:{fontSize:11,color:"var(--tx2)",marginBottom:2}},t.subject?.substring(0,44)||"(no subject)"),t.ceo_next_action&&React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",fontStyle:"italic",marginBottom:2}},"→ ",t.ceo_next_action.substring(0,52)),React.createElement("div",{style:{fontSize:10,color:"var(--tx3)",fontFamily:"var(--mono)"}},x(t.sent_at)))})),React.createElement("div",{style:{background:"var(--s4)",border:"1px solid var(--br2)",padding:16}},React.createElement("div",{style:{fontSize:11,letterSpacing:".14em",textTransform:"uppercase",color:"var(--gold)",marginBottom:12}},"Agent Status"),[{name:"OutreachBot",status:"Cron 9AM BDT",icon:"📤",color:"#58A6FF"},{name:"ReplyIntake",status:"Webhook live",icon:"📥",color:"#4ADE80"},{name:"CEOAuditor",status:"On demand",icon:"🧠",color:"#A78BFA"},{name:"DealAlert",status:"Auto-trigger",icon:"🔥",color:"#FCD34D"}].map(e=>React.createElement("div",{key:e.name,style:{display:"flex",alignItems:"center",gap:10,marginBottom:10}},React.createElement("span",{style:{fontSize:14}},e.icon),React.createElement("div",{style:{flex:1}},React.createElement("div",{style:{fontSize:12,color:"var(--tx)",fontWeight:500}},e.name),React.createElement("div",{style:{fontSize:10,color:e.color}},e.status)),React.createElement("div",{style:{width:6,height:6,borderRadius:"50%",background:e.color,boxShadow:`0 0 6px ${e.color}`}})))))))}function App(){const[e,t]=useState(null),[a,n]=useState("dashboard"),[r,l]=useState({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]}),[o,c]=useState(!1),[s,i]=useState(null);useEffect(()=>{const e=document.getElementById("loading");e&&(e.style.display="none")},[]);const[d,m]=useState(new Date),[p,g]=useState(!1),[u,f]=useState({}),[b,v]=useState(new Set),[y,E]=useState(INIT_STAFF),[h,R]=useState(todayStr());useEffect(()=>{db("staff",`?tenant_id=eq.${TENANT}&select=*&order=id`).then(e=>{Array.isArray(e)&&e.length>0&&E(e)}).catch(()=>{})},[]);const x=useRef(),N=useCallback((e,t="success")=>{i({msg:e,type:t}),clearTimeout(x.current),x.current=setTimeout(()=>i(null),3500)},[]);useEffect(()=>{const e=setInterval(()=>m(new Date),1e3);return()=>clearInterval(e)},[]);const S=useCallback(async()=>{try{const[e,t,a,n,r,o]=await Promise.all([db("rooms",`?tenant_id=eq.${TENANT}&select=*&order=room_number`),dbAll("guests",`?tenant_id=eq.${TENANT}&select=*&order=name`),db("reservations",`?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=500`),db("transactions",`?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=400`),db("housekeeping_tasks",`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),db("hotel_settings",`?tenant_id=eq.${TENANT}&key=eq.active_fiscal_day&select=value`).catch(()=>[])]);Array.isArray(o)&&o[0]?.value&&R(o[0].value),l({rooms:Array.isArray(e)?e:[],guests:Array.isArray(t)?t:[],reservations:Array.isArray(a)?a:[],transactions:Array.isArray(n)?n:[],tasks:Array.isArray(r)?r:[]})}catch(e){console.error("Load failed",e),N("Failed to refresh data — check connection","error")}},[N]);if(useEffect(()=>{if(!e)return void l({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]});c(!0);const t=setTimeout(()=>c(!1),1e4);S().finally(()=>{clearTimeout(t),c(!1)});const a=setInterval(S,9e4);return()=>clearInterval(a)},[e]),!e)return React.createElement(React.Fragment,null,React.createElement("style",null,CSS),React.createElement(LoginPage,{onLogin:e=>{t({...e}),n("dashboard")},staffList:y}));if(o&&e)return React.createElement(React.Fragment,null,React.createElement("style",null,CSS),React.createElement("div",{style:{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"var(--bg)"}},React.createElement("div",{style:{fontFamily:"var(--serif)",fontWeight:300,fontSize:32,color:"var(--gold)",letterSpacing:".02em"}},"Hotel ",React.createElement("em",{style:{fontStyle:"italic"}},"Fountain")),React.createElement("div",{className:"spinner"}),React.createElement("div",{style:{fontFamily:"var(--sans)",fontSize:9,color:"var(--tx3)",letterSpacing:".18em",textTransform:"uppercase",fontWeight:200}},"Connecting to Management System…")));const k=ROLES[e.role]?.pages||[],_=k.includes(a)?a:k[0],w=r.reservations.filter(e=>"PENDING"===e.status),C=w.length,A=r.tasks.filter(e=>"pending"===e.status&&"high"===e.priority).length,D=r.rooms.filter(e=>"DIRTY"===e.status).length,T=C+A+D;const z=[{id:"dashboard",ico:"⬡",label:"Dashboard",sect:"OVERVIEW"},{id:"rooms",ico:"▦",label:"Room Management"},{id:"reservations",ico:"◈",label:"Reservations",badge:C},{id:"guests",ico:"◉",label:"Guests & CRM"},{id:"housekeeping",ico:"✦",label:"Housekeeping",badge:A+D,sect:"OPERATIONS"},{id:"billing",ico:"◎",label:"Billing & Invoices"},{id:"reports",ico:"▣",label:"Reports",sect:"ANALYTICS"},{id:"settings",ico:"◌",label:"Settings",sect:"SYSTEM"}].filter(e=>k.includes(e.id)),B=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Dhaka",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",weekday:"short",hourCycle:"h12"}).formatToParts(d),$=e=>B.find(t=>t.type===e)?.value||"",F=`${$("hour")}:${$("minute")}:${$("second")} ${$("dayPeriod")} · `+$("weekday")+", "+parseInt($("day"))+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+$("month")-1]+" "+$("year");return React.createElement(React.Fragment,null,React.createElement("style",null,CSS),React.createElement("div",{className:"app"},React.createElement("aside",{className:"sidebar"},React.createElement("div",{className:"s-head"},React.createElement("div",{className:"s-brand"},"Hotel ",React.createElement("em",null,"Fountain")),React.createElement("div",{className:"s-tag"},"The Pulse of Modern Hospitality"),React.createElement("div",{className:"s-hotel"},"🏨 Management CRM")),React.createElement("nav",{className:"s-nav"},z.map(e=>React.createElement("div",{key:e.id},e.sect&&React.createElement("div",{className:"s-sect"},e.sect),React.createElement("div",{className:"nav-item"+(_===e.id?" on":""),onClick:()=>n(e.id)},React.createElement("span",{className:"ico"},e.ico),React.createElement("span",null,e.label),e.badge>0&&React.createElement("span",{className:"n-badge"},e.badge))))),React.createElement("div",{className:"s-foot"},React.createElement("div",{className:"flex fac gap2"},React.createElement("div",{className:"av",style:{width:30,height:30,fontSize:11,background:`linear-gradient(135deg,${avColor(e.name)},rgba(0,0,0,.5))`,color:"#EEE9E2",flexShrink:0,fontFamily:"var(--sans)",fontWeight:400}},e.av),React.createElement("div",{style:{flex:1,minWidth:0}},React.createElement("div",{style:{fontFamily:"var(--sans)",fontSize:12,fontWeight:300,color:"var(--tx)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:".02em"}},e.name),React.createElement("div",{style:{fontFamily:"var(--sans)",fontSize:8,color:ROLES[e.role]?.color||"var(--gold)",letterSpacing:".1em",marginTop:1,fontWeight:200,textTransform:"uppercase"}},ROLES[e.role]?.label)),React.createElement("button",{title:"Sign Out",style:{background:"none",border:"1px solid var(--br2)",color:"var(--tx3)",cursor:"pointer",fontSize:12,padding:"4px 8px",transition:"all .15s",flexShrink:0,lineHeight:1,fontFamily:"var(--sans)"},onClick:function(){t(null),n("dashboard"),g(!1),l({rooms:[],guests:[],reservations:[],transactions:[],tasks:[]}),i(null)},onMouseEnter:e=>{e.currentTarget.style.color="var(--rose)",e.currentTarget.style.borderColor="rgba(224,92,122,.35)"},onMouseLeave:e=>{e.currentTarget.style.color="var(--tx3)",e.currentTarget.style.borderColor="var(--br2)"}},"⏻")))),React.createElement("main",{className:"main"},React.createElement("div",{className:"topbar"},React.createElement("div",{className:"tb-title"},{dashboard:"Dashboard",rooms:"Room Management",reservations:"Reservations",guests:"Guest CRM",housekeeping:"Housekeeping",billing:"Billing & Invoices",reports:"Reports & Analytics",settings:"Settings"}[_]),React.createElement("div",{className:"flex fac gap2"},React.createElement("div",{className:"sync-dot"}),React.createElement("span",{className:"xs muted"},"Live")),React.createElement("div",{className:"tb-meta"},F),React.createElement("div",{style:{position:"relative"}},React.createElement("button",{className:"btn btn-ghost btn-sm",style:{position:"relative",padding:"5px 10px",fontSize:15},onClick:e=>{e.stopPropagation(),g(e=>!e)}},"🔔",T>0&&React.createElement("span",{style:{position:"absolute",top:4,right:4,width:7,height:7,borderRadius:"50%",background:"var(--rose)",boxShadow:"0 0 5px var(--rose)",animation:"pulse 2s infinite"}})),p&&React.createElement("div",{style:{position:"absolute",right:0,top:"calc(100% + 8px)",width:360,background:"var(--s1)",border:"1px solid var(--br)",boxShadow:"0 20px 60px rgba(0,0,0,.8)",zIndex:200,overflow:"hidden",animation:"mIn .18s ease"},onClick:e=>e.stopPropagation()},React.createElement("div",{style:{padding:"12px 16px",borderBottom:"1px solid var(--br2)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(200,169,110,.04)"}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},React.createElement("span",{style:{fontSize:13}},"🔔"),React.createElement("span",{style:{fontFamily:"var(--serif)",fontSize:16,fontWeight:300,color:"var(--tx)"}},"Notifications"),T>0&&React.createElement("span",{style:{background:"var(--rose)",color:"#fff",fontSize:9,padding:"1px 7px",fontFamily:"var(--sans)",fontWeight:400,letterSpacing:".06em"}},T)),React.createElement("button",{style:{background:"none",border:"none",color:"var(--tx3)",cursor:"pointer",fontSize:16,lineHeight:1},onClick:()=>g(!1)},"×")),React.createElement("div",{style:{maxHeight:480,overflowY:"auto"}},w.length>0&&React.createElement("div",null,React.createElement("div",{style:{padding:"8px 16px",fontSize:8,letterSpacing:".18em",color:"var(--gold)",textTransform:"uppercase",fontFamily:"var(--sans)",fontWeight:200,background:"rgba(200,169,110,.03)",borderBottom:"1px solid var(--br2)"}},"📅 Pending Booking Requests — ",w.length," new"),w.map(e=>{const t=function(e){const t=String((e.guest_ids||[])[0]||""),a=r.guests.find(e=>String(e.id)===t),n=e.special_requests||"",l=n.match(/Room Type:\s*([^|]+)/),o=n.match(/Phone:\s*([^|]+)/),c=n.match(/Email:\s*([^|]+)/);return{name:a?.name||e.on_duty_officer||"Walk-in Guest",phone:a?.phone||(o?o[1].trim():"—"),email:a?.email||(c?c[1].trim():"—"),roomType:(l?l[1].trim():null)||(e.room_ids||[]).join(", ")||"Not assigned",checkIn:e.check_in,checkOut:e.check_out,isOnline:n.includes("ONLINE BOOKING"),id:e.id}}(e);return React.createElement("div",{key:e.id,style:{padding:"14px 16px",borderBottom:"1px solid var(--br2)",background:t.isOnline?"rgba(200,169,110,.03)":"transparent"}},React.createElement("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,marginBottom:10}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},React.createElement("div",{style:{width:34,height:34,borderRadius:"50%",background:"linear-gradient(135deg,var(--gold),rgba(200,169,110,.3))",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--sans)",fontSize:12,color:"#07090E",fontWeight:500,flexShrink:0}},t.name.trim().split(" ").map(e=>e[0]).join("").slice(0,2).toUpperCase()),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"var(--sans)",fontSize:13,fontWeight:400,color:"var(--tx)",marginBottom:2}},t.name),t.isOnline&&React.createElement("span",{style:{background:"rgba(200,169,110,.12)",border:"1px solid rgba(200,169,110,.25)",color:"var(--gold)",fontSize:7.5,padding:"1px 6px",fontFamily:"var(--sans)",letterSpacing:".1em",textTransform:"uppercase"}},"Online Booking"))),React.createElement("div",{style:{fontSize:8,color:"var(--tx3)",fontFamily:"var(--sans)",fontWeight:200,letterSpacing:".06em",textAlign:"right",whiteSpace:"nowrap"}},fmtDate(t.checkIn),React.createElement("br",null),"→ ",fmtDate(t.checkOut))),React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}},React.createElement("div",{style:{background:"rgba(200,169,110,.04)",border:"1px solid var(--br2)",padding:"7px 10px"}},React.createElement("div",{style:{fontSize:7,letterSpacing:".16em",color:"var(--tx3)",textTransform:"uppercase",fontFamily:"var(--sans)",marginBottom:3,fontWeight:200}},"📞 Contact"),React.createElement("div",{style:{fontSize:11.5,color:"var(--tx)",fontFamily:"var(--sans)",fontWeight:300}},t.phone)),React.createElement("div",{style:{background:"rgba(200,169,110,.04)",border:"1px solid var(--br2)",padding:"7px 10px"}},React.createElement("div",{style:{fontSize:7,letterSpacing:".16em",color:"var(--tx3)",textTransform:"uppercase",fontFamily:"var(--sans)",marginBottom:3,fontWeight:200}},"🏷 Room Type"),React.createElement("div",{style:{fontSize:11.5,color:"var(--gold)",fontFamily:"var(--sans)",fontWeight:300}},t.roomType)),React.createElement("div",{style:{background:"rgba(200,169,110,.04)",border:"1px solid var(--br2)",padding:"7px 10px",gridColumn:"span 2"}},React.createElement("div",{style:{fontSize:7,letterSpacing:".16em",color:"var(--tx3)",textTransform:"uppercase",fontFamily:"var(--sans)",marginBottom:3,fontWeight:200}},"✉️ Email"),React.createElement("div",{style:{fontSize:11.5,color:"var(--tx2)",fontFamily:"var(--sans)",fontWeight:300,wordBreak:"break-all"}},t.email))),(()=>{const a=r.rooms.filter(e=>"AVAILABLE"===e.status),n=a.filter(e=>e.category===t.roomType),l=n.length>0?n:a,o=u[e.id]||l[0]?.room_number||"",c=b.has(e.id);return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6}},React.createElement("div",{style:{display:"flex",gap:6,alignItems:"center"}},React.createElement("div",{style:{fontSize:7,letterSpacing:".14em",color:"var(--tx3)",textTransform:"uppercase",fontFamily:"var(--sans)",fontWeight:200,whiteSpace:"nowrap"}},"Assign Room"),React.createElement("select",{className:"fselect",style:{flex:1,fontSize:11,padding:"4px 8px",background:"#1C1510",color:"var(--tx)",border:"1px solid rgba(200,169,110,.25)"},value:o,onChange:t=>f(a=>({...a,[e.id]:t.target.value}))},0===l.length&&React.createElement("option",{value:""},"— No AVAILABLE rooms —"),l.map(e=>React.createElement("option",{key:e.id,value:e.room_number},e.room_number," · ",e.category||""," · ৳",(+e.price||0).toLocaleString(),"/night")))),React.createElement("div",{style:{display:"flex",gap:6}},React.createElement("button",{className:"btn btn-success btn-sm",style:{flex:1,justifyContent:"center",fontSize:9.5,letterSpacing:".1em",opacity:c?.6:1},disabled:c||!o||0===l.length,onClick:async()=>{if(!c){v(t=>{const a=new Set(t);return a.add(e.id),a});try{const a=await db("rooms",`?tenant_id=eq.${TENANT}&room_number=eq.${o}&status=eq.AVAILABLE&select=id,room_number`);if(!a||0===a.length)return N("Room no longer available — pick another","error"),v(t=>{const a=new Set(t);return a.delete(e.id),a}),void S();const n=r.rooms.find(e=>String(e.room_number)===String(o))(()=>{const a=new Date((e.check_in||"").replace(" ","T").split("+")[0]),r=new Date((e.check_out||"").replace(" ","T").split("+")[0]),l=isNaN(a)||isNaN(r)?1:Math.max(1,Math.round((r-a)/864e5)),c=+(n?.price||0)*l||+(e.total_amount||0);return dbPatch("reservations",e.id,{status:"RESERVED",room_ids:[String(o)],room_id:n.id,room_type:n.category||t.roomType||"",total_amount:c})})();await dbPatch("rooms",n.id,{status:"RESERVED"});try{await fetch(`${SB_URL}/functions/v1/send-booking-email`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${SB_KEY}`},body:JSON.stringify({to:t.email,guestName:t.name,roomNo:o,roomType:t.roomType,checkIn:t.checkIn,checkOut:t.checkOut,total:e.total_amount||0,phone:t.phone})})}catch(e){console.warn("Email send failed:",e)}N(`✓ Room ${o} assigned & confirmation sent to ${t.email}`,"success"),f(t=>{const a={...t};return delete a[e.id],a}),S()}catch(e){N(e.message,"error")}finally{v(t=>{const a=new Set(t);return a.delete(e.id),a})}}}},c?"Confirming…":"✓ Confirm & Send Email"),React.createElement("button",{className:"btn btn-ghost btn-sm",style:{fontSize:9.5,letterSpacing:".1em",borderColor:"rgba(220,50,50,.3)",color:"var(--rose)"},disabled:c,onClick:async()=>{if(confirm(`Cancel booking for ${t.name}?`))try{await dbPatch("reservations",e.id,{status:"CANCELLED"}),N(`Booking for ${t.name} cancelled`,"info"),S()}catch(e){N(e.message,"error")}}},"✕ Cancel")))})())})),A>0&&React.createElement("div",{className:"notif-item",onClick:()=>{n("housekeeping"),g(!1)}},"🧹 ",A," high-priority housekeeping task",A>1?"s":""),D>0&&React.createElement("div",{className:"notif-item",onClick:()=>{n("housekeeping"),g(!1)}},"🏨 ",D," room",D>1?"s":""," require cleaning"),0===T&&React.createElement("div",{className:"notif-item",style:{textAlign:"center",color:"var(--tx3)",cursor:"default",padding:"20px"}},"✓ All clear — no alerts")))),React.createElement("span",{style:{fontFamily:"var(--mono)",fontSize:9,color:"var(--gold-light)",letterSpacing:".1em",border:"1px solid rgba(200,169,110,.3)",padding:"3px 8px",marginRight:4},title:"Current Business Date"},(()=>{if(!h)return"—";const[e,t,a]=h.split("-");return`${+a}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+t-1]}-${e}`})()),React.createElement("button",{className:"btn btn-ghost btn-sm",onClick:()=>{S(),N("Data refreshed","info")},title:"Refresh data"},"↻")),React.createElement("div",{className:"content",onClick:()=>p&&g(!1)},"dashboard"===_&&React.createElement(Dashboard,{rooms:r.rooms,guests:r.guests,reservations:r.reservations,transactions:r.transactions,setPage:n,businessDate:h}),"rooms"===_&&React.createElement(RoomsPage,{rooms:r.rooms,guests:r.guests,reservations:r.reservations,toast:N,currentUser:e,reload:S,businessDate:h}),"reservations"===_&&React.createElement(ReservationsPage,{reservations:r.reservations,guests:r.guests,rooms:r.rooms,toast:N,currentUser:e,reload:S,businessDate:h,transactions:r.transactions}),"guests"===_&&React.createElement(GuestsPage,{guests:r.guests,reservations:r.reservations,toast:N,currentUser:e,reload:S}),"housekeeping"===_&&React.createElement(HousekeepingPage,{tasks:r.tasks,rooms:r.rooms,toast:N,currentUser:e,reload:S}),"billing"===_&&React.createElement(BillingPage,{transactions:r.transactions,reservations:r.reservations,rooms:r.rooms,guests:r.guests,toast:N,reload:S,currentUser:e,businessDate:h}),"reports"===_&&React.createElement(ReportsPage,{transactions:r.transactions,rooms:r.rooms,reservations:r.reservations,guests:r.guests}),"settings"===_&&React.createElement(SettingsPage,{currentUser:e,toast:N,staffList:y,setStaffList:E,reservations:r.reservations,rooms:r.rooms,guests:r.guests})))),s&&React.createElement(Toast,{msg:s.msg,type:s.type}))}ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+const {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo
+} = React;
+
+/* ═══════════════════════════════════════════════════════════
+   LUMEA — HOTEL FOUNTAIN CRM  v3.0
+   All issues fixed — Production Ready
+═══════════════════════════════════════════════════════════ */
+
+const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co';
+const SB_KEY = window.__env && window.__env.SB_KEY || 'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh';
+const _CFG = window.CRM_CONFIG || {};
+const TENANT = _CFG.tenantId || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const _HNAME = _CFG.hotelName || 'Hotel Fountain BD';
+const _HSHORT = _CFG.hotelShort || 'Fountain';
+const _HADDR = _CFG.address || 'House 05, Road 02, Nikunja 02 · Dhaka 1229, Bangladesh';
+const _HLOC = _CFG.location || 'Nikunja 2 · Airport Corridor · Dhaka';
+const _HPHONE = _CFG.phone || '+880 1322-840799';
+const _HWAPP = _CFG.whatsapp || '+8801322840799';
+const _HEMAIL = _CFG.email || 'hotellfountainbd@gmail.com';
+const _HSITE = _CFG.website || 'hotelfountainbd.vercel.app';
+const _TAGLINE = _CFG.tagline || 'The Gilded Threshold · Luxury In Comfort';
+const _CURR = _CFG.currency || '৳';
+const _CCITY = _CFG.city || 'Dhaka, Bangladesh';
+const _VRATE = _CFG.vatPct !== undefined ? _CFG.vatPct : 15;
+const _SRATE = _CFG.svcPct !== undefined ? _CFG.svcPct : 5;
+const BDT = n => _CURR + Number(n || 0).toLocaleString('en-BD');
+const fmtDate = d => d ? String(d).slice(0, 10) : '—';
+const _dhakaParts = (d = new Date()) => {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dhaka',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(d);
+  const g = k => p.find(x => x.type === k)?.value || '00';
+  return {
+    y: g('year'),
+    m: g('month'),
+    d: g('day'),
+    H: g('hour'),
+    M: g('minute'),
+    S: g('second')
+  };
+};
+const todayStr = () => {
+  const p = _dhakaParts();
+  return `${p.y}-${p.m}-${p.d}`;
+};
+const todayDhaka = () => {
+  const p = _dhakaParts();
+  return new Date(`${p.y}-${p.m}-${p.d}T${p.H}:${p.M}:${p.S}`);
+};
+const nightsCount = (ci, co) => {
+  if (!ci || !co) return 0;
+  return Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000));
+};
+const AVC = ['#C8A96E', '#2EC4B6', '#E05C7A', '#58A6FF', '#3FB950', '#9B72CF', '#F0A500'];
+const avColor = n => AVC[n ? n.charCodeAt(0) % AVC.length : 0];
+const initials = n => n ? n.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const H = {
+  apikey: SB_KEY,
+  Authorization: `Bearer ${SB_KEY}`,
+  'Content-Type': 'application/json',
+  Prefer: 'return=representation'
+};
+const H2 = {
+  apikey: SB_KEY,
+  Authorization: `Bearer ${SB_KEY}`,
+  'Content-Type': 'application/json'
+};
+const db = async (t, q = '') => {
+  const r = await fetch(`${SB_URL}/rest/v1/${t}${q}`, {
+    headers: H
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+};
+const dbAll = async (t, q = '', pageSize = 1000) => {
+  const out = [];
+  let from = 0;
+  while (true) {
+    const to = from + pageSize - 1;
+    const r = await fetch(`${SB_URL}/rest/v1/${t}${q}`, {
+      headers: {
+        ...H,
+        Range: `${from}-${to}`,
+        'Range-Unit': 'items'
+      }
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const rows = await r.json();
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+    if (from > 50000) break; // safety cap
+  }
+  return out;
+};
+const dbPost = async (t, b) => {
+  const r = await fetch(`${SB_URL}/rest/v1/${t}`, {
+    method: 'POST',
+    headers: H,
+    body: JSON.stringify(b)
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+};
+const dbPatch = async (t, id, b) => {
+  const r = await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: H2,
+    body: JSON.stringify(b)
+  });
+  if (!r.ok) {
+    const txt = await r.text();
+    throw new Error(`PATCH ${t} ${r.status}: ${txt}`);
+  }
+};
+const dbDelete = async (t, id) => {
+  const r = await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: H2
+  });
+  if (!r.ok) throw new Error(await r.text());
+};
+const ROLES = {
+  owner: {
+    label: 'Founder / Owner',
+    color: '#C8A96E',
+    pages: ['dashboard', 'rooms', 'reservations', 'guests', 'housekeeping', 'billing', 'reports', 'leads', 'settings']
+  },
+  manager: {
+    label: 'General Manager',
+    color: '#2EC4B6',
+    pages: ['dashboard', 'rooms', 'reservations', 'guests', 'housekeeping', 'billing', 'reports', 'leads']
+  },
+  receptionist: {
+    label: 'Receptionist',
+    color: '#58A6FF',
+    pages: ['dashboard', 'rooms', 'reservations', 'guests', 'billing']
+  },
+  housekeeping: {
+    label: 'Housekeeping Staff',
+    color: '#F0A500',
+    pages: ['dashboard', 'rooms', 'housekeeping', 'billing']
+  },
+  accountant: {
+    label: 'Accountant',
+    color: '#3FB950',
+    pages: ['dashboard', 'billing', 'reports']
+  }
+};
+const INIT_STAFF = [{
+  id: 1,
+  name: 'Shanwaz Ahmed',
+  email: 'owner@hotelfountain.com',
+  pwh: 'e37838828f7335c08e5249022d9537a4d8c1f350be1b84af32f8296647bd28b9',
+  role: 'owner',
+  av: 'SA',
+  device: 'Admin / Founder'
+}, {
+  id: 2,
+  name: 'Front Desk (FO)',
+  email: 'fo.hotelfountain799@gmail.com',
+  pwh: 'e2244795ea58b8fc1d2f00fd55bf3a3591a018984b622d62e89ce188b92b89ad',
+  role: 'receptionist',
+  av: 'FD',
+  device: 'Front Desk Terminal'
+}, {
+  id: 3,
+  name: 'HK Staff',
+  email: 'hotelfountain.hk@gmail.com',
+  pwh: '5e9b65e235bfbd8c61a769aabe08b27e4f9db7055f971392c686b73a6f355357',
+  role: 'housekeeping',
+  av: 'HK',
+  device: 'Housekeeping Terminal'
+}, {
+  id: 4,
+  name: 'Manager',
+  email: 'manager@hotelfountain.com',
+  pwh: '311a5b001353c76385d5b47516f05102975b44a2f617d3b564862b9612e608d9',
+  role: 'manager',
+  av: 'MG',
+  device: 'Manager Office'
+}, {
+  id: 5,
+  name: 'Accounts',
+  email: 'accounts@hotelfountain.com',
+  pwh: 'e147ec11b5c183b8958e7bffe6ce93f588a5b63a4b4306ed7468be462c454022',
+  role: 'accountant',
+  av: 'AC',
+  device: 'Accounts Terminal'
+}];
+const _hashPw = async p => {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+};
+
+/* ═══════════════════════ CSS ═══════════════════════════════ */
+
+const CSS = `
+/* ── RESET & ROOT TOKENS ──────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:   #1C1510;
+  --s1:   #1C1510;
+  --s2:   #262626;
+  --s3:   #1E1A16;
+  --s4:   #2A2420;
+  --gold: #C8A96E;
+  --gold2:#A07840;
+  --gold-light:#C8A96E;
+  --gdim: rgba(200,169,110,.07);
+  --rose: #F87171;
+  --grn:  #4ADE80;
+  --teal: #2DD4BF;
+  --sky:  #60A5FA;
+  --amb:  #FCD34D;
+  --pur:  #A78BFA;
+  --tx:  #EEE8DC;
+  --tx2: #C8B89A;
+  --tx3: #7A6A5A;
+  --tx-inv:#EEE8DC;
+  --tx-inv2:rgba(238,228,210,.55);
+  --br:  rgba(200,169,110,.22);
+  --br2: rgba(200,169,110,.10);
+  --br-side:rgba(200,169,110,.18);
+  --serif:'Libre Baskerville',Georgia,serif;
+  --sans: 'DM Sans',system-ui,sans-serif;
+  --mono: 'IBM Plex Mono',monospace;
+  --r: 0px;
+}
+
+html,body,#root{
+  height:100%;background:var(--bg);color:var(--tx);
+  font-family:var(--sans);font-weight:400;
+  -webkit-font-smoothing:antialiased;overflow:hidden;color-scheme:dark;
+}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:rgba(0,0,0,.3)}
+::-webkit-scrollbar-thumb{background:rgba(200,169,110,.35)}
+::-webkit-scrollbar-thumb:hover{background:var(--gold)}
+
+/* ── LAYOUT ── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:232px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--br-side);display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── SIDEBAR ── */
+.s-head{padding:22px 20px 18px;border-bottom:1px solid rgba(200,169,110,.15);flex-shrink:0}
+.s-brand{font-family:var(--serif);font-size:20px;font-weight:700;color:var(--gold-light);letter-spacing:.02em;line-height:1.1}
+.s-brand em{font-style:italic;font-weight:400;color:#E0C585}
+.s-tag{font-family:var(--sans);font-size:7.5px;color:rgba(200,169,110,.38);letter-spacing:.2em;text-transform:uppercase;margin-top:5px;font-weight:300}
+.s-hotel{font-family:var(--sans);font-size:11px;color:rgba(238,228,210,.4);margin-top:7px;font-weight:300;letter-spacing:.03em}
+.s-nav{flex:1;padding:10px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.s-sect{font-family:var(--sans);font-size:7px;letter-spacing:.24em;color:rgba(200,169,110,.3);padding:12px 10px 5px;text-transform:uppercase;font-weight:500}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px;cursor:pointer;font-family:var(--sans);font-size:12.5px;font-weight:400;color:var(--tx-inv2);border-left:3px solid transparent;border-right:3px solid transparent;transition:all .2s cubic-bezier(0.4,0,0.2,1);user-select:none;letter-spacing:.02em}
+.nav-item:hover{background:rgba(200,169,110,.1);color:rgba(238,228,210,.9);border-left-color:rgba(200,169,110,.4);transform:translateX(2px)}
+.nav-item.on{background:rgba(200,169,110,.12);color:var(--gold-light);border-left-color:var(--gold-light);font-weight:500}
+.nav-item .ico{font-size:13px;width:16px;text-align:center;flex-shrink:0;opacity:.7}
+.nav-item.on .ico{opacity:1}
+.n-badge{margin-left:auto;background:var(--rose);color:#fff;font-size:7.5px;padding:2px 7px;font-weight:600;letter-spacing:.04em}
+.s-foot{padding:14px 16px;border-top:1px solid rgba(200,169,110,.12);flex-shrink:0}
+
+/* ── TOPBAR ── */
+.topbar{height:54px;flex-shrink:0;background:var(--s2);border-bottom:1px solid rgba(200,169,110,.3);display:flex;align-items:center;padding:0 24px;gap:14px;position:relative;z-index:10}
+.tb-title{font-family:var(--serif);font-size:18px;font-weight:700;color:var(--tx);flex:1;letter-spacing:.01em}
+.tb-title em{font-style:italic;color:var(--gold);font-weight:400}
+.tb-meta{font-family:var(--mono);font-size:9px;color:var(--tx3);letter-spacing:.04em;white-space:nowrap}
+.content{flex:1;overflow-y:auto;padding:20px 24px;background:var(--bg)}
+
+/* ── CARDS ── */
+.card{background:var(--s2);border:1px solid var(--br);border-top:3px solid var(--gold-light);transition:transform .2s,box-shadow .2s;overflow:hidden;margin-bottom:16px}
+.rooms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.room-card{background:rgba(38,38,38,.55);border:1px solid rgba(200,169,110,.15);padding:14px 12px 12px;cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;backdrop-filter:blur(6px)}
+.room-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;transition:opacity .2s}
+.room-card.AVAILABLE{background:rgba(31,111,84,.2);border-color:rgba(74,222,128,.22);box-shadow:inset 0 0 24px rgba(74,222,128,.06)}
+.room-card.AVAILABLE::before{background:linear-gradient(90deg,#4ADE80,#2DD4BF)}
+.room-card.OCCUPIED{background:rgba(30,58,138,.28);border-color:rgba(96,165,250,.28);box-shadow:inset 0 0 24px rgba(200,169,110,.07)}
+.room-card.OCCUPIED::before{background:linear-gradient(90deg,#60A5FA,#C8A96E)}
+.room-card.DIRTY{background:rgba(120,53,15,.25);border-color:rgba(252,211,77,.25);box-shadow:inset 0 0 20px rgba(252,211,77,.06)}
+.room-card.DIRTY::before{background:linear-gradient(90deg,#FCD34D,#F97316)}
+.room-card.OUT_OF_ORDER{background:rgba(127,29,29,.25);border-color:rgba(248,113,113,.22);box-shadow:inset 0 0 20px rgba(248,113,113,.06)}
+.room-card.OUT_OF_ORDER::before{background:linear-gradient(90deg,#F87171,#7F1D1D)}
+.room-card.RESERVED{background:rgba(88,28,135,.22);border-color:rgba(167,139,250,.22);box-shadow:inset 0 0 20px rgba(167,139,250,.06)}
+.room-card.RESERVED::before{background:linear-gradient(90deg,#A78BFA,#7C3AED)}
+.room-card.AVAILABLE::before
+.room-card.OCCUPIED::before{background:var(--sky)}
+.room-card.DIRTY::before{background:var(--amb)}
+.room-card.OUT_OF_ORDER::before{background:var(--rose)}
+.room-card.RESERVED::before{background:var(--pur)}
+.room-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.55),0 0 0 1px rgba(200,169,110,.35)}
+.room-no{font-family:var(--serif);font-size:24px;font-weight:700;color:var(--gold-light);margin-bottom:6px;line-height:1}
+.room-cat{font-family:var(--sans);font-size:10px;color:var(--tx3);margin-bottom:2px;letter-spacing:.02em}
+.room-price{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--tx2);margin-top:6px;border-top:1px solid var(--br2);padding-top:6px}
+.card:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,0,0,.35)}.card-hd{padding:14px 18px;border-bottom:1px solid var(--br2);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:48px;background:var(--s4)}
+.card-title{font-family:var(--serif);font-size:16px;font-weight:700;color:var(--tx);letter-spacing:.01em}
+.card-title em{font-style:italic;color:var(--gold);font-weight:400}
+.card-body{padding:16px 18px}
+
+/* ── STATS ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat{background:var(--s2);border:1px solid var(--br);border-top:3px solid var(--ac,var(--gold-light));padding:16px 18px;position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s;cursor:default}
+.stat:hover{box-shadow:0 4px 24px rgba(200,169,110,.15),0 2px 8px rgba(0,0,0,.4);transform:translateY(-2px)}
+.stat-ico{font-size:18px;margin-bottom:8px;opacity:.75}
+.stat-lbl{font-family:var(--sans);font-size:8px;letter-spacing:.16em;color:var(--tx3);text-transform:uppercase;margin-bottom:6px;font-weight:500}
+.stat-val{font-family:var(--serif);font-size:28px;color:var(--tx);line-height:1;font-weight:700}
+.stat-sub{font-family:var(--sans);font-size:11px;color:var(--tx2);margin-top:4px;font-weight:400}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 18px;font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
+.btn-gold{background:var(--s1);color:var(--gold-light);border:2px solid var(--s1)}
+.btn-gold:hover:not(:disabled){background:var(--gold2);color:var(--gold-light);border-color:var(--gold2)}
+.btn-ghost{background:transparent;color:var(--tx2);border:1px solid var(--br)}
+.btn-ghost:hover:not(:disabled){background:var(--s3);color:var(--tx);border-color:var(--br)}
+.btn-danger{background:rgba(185,28,28,.06);color:var(--rose);border:1px solid rgba(185,28,28,.2)}
+.btn-danger:hover:not(:disabled){background:rgba(185,28,28,.12)}
+.btn-success{background:rgba(21,128,61,.06);color:var(--grn);border:1px solid rgba(21,128,61,.2)}
+.btn-success:hover:not(:disabled){background:rgba(21,128,61,.12)}
+.btn-info{background:rgba(29,78,216,.06);color:var(--sky);border:1px solid rgba(29,78,216,.2)}
+.btn-sm{padding:4px 11px;font-size:9.5px}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;font-family:var(--sans);font-size:9px;letter-spacing:.06em;font-weight:600;white-space:nowrap;text-transform:uppercase}
+.bg  {background:rgba(74,222,128,.12);color:var(--grn); border:1px solid rgba(74,222,128,.35)}
+.bb  {background:rgba(96,165,250,.12);color:var(--sky); border:1px solid rgba(96,165,250,.35)}
+.ba  {background:rgba(252,211,77,.1); color:var(--amb); border:1px solid rgba(252,211,77,.35)}
+.br_ {background:rgba(248,113,113,.1);color:var(--rose);border:1px solid rgba(248,113,113,.35)}
+.bgold{background:rgba(200,169,110,.12);color:var(--gold);border:1px solid rgba(200,169,110,.35)}
+.bteal{background:rgba(45,212,191,.1); color:var(--teal);border:1px solid rgba(45,212,191,.35)}
+
+/* ── TABLES ── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-family:var(--sans);font-size:8px;letter-spacing:.16em;color:var(--tx3);text-transform:uppercase;padding:10px 12px;text-align:left;border-bottom:1px solid rgba(200,169,110,.35);white-space:nowrap;font-weight:600;background:var(--s4)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--br2);font-family:var(--sans);font-size:12.5px;font-weight:400;color:var(--tx);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--s3)}
+.tbl-wrap{overflow-x:auto}
+
+/* ── FORMS ── */
+.finput{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(200,169,110,.25);color:var(--tx);font-family:var(--sans);font-size:13px;font-weight:400;padding:9px 12px;outline:none;transition:border-color .15s,box-shadow .15s}
+.finput:focus{border-color:var(--gold-light);box-shadow:0 0 0 3px rgba(200,169,110,.12)}
+.finput::placeholder{color:var(--tx3);font-weight:300}
+.finput:disabled{background:rgba(0,0,0,.4);color:var(--tx3);cursor:not-allowed}
+.fselect{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(200,169,110,.25);color-scheme:dark;color:var(--tx);font-family:var(--sans);font-size:13px;font-weight:400;padding:9px 12px;outline:none;cursor:pointer;transition:border-color .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C8A96E' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+.fselect:focus{border-color:var(--gold-light)}.fselect option{background:#1C1510;color:#EEE8DC}
+.flbl{display:block;font-family:var(--sans);font-size:9px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase;font-weight:600;margin-bottom:5px}
+.fg{flex:1;min-width:0;margin-bottom:12px}
+.frow{display:flex;gap:12px;flex-wrap:wrap}
+.frow>.fg{flex:1;min-width:140px}
+
+/* ── MODALS ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(2px)}
+.modal{background:var(--s2);border:1px solid var(--br);border-top:4px solid var(--gold-light);width:100%;max-width:540px;max-height:92vh;overflow-y:auto;background:#1C1510;box-shadow:0 24px 80px rgba(28,21,16,.25);animation:mIn .2s ease}
+.modal-w{max-width:820px}
+@keyframes mIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(200,169,110,.18);background:rgba(200,169,110,.07);flex-shrink:0}
+.modal-title{font-family:var(--serif);font-size:18px;font-weight:700;color:var(--tx)}
+.modal-x{background:none;border:none;cursor:pointer;color:var(--tx3);font-size:20px;line-height:1;padding:2px 6px;transition:color .15s}
+.modal-x:hover{color:var(--rose)}
+.modal-body{padding:20px}
+.modal-ft{padding:14px 20px;border-top:1px solid rgba(200,169,110,.18);display:flex;justify-content:flex-end;gap:8px;background:rgba(200,169,110,.05)}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--s1);margin-bottom:16px;overflow-x:auto}
+.tab{padding:9px 18px;font-family:var(--sans);font-size:11px;font-weight:500;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--tx);background:var(--s3)}
+.tab.on,.tab.active{color:var(--gold);font-weight:700;border-bottom-color:var(--gold);background:var(--s4)}
+
+/* ── INFO BOX ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.info-box{background:var(--s4);border:1px solid var(--br2);padding:10px 12px}
+.info-lbl{font-family:var(--sans);font-size:8px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase;font-weight:600;margin-bottom:4px}
+.info-val{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--tx)}
+
+/* ── AVATAR ── */
+.av{display:inline-flex;align-items:center;justify-content:center;font-family:var(--sans);font-weight:700;font-size:12px;color:#fff;flex-shrink:0;text-transform:uppercase;letter-spacing:.04em}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--s1);color:var(--gold-light);padding:12px 20px;border-left:4px solid var(--gold-light);font-family:var(--sans);font-size:12.5px;font-weight:500;box-shadow:0 8px 32px rgba(28,21,16,.3);animation:mIn .2s ease;max-width:320px;letter-spacing:.02em}
+.toast.err{border-left-color:var(--rose);color:var(--rose)}
+.toast.inf{border-left-color:var(--sky);color:var(--sky)}
+
+/* ── SEARCH ── */
+.srch{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--br);padding:8px 12px;min-width:200px;transition:border-color .15s}
+.srch:focus-within{border-color:var(--s1)}
+.srch input{background:none;border:none;outline:none;color:var(--tx);font-family:var(--sans);font-size:12.5px;font-weight:400;flex:1;min-width:0}
+.srch input::placeholder{color:var(--tx3);font-weight:300}
+
+/* ── SPINNER ── */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(28,21,16,.15);border-top-color:var(--s1);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── UTILITIES ── */
+.flex{display:flex}.fac{align-items:center}.fjb{justify-content:space-between}.fje{justify-content:flex-end}
+.gap2{gap:8px}.gap3{gap:12px}.gap4{gap:16px}
+.mb2{margin-bottom:8px}.mb3{margin-bottom:12px}.mb4{margin-bottom:16px}
+.mt2{margin-top:8px}.mt3{margin-top:12px}.mt4{margin-top:16px}
+.pb4{padding-bottom:16px}.pt4{padding-top:16px}
+.bold{font-weight:700}.sm{font-size:12px}.xs{font-size:11px}
+.mono{font-family:var(--mono)}.muted{color:var(--tx3)}.gold{color:var(--gold)}.w100{width:100%}
+.divider{border:none;border-top:1px solid var(--br2);margin:8px 0}
+.folio-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--br2);font-size:12.5px}
+.folio-row:last-child{border-bottom:none}
+.folio-total{display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding-top:8px;color:var(--tx)}
+.tbl-wrap{overflow-x:auto}
+
+/* ── BAR CHART ── */
+.bar-chart{display:flex;align-items:flex-end;gap:3px;height:80px;padding:4px 0}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.bar-fill{width:100%;background:var(--br);transition:height .3s,background .2s;min-height:2px}
+.bar-col:hover .bar-fill{background:var(--gold)!important}
+.bar-lbl{font-family:var(--mono);font-size:7px;color:var(--tx3);text-align:center}
+
+/* ── LOGIN PAGE ── */
+/* ── LOGIN PAGE — GILDED THRESHOLD ── */
+.login-bg{min-height:100vh;display:flex;flex-direction:row;overflow:hidden;background:#1A1816}
+/* LEFT PANEL */
+.lp-left{width:42%;flex-shrink:0;background:#1A1816;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:52px 60px;overflow:hidden}
+.lp-left::before{content:'';position:absolute;inset:0;background-image:url("/lp-bg.jpg");background-size:cover;background-position:center;pointer-events:none}
+.lp-left::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(8,6,4,.88) 0%,rgba(8,6,4,.74) 35%,rgba(8,6,4,.80) 70%,rgba(8,6,4,.90) 100%);pointer-events:none}
+/* top / bottom bars inside left panel */
+.lp-bar{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:2;pointer-events:none}
+.lp-bar.top{top:0;padding-top:22px}
+.lp-bar.bot{bottom:0;padding-bottom:18px}
+.lp-rule{width:calc(100% - 100px);height:1px;background:linear-gradient(90deg,transparent,rgba(197,160,89,.9),transparent)}
+.lp-rule.dim{background:linear-gradient(90deg,transparent,rgba(197,160,89,.5),transparent)}
+.lp-label{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:rgba(197,160,89,.95);text-transform:uppercase}
+/* LOGO */
+.lp-logo-wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;margin-bottom:20px}
+.lp-logo-img{width:260px;height:auto;filter:drop-shadow(0 0 32px rgba(197,160,89,.6)) brightness(1.15);display:block;mix-blend-mode:screen}
+.lp-brand-sub{font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:rgba(197,160,89,.9);text-transform:uppercase;margin-top:12px;text-align:center}
+/* feature list */
+.lp-features{position:relative;z-index:2;width:100%;margin-top:28px;display:flex;flex-direction:column;gap:0}
+.lp-feat{padding:14px 0;border-bottom:1px solid rgba(197,160,89,.1);display:flex;align-items:flex-start;gap:14px}
+.lp-feat:first-child{border-top:1px solid rgba(197,160,89,.1)}
+.lp-feat-bullet{width:6px;height:6px;background:#E8C278;transform:rotate(45deg);flex-shrink:0;margin-top:6px;box-shadow:0 0 6px rgba(197,160,89,.6)}
+.lp-feat-text{}
+.lp-feat-title{font-family:var(--sans);font-size:12.5px;font-weight:700;color:#FFFFFF;letter-spacing:.02em;margin-bottom:2px;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+.lp-feat-desc{font-family:var(--mono);font-size:10.5px;color:rgba(220,200,160,.85);letter-spacing:.02em}
+/* RIGHT PANEL */
+.lp-right{flex:1;background:#1C1510;display:flex;align-items:center;justify-content:center;position:relative}
+.lp-right::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(200,169,110,.12) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+.lp-right-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:20px 40px;pointer-events:none}
+.lp-right-meta{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:rgba(200,169,110,.55);text-transform:uppercase}
+.lp-right-ver{font-family:var(--mono);font-size:9.5px;color:rgba(200,169,110,.55);letter-spacing:.1em}
+.lp-right-bot{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:rgba(200,169,110,.4);letter-spacing:.18em;text-transform:uppercase;pointer-events:none}
+/* divider between panels */
+.lp-vdivide{position:absolute;left:0;top:40px;bottom:40px;width:1px;background:linear-gradient(to bottom,transparent,rgba(197,160,89,.35) 20%,rgba(197,160,89,.35) 80%,transparent)}
+/* CARD */
+.login-card{background:#262626;border-radius:4px;border-top:5px solid #C5A059;box-shadow:0 24px 80px rgba(0,0,0,.55),0 4px 12px rgba(40,34,28,.08);padding:48px 48px 40px;width:100%;max-width:500px;position:relative;z-index:1;animation:mIn .35s ease}
+.lc-inner-top{height:1px;background:rgba(200,169,110,.25);margin-bottom:30px}
+.lc-signin-label{font-family:var(--mono);font-size:10px;letter-spacing:.28em;color:rgba(197,160,89,.8);text-transform:uppercase;text-align:center;margin-bottom:6px}
+.lc-ornament{text-align:center;color:rgba(197,160,89,.4);font-size:10px;margin-bottom:22px}
+/* ROLE GRID */
+.role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:28px}
+.rpill{padding:14px 8px 12px;border:1px solid rgba(200,169,110,.2);background:#2A2420;cursor:pointer;transition:all .18s cubic-bezier(.4,0,.2,1);text-align:center;color:var(--tx-inv);font-family:var(--sans);border-radius:3px;position:relative;overflow:hidden}
+.rpill::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:#C5A059;transform:scaleX(0);transition:transform .18s cubic-bezier(.4,0,.2,1)}
+.rpill:hover{border-color:rgba(200,169,110,.5);background:#333028}
+.rpill.sel{border-color:var(--gold-light);background:#1C1510;color:#F9F7F2}
+.rpill.sel::before{transform:scaleX(1)}
+.rpill .ri{font-size:20px;margin-bottom:6px;display:block}
+.rpill .rl{font-size:9.5px;letter-spacing:.06em;font-weight:600;text-transform:uppercase;color:inherit}
+.rpill.sel .rl{color:rgba(197,160,89,.9)}
+/* EMAIL DISPLAY */
+.lc-email-display{margin-bottom:22px}
+.lc-email-lbl{font-family:var(--sans);font-size:8.5px;font-weight:700;letter-spacing:.16em;color:rgba(200,169,110,.65);text-transform:uppercase;margin-bottom:6px}
+.lc-email-val{font-family:var(--sans);font-size:15.5px;color:#EEE8DC;font-weight:400;padding-bottom:8px;border-bottom:1.5px solid #C8A96E;display:flex;justify-content:space-between;align-items:baseline}
+.lc-change{font-family:var(--serif);font-size:11px;font-style:italic;color:rgba(197,160,89,.7);cursor:pointer}
+/* override finput focus */
+.login-card .finput:focus{border-color:var(--gold);outline:none;box-shadow:none}
+/* button override */
+.login-card .btn-gold{justify-content:center;padding:15px;font-size:10px;letter-spacing:.22em;margin-top:6px;border-radius:3px}
+/* error */
+.lc-error{background:rgba(224,92,122,.06);border:1px solid rgba(224,92,122,.18);padding:10px 14px;font-family:var(--sans);font-size:11px;color:var(--rose);margin-bottom:14px;border-radius:2px;letter-spacing:.02em}
+
+/* ── GUEST SEARCH ── */
+.gsearch-wrap{position:relative}
+.gsearch-list{position:absolute;top:calc(100% + 2px);left:0;right:0;background:#1C1510;border:1px solid rgba(200,169,110,.25);border-top:2px solid var(--gold-light);z-index:500;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.gsearch-item{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:12.5px;transition:background .12s;border-bottom:1px solid var(--br2)}
+.gsearch-item:last-child{border-bottom:none}
+.gsearch-item:hover{background:var(--s3)}
+
+/* ── NOTIFICATION PANEL ── */
+.notif-panel{position:absolute;top:58px;right:12px;width:320px;background:#1C1510;border:1px solid rgba(200,169,110,.25);border-top:3px solid var(--gold-light);box-shadow:0 16px 48px rgba(0,0,0,.5);z-index:200;animation:mIn .2s ease}
+
+`;
+
+/* ═══════════════════════ MODULE-SCOPE REVENUE HELPERS ══════════════════════
+   Shared by DashboardPage (todayRev) and BillingPage (_bizDayTotal).
+   Any change here automatically applies to both surfaces.
+   ─────────────────────────────────────────────────────────────────────────── */
+// Payment-positive: only actual cash inflows count as revenue/paid.
+// Charges (Stay Extension, Room Service, Food & Bev, etc.) are excluded.
+// This single definition drives BIZ DAY, Dashboard revenue, and all report totals.
+const _isRealPayment = t => /payment|settlement|advance|deposit|bkash|bank\s*transfer/i.test(t.type || '') && !/balance carried forward/i.test(t.type || '');
+const _bizDayTotalFn = list => {
+  const byKey = {};
+  list.forEach(t => {
+    if (/balance carried forward/i.test(t.type || '')) return;
+    const key = `${t.room_number || ''}|${t.guest_name || ''}`;
+    if (!byKey[key]) byKey[key] = {
+      pay: 0,
+      fsPos: 0,
+      hasReal: false
+    };
+    const amt = +t.amount || 0;
+    if (_isRealPayment(t)) {
+      byKey[key].pay += amt;
+      byKey[key].hasReal = true;
+    } else if (/final\s*settlement/i.test(t.type || '') && amt > 0) {
+      byKey[key].fsPos += amt;
+    }
+  });
+  return Object.values(byKey).reduce((a, g) => a + (g.hasReal ? g.pay : g.fsPos), 0);
+};
+
+/* ═══════════════════════ SMALL COMPONENTS ══════════════════ */
+function Toast({
+  msg,
+  type,
+  onDone
+}) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3400);
+    return () => clearTimeout(t);
+  }, []);
+  return /*#__PURE__*/React.createElement("div", {
+    className: `toast${type === 'error' ? ' err' : type === 'info' ? ' inf' : ''}`
+  }, type === 'error' ? '⚠ ' : '✓ ', msg);
+}
+function Av({
+  name,
+  size = 32
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "av",
+    style: {
+      width: size,
+      height: size,
+      fontSize: size * .33,
+      background: `linear-gradient(135deg,${avColor(name)},rgba(0,0,0,.4))`,
+      color: '#EEE9E2'
+    }
+  }, initials(name));
+}
+function SBadge({
+  status
+}) {
+  const m = {
+    CHECKED_IN: 'bb',
+    RESERVED: 'bteal',
+    PENDING: 'ba',
+    CHECKED_OUT: 'bgold',
+    CANCELLED: 'br_',
+    confirmed: 'bg',
+    pending: 'ba',
+    'in-progress': 'ba',
+    completed: 'bg',
+    high: 'br_',
+    medium: 'ba',
+    low: 'bg'
+  };
+  return /*#__PURE__*/React.createElement("span", {
+    className: `badge ${m[status] || 'bgold'}`
+  }, String(status).replace(/_/g, ' '));
+}
+function Modal({
+  title,
+  onClose,
+  children,
+  footer,
+  wide
+}) {
+  useEffect(() => {
+    const h = e => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, []);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "modal-bg",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `modal${wide ? ' modal-w' : ''}`,
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "modal-hd"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "modal-title"
+  }, title), /*#__PURE__*/React.createElement("button", {
+    className: "modal-x",
+    onClick: onClose
+  }, "\xD7")), /*#__PURE__*/React.createElement("div", {
+    className: "modal-body"
+  }, children), footer && /*#__PURE__*/React.createElement("div", {
+    className: "modal-ft"
+  }, footer)));
+}
+function BarChart({
+  data,
+  active,
+  onHover
+}) {
+  const max = Math.max(...data.map(d => d.v), 1);
+  const bcRef = useRef(null);
+  useEffect(() => {
+    if (typeof gsap === 'undefined' || !bcRef.current) return;
+    const bars = bcRef.current.querySelectorAll('.bar-fill');
+    gsap.from(bars, {
+      scaleY: 0,
+      transformOrigin: 'bottom center',
+      stagger: .04,
+      duration: .65,
+      ease: 'power3.out'
+    });
+  }, [data.length]);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "bar-chart",
+    ref: bcRef
+  }, data.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "bar-col",
+    onMouseEnter: () => onHover(i),
+    title: `${d.ds}: ${BDT(d.v)}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bar-fill",
+    style: {
+      height: `${Math.max(3, d.v / max * 76)}px`,
+      background: i === active ? 'var(--gold)' : 'rgba(200,169,110,.28)'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "bar-lbl"
+  }, d.d))));
+}
+
+/* ═══════════════════════ LOGIN ══════════════════════════════ */
+function LoginPage({
+  onLogin,
+  staffList
+}) {
+  useEffect(() => {
+    if (typeof gsap === 'undefined') return;
+    gsap.set('.lp-left', {
+      opacity: 0,
+      x: -50
+    });
+    gsap.set('.lp-right', {
+      opacity: 0,
+      x: 50
+    });
+    gsap.set('.login-card', {
+      opacity: 0,
+      y: 30,
+      scale: .97
+    });
+    gsap.to('.lp-left', {
+      opacity: 1,
+      x: 0,
+      duration: .9,
+      ease: 'power3.out'
+    });
+    gsap.to('.lp-right', {
+      opacity: 1,
+      x: 0,
+      duration: .9,
+      ease: 'power3.out'
+    });
+    gsap.to('.login-card', {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      duration: .7,
+      ease: 'power3.out',
+      delay: .35
+    });
+    gsap.from('.lp-feat', {
+      x: -22,
+      opacity: 0,
+      stagger: .1,
+      duration: .5,
+      ease: 'power2.out',
+      delay: .55
+    });
+  }, []);
+  const [sel, setSel] = useState(null);
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const LOGIN_ROLES = [{
+    key: 'owner',
+    ico: '👑',
+    label: 'Founder / Owner'
+  }, {
+    key: 'receptionist',
+    ico: '🛎️',
+    label: 'Receptionist'
+  }, {
+    key: 'housekeeping',
+    ico: '🧹',
+    label: 'Housekeeping'
+  }];
+  function pickRole(r) {
+    setSel(r);
+    const s = staffList.find(x => x.role === r);
+    if (s) setEmail(s.email);
+    setPw(''); // always clear password — never auto-fill
+    setErr('');
+  }
+  function doLogin() {
+    if (!email || !pw) return setErr('Please enter your email and password.');
+    setBusy(true);
+    _hashPw(pw).then(h => {
+      const u = staffList.find(x => x.email.toLowerCase() === email.trim().toLowerCase() && x.pwh === h);
+      if (u) onLogin({
+        ...u
+      });else {
+        setErr('Invalid email or password.');
+        setBusy(false);
+      }
+    });
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "login-bg"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lp-left"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lp-bar top"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lp-rule"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "lp-label"
+  }, "Staff Portal \xB7 ", _HNAME), /*#__PURE__*/React.createElement("div", {
+    className: "lp-rule dim"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "lp-logo-wrap"
+  }, /*#__PURE__*/React.createElement("img", {
+    src: "/lp-logo.png",
+    alt: _HNAME,
+    className: "lp-logo-img"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "lp-brand-sub"
+  }, "Management CRM \xB7 Powered by Lumea")), /*#__PURE__*/React.createElement("div", {
+    className: "lp-features"
+  }, [['Room Matrix', 'Live availability & status grid'], ['Guest Ledger', 'Automated billing in BDT'], ['Reservation Engine', 'Full booking lifecycle']].map(([t, d]) => /*#__PURE__*/React.createElement("div", {
+    key: t,
+    className: "lp-feat"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lp-feat-bullet"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "lp-feat-text"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lp-feat-title"
+  }, t), /*#__PURE__*/React.createElement("div", {
+    className: "lp-feat-desc"
+  }, d))))), /*#__PURE__*/React.createElement("div", {
+    className: "lp-bar bot"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lp-rule dim"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "lp-label"
+  }, "Lumea \xB7 The Pulse of Modern Hospitality"), /*#__PURE__*/React.createElement("div", {
+    className: "lp-rule"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "lp-right"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lp-vdivide"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "lp-right-top"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "lp-right-meta"
+  }, "Secure Staff Portal"), /*#__PURE__*/React.createElement("span", {
+    className: "lp-right-ver"
+  }, "v2.4.1")), /*#__PURE__*/React.createElement("div", {
+    className: "login-card"
+  }, /*#__PURE__*/React.createElement("form", {
+    onSubmit: e => {
+      e.preventDefault();
+      doLogin();
+    },
+    autoComplete: "off"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lc-inner-top"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "lc-signin-label"
+  }, "Sign In"), /*#__PURE__*/React.createElement("div", {
+    className: "lc-ornament"
+  }, "\u25C6 \xB7 \u25C6 \xB7 \u25C6"), /*#__PURE__*/React.createElement("div", {
+    className: "role-grid"
+  }, LOGIN_ROLES.map(r => /*#__PURE__*/React.createElement("div", {
+    key: r.key,
+    className: `rpill${sel === r.key ? ' sel' : ''}`,
+    onClick: () => pickRole(r.key)
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "ri"
+  }, r.ico), /*#__PURE__*/React.createElement("span", {
+    className: "rl"
+  }, r.label)))), /*#__PURE__*/React.createElement("div", {
+    className: "lc-email-display"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lc-email-lbl"
+  }, "Email"), sel ? /*#__PURE__*/React.createElement("div", {
+    className: "lc-email-val"
+  }, /*#__PURE__*/React.createElement("span", null, staffList.find(s => s.role === sel)?.email), /*#__PURE__*/React.createElement("span", {
+    className: "lc-change",
+    onClick: () => {
+      setSel(null);
+      setEmail('');
+      setErr('');
+    }
+  }, "change")) : /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    type: "email",
+    value: email,
+    onChange: e => {
+      setEmail(e.target.value);
+      setErr('');
+    },
+    onKeyDown: e => e.key === 'Enter' && doLogin(),
+    placeholder: "your@email.com",
+    autoComplete: "off",
+    "data-form-type": "other",
+    style: {
+      borderBottom: '1.5px solid #C5A059',
+      borderTop: 'none',
+      borderLeft: 'none',
+      borderRight: 'none',
+      borderRadius: 0,
+      background: 'transparent',
+      paddingLeft: 0
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg",
+    style: {
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Password"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    type: showPw ? 'text' : 'password',
+    value: pw,
+    onChange: e => {
+      setPw(e.target.value);
+      setErr('');
+    },
+    onKeyDown: e => e.key === 'Enter' && doLogin(),
+    placeholder: "Enter your password",
+    autoComplete: "new-password",
+    "data-form-type": "other",
+    style: {
+      paddingRight: 40
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      right: 12,
+      top: '50%',
+      transform: 'translateY(-50%)',
+      cursor: 'pointer',
+      fontSize: 13,
+      color: 'var(--tx3)',
+      userSelect: 'none'
+    },
+    onClick: () => setShowPw(p => !p)
+  }, showPw ? '🙈' : '👁'))), err && /*#__PURE__*/React.createElement("div", {
+    className: "lc-error"
+  }, err), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold w100 login-card",
+    style: {
+      justifyContent: 'center',
+      padding: '14px',
+      fontSize: 10,
+      letterSpacing: '.22em',
+      marginTop: 10,
+      borderRadius: 3,
+      background: '#2D2A26',
+      color: '#F9F7F2',
+      border: 'none'
+    },
+    disabled: busy,
+    onClick: doLogin
+  }, busy ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "spinner",
+    style: {
+      width: 12,
+      height: 12,
+      border: '1.5px solid rgba(249,247,242,.2)',
+      borderTopColor: '#F9F7F2'
+    }
+  }), ' ', "Signing in\u2026") : 'SIGN IN →'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      marginTop: 28,
+      fontFamily: 'var(--mono)',
+      fontSize: 9,
+      color: 'rgba(150,135,112,.55)',
+      letterSpacing: '.14em',
+      lineHeight: 1.7
+    }
+  }, "Access is role-restricted.", /*#__PURE__*/React.createElement("br", null), "Contact your administrator if you have not received credentials."))), /*#__PURE__*/React.createElement("div", {
+    className: "lp-right-bot"
+  }, "Lumea \xB7 ", _HNAME, " Management CRM")));
+}
+
+/* ═══════════════════════ DASHBOARD ══════════════════════════ */
+function Dashboard({
+  rooms,
+  guests,
+  reservations,
+  transactions,
+  setPage,
+  businessDate
+}) {
+  const [chartActive, setChartActive] = useState(13);
+  const today = businessDate || todayStr();
+  const occ = rooms.filter(r => r.status === 'OCCUPIED').length;
+  const occPct = rooms.length ? Math.round(occ / rooms.length * 100) : 0;
+  const groupedTx = {};
+  for (const t of transactions) {
+    if (!t.guest_name || !t.fiscal_day) continue;
+    const key = `${t.guest_name}__${t.fiscal_day}`;
+    if (!groupedTx[key]) {
+      groupedTx[key] = {
+        ...t,
+        amount: 0,
+        type: [],
+        due: 0,
+        paid: 0,
+        id: []
+      };
+    }
+    groupedTx[key].amount += Number(t.amount) || 0;
+    groupedTx[key].due += Number(t.due) || 0;
+    groupedTx[key].paid += Number(t.paid) || 0;
+    if (t.type && !groupedTx[key].type.includes(t.type)) groupedTx[key].type.push(t.type);
+    if (t.id && !groupedTx[key].id.includes(t.id)) groupedTx[key].id.push(t.id);
+  }
+  const mergedTransactions = Object.values(groupedTx).map(t => ({
+    ...t,
+    type: t.type.join(', '),
+    id: t.id.join(', ')
+  }));
+  const todayT = mergedTransactions.filter(t => t.fiscal_day === today);
+  // todayRev: mirrors BillingPage's unifiedGroups logic — sums r.paid_amount for all
+  // reservations visible in today's ledger (activeTx matches + outstanding balance entries).
+  // todayRev: sum of actual cash/bkash TX amounts for today's fiscal_day only.
+  // Zero transactions = ৳0. Resets cleanly after Closing Complete.
+  const todayRev = _bizDayTotalFn((transactions || []).filter(t => t.fiscal_day === today));
+  const inHouse = reservations.filter(r => r.status === 'CHECKED_IN').length;
+  const pending = reservations.filter(r => r.status === 'PENDING').length;
+  const last14 = Array.from({
+    length: 14
+  }, (_, i) => {
+    const d = new Date(todayDhaka());
+    d.setDate(d.getDate() - (13 - i));
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return {
+      d: ds.slice(8),
+      v: mergedTransactions.filter(t => t.fiscal_day === ds).reduce((a, t) => a + (+t.amount || 0), 0),
+      ds
+    };
+  });
+  const checkedIn = reservations.filter(r => r.status === 'CHECKED_IN').slice(0, 6);
+  useEffect(() => {
+    if (typeof gsap === 'undefined') return;
+    gsap.from('.stats-row .stat', {
+      opacity: 0,
+      y: 28,
+      stagger: .1,
+      duration: .6,
+      ease: 'power3.out',
+      clearProps: 'all'
+    });
+    gsap.from('.g2 .card', {
+      opacity: 0,
+      y: 18,
+      stagger: .08,
+      duration: .55,
+      ease: 'power3.out',
+      delay: .2,
+      clearProps: 'all'
+    });
+    setTimeout(() => {
+      document.querySelectorAll('.stat-val').forEach(el => {
+        const txt = el.textContent.trim();
+        const m = txt.match(/^([^\d]*)([0-9,]+)(.*)$/);
+        if (!m) return;
+        const [, pre, numStr, suf] = m;
+        const num = parseFloat(numStr.replace(/,/g, ''));
+        if (isNaN(num) || num === 0) return;
+        const obj = {
+          v: 0
+        };
+        gsap.to(obj, {
+          v: num,
+          duration: 1.4,
+          ease: 'power2.out',
+          onUpdate() {
+            el.textContent = pre + Math.round(obj.v).toLocaleString('en-BD') + suf;
+          }
+        });
+      });
+    }, 150);
+  }, [todayRev, occPct, inHouse, pending]);
+  const getGN = gids => {
+    const fid = String((gids || [])[0] || '');
+    const g = guests.find(g => String(g.id) === fid);
+    return g ? g.name : 'Unknown';
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "stats-row"
+  }, [{
+    lbl: "Today's Revenue",
+    val: BDT(todayRev),
+    ico: '💰',
+    sub: `${reservations.filter(r => r.status === 'CHECKED_IN').length} in-house`,
+    ac: 'var(--gold)'
+  }, {
+    lbl: 'Occupancy',
+    val: `${occPct}%`,
+    ico: '🛏',
+    sub: `${occ}/${rooms.length} rooms occupied`,
+    ac: 'var(--sky)'
+  }, {
+    lbl: 'In-House Guests',
+    val: inHouse,
+    ico: '👥',
+    sub: 'Currently checked in',
+    ac: 'var(--teal)'
+  }, {
+    lbl: 'Pending',
+    val: pending,
+    ico: '📅',
+    sub: 'Awaiting confirmation',
+    ac: 'var(--rose)'
+  }].map(s => /*#__PURE__*/React.createElement("div", {
+    key: s.lbl,
+    className: "stat",
+    style: {
+      '--ac': s.ac
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-ico"
+  }, s.ico), /*#__PURE__*/React.createElement("div", {
+    className: "stat-lbl"
+  }, s.lbl), /*#__PURE__*/React.createElement("div", {
+    className: "stat-val"
+  }, s.val), /*#__PURE__*/React.createElement("div", {
+    className: "stat-sub"
+  }, s.sub)))), /*#__PURE__*/React.createElement("div", {
+    className: "g2 mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Revenue \u2014 Last 14 Days"), /*#__PURE__*/React.createElement("span", {
+    className: "badge bgold"
+  }, last14[chartActive]?.ds?.slice(5), " \xB7 ", BDT(last14[chartActive]?.v))), /*#__PURE__*/React.createElement("div", {
+    className: "card-body"
+  }, /*#__PURE__*/React.createElement(BarChart, {
+    data: last14,
+    active: chartActive,
+    onHover: setChartActive
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Room Status Overview")), /*#__PURE__*/React.createElement("div", {
+    className: "card-body"
+  }, [['AVAILABLE', 'grn'], ['OCCUPIED', 'sky'], ['DIRTY', 'amb'], ['OUT_OF_ORDER', 'rose'], ['RESERVED', 'pur']].map(([s, c]) => {
+    const cnt = rooms.filter(r => r.status === s).length;
+    return /*#__PURE__*/React.createElement("div", {
+      key: s,
+      className: "flex fac fjb",
+      style: {
+        padding: '5px 0',
+        borderBottom: '1px solid var(--br2)'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex fac gap2"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: `rdot ${s}`
+    }), /*#__PURE__*/React.createElement("span", {
+      className: "xs"
+    }, s.replace('_', ' '))), /*#__PURE__*/React.createElement("div", {
+      className: "flex fac gap2"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "xs gold"
+    }, cnt), /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: 4,
+        width: rooms.length ? Math.round(cnt / rooms.length * 80) : 2,
+        background: `var(--${c})`,
+        borderRadius: 2
+      }
+    })));
+  })))), /*#__PURE__*/React.createElement("div", {
+    className: "g2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Currently In-House"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: () => setPage('reservations')
+  }, "View All \u2192")), /*#__PURE__*/React.createElement("div", {
+    className: "card-body",
+    style: {
+      padding: '6px 13px'
+    }
+  }, checkedIn.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '18px 0',
+      textAlign: 'center',
+      color: 'var(--tx3)',
+      fontSize: 12
+    }
+  }, "No active check-ins") : checkedIn.map(r => /*#__PURE__*/React.createElement("div", {
+    key: r.id,
+    className: "flex fac gap2",
+    style: {
+      padding: '8px 0',
+      borderBottom: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement(Av, {
+    name: getGN(r.guest_ids),
+    size: 28
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 500,
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, getGN(r.guest_ids)), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, "Rm ", (r.room_ids || []).join(','), " \xB7 Out: ", fmtDate(r.check_out))), /*#__PURE__*/React.createElement("span", {
+    className: "badge bb"
+  }, BDT(r.total_amount)))))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Recent Transactions"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: () => setPage('billing')
+  }, "View All \u2192")), /*#__PURE__*/React.createElement("div", {
+    className: "card-body",
+    style: {
+      padding: '6px 13px'
+    }
+  }, mergedTransactions.slice(0, 8).map(t => /*#__PURE__*/React.createElement("div", {
+    key: t.id,
+    className: "flex fac fjb",
+    style: {
+      padding: '6px 0',
+      borderBottom: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "xs",
+    style: {
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, t.guest_name || '—'), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, "Rm ", t.room_number || '?', " \xB7 ", t.type || 'Payment')), /*#__PURE__*/React.createElement("span", {
+    className: "xs gold"
+  }, BDT(t.amount))))))));
+}
+
+/* ═══════════════════════ ROOMS ══════════════════════════════ */
+function RoomsPage({
+  rooms,
+  guests,
+  reservations,
+  toast,
+  currentUser,
+  reload,
+  businessDate
+}) {
+  const [filter, setFilter] = useState('ALL');
+  const [selRoom, setSelRoom] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const canEdit = ['owner', 'manager', 'receptionist'].includes(currentUser?.role);
+  const canHKStatus = currentUser?.role === 'housekeeping'; // HK can only change dirty→available
+  const isSA = currentUser?.role === 'owner';
+  const sc = rooms.reduce((a, r) => {
+    a[r.status] = (a[r.status] || 0) + 1;
+    return a;
+  }, {});
+  const filtered = filter === 'ALL' ? rooms : rooms.filter(r => r.status === filter);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac fjb mb4",
+    style: {
+      flexWrap: 'wrap',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tabs",
+    style: {
+      marginBottom: 0
+    }
+  }, ['ALL', 'AVAILABLE', 'OCCUPIED', 'DIRTY', 'OUT_OF_ORDER', 'RESERVED'].map(s => /*#__PURE__*/React.createElement("button", {
+    key: s,
+    className: `tab${filter === s ? ' on' : ''}`,
+    onClick: () => setFilter(s)
+  }, s === 'ALL' ? `All (${rooms.length})` : `${s.replace('_', ' ')} (${sc[s] || 0})`))), isSA && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: () => setShowAdd(true)
+  }, "+ Add Room")), /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap3 mb4",
+    style: {
+      flexWrap: 'wrap'
+    }
+  }, [['AVAILABLE', 'grn'], ['OCCUPIED', 'sky'], ['DIRTY', 'amb'], ['OUT_OF_ORDER', 'rose'], ['RESERVED', 'pur']].map(([s]) => /*#__PURE__*/React.createElement("span", {
+    key: s,
+    className: "flex fac xs muted"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `rdot ${s}`
+  }), s.replace('_', ' '))), /*#__PURE__*/React.createElement("span", {
+    className: "xs muted",
+    style: {
+      marginLeft: 4
+    }
+  }, "\xB7 Click room to open folio/billing")), /*#__PURE__*/React.createElement("div", {
+    className: "rooms-grid"
+  }, filtered.map(room => /*#__PURE__*/React.createElement("div", {
+    key: room.id,
+    className: `room-card ${room.status}`,
+    onClick: () => setSelRoom(room)
+  }, room.status === 'OCCUPIED' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: 5,
+      right: 5,
+      fontSize: 7,
+      background: 'rgba(88,166,255,.25)',
+      color: 'var(--sky)',
+      borderRadius: 3,
+      padding: '1px 5px',
+      border: '1px solid rgba(88,166,255,.3)'
+    }
+  }, "FOLIO"), /*#__PURE__*/React.createElement("div", {
+    className: "room-no"
+  }, room.room_number), /*#__PURE__*/React.createElement("div", {
+    className: "flex fac",
+    style: {
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `rdot ${room.status}`
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "room-cat"
+  }, room.status.replace('_', ' '))), /*#__PURE__*/React.createElement("div", {
+    className: "room-cat"
+  }, room.category || 'Standard'), /*#__PURE__*/React.createElement("div", {
+    className: "room-price"
+  }, BDT(room.price), "/night")))), selRoom && /*#__PURE__*/React.createElement(RoomModal, {
+    key: selRoom.id,
+    room: selRoom,
+    guests: guests,
+    reservations: reservations,
+    rooms: rooms,
+    canEdit: canEdit,
+    canHKStatus: canHKStatus,
+    isSA: isSA,
+    toast: toast,
+    businessDate: businessDate,
+    onClose: () => setSelRoom(null),
+    reload: () => {
+      reload();
+      setSelRoom(null);
+    }
+  }), showAdd && isSA && /*#__PURE__*/React.createElement(AddRoomModal, {
+    toast: toast,
+    onClose: () => setShowAdd(false),
+    reload: reload,
+    rooms: rooms
+  }));
+}
+function RoomModal({
+  room,
+  guests,
+  reservations,
+  rooms,
+  canEdit,
+  canHKStatus,
+  isSA,
+  toast,
+  onClose,
+  reload,
+  businessDate
+}) {
+  const [status, setStatus] = useState(room.status);
+  const [folios, setFolios] = useState([]);
+  const [fLoad, setFLoad] = useState(true);
+  const [showCharge, setShowCharge] = useState(false);
+  const [showCO, setShowCO] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [collectAmt, setCollectAmt] = useState('');
+  const [collectSaving, setCollectSaving] = useState(false);
+  const activeRes = reservations.find(r => (r.room_ids || []).includes(room.room_number) && r.status === 'CHECKED_IN');
+  const guest = activeRes ? guests.find(g => String(g.id) === String((activeRes.guest_ids || [])[0] || '')) : null;
+  useEffect(() => {
+    setFolios([]);
+    setFLoad(true);
+    if (!activeRes?.id) {
+      setFLoad(false);
+      return;
+    }
+    let cancelled = false;
+    const resId = activeRes.id;
+    db('folios', `?reservation_id=eq.${resId}&order=created_at`).then(d => {
+      if (cancelled) return;
+      const list = Array.isArray(d) ? d : [];
+      const clean = list.filter(x => String(x.reservation_id) === String(resId));
+      setFolios(clean);
+      setFLoad(false);
+    }).catch(() => {
+      if (!cancelled) setFLoad(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRes?.id]);
+  const roomRate = +room.price || 0;
+  const nights = activeRes ? nightsCount(activeRes.check_in, activeRes.check_out) : 0;
+  const roomCharge = roomRate * nights;
+  const ADMIN_RE = /receivable|payment|settlement|advance|refund/i;
+  const chargeFolios = folios.filter(f => !ADMIN_RE.test(String(f.category || '') + ' ' + String(f.description || '')));
+  const extras = chargeFolios.reduce((a, f) => a + (+f.amount || 0), 0);
+  const sub = roomCharge + extras;
+  const totalDiscount = +(activeRes?.discount_amount || activeRes?.discount || 0);
+  const resRoomIds = (activeRes?.room_ids || []).filter(Boolean);
+  const isMulti = resRoomIds.length > 1;
+  const resRatesSum = isMulti ? resRoomIds.reduce((a, rn) => a + (+(rooms || []).find(r => String(r.room_number) === String(rn))?.price || 0), 0) : roomRate;
+  const discount = isMulti && resRatesSum > 0 ? Math.round(totalDiscount * (roomRate / resRatesSum)) : totalDiscount;
+  const total = Math.max(0, sub - discount);
+  const totalPaid = +(activeRes?.paid_amount || 0);
+  const paid = isMulti && resRatesSum > 0 ? Math.round(totalPaid * (roomRate / resRatesSum)) : totalPaid;
+  const due = Math.max(0, total - paid);
+  async function saveStatus() {
+    setSaving(true);
+    try {
+      await dbPatch('rooms', room.id, {
+        status
+      });
+      toast(`Room ${room.room_number} → ${status}`);
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+      setSaving(false);
+    }
+  }
+  async function doCheckout() {
+    try {
+      await dbPatch('reservations', activeRes.id, {
+        status: 'CHECKED_OUT'
+      });
+      await dbPatch('rooms', room.id, {
+        status: 'DIRTY'
+      });
+      toast(due > 0 ? `${guest?.name || 'Guest'} checked out · ${BDT(due)} carried to outstanding` : `${guest?.name || 'Guest'} checked out ✓`);
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+  async function saveCollectAmount() {
+    const a = +collectAmt;
+    if (!a || a <= 0) return toast('Enter valid amount', 'error');
+    setCollectSaving(true);
+    try {
+      await dbPatch('reservations', activeRes.id, {
+        paid_amount: a
+      });
+      await dbPost('transactions', {
+        type: 'Advance Payment',
+        amount: a,
+        room_number: room.room_number,
+        guest_name: guest?.name,
+        fiscal_day: todayStr(),
+        reservation_id: activeRes?.id || null,
+        tenant_id: TENANT
+      });
+      toast(`৳${a.toLocaleString()} collected`);
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setCollectSaving(false);
+    }
+  }
+  async function addFolioCharge(f) {
+    if (!activeRes?.id || String(f?.reservation_id) !== String(activeRes.id)) {
+      toast('Charge rejected: reservation mismatch', 'error');
+      setShowCharge(false);
+      return;
+    }
+    setFolios(p => [...p.filter(x => x.id !== f.id), f]);
+    toast(`Charge ${BDT(f.amount)} added`);
+    setShowCharge(false);
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: `Room ${room.room_number} — ${room.category || 'Standard'}`,
+    onClose: onClose,
+    wide: !!activeRes,
+    footer: /*#__PURE__*/React.createElement("div", {
+      className: "flex gap2",
+      style: {
+        flexWrap: 'wrap',
+        width: '100%'
+      }
+    }, activeRes && canEdit && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-info btn-sm",
+      onClick: () => setShowCharge(true)
+    }, "+ Add Charge"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-danger btn-sm",
+      onClick: () => setShowCO(true)
+    }, "\uD83D\uDEAA Check Out")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }), (canEdit || canHKStatus) && /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold btn-sm",
+      disabled: saving || !canEdit && canHKStatus && room.status !== 'DIRTY',
+      onClick: saveStatus
+    }, saving ? 'Saving…' : 'Save Status'), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost btn-sm",
+      onClick: onClose
+    }, "Close"))
+  }, activeRes && guest && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',
+      border: '1px solid rgba(200,169,110,.18)',
+      borderRadius: 9,
+      padding: '12px 14px',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac fjb",
+    style: {
+      flexWrap: 'wrap',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap3"
+  }, /*#__PURE__*/React.createElement(Av, {
+    name: guest.name,
+    size: 40
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      fontSize: 16
+    }
+  }, guest.name), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, "Room ", room.room_number, " \xB7 ", fmtDate(activeRes.check_in), " \u2192 ", fmtDate(activeRes.check_out)), /*#__PURE__*/React.createElement("div", {
+    className: "xs",
+    style: {
+      color: 'var(--amb)',
+      marginTop: 2
+    }
+  }, nights, " night", nights !== 1 ? 's' : '', " \xB7 ", BDT(roomRate), "/night"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'right'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, "Balance Due"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      fontSize: 22,
+      color: due > 0 ? 'var(--rose)' : 'var(--grn)'
+    }
+  }, BDT(due))))), activeRes && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--s2)',
+      borderRadius: 8,
+      border: '1px solid var(--br2)',
+      overflow: 'hidden',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '7px 12px',
+      background: 'rgba(200,169,110,.04)',
+      borderBottom: '1px solid var(--br2)',
+      fontSize: 8,
+      letterSpacing: '.1em',
+      color: 'var(--tx2)',
+      textTransform: 'uppercase',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Folio Charges"), canEdit && !canHKStatus && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    style: {
+      fontSize: 10
+    },
+    onClick: () => setShowCharge(true)
+  }, "+ Add")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '0 12px'
+    }
+  }, fLoad && /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      padding: '12px 0',
+      textAlign: 'center'
+    }
+  }, "Loading folio\u2026"), !fLoad && chargeFolios.length === 0 && nights === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      padding: '12px 0',
+      textAlign: 'center'
+    }
+  }, "No extra charges"), !fLoad && nights > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "folio-row"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, "Room charge"), " ", /*#__PURE__*/React.createElement("span", {
+    className: "badge bgold",
+    style: {
+      fontSize: 8,
+      marginLeft: 6
+    }
+  }, nights, "\xD7", BDT(roomRate))), /*#__PURE__*/React.createElement("span", {
+    className: "xs gold"
+  }, BDT(roomCharge))), chargeFolios.map(f => /*#__PURE__*/React.createElement("div", {
+    key: f.id,
+    className: "folio-row"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, f.description), /*#__PURE__*/React.createElement("span", {
+    className: "badge bgold",
+    style: {
+      marginLeft: 6,
+      fontSize: 8
+    }
+  }, f.category)), /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "xs gold"
+  }, BDT(f.amount)), isSA && /*#__PURE__*/React.createElement("button", {
+    style: {
+      background: 'none',
+      border: 'none',
+      cursor: 'pointer',
+      color: 'var(--rose)',
+      fontSize: 13,
+      padding: '0 2px',
+      lineHeight: 1
+    },
+    title: "Delete charge",
+    onClick: async () => {
+      if (!window.confirm('Delete folio charge?')) return;
+      try {
+        await dbDelete('folios', f.id);
+        setFolios(p => p.filter(x => x.id !== f.id));
+        toast('Charge removed');
+      } catch (e) {
+        toast(e.message, 'error');
+      }
+    }
+  }, "\xD7"))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 12px',
+      background: 'rgba(200,169,110,.03)',
+      borderTop: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex fjb xs muted",
+    style: {
+      marginBottom: 3
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Subtotal"), /*#__PURE__*/React.createElement("span", null, BDT(sub))), discount > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "flex fjb xs",
+    style: {
+      marginBottom: 3,
+      color: 'var(--grn)'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Discount", isMulti ? ' (prorated)' : ''), /*#__PURE__*/React.createElement("span", null, "- ", BDT(discount))), /*#__PURE__*/React.createElement("div", {
+    className: "divider",
+    style: {
+      margin: '6px 0'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex fjb xs",
+    style: {
+      marginBottom: 3,
+      fontWeight: 600
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Total"), /*#__PURE__*/React.createElement("span", null, BDT(total))), /*#__PURE__*/React.createElement("div", {
+    className: "flex fjb xs",
+    style: {
+      marginBottom: 3,
+      color: 'var(--grn)'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Paid", isMulti ? ' (prorated)' : ''), /*#__PURE__*/React.createElement("span", null, "- ", BDT(paid))), /*#__PURE__*/React.createElement("div", {
+    className: "divider",
+    style: {
+      margin: '6px 0'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex fjb",
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: due > 0 ? 'var(--rose)' : 'var(--grn)'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Balance Due"), /*#__PURE__*/React.createElement("span", null, BDT(due))))), activeRes && canEdit && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(200,169,110,.06)',
+      border: '1px solid var(--br)',
+      padding: '12px 14px',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flbl",
+    style: {
+      marginBottom: 8
+    }
+  }, "\uD83D\uDCB0 Collect Payment"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: collectAmt,
+    onChange: e => setCollectAmt(e.target.value),
+    placeholder: `Due: ${BDT(Math.max(0, total - (+activeRes.paid_amount || 0)))}`,
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    disabled: collectSaving,
+    onClick: saveCollectAmount,
+    style: {
+      whiteSpace: 'nowrap'
+    }
+  }, collectSaving ? 'Saving…' : 'Save Payment')), (+activeRes.paid_amount || 0) > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      marginTop: 6
+    }
+  }, "Already paid: ", BDT(activeRes.paid_amount), " \xB7 Balance: ", BDT(Math.max(0, total - (+activeRes.paid_amount || 0))))), /*#__PURE__*/React.createElement("div", {
+    className: "g2 mb4"
+  }, [['Category', room.category || 'Standard'], ['Rate/Night', BDT(room.price)], ['Floor', room.floor || room.room_number.slice(0, -2) || '—'], ['Beds', room.beds || 'Double']].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, l), /*#__PURE__*/React.createElement("div", {
+    className: "info-val"
+  }, v)))), (canEdit || canHKStatus) && /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Change Status"), canHKStatus && !canEdit ? room.status === 'DIRTY' ? /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: status,
+    onChange: e => setStatus(e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "DIRTY"
+  }, "DIRTY"), /*#__PURE__*/React.createElement("option", {
+    value: "AVAILABLE"
+  }, "AVAILABLE \u2014 Mark as Clean")) : /*#__PURE__*/React.createElement("div", {
+    className: "finput",
+    style: {
+      opacity: .5,
+      cursor: 'not-allowed'
+    }
+  }, room.status, " \u2014 No changes allowed") : /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: status,
+    onChange: e => setStatus(e.target.value)
+  }, ['AVAILABLE', 'OCCUPIED', 'DIRTY', 'OUT_OF_ORDER', 'RESERVED'].map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s.replace('_', ' '))))), showCharge && /*#__PURE__*/React.createElement(AddChargeModal, {
+    roomNo: room.room_number,
+    resId: activeRes?.id,
+    toast: toast,
+    onClose: () => setShowCharge(false),
+    onDone: addFolioCharge
+  }), showCO && /*#__PURE__*/React.createElement(Modal, {
+    title: "Confirm Guest Checkout",
+    onClose: () => setShowCO(false),
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: () => setShowCO(false)
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-danger",
+      onClick: () => {
+        doCheckout();
+        setShowCO(false);
+      }
+    }, "\u2713 Confirm Checkout"))
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      padding: '8px 0 12px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 32,
+      marginBottom: 10
+    }
+  }, "\uD83D\uDEAA"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      fontSize: 17,
+      marginBottom: 4
+    }
+  }, guest?.name || 'Guest'), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      marginBottom: 12
+    }
+  }, "Room ", room.room_number, " \xB7 ", nights, " night", nights !== 1 ? 's' : ''), [['Total Bill', BDT(total)], ['Paid', BDT(paid)]].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    className: "flex fjb xs muted",
+    style: {
+      maxWidth: 240,
+      margin: '3px auto'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, l), /*#__PURE__*/React.createElement("span", null, v))), /*#__PURE__*/React.createElement("div", {
+    className: "divider",
+    style: {
+      maxWidth: 240,
+      margin: '8px auto'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex fjb",
+    style: {
+      maxWidth: 240,
+      margin: '4px auto',
+      fontSize: 13,
+      fontWeight: 700,
+      color: due > 0 ? 'var(--rose)' : 'var(--grn)'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, due > 0 ? 'Outstanding Due' : 'Balance'), /*#__PURE__*/React.createElement("span", null, BDT(due))), due > 0 ? /*#__PURE__*/React.createElement("div", {
+    className: "xs",
+    style: {
+      color: 'var(--rose)',
+      marginTop: 10,
+      maxWidth: 280,
+      margin: '10px auto 0'
+    }
+  }, "\u26A0 ", BDT(due), " will be carried forward as Outstanding Due. No payment will be auto-posted.") : /*#__PURE__*/React.createElement("div", {
+    className: "xs",
+    style: {
+      color: 'var(--grn)',
+      marginTop: 10
+    }
+  }, "\u2713 Folio fully settled"), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted mt3"
+  }, "Room will move to Dirty / Housekeeping"))));
+}
+function AddChargeModal({
+  roomNo,
+  resId,
+  toast,
+  onClose,
+  onDone
+}) {
+  const [cat, setCat] = useState('Room Service');
+  const [amt, setAmt] = useState('');
+  const [desc, setDesc] = useState('');
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    const a = parseFloat(amt);
+    if (!a || a <= 0) return toast('Enter a valid amount', 'error');
+    if (!resId) return toast('No active reservation — cannot add charge', 'error');
+    setSaving(true);
+    try {
+      const [f] = await dbPost('folios', {
+        room_number: roomNo,
+        reservation_id: resId,
+        description: desc || cat,
+        category: cat,
+        amount: a,
+        tenant_id: TENANT
+      });
+      onDone(f);
+    } catch (e) {
+      toast(e.message, 'error');
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: `Add Charge — Room ${roomNo}`,
+    onClose: onClose,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      disabled: saving,
+      onClick: save
+    }, saving ? 'Adding…' : 'Add Charge'))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Category"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: cat,
+    onChange: e => setCat(e.target.value)
+  }, ['Room Charge', 'Room Service', 'Restaurant', 'Spa', 'Minibar', 'Laundry', 'Parking', 'Airport Transfer', 'Phone', 'Misc'].map(c => /*#__PURE__*/React.createElement("option", {
+    key: c
+  }, c)))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Amount (BDT) *"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: amt,
+    onChange: e => setAmt(e.target.value),
+    placeholder: "0",
+    autoFocus: true
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Description"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: desc,
+    onChange: e => setDesc(e.target.value),
+    placeholder: "Optional detail"
+  })));
+}
+function AddRoomModal({
+  toast,
+  onClose,
+  reload,
+  rooms
+}) {
+  const [f, setF] = useState({
+    room_number: '',
+    category: 'Fountain Deluxe',
+    price: 4000,
+    status: 'AVAILABLE'
+  });
+  const [saving, setSaving] = useState(false);
+  const F = k => e => setF(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  async function save() {
+    if (!f.room_number) return toast('Room number required', 'error');
+    if (rooms.find(r => r.room_number === f.room_number)) return toast(`Room ${f.room_number} already exists`, 'error');
+    setSaving(true);
+    try {
+      await dbPost('rooms', {
+        ...f,
+        price: +f.price,
+        tenant_id: TENANT
+      });
+      toast(`Room ${f.room_number} added`);
+      reload();
+      onClose();
+    } catch (e) {
+      toast(e.message, 'error');
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "Add New Room",
+    onClose: onClose,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      disabled: saving,
+      onClick: save
+    }, "Add Room"))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Room Number *"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.room_number,
+    onChange: F('room_number'),
+    placeholder: "e.g. 601",
+    autoFocus: true
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Category"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.category,
+    onChange: F('category')
+  }, ['Fountain Deluxe', 'Premium Deluxe', 'Superior Deluxe', 'Twin Deluxe', 'Royal Suite'].map(c => /*#__PURE__*/React.createElement("option", {
+    key: c
+  }, c))))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Rate (BDT/night)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: f.price,
+    onChange: F('price')
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Initial Status"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.status,
+    onChange: F('status')
+  }, ['AVAILABLE', 'OUT_OF_ORDER'].map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s.replace('_', ' ')))))));
+}
+
+/* ═══════════════════════ RESERVATIONS ═══════════════════════ */
+function ReservationsPage({
+  reservations,
+  guests,
+  rooms,
+  toast,
+  currentUser,
+  reload,
+  businessDate,
+  transactions
+}) {
+  const [filter, setFilter] = useState('ALL');
+  const [search, setSearch] = useState('');
+  const [selRes, setSelRes] = useState(null);
+  const [showNew, setShowNew] = useState(false);
+  const sc = reservations.reduce((a, r) => {
+    a[r.status] = (a[r.status] || 0) + 1;
+    return a;
+  }, {});
+  const resBalance = r => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
+  const dueCount = reservations.filter(r => (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT') && resBalance(r) > 0).length;
+  const getGN = gids => {
+    const fid = String((gids || [])[0] || '');
+    const g = guests.find(g => String(g.id) === fid);
+    return g ? g.name : 'Unknown';
+  };
+  let res;
+  if (filter === 'ALL') res = reservations;else if (filter === 'DUE') res = reservations.filter(r => (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT') && resBalance(r) > 0);else res = reservations.filter(r => r.status === filter);
+  if (search) {
+    const q = search.toLowerCase();
+    res = res.filter(r => getGN(r.guest_ids).toLowerCase().includes(q) || (r.room_ids || []).join('').includes(q) || r.on_duty_officer?.toLowerCase().includes(q));
+  }
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac fjb mb4",
+    style: {
+      flexWrap: 'wrap',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tabs",
+    style: {
+      marginBottom: 0
+    }
+  }, ['ALL', 'CHECKED_IN', 'RESERVED', 'PENDING', 'CHECKED_OUT', 'DUE', 'CANCELLED'].map(s => /*#__PURE__*/React.createElement("button", {
+    key: s,
+    className: `tab${filter === s ? ' on' : ''}`,
+    onClick: () => setFilter(s),
+    style: s === 'DUE' && filter !== s ? {
+      color: 'var(--rose)'
+    } : {}
+  }, s === 'ALL' ? `All (${reservations.length})` : s === 'DUE' ? `Due (${dueCount})` : `${s.replace('_', ' ')} (${sc[s] || 0})`))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "srch"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "xs muted"
+  }, "\u2315"), /*#__PURE__*/React.createElement("input", {
+    placeholder: "Search guest, room\u2026",
+    value: search,
+    onChange: e => setSearch(e.target.value)
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: () => setShowNew(true)
+  }, "+ New Reservation"))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tbl-wrap"
+  }, /*#__PURE__*/React.createElement("table", {
+    className: "tbl"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Guest"), /*#__PURE__*/React.createElement("th", null, "Rooms"), /*#__PURE__*/React.createElement("th", null, "Check-In"), /*#__PURE__*/React.createElement("th", null, "Check-Out"), /*#__PURE__*/React.createElement("th", null, "Nights"), /*#__PURE__*/React.createElement("th", null, "Total"), /*#__PURE__*/React.createElement("th", null, "Discount"), /*#__PURE__*/React.createElement("th", null, "Paid"), /*#__PURE__*/React.createElement("th", null, "Balance"), /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null))), /*#__PURE__*/React.createElement("tbody", null, res.slice(0, 80).map(r => {
+    const gn = getGN(r.guest_ids);
+    const nights = nightsCount(r.check_in, r.check_out);
+    const balance = resBalance(r);
+    return /*#__PURE__*/React.createElement("tr", {
+      key: r.id
+    }, /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+      className: "flex fac gap2"
+    }, /*#__PURE__*/React.createElement(Av, {
+      name: gn,
+      size: 24
+    }), /*#__PURE__*/React.createElement("span", null, gn))), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
+      className: "badge bb"
+    }, (r.room_ids || []).join(', '))), /*#__PURE__*/React.createElement("td", {
+      className: "xs muted"
+    }, fmtDate(r.check_in)), /*#__PURE__*/React.createElement("td", {
+      className: "xs muted"
+    }, fmtDate(r.check_out)), /*#__PURE__*/React.createElement("td", {
+      className: "xs gold"
+    }, nights || '—'), /*#__PURE__*/React.createElement("td", {
+      className: "xs gold"
+    }, BDT(r.total_amount)), /*#__PURE__*/React.createElement("td", {
+      className: "xs",
+      style: {
+        color: 'var(--amb)'
+      }
+    }, (+r.discount_amount || +r.discount || 0) > 0 ? '− ' + BDT(+r.discount_amount || +r.discount || 0) : '—'), /*#__PURE__*/React.createElement("td", {
+      className: "xs",
+      style: {
+        color: +r.paid_amount > 0 ? 'var(--grn)' : 'var(--tx2)'
+      }
+    }, BDT(r.paid_amount)), /*#__PURE__*/React.createElement("td", {
+      className: "xs",
+      style: {
+        color: balance > 0 ? 'var(--rose)' : 'var(--grn)'
+      }
+    }, BDT(balance)), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement(SBadge, {
+      status: r.status
+    })), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost btn-sm",
+      onClick: () => setSelRes(r)
+    }, "View")));
+  }))))), selRes && /*#__PURE__*/React.createElement(ReservationDetail, {
+    res: selRes,
+    guests: guests,
+    rooms: rooms,
+    toast: toast,
+    onClose: () => setSelRes(null),
+    reload: () => {
+      reload();
+      setSelRes(null);
+    },
+    isOwner: currentUser?.role === 'owner',
+    businessDate: businessDate,
+    transactions: transactions
+  }), showNew && /*#__PURE__*/React.createElement(NewReservationModal, {
+    guests: guests,
+    rooms: rooms,
+    toast: toast,
+    onClose: () => setShowNew(false),
+    reload: reload,
+    businessDate: businessDate
+  }));
+}
+function ReservationDetail({
+  res,
+  guests,
+  rooms,
+  toast,
+  onClose,
+  reload,
+  isOwner,
+  businessDate,
+  transactions
+}) {
+  const [status, setStatus] = useState(res.status);
+  const [paidAmt, setPaidAmt] = useState(String(res.paid_amount || ''));
+  const [discountAmt, setDiscountAmt] = useState(String(res.discount_amount || res.discount || ''));
+  const [notes, setNotes] = useState(res.notes || '');
+  const [saving, setSaving] = useState(false);
+  const [chargeFor, setChargeFor] = useState(null); // room_number for per-room Add Charge modal
+
+  const [checkOut, setCheckOut] = useState(res.check_out ? String(res.check_out).slice(0, 10) : '');
+  const [checkInDate, setCheckInDate] = useState(res.check_in ? String(res.check_in).slice(0, 10) : '');
+  const [roomArr, setRoomArr] = useState((res.room_ids || []).length ? res.room_ids : ['']);
+  const roomNos = roomArr.filter(Boolean).join(', ');
+  const gn = guests.find(g => String(g.id) === String((res.guest_ids || [])[0] || ''))?.name || 'Unknown';
+  const nights = nightsCount(checkInDate || res.check_in, checkOut || res.check_out);
+  const origNights = nightsCount(res.check_in, res.check_out);
+  const extNights = Math.max(0, nights - origNights);
+  const ratesSum = roomArr.filter(Boolean).reduce((a, rn) => a + (+rooms.find(r => String(r.room_number) === String(rn))?.price || 0), 0);
+  const roomRate = ratesSum;
+  const extCharge = extNights > 0 ? extNights * ratesSum : 0;
+  const computedTotal = ratesSum * nights;
+  const totalAmt = computedTotal > 0 ? computedTotal : +res.total_amount || 0;
+  const paidNum = +paidAmt || 0;
+  const discountNum = +discountAmt || 0;
+  const balance = Math.max(0, totalAmt - discountNum - paidNum);
+  const selectableRooms = rooms.filter(r => r.status === 'AVAILABLE' || roomArr.includes(r.room_number));
+  async function save() {
+    setSaving(true);
+    try {
+      const newRoomNos = roomArr.filter(Boolean);
+      const oldRoomNos = res.room_ids || [];
+      const removed = oldRoomNos.filter(rn => !newRoomNos.includes(rn));
+      for (const rn of removed) {
+        const room = rooms.find(r => r.room_number === rn);
+        if (room) await dbPatch('rooms', room.id, {
+          status: 'AVAILABLE'
+        });
+      }
+      if (status === 'CHECKED_IN' && res.status !== 'CHECKED_IN') {
+        for (const rn of newRoomNos) {
+          const room = rooms.find(r => r.room_number === rn);
+          if (room) await dbPatch('rooms', room.id, {
+            status: 'OCCUPIED'
+          });
+        }
+      }
+      if (status === 'CHECKED_IN') {
+        const added = newRoomNos.filter(rn => !oldRoomNos.includes(rn));
+        for (const rn of added) {
+          const room = rooms.find(r => r.room_number === rn);
+          if (room) await dbPatch('rooms', room.id, {
+            status: 'OCCUPIED'
+          });
+        }
+      }
+      if (status === 'CHECKED_OUT' && res.status !== 'CHECKED_OUT') {
+        for (const rn of newRoomNos) {
+          const room = rooms.find(r => r.room_number === rn);
+          if (room) await dbPatch('rooms', room.id, {
+            status: 'DIRTY'
+          });
+        }
+      }
+      const updates = {
+        status,
+        paid_amount: paidNum,
+        discount_amount: discountNum,
+        notes,
+        check_in: checkInDate,
+        check_out: checkOut,
+        room_ids: newRoomNos,
+        total_amount: totalAmt
+      };
+      if (checkOut && checkOut !== String(res.check_out || '').slice(0, 10)) {
+        updates.check_out = checkOut;
+        if (nights > 0) updates.total_amount = nights * ratesSum;
+        if (extCharge > 0) {
+          await dbPost('transactions', {
+            room_number: newRoomNos[0] || '?',
+            guest_name: gn,
+            type: `Stay Extension (+${extNights} night${extNights !== 1 ? 's' : ''})`,
+            amount: extCharge,
+            fiscal_day: businessDate || todayStr(),
+            reservation_id: res.id,
+            tenant_id: TENANT
+          });
+        }
+      }
+      await dbPatch('reservations', res.id, updates);
+      toast(extCharge > 0 ? `Reservation updated · Extension ৳${extCharge.toLocaleString()} charged ✓` : 'Reservation updated ✓');
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+      setSaving(false);
+    }
+  }
+  async function checkIn() {
+    setSaving(true);
+    try {
+      for (const rn of res.room_ids || []) {
+        const room = rooms.find(r => r.room_number === rn);
+        if (room) await dbPatch('rooms', room.id, {
+          status: 'OCCUPIED'
+        });
+      }
+      await dbPatch('reservations', res.id, {
+        status: 'CHECKED_IN',
+        check_in: new Date().toISOString()
+      });
+      toast(`${gn} checked in to Rm ${(res.room_ids || []).join(',')} ✓`);
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: `Reservation — ${gn}`,
+    onClose: onClose,
+    wide: true,
+    footer: /*#__PURE__*/React.createElement("div", {
+      className: "flex gap2",
+      style: {
+        flexWrap: 'wrap',
+        width: '100%'
+      }
+    }, (res.status === 'RESERVED' || res.status === 'PENDING') && /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-success",
+      disabled: saving,
+      onClick: checkIn
+    }, "\u2713 Check In Now"), isOwner && /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-danger btn-sm",
+      onClick: async () => {
+        if (!window.confirm(`Delete reservation for ${gn}?\nThis will:\n• Delete related transactions\n• Reset rooms to Available\n\nThis cannot be undone.`)) return;
+        try {
+          for (const rn of res.room_ids || []) {
+            const room = rooms.find(r => String(r.room_number) === String(rn));
+            if (room) await dbPatch('rooms', room.id, {
+              status: 'AVAILABLE'
+            });
+          }
+          const relTx = (transactions || []).filter(t => (res.room_ids || []).some(rn => String(t.room_number) === String(rn)) && (!t.guest_name || t.guest_name === gn));
+          for (const t of relTx) await dbDelete('transactions', t.id);
+          await dbDelete('reservations', res.id);
+          toast(`Reservation deleted · ${relTx.length} transaction(s) removed · Rooms freed ✓`);
+          reload();
+        } catch (e) {
+          toast(e.message, 'error');
+        }
+      }
+    }, "\uD83D\uDDD1 Delete"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Close"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      disabled: saving,
+      onClick: save
+    }, saving ? 'Saving…' : 'Save Changes'))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "g2 mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "Guest"), /*#__PURE__*/React.createElement("div", {
+    className: "info-val"
+  }, gn)), /*#__PURE__*/React.createElement("div", {
+    className: "info-box",
+    style: {
+      gridColumn: 'span 2'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "Rooms (editable \xB7 multi)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 4
+    }
+  }, roomArr.map((rn, idx) => /*#__PURE__*/React.createElement("div", {
+    key: idx,
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginBottom: 4,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    style: {
+      flex: 1,
+      fontSize: 12,
+      padding: '4px 8px'
+    },
+    value: rn,
+    onChange: e => {
+      const a = [...roomArr];
+      a[idx] = e.target.value;
+      setRoomArr(a);
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "\u2014 select room \u2014"), selectableRooms.filter(r => r.room_number === rn || !roomArr.includes(r.room_number)).map(r => /*#__PURE__*/React.createElement("option", {
+    key: r.id,
+    value: r.room_number
+  }, r.room_number, " \u2014 ", r.category, " \u2014 ", BDT(r.price), "/n"))), rn && res.id && (status === 'CHECKED_IN' || status === 'CHECKED_OUT' || res.status === 'CHECKED_IN' || res.status === 'CHECKED_OUT') && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    title: `Add charge to Room ${rn}`,
+    style: {
+      background: 'rgba(88,166,255,.08)',
+      border: '1px solid rgba(88,166,255,.35)',
+      color: 'var(--info,#58a6ff)',
+      cursor: 'pointer',
+      padding: '3px 8px',
+      fontSize: 10,
+      letterSpacing: '.04em',
+      whiteSpace: 'nowrap'
+    },
+    onClick: () => setChargeFor(rn)
+  }, "+ Charge"), roomArr.length > 1 && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    style: {
+      background: 'none',
+      border: '1px solid rgba(248,113,113,.3)',
+      color: 'var(--rose)',
+      cursor: 'pointer',
+      padding: '3px 7px',
+      fontSize: 11
+    },
+    onClick: () => setRoomArr(roomArr.filter((_, i) => i !== idx))
+  }, "\u2715"))), selectableRooms.filter(r => !roomArr.includes(r.room_number)).length > 0 && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    style: {
+      background: 'none',
+      border: '1px dashed rgba(200,169,110,.35)',
+      color: 'var(--gold)',
+      cursor: 'pointer',
+      padding: '4px 8px',
+      fontSize: 10,
+      letterSpacing: '.08em',
+      width: '100%',
+      marginTop: 2
+    },
+    onClick: () => setRoomArr([...roomArr, ''])
+  }, "+ Add Room"))), /*#__PURE__*/React.createElement("div", {
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "Check-In"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    className: "finput",
+    style: {
+      marginTop: 4,
+      fontSize: 12,
+      padding: '4px 8px'
+    },
+    value: checkInDate,
+    onChange: e => setCheckInDate(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "Check-Out"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    className: "finput",
+    style: {
+      marginTop: 4,
+      fontSize: 12,
+      padding: '4px 8px'
+    },
+    value: checkOut,
+    onChange: e => setCheckOut(e.target.value),
+    min: checkInDate
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "Nights"), /*#__PURE__*/React.createElement("div", {
+    className: "info-val"
+  }, nights || '—')), /*#__PURE__*/React.createElement("div", {
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "Total Amount"), /*#__PURE__*/React.createElement("div", {
+    className: "info-val"
+  }, BDT(totalAmt))), /*#__PURE__*/React.createElement("div", {
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "Payment Method"), /*#__PURE__*/React.createElement("div", {
+    className: "info-val"
+  }, res.payment_method || '—')), /*#__PURE__*/React.createElement("div", {
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "On-Duty Officer"), /*#__PURE__*/React.createElement("div", {
+    className: "info-val"
+  }, res.on_duty_officer || '—'))), res.special_requests && /*#__PURE__*/React.createElement("div", {
+    className: "info-box mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "Special Requests"), /*#__PURE__*/React.createElement("div", {
+    className: "info-val",
+    style: {
+      marginTop: 4
+    }
+  }, res.special_requests)), res.status === 'CHECKED_IN' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(200,169,110,.06)',
+      border: '1px solid rgba(200,169,110,.2)',
+      padding: '10px 14px',
+      marginBottom: 12,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: 'var(--gold)',
+      letterSpacing: '.1em',
+      textTransform: 'uppercase',
+      whiteSpace: 'nowrap'
+    }
+  }, "\u2726 Stay Extension"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: 'var(--tx3)'
+    }
+  }, "New Check-Out:"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    className: "finput",
+    value: checkOut,
+    onChange: e => setCheckOut(e.target.value),
+    min: String(res.check_in || '').slice(0, 10),
+    style: {
+      width: 150,
+      padding: '4px 8px',
+      fontSize: 12
+    }
+  })), extNights > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: 'var(--gold)',
+      fontWeight: 600
+    }
+  }, "+", extNights, " night", extNights !== 1 ? 's' : '', " \xB7 +", BDT(extCharge)), checkOut && checkOut !== String(res.check_out || '').slice(0, 10) && extNights === 0 && nights < origNights && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: 'var(--rose)'
+    }
+  }, "\u26A0 Shortening stay \u2014 no auto-charge")), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Status"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: status,
+    onChange: e => setStatus(e.target.value)
+  }, ['PENDING', 'RESERVED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'].map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s.replace('_', ' '))))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Amount Paid (BDT)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: paidAmt,
+    onChange: e => setPaidAmt(e.target.value),
+    min: "0"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "xs mt3",
+    style: {
+      color: balance > 0 ? 'var(--rose)' : 'var(--grn)'
+    }
+  }, "Balance due: ", BDT(balance)))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Discount Amount (BDT)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: discountAmt,
+    onChange: e => setDiscountAmt(e.target.value),
+    min: "0",
+    placeholder: "0"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Notes"), /*#__PURE__*/React.createElement("textarea", {
+    className: "ftextarea",
+    value: notes,
+    onChange: e => setNotes(e.target.value),
+    style: {
+      minHeight: 50
+    },
+    placeholder: "Internal notes\u2026"
+  })), chargeFor && /*#__PURE__*/React.createElement(AddChargeModal, {
+    roomNo: chargeFor,
+    resId: res.id,
+    toast: toast,
+    onClose: () => setChargeFor(null),
+    onDone: () => {
+      setChargeFor(null);
+      reload();
+    }
+  }));
+}
+function GuestSearchInput({
+  guests,
+  value,
+  onChange
+}) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+  const inputRef = useRef(null);
+  const dropRef = useRef(null);
+  const selectedGuest = guests.find(g => g.id === value);
+  const filtered = query.trim() ? guests.filter(g => g.name?.toLowerCase().includes(query.toLowerCase()) || g.phone?.includes(query)).slice(0, 40) : guests.slice(0, 40);
+  function pick(g) {
+    onChange(g.id);
+    setQuery('');
+    setOpen(false);
+  }
+  function handleKey(e) {
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') setOpen(true);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlighted(h => Math.min(h + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlighted(h => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filtered[highlighted]) pick(filtered[highlighted]);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+      setQuery('');
+    }
+  }
+  useEffect(() => {
+    if (!open) return;
+    const h = e => {
+      if (dropRef.current && !dropRef.current.contains(e.target) && inputRef.current && !inputRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    ref: inputRef,
+    className: "finput",
+    value: open ? query : selectedGuest ? selectedGuest.name : '',
+    onChange: e => {
+      setQuery(e.target.value);
+      setOpen(true);
+      setHighlighted(0);
+    },
+    onFocus: () => {
+      setOpen(true);
+      setQuery('');
+      setHighlighted(0);
+    },
+    onKeyDown: handleKey,
+    placeholder: "Type to search guest\u2026",
+    autoComplete: "off",
+    style: {
+      paddingRight: 28
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      right: 9,
+      top: '50%',
+      transform: 'translateY(-50%)',
+      fontSize: 9,
+      color: 'var(--tx3)',
+      pointerEvents: 'none'
+    }
+  }, "\u25BC")), open && /*#__PURE__*/React.createElement("div", {
+    ref: dropRef,
+    style: {
+      position: 'absolute',
+      top: 'calc(100% + 3px)',
+      left: 0,
+      right: 0,
+      background: 'var(--s1)',
+      border: '1px solid var(--br)',
+      zIndex: 600,
+      maxHeight: 220,
+      overflowY: 'auto',
+      boxShadow: '0 12px 40px rgba(0,0,0,.7)'
+    }
+  }, filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px',
+      fontSize: 11,
+      color: 'var(--tx3)'
+    }
+  }, "No guests found") : filtered.map((g, i) => /*#__PURE__*/React.createElement("div", {
+    key: g.id,
+    onMouseDown: () => pick(g),
+    onMouseEnter: () => setHighlighted(i),
+    style: {
+      padding: '9px 12px',
+      cursor: 'pointer',
+      fontSize: 12,
+      fontWeight: 300,
+      color: 'var(--tx)',
+      background: i === highlighted ? 'rgba(200,169,110,.1)' : 'transparent',
+      borderBottom: '1px solid var(--br2)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, g.name), g.phone && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, g.phone)))));
+}
+function NewReservationModal({
+  guests,
+  rooms,
+  toast,
+  onClose,
+  reload,
+  businessDate
+}) {
+  const availRooms = rooms.filter(r => r.status === 'AVAILABLE');
+  const [f, setF] = useState({
+    guestId: '',
+    roomNos: [availRooms[0]?.room_number || ''],
+    checkIn: todayStr(),
+    checkOut: '',
+    total: '',
+    paid: '',
+    discount: '',
+    method: 'Cash',
+    notes: '',
+    officer: '',
+    stayType: 'CHECK_IN'
+  });
+  const F = k => e => setF(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const [saving, setSaving] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState(availRooms);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+
+  // Date-based availability: re-query when dates change (Future Reservation mode only)
+  useEffect(() => {
+    if (f.stayType === 'CHECK_IN') {
+      setAvailableRooms(availRooms);
+      return;
+    }
+    if (!f.checkIn || !f.checkOut || f.checkIn >= f.checkOut) {
+      setAvailableRooms(rooms.filter(r => r.status !== 'OUT_OF_ORDER' && r.status !== 'DIRTY'));
+      return;
+    }
+    setLoadingRooms(true);
+    db('reservations', `?select=room_ids&status=in.(RESERVED,CHECKED_IN,CONFIRMED)&check_in=lt.${f.checkOut}&check_out=gt.${f.checkIn}`).then(conflicts => {
+      const blocked = new Set((conflicts || []).flatMap(r => r.room_ids || []).map(String));
+      setAvailableRooms(rooms.filter(r => !blocked.has(String(r.room_number)) && r.status !== 'OUT_OF_ORDER' && r.status !== 'DIRTY'));
+    }).catch(() => setAvailableRooms(rooms.filter(r => r.status !== 'OUT_OF_ORDER' && r.status !== 'DIRTY'))).finally(() => setLoadingRooms(false));
+  }, [f.checkIn, f.checkOut, f.stayType]);
+  const autoNights = f.checkIn && f.checkOut ? nightsCount(f.checkIn, f.checkOut) : 0;
+  const autoTotal = f.roomNos.filter(Boolean).reduce((sum, rn) => {
+    const rm = rooms.find(r => r.room_number === rn);
+    return sum + (rm && autoNights ? +rm.price * autoNights : 0);
+  }, 0);
+  useEffect(() => {
+    if (autoTotal > 0) setF(p => ({
+      ...p,
+      total: String(autoTotal)
+    }));
+  }, [JSON.stringify(f.roomNos), f.checkIn, f.checkOut]);
+  async function save() {
+    if (!f.guestId) return toast('Select a guest', 'error');
+    if (!f.roomNos.filter(Boolean).length) return toast('Select at least one room', 'error');
+    if (!f.checkIn || !f.checkOut) return toast('Set check-in and check-out dates', 'error');
+    if (autoNights <= 0) return toast('Check-out must be after check-in', 'error');
+    setSaving(true);
+    try {
+      const isCheckIn = f.stayType === 'CHECK_IN';
+      const totalAmt = +f.total || autoTotal;
+      const selectedRooms = f.roomNos.filter(Boolean);
+      const [newRes] = await dbPost('reservations', {
+        guest_ids: [f.guestId],
+        room_ids: selectedRooms,
+        check_in: f.checkIn,
+        check_out: f.checkOut,
+        status: isCheckIn ? 'CHECKED_IN' : 'RESERVED',
+        total_amount: totalAmt,
+        paid_amount: +f.paid || 0,
+        discount_amount: +f.discount || 0,
+        payment_method: f.method,
+        special_requests: f.notes || null,
+        on_duty_officer: f.officer || null,
+        stay_type: f.stayType,
+        tenant_id: TENANT
+      });
+      if (isCheckIn) {
+        for (const rn of selectedRooms) {
+          const room = rooms.find(r => r.room_number === rn);
+          if (room) await dbPatch('rooms', room.id, {
+            status: 'OCCUPIED'
+          });
+        }
+      }
+      if ((+f.paid || 0) > 0) {
+        await dbPost('transactions', {
+          room_number: selectedRooms[0],
+          guest_name: guests.find(g => g.id === f.guestId)?.name || '',
+          type: `Room Payment (${f.method})`,
+          amount: +f.paid,
+          fiscal_day: businessDate || todayStr(),
+          reservation_id: newRes?.id || null,
+          tenant_id: TENANT
+        });
+      }
+      toast(isCheckIn ? `Check-in complete — Rm ${selectedRooms.join(',')} ✓` : 'Reservation created ✓');
+      await reload();
+      onClose();
+    } catch (e) {
+      toast(e.message || 'Save failed', 'error');
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "New Reservation / Check-In",
+    onClose: onClose,
+    wide: true,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      disabled: saving,
+      onClick: save
+    }, saving ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+      className: "spinner",
+      style: {
+        width: 12,
+        height: 12
+      }
+    }), " Saving\u2026") : f.stayType === 'CHECK_IN' ? '✓ Check In Now' : 'Create Reservation'))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tabs",
+    style: {
+      marginBottom: 14
+    }
+  }, [['CHECK_IN', '✓ Direct Check-In'], ['RESERVATION', '📅 Future Reservation']].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+    key: v,
+    className: `tab${f.stayType === v ? ' on' : ''}`,
+    onClick: () => setF(p => ({
+      ...p,
+      stayType: v
+    }))
+  }, l))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Guest * \u2014 type name or phone to search"), /*#__PURE__*/React.createElement(GuestSearchInput, {
+    guests: guests,
+    value: f.guestId,
+    onChange: id => setF(p => ({
+      ...p,
+      guestId: id
+    }))
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Room(s) * ", loadingRooms ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--gold)',
+      fontSize: 10
+    }
+  }, " Checking availability\u2026") : availableRooms.length === 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--rose)'
+    }
+  }, "\u2014 no available rooms")), f.roomNos.map((rn, idx) => /*#__PURE__*/React.createElement("div", {
+    key: idx,
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginBottom: 5,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    style: {
+      flex: 1
+    },
+    value: rn,
+    onChange: e => {
+      const a = [...f.roomNos];
+      a[idx] = e.target.value;
+      setF(p => ({
+        ...p,
+        roomNos: a
+      }));
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "\u2014 select room \u2014"), availableRooms.filter(r => r.room_number === rn || !f.roomNos.includes(r.room_number)).map(r => /*#__PURE__*/React.createElement("option", {
+    key: r.id,
+    value: r.room_number
+  }, r.room_number, " \u2014 ", r.category, " \u2014 ", BDT(r.price), "/n"))), f.roomNos.length > 1 && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    style: {
+      background: 'none',
+      border: '1px solid rgba(248,113,113,.3)',
+      color: 'var(--rose)',
+      cursor: 'pointer',
+      padding: '4px 8px',
+      fontSize: 12
+    },
+    onClick: () => setF(p => ({
+      ...p,
+      roomNos: p.roomNos.filter((_, i) => i !== idx)
+    }))
+  }, "\u2715"))), availableRooms.filter(r => !f.roomNos.includes(r.room_number)).length > 0 && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    style: {
+      background: 'none',
+      border: '1px dashed rgba(200,169,110,.35)',
+      color: 'var(--gold)',
+      cursor: 'pointer',
+      padding: '5px 10px',
+      fontSize: 10,
+      letterSpacing: '.08em',
+      width: '100%',
+      marginTop: 2
+    },
+    onClick: () => setF(p => ({
+      ...p,
+      roomNos: [...p.roomNos, '']
+    }))
+  }, "+ Add Room"))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Check-In Date *"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    className: "finput",
+    value: f.checkIn,
+    onChange: F('checkIn')
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Check-Out Date *"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    className: "finput",
+    value: f.checkOut,
+    onChange: F('checkOut')
+  }))), autoNights > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(200,169,110,.07)',
+      border: '1px solid rgba(200,169,110,.18)',
+      padding: '9px 12px',
+      marginBottom: 10,
+      fontSize: 12,
+      color: 'var(--tx)'
+    }
+  }, autoNights, " night", autoNights !== 1 ? 's' : '', " \xD7 ", f.roomNos.filter(Boolean).length, " room", f.roomNos.filter(Boolean).length !== 1 ? 's' : '', " = ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: 'var(--gold)'
+    }
+  }, BDT(autoTotal))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Total Amount (BDT)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: f.total,
+    onChange: F('total'),
+    placeholder: String(autoTotal || 0)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Paid Amount (BDT)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: f.paid,
+    onChange: F('paid'),
+    placeholder: "0"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Discount Amount (BDT)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: f.discount,
+    onChange: F('discount'),
+    placeholder: "0",
+    min: "0"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Payment Method"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.method,
+    onChange: F('method')
+  }, ['Cash', 'Bkash', 'Nagad', 'Card', 'Bank Transfer', 'Corporate', 'Complimentary'].map(m => /*#__PURE__*/React.createElement("option", {
+    key: m
+  }, m)))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "On-Duty Officer"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.officer,
+    onChange: F('officer'),
+    placeholder: "Staff name"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Special Requests / Notes"), /*#__PURE__*/React.createElement("textarea", {
+    className: "ftextarea",
+    value: f.notes,
+    onChange: F('notes'),
+    style: {
+      minHeight: 50
+    },
+    placeholder: "Optional"
+  })));
+}
+
+/* ═══════════════════════ GUESTS ═════════════════════════════ */
+function GuestsPage({
+  guests,
+  reservations,
+  toast,
+  currentUser,
+  reload
+}) {
+  const PAGE_SIZE = 50;
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [sel, setSel] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const balByGuest = useMemo(() => {
+    const byId = {},
+      byName = {};
+    const _due = r => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
+    (reservations || []).forEach(r => {
+      const due = _due(r);
+      if (due <= 0) return;
+      (r.guest_ids || []).forEach(gid => {
+        const k = String(gid);
+        byId[k] = (byId[k] || 0) + due;
+      });
+      const nm = String(r.guest_name || '').trim().toLowerCase();
+      if (nm) byName[nm] = (byName[nm] || 0) + due;
+    });
+    return {
+      byId,
+      byName
+    };
+  }, [reservations]);
+  const guestBal = g => {
+    const idHit = balByGuest.byId[String(g.id)];
+    if (idHit != null) return idHit;
+    return balByGuest.byName[String(g.name || '').trim().toLowerCase()] || 0;
+  };
+  let filtered = guests;
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(g => g.name?.toLowerCase().includes(q) || g.phone?.includes(q) || g.email?.toLowerCase().includes(q));
+  }
+  useEffect(() => setPage(1), [search]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageList = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac fjb mb4",
+    style: {
+      flexWrap: 'wrap',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "srch"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "xs muted"
+  }, "\u2315"), /*#__PURE__*/React.createElement("input", {
+    placeholder: "Search name, phone, email\u2026",
+    value: search,
+    onChange: e => setSearch(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap2",
+    style: {
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "badge bgold"
+  }, filtered.length, " ", search ? 'found' : 'of ' + guests.length + ' guests'), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: () => setShowAdd(true)
+  }, "+ Add Guest"))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tbl-wrap"
+  }, /*#__PURE__*/React.createElement("table", {
+    className: "tbl"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Name"), /*#__PURE__*/React.createElement("th", null, "Phone"), /*#__PURE__*/React.createElement("th", null, "Email"), /*#__PURE__*/React.createElement("th", null, "ID"), /*#__PURE__*/React.createElement("th", null, "City"), /*#__PURE__*/React.createElement("th", null, "Balance"), /*#__PURE__*/React.createElement("th", null, "VIP"), /*#__PURE__*/React.createElement("th", null))), /*#__PURE__*/React.createElement("tbody", null, pageList.map(g => /*#__PURE__*/React.createElement("tr", {
+    key: g.id
+  }, /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap2"
+  }, /*#__PURE__*/React.createElement(Av, {
+    name: g.name,
+    size: 24
+  }), /*#__PURE__*/React.createElement("span", null, g.name))), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, g.phone || '—'), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, g.email || '—'), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, g.id_type ? `${g.id_type}: ${g.id_number || ''}` : g.id_card || '—'), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, g.city || '—'), /*#__PURE__*/React.createElement("td", {
+    className: "xs",
+    style: {
+      color: guestBal(g) > 0 ? 'var(--rose)' : 'var(--grn)'
+    }
+  }, BDT(guestBal(g))), /*#__PURE__*/React.createElement("td", null, g.vip ? /*#__PURE__*/React.createElement("span", {
+    className: "badge bgold"
+  }, "VIP") : null), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: () => setSel(g)
+  }, "View")))))))), totalPages > 1 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '12px 4px',
+      flexWrap: 'wrap',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, "Showing ", (page - 1) * PAGE_SIZE + 1, "\u2013", Math.min(page * PAGE_SIZE, filtered.length), " of ", filtered.length, " guests"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    disabled: page === 1,
+    onClick: () => setPage(1),
+    style: {
+      padding: '4px 8px',
+      opacity: page === 1 ? .35 : 1
+    }
+  }, "\xAB"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    disabled: page === 1,
+    onClick: () => setPage(p => p - 1),
+    style: {
+      padding: '4px 10px',
+      opacity: page === 1 ? .35 : 1
+    }
+  }, "\u2039 Prev"), Array.from({
+    length: totalPages
+  }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2).reduce((acc, p, i, arr) => {
+    if (i > 0 && arr[i - 1] !== p - 1) acc.push('...');
+    acc.push(p);
+    return acc;
+  }, []).map((p, i) => p === '...' ? /*#__PURE__*/React.createElement("span", {
+    key: 'e' + i,
+    className: "xs muted",
+    style: {
+      padding: '0 4px'
+    }
+  }, "\u2026") : /*#__PURE__*/React.createElement("button", {
+    key: p,
+    className: `btn btn-sm${p === page ? ' btn-gold' : ' btn-ghost'}`,
+    style: {
+      padding: '4px 9px',
+      minWidth: 30
+    },
+    onClick: () => setPage(p)
+  }, p)), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    disabled: page === totalPages,
+    onClick: () => setPage(p => p + 1),
+    style: {
+      padding: '4px 10px',
+      opacity: page === totalPages ? .35 : 1
+    }
+  }, "Next \u203A"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    disabled: page === totalPages,
+    onClick: () => setPage(totalPages),
+    style: {
+      padding: '4px 8px',
+      opacity: page === totalPages ? .35 : 1
+    }
+  }, "\xBB"))), sel && /*#__PURE__*/React.createElement(GuestModal, {
+    guest: sel,
+    reservations: reservations,
+    toast: toast,
+    onClose: () => setSel(null),
+    reload: reload,
+    isSA: currentUser?.role === 'owner'
+  }), showAdd && /*#__PURE__*/React.createElement(AddGuestModal, {
+    toast: toast,
+    onClose: () => setShowAdd(false),
+    reload: reload
+  }));
+}
+function GuestModal({
+  guest,
+  reservations,
+  toast,
+  onClose,
+  reload,
+  isSA
+}) {
+  const gnameKey = String(guest.name || '').trim().toLowerCase();
+  const gAll = reservations.filter(r => {
+    const ids = (r.guest_ids || []).map(String);
+    if (ids.includes(String(guest.id))) return true;
+    if (r.guest_name && String(r.guest_name).trim().toLowerCase() === gnameKey) return true;
+    return false;
+  });
+  const aggBalance = gAll.reduce((a, r) => a + Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0)), 0);
+  const gRes = gAll.slice().sort((a, b) => String(b.check_in || '').localeCompare(String(a.check_in || ''))).slice(0, 10);
+  const [showEdit, setShowEdit] = useState(false);
+  async function toggleVIP() {
+    try {
+      await dbPatch('guests', guest.id, {
+        vip: !guest.vip
+      });
+      toast(guest.vip ? 'VIP status removed' : 'Marked as VIP ★');
+      reload();
+      onClose();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+  async function doDelete() {
+    try {
+      await dbDelete('guests', guest.id);
+      toast('Guest deleted');
+      reload();
+      onClose();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Modal, {
+    title: guest.name,
+    onClose: onClose,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Close"), isSA && /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-danger btn-sm",
+      onClick: () => {
+        if (window.confirm('Delete this guest?')) doDelete();
+      }
+    }, "\uD83D\uDDD1 Delete"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: () => setShowEdit(true)
+    }, "\u270F Edit"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      onClick: toggleVIP
+    }, guest.vip ? 'Remove VIP' : '★ Mark VIP'))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap3 mb4"
+  }, /*#__PURE__*/React.createElement(Av, {
+    name: guest.name,
+    size: 44
+  }), /*#__PURE__*/React.createElement("div", null, guest.vip && /*#__PURE__*/React.createElement("span", {
+    className: "badge bgold",
+    style: {
+      marginBottom: 4,
+      display: 'inline-flex'
+    }
+  }, "VIP"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      fontSize: 18
+    }
+  }, guest.name), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, [guest.nationality, guest.city, guest.country].filter(Boolean).join(' · ')))), /*#__PURE__*/React.createElement("div", {
+    className: "g2 mb4"
+  }, [['Phone', guest.phone || '—'], ['Email', guest.email || '—'], ['ID Type', guest.id_type || '—'], ['ID Number', guest.id_number || guest.id_card || '—'], ['Balance', BDT(aggBalance)], ['Address', guest.address || '—']].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, l), /*#__PURE__*/React.createElement("div", {
+    className: "info-val"
+  }, v)))), gRes.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "flbl",
+    style: {
+      marginBottom: 6
+    }
+  }, "Stay History"), gRes.map(r => /*#__PURE__*/React.createElement("div", {
+    key: r.id,
+    className: "flex fac fjb",
+    style: {
+      padding: '6px 0',
+      borderBottom: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "xs"
+  }, "Rm ", (r.room_ids || []).join(','), " \xB7 ", fmtDate(r.check_in), " \u2192 ", fmtDate(r.check_out)), /*#__PURE__*/React.createElement(SBadge, {
+    status: r.status
+  })))), guest.preferences && /*#__PURE__*/React.createElement("div", {
+    className: "info-box mt3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, "Preferences"), /*#__PURE__*/React.createElement("div", {
+    className: "info-val",
+    style: {
+      marginTop: 4
+    }
+  }, guest.preferences))), showEdit && /*#__PURE__*/React.createElement(EditGuestModal, {
+    guest: guest,
+    toast: toast,
+    onClose: () => setShowEdit(false),
+    reload: () => {
+      reload();
+      setShowEdit(false);
+      onClose();
+    }
+  }));
+}
+function EditGuestModal({
+  guest,
+  toast,
+  onClose,
+  reload
+}) {
+  const [f, setF] = useState({
+    name: guest.name || '',
+    phone: guest.phone || '',
+    email: guest.email || '',
+    id_type: guest.id_type || 'NID',
+    id_number: guest.id_number || guest.id_card || '',
+    nationality: guest.nationality || '',
+    city: guest.city || '',
+    address: guest.address || ''
+  });
+  const F = k => e => setF(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    if (!f.name.trim()) return toast('Name required', 'error');
+    setSaving(true);
+    try {
+      const gp = {
+        ...f
+      };
+      gp.email = gp.email?.trim() || null;
+      gp.phone = gp.phone?.trim() || null;
+      await dbPatch('guests', guest.id, gp);
+      toast('Guest updated ✓');
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: `Edit — ${guest.name}`,
+    onClose: onClose,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      disabled: saving,
+      onClick: save
+    }, saving ? 'Saving…' : 'Save Changes'))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Full Name *"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.name,
+    onChange: F('name'),
+    autoFocus: true
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Phone"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.phone,
+    onChange: F('phone'),
+    placeholder: "+880\u2026"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Email"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    className: "finput",
+    value: f.email,
+    onChange: F('email')
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "ID Type"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.id_type,
+    onChange: F('id_type')
+  }, ['NID', 'Passport', 'Driving License', 'Birth Certificate', 'Other'].map(t => /*#__PURE__*/React.createElement("option", {
+    key: t
+  }, t)))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "ID Number"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.id_number,
+    onChange: F('id_number')
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Nationality"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.nationality,
+    onChange: F('nationality')
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "City"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.city,
+    onChange: F('city')
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Address"), /*#__PURE__*/React.createElement("textarea", {
+    className: "ftextarea",
+    value: f.address,
+    onChange: F('address'),
+    style: {
+      minHeight: 44
+    }
+  })));
+}
+function AddGuestModal({
+  toast,
+  onClose,
+  reload
+}) {
+  const [f, setF] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    id_type: 'NID',
+    id_number: '',
+    nationality: '',
+    city: '',
+    address: ''
+  });
+  const F = k => e => setF(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    if (!f.name.trim()) return toast('Name required', 'error');
+    if (!f.phone.trim()) return toast('Contact Number required', 'error');
+    setSaving(true);
+    try {
+      const gp = {
+        ...f,
+        tenant_id: TENANT
+      };
+      gp.email = gp.email?.trim() || null;
+      gp.phone = gp.phone?.trim() || null;
+      await dbPost('guests', gp);
+      toast(`Guest "${f.name}" added`);
+      reload();
+      onClose();
+    } catch (e) {
+      toast(e.message, 'error');
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "Add New Guest",
+    onClose: onClose,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      disabled: saving,
+      onClick: save
+    }, "Add Guest"))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Full Name ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--rose)'
+    }
+  }, "*")), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.name,
+    onChange: F('name'),
+    placeholder: "Guest full name",
+    autoFocus: true
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Contact Number ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--rose)'
+    }
+  }, "*")), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.phone,
+    onChange: F('phone'),
+    placeholder: "+880\u2026"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Email"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    className: "finput",
+    value: f.email,
+    onChange: F('email'),
+    placeholder: "guest@email.com"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "ID Type"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.id_type,
+    onChange: F('id_type')
+  }, ['NID', 'Passport', 'Driving License', 'Birth Certificate', 'Other'].map(t => /*#__PURE__*/React.createElement("option", {
+    key: t
+  }, t)))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "ID Number"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.id_number,
+    onChange: F('id_number'),
+    placeholder: "ID number"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Nationality"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.nationality,
+    onChange: F('nationality'),
+    placeholder: "e.g. Bangladeshi"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "City"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.city,
+    onChange: F('city'),
+    placeholder: "Dhaka"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Address"), /*#__PURE__*/React.createElement("textarea", {
+    className: "ftextarea",
+    value: f.address,
+    onChange: F('address'),
+    placeholder: "Full address",
+    style: {
+      minHeight: 44
+    }
+  })));
+}
+
+/* ═══════════════════════ HOUSEKEEPING ═══════════════════════ */
+function HousekeepingPage({
+  tasks,
+  rooms,
+  toast,
+  currentUser,
+  reload
+}) {
+  const isSA = currentUser?.role === 'owner';
+  const [filter, setFilter] = useState('ALL');
+  const [showAdd, setShowAdd] = useState(false);
+  const dirty = rooms.filter(r => r.status === 'DIRTY');
+  let list = tasks;
+  if (filter === 'DIRTY') {
+    list = dirty.map(r => ({
+      id: 'r_' + r.id,
+      room_number: r.room_number,
+      task_type: 'Standard Clean',
+      priority: 'high',
+      status: 'pending',
+      assignee: '—',
+      _dirty: true
+    }));
+  } else if (filter !== 'ALL') {
+    list = tasks.filter(t => t.status === filter);
+  }
+  async function updateStatus(id, s) {
+    try {
+      await dbPatch('housekeeping_tasks', id, {
+        status: s,
+        completed_at: s === 'completed' ? new Date().toISOString() : null
+      });
+      toast(`Task → ${s}`);
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac fjb mb4",
+    style: {
+      flexWrap: 'wrap',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tabs",
+    style: {
+      marginBottom: 0
+    }
+  }, [['ALL', 'All Tasks'], ['pending', 'Pending'], ['in-progress', 'In Progress'], ['completed', 'Completed'], ['DIRTY', `Dirty Rooms (${dirty.length})`]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+    key: v,
+    className: `tab${filter === v ? ' on' : ''}`,
+    onClick: () => setFilter(v)
+  }, l))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: () => setShowAdd(true)
+  }, "+ Add Task")), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tbl-wrap"
+  }, /*#__PURE__*/React.createElement("table", {
+    className: "tbl"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Room"), /*#__PURE__*/React.createElement("th", null, "Task"), /*#__PURE__*/React.createElement("th", null, "Priority"), /*#__PURE__*/React.createElement("th", null, "Assignee"), /*#__PURE__*/React.createElement("th", null, "Time"), /*#__PURE__*/React.createElement("th", null, "Notes"), /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null, "Update"))), /*#__PURE__*/React.createElement("tbody", null, list.slice(0, 60).map(t => /*#__PURE__*/React.createElement("tr", {
+    key: t.id
+  }, /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 800,
+      fontSize: 18,
+      color: 'var(--gold)'
+    }
+  }, t.room_number)), /*#__PURE__*/React.createElement("td", {
+    className: "sm"
+  }, t.task_type), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `pdot ${t.priority || 'medium'}`
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "xs"
+  }, t.priority || 'medium'))), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, t.assignee || '—'), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, t.scheduled_time || '—'), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted",
+    style: {
+      maxWidth: 120,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, t.notes || '—'), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement(SBadge, {
+    status: t.status || 'pending'
+  })), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+    className: "flex gap2"
+  }, !t._dirty && /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    style: {
+      padding: '3px 22px 3px 7px',
+      fontSize: 10,
+      minWidth: 110
+    },
+    value: t.status || 'pending',
+    onChange: e => updateStatus(t.id, e.target.value)
+  }, ['pending', 'in-progress', 'completed'].map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s))), isSA && !t._dirty && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-danger btn-sm",
+    style: {
+      padding: '3px 8px',
+      fontSize: 10
+    },
+    onClick: async () => {
+      if (!window.confirm('Delete task?')) return;
+      try {
+        await dbDelete('housekeeping_tasks', t.id);
+        toast('Task deleted');
+        reload();
+      } catch (e) {
+        toast(e.message, 'error');
+      }
+    }
+  }, "\u2715"))))))))), showAdd && /*#__PURE__*/React.createElement(AddTaskModal, {
+    rooms: rooms,
+    toast: toast,
+    onClose: () => setShowAdd(false),
+    reload: reload
+  }));
+}
+function AddTaskModal({
+  rooms,
+  toast,
+  onClose,
+  reload
+}) {
+  const [f, setF] = useState({
+    room_number: rooms[0]?.room_number || '',
+    task_type: 'Standard Clean',
+    priority: 'medium',
+    assignee: '',
+    scheduled_time: '',
+    notes: ''
+  });
+  const F = k => e => setF(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    if (!f.room_number) return toast('Room required', 'error');
+    setSaving(true);
+    try {
+      await dbPost('housekeeping_tasks', {
+        ...f,
+        status: 'pending',
+        department: 'Housekeeping',
+        tenant_id: TENANT
+      });
+      toast('Task added');
+      reload();
+      onClose();
+    } catch (e) {
+      toast(e.message, 'error');
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "Add Housekeeping Task",
+    onClose: onClose,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      disabled: saving,
+      onClick: save
+    }, "Add Task"))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Room *"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.room_number,
+    onChange: F('room_number')
+  }, rooms.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r.id,
+    value: r.room_number
+  }, r.room_number, " \u2014 ", r.status.replace('_', ' '))))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Task Type"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.task_type,
+    onChange: F('task_type')
+  }, ['Standard Clean', 'Deep Clean', 'Turndown', 'VIP Turndown', 'Inspection', 'Extra Towels', 'Maintenance', 'AC Repair', 'Plumbing'].map(t => /*#__PURE__*/React.createElement("option", {
+    key: t
+  }, t))))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Priority"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.priority,
+    onChange: F('priority')
+  }, ['low', 'medium', 'high'].map(p => /*#__PURE__*/React.createElement("option", {
+    key: p,
+    value: p
+  }, p)))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Scheduled Time"), /*#__PURE__*/React.createElement("input", {
+    type: "time",
+    className: "finput",
+    value: f.scheduled_time,
+    onChange: F('scheduled_time')
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Assignee"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.assignee,
+    onChange: F('assignee'),
+    placeholder: "Staff member name"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Notes"), /*#__PURE__*/React.createElement("textarea", {
+    className: "ftextarea",
+    value: f.notes,
+    onChange: F('notes'),
+    placeholder: "Optional details",
+    style: {
+      minHeight: 44
+    }
+  })));
+}
+
+/* ═══════════════════════ BILLING ════════════════════════════ */
+function printPDF(htmlContent, filename) {
+  const w = window.open('', '_blank', 'width=1100,height=700');
+  if (!w) {
+    alert('Please allow popups to print PDF');
+    return Promise.resolve();
+  }
+  w.document.write(htmlContent);
+  w.document.close();
+  return new Promise(resolve => {
+    w.onload = () => {
+      setTimeout(() => {
+        w.focus();
+        w.print();
+        resolve();
+      }, 600);
+    };
+  });
+}
+function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal, outstanding, calDate, tokenAmount, duesList) {
+  let filterLabel = filter === 'TODAY' ? 'Today' : filter === 'MONTH' ? 'This Month' : 'All Time';
+  if (filter === 'DATE' && calDate) {
+    const [y, m, d] = calDate.split('-');
+    const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    filterLabel = `${+d}-${mo[+m - 1]}-${y}`;
+  }
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[c]);
+  const now = new Date().toLocaleString('en-BD', {
+    timeZone: 'Asia/Dhaka',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  const fmt = n => `৳${Number(n || 0).toLocaleString()}`;
+  const short = d => d ? String(d).slice(0, 10) : '—';
+  const rows = (enriched || []).map(r => `<tr>
+    <td>${esc(r.guest_name || '—')}</td>
+    <td>${esc(r.room_number || '—')}</td>
+    <td class="mono">${short(r.check_in)}<br/><span class="muted">→ ${short(r.check_out)}</span></td>
+    <td class="num">${fmt(r.bill_total)}</td>
+    <td class="num">${fmt(r.paid)}</td>
+    <td class="num due">${fmt(r.balance_due)}</td>
+    <td><span class="pm pm-${String(r.payment_method || '').toLowerCase().replace(/[^a-z]/g, '')}">${esc(r.payment_method || '—')}</span></td>
+    <td class="num pos">${fmt(r.collected_amount)}</td>
+  </tr>`).join('');
+  const tkn = +(tokenAmount || 0);
+  const closingBalance = (+periodTotal || 0) - tkn;
+  const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${_HNAME} — Billing ${filterLabel}</title>
+  <style>
+    @page{size:A4 portrait;margin:6mm 6mm}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{width:100%}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1C1510;font-size:8px;background:#fff;line-height:1.25}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;padding-bottom:4px;border-bottom:1.5px solid #1C1510}
+    .hotel-name{font-size:15px;font-weight:800;color:#1C1510;font-family:Georgia,serif;line-height:1}
+    .hotel-name em{color:#C8A96E;font-style:italic;font-weight:400}
+    .hotel-sub{font-size:6.5px;color:#8D6F57;margin-top:2px;letter-spacing:.1em;text-transform:uppercase}
+    .report-title{text-align:right}
+    .report-title h2{font-size:10px;font-weight:700;color:#1C1510}
+    .report-title .meta{font-size:6.5px;color:#8D6F57;margin-top:2px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}
+    .stat-box{background:#FBF8F3;border:1px solid #8D6F57;padding:3px 6px}
+    .stat-box .lbl{font-size:5.5px;letter-spacing:.1em;color:#8D6F57;text-transform:uppercase;margin-bottom:1px;font-weight:600}
+    .stat-box .val{font-size:10px;font-weight:800;color:#1C1510;font-family:'IBM Plex Mono',monospace}
+    .stat-box.hi{background:#FBF8F3;border-color:#C8A96E;border-top:2px solid #C8A96E}
+    .stat-box.cash{border-top:2px solid #1F6F54}
+    .stat-box.cash .val{color:#1F6F54}
+    .stat-box.bkash{border-top:2px solid #D02A77}
+    .stat-box.bkash .val{color:#D02A77}
+    .stat-box.out{border-top:2px solid #950101}
+    .stat-box.out .val{color:#950101}
+    .sec-hdr{margin-top:4px;padding:3px 6px;background:#1C1510;color:#FBF8F3;font-size:7px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+    .sec-hdr.due{background:#950101}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    thead tr{background:#3A2D22}
+    thead th{padding:3px 4px;text-align:left;font-size:6.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#FBF8F3}
+    thead th.num{text-align:right}
+    .due-table thead tr{background:#950101}
+    tbody tr:nth-child(even){background:#FBF8F3}
+    tbody tr:nth-child(odd){background:#fff}
+    tbody td{padding:2.5px 4px;border-bottom:1px solid #EAE6DD;font-size:7.5px;color:#1C1510;vertical-align:middle;word-wrap:break-word;line-height:1.2}
+    tbody td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
+    tbody td.mono{font-family:'IBM Plex Mono',monospace;font-size:7px}
+    tbody td .muted{color:#8D6F57;font-size:6.5px}
+    tbody td.due{color:#950101;font-weight:700}
+    tbody td.pos{color:#1F6F54}
+    tfoot tr{background:#FBE9E9}
+    tfoot td{padding:3px 4px;font-size:7.5px;font-weight:700;color:#950101}
+    tfoot td.num{text-align:right;font-family:'IBM Plex Mono',monospace}
+    .pm{display:inline-block;padding:1px 4px;border-radius:2px;font-size:6.5px;font-weight:700;letter-spacing:.04em;background:#EAE6DD;color:#1C1510}
+    .pm-cash{background:#E4F0EA;color:#1F6F54}
+    .pm-bkash{background:#FCE4EF;color:#D02A77}
+    .closing-box{margin-top:6px;border:1px solid #8D6F57;border-top:2px solid #C8A96E;padding:5px 9px;background:#FBF8F3}
+    .closing-row{display:flex;justify-content:space-between;align-items:center;padding:1.5px 0;font-size:8px;color:#1C1510}
+    .closing-row.total{border-top:1px solid #C8A96E;margin-top:2px;padding-top:3px;font-weight:700}
+    .closing-row.token{color:#8D6F57}
+    .closing-row.final{border-top:1px solid #C8A96E;border-bottom:2px solid #C8A96E;margin-top:3px;padding:4px 0;font-size:11px;font-weight:800;color:#1C1510}
+    .footer{margin-top:5px;padding-top:3px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:center}
+    .total-row{font-size:8px;font-weight:700;color:#1C1510}
+    .footer-note{font-size:6.5px;color:#8D6F57;letter-spacing:.04em}
+    .trend-pos{color:#1F6F54;font-weight:700}
+    .trend-neg{color:#950101;font-weight:700}
+    col.c-g{width:18%} col.c-r{width:6%} col.c-d{width:13%} col.c-n{width:10%}
+    col.c-pm{width:9%}
+  </style></head><body>
+  <div class="header"><div><div class="hotel-name">Hotel <em>Fountain</em></div><div class="hotel-sub">Billing &amp; Invoices Report</div></div><div class="report-title"><h2>Period: ${filterLabel}</h2><div class="meta">Generated: ${now}</div></div></div>
+  <div class="stats">
+    <div class="stat-box hi"><div class="lbl">${filterLabel === 'Today' ? "Today's Total" : filterLabel + ' Total'}</div><div class="val">${fmt(periodTotal)}</div></div>
+    <div class="stat-box cash"><div class="lbl">Cash Total</div><div class="val">${fmt(cashTotal)}</div></div>
+    <div class="stat-box bkash"><div class="lbl">Bkash Total</div><div class="val">${fmt(bkashTotal)}</div></div>
+    <div class="stat-box out"><div class="lbl">Outstanding Due</div><div class="val">${fmt(outstanding)}</div></div>
+  </div>
+  <div class="sec-hdr">Collected Transactions — ${esc(filterLabel)}</div>
+  <table>
+    <colgroup><col style="width:19%"/><col style="width:7%"/><col style="width:14%"/><col style="width:11%"/><col style="width:10%"/><col style="width:11%"/><col style="width:13%"/><col style="width:15%"/></colgroup>
+    <thead><tr>
+      <th>Guest Name</th><th>Room</th><th>Check-In / Out</th>
+      <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance Due</th>
+      <th>Payment Method</th><th class="num">Collected</th>
+    </tr></thead>
+    <tbody>${rows || '<tr><td colspan="8" style="text-align:center;padding:14px;color:#aaa">No transactions</td></tr>'}</tbody>
+  </table>
+  ${(() => {
+    const dl = (duesList || []).filter(d => +d.balance_due > 0);
+    if (!dl.length) return '';
+    const totDue = dl.reduce((a, d) => a + (+d.balance_due || 0), 0);
+    const totPaid = dl.reduce((a, d) => a + (+d.paid || 0), 0);
+    const totBill = dl.reduce((a, d) => a + (+d.bill_total || 0), 0);
+    const dRows = dl.map(d => `<tr>
+      <td>${esc(d.guest_name || '—')}</td>
+      <td>${esc(d.room_number || '—')}</td>
+      <td class="mono">${short(d.check_in)}<br/><span class="muted">→ ${short(d.check_out)}</span></td>
+      <td class="num">${fmt(d.bill_total)}</td>
+      <td class="num pos">${fmt(d.paid)}</td>
+      <td class="num due">${fmt(d.balance_due)}</td>
+      <td><span class="pm" style="background:#FBE9E9;color:#950101">${esc(d.status || 'PENDING')}</span></td>
+    </tr>`).join('');
+    return `
+  <div class="sec-hdr due">⚠ Pending Dues — Outstanding Balance (${dl.length} guest${dl.length !== 1 ? 's' : ''})</div>
+  <table class="due-table">
+    <colgroup><col style="width:22%"/><col style="width:8%"/><col style="width:16%"/><col style="width:13%"/><col style="width:13%"/><col style="width:14%"/><col style="width:14%"/></colgroup>
+    <thead><tr>
+      <th>Guest Name</th><th>Room</th><th>Check-In / Out</th>
+      <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance Due</th><th>Status</th>
+    </tr></thead>
+    <tbody>${dRows}</tbody>
+    <tfoot><tr>
+      <td colspan="3">Total Outstanding · ${dl.length} guest${dl.length !== 1 ? 's' : ''}</td>
+      <td class="num">${fmt(totBill)}</td>
+      <td class="num pos">${fmt(totPaid)}</td>
+      <td class="num due">${fmt(totDue)}</td>
+      <td></td>
+    </tr></tfoot>
+  </table>`;
+  })()}
+  <div class="closing-box">
+    <div class="closing-row total"><span>${filterLabel} Total Collection</span><span class="trend-pos">${fmt(periodTotal)}</span></div>
+    <div class="closing-row"><span>Cash Collected</span><span class="trend-pos">${fmt(cashTotal)}</span></div>
+    <div class="closing-row"><span>Bkash Collected</span><span class="trend-pos">${fmt(bkashTotal)}</span></div>
+    <div class="closing-row token"><span>Token Amount (Deducted)</span><span>− ${fmt(tkn)}</span></div>
+    <div class="closing-row final"><span>Closing Balance</span><span>${fmt(closingBalance)}</span></div>
+  </div>
+  <div class="footer"><div class="total-row">${filterLabel}: ${fmt(periodTotal)} · ${(enriched || []).length} transaction${(enriched || []).length !== 1 ? 's' : ''}</div><div class="footer-note">${_HNAME} CRM · Lumea PMS · Confidential</div></div>
+  </body></html>`;
+  printPDF(content);
+}
+function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
+  const now = new Date().toLocaleString('en-BD', {
+    timeZone: 'Asia/Dhaka',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  const invoiceNo = 'INV-' + (res?.id ? String(res.id).slice(-8) : Date.now().toString().slice(-8));
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[c]);
+  const nights = bill?.nights || (res ? nightsCount(res.check_in, res.check_out) : 0) || 1;
+  const perRoom = bill?.perRoom || [];
+  const topFolios = bill?.topFolios || [];
+  const discount = bill?.discount || 0;
+  const roomCharge = bill?.roomCharge || 0;
+  const extras = bill?.extras || 0;
+  const subtotal = bill?.sub || tTotal + discount;
+  const total = bill?.total != null ? bill.total : tTotal;
+  const paid = bill?.paid != null ? bill.paid : tPaid;
+  const due = bill?.due != null ? bill.due : tDue;
+  const perRoomHtml = perRoom.length > 0 ? perRoom.map(p => `
+    <tr style="background:#1C1510">
+      <td colspan="4" style="padding:8px 12px;color:#C8A96E;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-top:2px solid #C8A96E">
+        Room ${esc(p.room_number)} · ${esc(p.category)}
+      </td>
+    </tr>
+    <tr style="background:#FBF8F3">
+      <td style="padding:6px 12px;font-size:9px;color:#8D6F57">${fmtDate(res?.check_in)} → ${fmtDate(res?.check_out)}</td>
+      <td style="padding:6px 12px;font-size:9px;color:#1C1510">Room charge · ${nights} night${nights !== 1 ? 's' : ''} × ৳${Number(p.rate).toLocaleString()}</td>
+      <td style="padding:6px 12px;font-size:9px;color:#1C1510;text-align:right">৳${Number(p.rate).toLocaleString()}/n</td>
+      <td style="padding:6px 12px;text-align:right;font-size:10px;font-weight:600;color:#1C1510;font-family:monospace">৳${Number(p.roomSubtotal).toLocaleString()}</td>
+    </tr>
+    ${(p.folios || []).map((f, i) => `
+      <tr style="background:${i % 2 === 0 ? '#fff' : '#FBF8F3'}">
+        <td style="padding:6px 12px;font-size:9px;color:#8D6F57">${esc(String(f.created_at || '').slice(0, 10))}</td>
+        <td style="padding:6px 12px;font-size:9px;color:#1C1510">${esc(f.description || f.category || 'Extra')}</td>
+        <td style="padding:6px 12px;font-size:9px;color:#8D6F57;text-align:right">${esc(f.category || '—')}</td>
+        <td style="padding:6px 12px;text-align:right;font-size:10px;font-weight:600;color:#1C1510;font-family:monospace">৳${Number(f.amount || 0).toLocaleString()}</td>
+      </tr>
+    `).join('')}
+    ${p.extras > 0 ? `<tr style="background:rgba(200,169,110,.1)"><td colspan="3" style="padding:5px 12px;font-size:9px;color:#8D6F57;font-style:italic">Room ${esc(p.room_number)} subtotal</td><td style="padding:5px 12px;text-align:right;font-size:10px;font-weight:700;color:#C8A96E;font-family:monospace">৳${Number(p.subtotal).toLocaleString()}</td></tr>` : ''}
+  `).join('') : '';
+  const topFoliosHtml = topFolios.length > 0 ? `
+    <tr style="background:#1C1510">
+      <td colspan="4" style="padding:8px 12px;color:#58A6FF;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-top:2px solid #58A6FF">
+        Additional Charges
+      </td>
+    </tr>
+    ${topFolios.map((f, i) => `
+      <tr style="background:${i % 2 === 0 ? '#fff' : '#FBF8F3'}">
+        <td style="padding:6px 12px;font-size:9px;color:#8D6F57">${esc(String(f.created_at || '').slice(0, 10))}</td>
+        <td style="padding:6px 12px;font-size:9px;color:#1C1510">${esc(f.description || f.category || 'Extra')}</td>
+        <td style="padding:6px 12px;font-size:9px;color:#8D6F57;text-align:right">${esc(f.category || '—')}</td>
+        <td style="padding:6px 12px;text-align:right;font-size:10px;font-weight:600;color:#1C1510;font-family:monospace">৳${Number(f.amount || 0).toLocaleString()}</td>
+      </tr>
+    `).join('')}
+  ` : '';
+  const fallbackTxHtml = !perRoom.length && !topFolios.length ? (grp.txs || []).filter(t => t.type !== 'Balance Carried Forward').map((t, i) => `
+    <tr style="background:${i % 2 === 0 ? '#fff' : '#FBF8F3'}">
+      <td style="padding:7px 12px;font-size:9px;color:#8D6F57">${esc(t.fiscal_day || '—')}</td>
+      <td style="padding:7px 12px;font-size:9px;color:#1C1510">${esc(t.type || 'Charge')}</td>
+      <td style="padding:7px 12px;font-size:9px;color:#8D6F57;text-align:right">${esc(t.room_number || '')}</td>
+      <td style="padding:7px 12px;text-align:right;font-size:10px;font-weight:600;color:#1C1510;font-family:monospace">৳${Number(t.amount || 0).toLocaleString()}</td>
+    </tr>`).join('') : '';
+  const pmtRows = Object.entries(byType || {}).map(([tp, amt]) => `
+    <tr>
+      <td colspan="3" style="padding:6px 12px;font-size:9px;color:#8D6F57;letter-spacing:.04em">${esc(tp)}</td>
+      <td style="padding:6px 12px;text-align:right;font-size:10px;color:#1C1510;font-weight:600;font-family:monospace">৳${Number(amt).toLocaleString()}</td>
+    </tr>`).join('');
+  const allRooms = (res?.room_ids || [grp.room_number]).filter(Boolean).join(', ');
+  const guestDetail = guest ? `
+    ${guest.phone ? `<div style="font-size:9px;color:#8D6F57;margin-top:2px">📞 ${esc(guest.phone)}</div>` : ''}
+    ${guest.email ? `<div style="font-size:9px;color:#8D6F57;margin-top:2px">✉ ${esc(guest.email)}</div>` : ''}
+    ${guest.id_type || guest.id_card ? `<div style="font-size:9px;color:#8D6F57;margin-top:2px">🆔 ${esc(guest.id_type || '')} ${esc(guest.id_number || guest.id_card || '')}</div>` : ''}
+    ${guest.city ? `<div style="font-size:9px;color:#8D6F57;margin-top:2px">📍 ${esc(guest.city)}</div>` : ''}
+  ` : '';
+  const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice — ${esc(grp.guest_name || 'Guest')}</title>
+  <style>
+    @page{size:A4 portrait;margin:10mm 12mm}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;background:#fff;color:#1C1510;font-size:10px;line-height:1.5}
+    table{width:100%;border-collapse:collapse}
+    .serif{font-family:Georgia,'Times New Roman',serif}
+  </style></head><body>
+  <!-- ══ HEADER ══ -->
+  <table style="margin-bottom:18px">
+    <tr>
+      <td width="52%" style="background:#1C1510;padding:20px 22px;vertical-align:middle">
+        <div class="serif" style="font-size:24px;font-weight:800;color:#C8A96E;letter-spacing:.02em">${_HNAME}</div>
+        <div style="font-size:7.5px;color:rgba(255,255,255,.5);letter-spacing:.22em;text-transform:uppercase;margin-top:6px">${_TAGLINE}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:10px">${_HADDR}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">WhatsApp ${_HWAPP} · ${_HEMAIL}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:2px">${_HSITE}</div>
+        <div style="font-size:6.5px;color:rgba(200,169,110,.45);margin-top:10px;letter-spacing:.08em">MANAGEMENT CRM · POWERED BY LUMEA</div>
+      </td>
+      <td width="48%" style="padding:20px 0 20px 14px;vertical-align:top;text-align:right;border-bottom:3px solid #1C1510">
+        <div style="font-size:18px;font-weight:800;color:#1C1510;letter-spacing:.22em;margin-bottom:10px">INVOICE</div>
+        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.16em;text-transform:uppercase;margin-bottom:2px">Invoice No.</div>
+        <div style="font-size:13px;font-weight:700;color:#1C1510;margin-bottom:8px;font-family:monospace">${esc(invoiceNo)}</div>
+        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px">Issued</div>
+        <div style="font-size:9px;color:#1C1510;margin-bottom:10px">${esc(now)}</div>
+        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase">Amount Due</div>
+        <div class="serif" style="font-size:26px;font-weight:800;color:${due > 0 ? '#C8A96E' : '#3FB950'};font-family:monospace">${due > 0 ? '৳' + Number(due).toLocaleString() : 'PAID'}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ══ BILLED TO / STAY DETAILS ══ -->
+  <table style="margin-bottom:14px">
+    <tr>
+      <td width="55%" style="padding:10px 12px;border:1px solid #8D6F57;vertical-align:top">
+        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px">Billed To</div>
+        <div style="font-size:14px;font-weight:700;color:#1C1510">${esc(grp.guest_name || '—')}</div>
+        ${guestDetail}
+      </td>
+      <td width="2%"></td>
+      <td width="43%" style="padding:10px 12px;border:1px solid #8D6F57;vertical-align:top">
+        <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px">Stay Details</div>
+        <div style="font-size:10px;color:#1C1510;margin-bottom:2px"><strong>Room${(res?.room_ids || []).length > 1 ? 's' : ''}:</strong> ${esc(allRooms || '—')}</div>
+        <div style="font-size:9px;color:#8D6F57;margin-bottom:2px">Check-In: ${res ? fmtDate(res.check_in) : '—'}</div>
+        <div style="font-size:9px;color:#8D6F57;margin-bottom:2px">Check-Out: ${res ? fmtDate(res.check_out) : '—'}</div>
+        <div style="font-size:9px;color:#8D6F57;margin-bottom:2px">Nights: ${nights}</div>
+        <div style="font-size:9px;color:#8D6F57">Status: ${esc(res?.status || '—')}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ══ CHARGES (Per-Room Breakdown) ══ -->
+  <table style="margin-bottom:0;border:1px solid #1C1510">
+    <thead>
+      <tr style="background:#1C1510">
+        <th style="padding:10px 12px;text-align:left;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#C8A96E;font-weight:700;width:18%">Date</th>
+        <th style="padding:10px 12px;text-align:left;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#C8A96E;font-weight:700">Description</th>
+        <th style="padding:10px 12px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#C8A96E;font-weight:700;width:16%">Rate / Cat.</th>
+        <th style="padding:10px 12px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#C8A96E;font-weight:700;width:18%">Amount (BDT)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${perRoomHtml || fallbackTxHtml || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#8D6F57">No charges recorded</td></tr>'}
+      ${topFoliosHtml}
+    </tbody>
+  </table>
+
+  <!-- ══ TOTALS PANEL ══ -->
+  <table style="margin-top:0">
+    <tr>
+      <td width="50%" style="padding:10px 12px;vertical-align:top">
+        ${pmtRows ? `
+          <div style="font-size:8px;color:#8D6F57;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px;border-bottom:1px solid #8D6F57;padding-bottom:3px">Payments Received</div>
+          <table>${pmtRows}</table>
+        ` : ''}
+      </td>
+      <td width="50%" style="padding:10px 12px;vertical-align:top;background:#FBF8F3;border:1px solid #C8A96E">
+        <table>
+          <tr><td style="padding:4px 0;font-size:9.5px;color:#8D6F57">Room Charges</td><td style="padding:4px 0;text-align:right;font-size:10px;font-family:monospace;color:#1C1510">৳${Number(roomCharge).toLocaleString()}</td></tr>
+          ${extras > 0 ? `<tr><td style="padding:4px 0;font-size:9.5px;color:#8D6F57">Extra Charges (F&amp;B etc.)</td><td style="padding:4px 0;text-align:right;font-size:10px;font-family:monospace;color:#1C1510">৳${Number(extras).toLocaleString()}</td></tr>` : ''}
+          <tr><td style="padding:4px 0;border-top:1px solid #C8A96E;font-size:10px;font-weight:700;color:#1C1510">Subtotal</td><td style="padding:4px 0;border-top:1px solid #C8A96E;text-align:right;font-size:11px;font-weight:700;font-family:monospace;color:#1C1510">৳${Number(subtotal).toLocaleString()}</td></tr>
+          ${discount > 0 ? `<tr><td style="padding:4px 0;font-size:9.5px;color:#3FB950">Discount Applied</td><td style="padding:4px 0;text-align:right;font-size:10px;font-family:monospace;color:#3FB950">− ৳${Number(discount).toLocaleString()}</td></tr>` : ''}
+          <tr><td style="padding:6px 0;border-top:2px solid #1C1510;font-size:11px;font-weight:800;color:#1C1510">TOTAL</td><td style="padding:6px 0;border-top:2px solid #1C1510;text-align:right;font-size:13px;font-weight:800;font-family:monospace;color:#1C1510">৳${Number(total).toLocaleString()}</td></tr>
+          <tr><td style="padding:4px 0;font-size:9.5px;color:#3FB950">Paid</td><td style="padding:4px 0;text-align:right;font-size:10px;font-family:monospace;color:#3FB950">৳${Number(paid).toLocaleString()}</td></tr>
+          <tr><td style="padding:10px 0 4px;border-top:1px solid #C8A96E;font-size:12px;font-weight:800;color:${due > 0 ? '#E05C7A' : '#3FB950'}">${due > 0 ? 'BALANCE DUE' : 'PAID IN FULL'}</td><td style="padding:10px 0 4px;border-top:1px solid #C8A96E;text-align:right;font-size:16px;font-weight:800;font-family:monospace;color:${due > 0 ? '#E05C7A' : '#3FB950'}">৳${Number(due).toLocaleString()}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  ${res?.special_requests ? `<div style="margin-top:12px;padding:10px 12px;border-left:3px solid #C8A96E;background:#FBF8F3;font-size:9px;color:#8D6F57"><strong style="color:#1C1510">Special Requests:</strong> ${esc(res.special_requests)}</div>` : ''}
+
+  <!-- ══ FOOTER ══ -->
+  <div style="margin-top:20px;padding:14px 0 0;border-top:2px solid #1C1510">
+    <table>
+      <tr>
+        <td width="60%" style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase">${_HNAME} · Lumea PMS · Confidential</td>
+        <td width="40%" style="font-size:7.5px;color:#8D6F57;text-align:right">Computer-generated invoice — no signature required</td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding-top:6px;font-size:8px;color:#8D6F57;text-align:center;font-style:italic">Thank you for choosing ${_HNAME}. We look forward to welcoming you again.</td>
+      </tr>
+    </table>
+  </div>
+  </body></html>`;
+  printPDF(content);
+}
+function BillingPage({
+  transactions,
+  reservations,
+  toast,
+  reload,
+  currentUser,
+  rooms,
+  guests,
+  businessDate
+}) {
+  const [filter, setFilter] = useState('TODAY');
+  const [calDate, setCalDate] = useState('');
+  const [hSettings, setHSettings] = useState({
+    vat: '0',
+    svc: '0'
+  });
+  useEffect(() => {
+    db('hotel_settings', `?tenant_id=eq.${TENANT}&select=key,value`).then(rows => {
+      if (!Array.isArray(rows)) return;
+      const m = {};
+      rows.forEach(r => {
+        m[r.key] = r.value;
+      });
+      setHSettings({
+        vat: m.vat_rate || '0',
+        svc: m.service_charge || '0'
+      });
+    }).catch(() => {});
+  }, []);
+  const [search, setSearch] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [billingRes, setBillingRes] = useState(null);
+  const [showBillDetail, setShowBillDetail] = useState(false);
+  const [detailRes, setDetailRes] = useState(null);
+  const [foliosMap, setFoliosMap] = useState({});
+  const [loadingFolios, setLoadingFolios] = useState(false);
+  const [tokenAmt, setTokenAmt] = useState('');
+  const [savedToken, setSavedToken] = useState(0);
+  const [tokenSaving, setTokenSaving] = useState(false);
+  const today = businessDate || todayStr(),
+    month = today.slice(0, 7);
+  const _wallToday = todayStr();
+  const _txWallDay = t => t.fiscal_day; // kept for any downstream callers expecting the helper
+  const todayT = transactions.filter(t => t.fiscal_day === today);
+  const activeLedgerTx = todayT.filter(t => {
+    if (t.type === 'Balance Carried Forward') {
+      const res = reservations.find(r => (r.room_ids || []).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number));
+      if (res?.status === 'CHECKED_OUT') {
+        const due = Math.max(0, +(res.total_amount || 0) - +(res.discount_amount || res.discount || 0) - +(res.paid_amount || 0));
+        if (due <= 0) return false; // ghost — zero balance checked-out carry-forward
+      }
+      return true;
+    }
+    return true;
+  });
+  const monthT = transactions.filter(t => t.fiscal_day?.startsWith(month));
+  const calT = calDate ? transactions.filter(t => t.fiscal_day === calDate) : [];
+  useEffect(() => {
+    setLoadingFolios(true);
+    db('folios', `?tenant_id=eq.${TENANT}&select=*&order=created_at`).then(d => {
+      const map = {};
+      (Array.isArray(d) ? d : []).forEach(f => {
+        const key = f.reservation_id || f.room_number;
+        if (!map[key]) map[key] = [];
+        map[key].push(f);
+      });
+      setFoliosMap(map);
+    }).catch(() => {}).finally(() => setLoadingFolios(false));
+  }, []);
+  const _arr = v => {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string') {
+      try {
+        const p = JSON.parse(v);
+        return Array.isArray(p) ? p : [v];
+      } catch {
+        return [v];
+      }
+    }
+    if (v == null) return [];
+    return [v];
+  };
+  const getGN = r => {
+    if (!r) return '—';
+    if (r.guest_name) return r.guest_name;
+    const gid = String(_arr(r.guest_ids).concat(r.guest_id ? [r.guest_id] : []).filter(Boolean)[0] || '');
+    const g = guests?.find(g => String(g.id) === gid);
+    return g ? g.name : gid ? `ID:${gid}` : '—';
+  };
+  const getRoom = r => {
+    if (!r) return '—';
+    const rooms = _arr(r.room_ids).concat(r.room_number ? [r.room_number] : []);
+    return rooms.filter(Boolean).join(', ') || '—';
+  };
+
+  // _isRealPayment, _bizDayTotalFn — now module-scope; aliases for local use
+  const _isPayVehicle = t => _isRealPayment(t);
+  const _bizDayTotal = _bizDayTotalFn;
+  // todayRevenue: mirrors the ledger table's unifiedGroups logic exactly.
+  // Part 1: reservations matched via activeLedgerTx (same dual-match: room_ids UUID OR room_number string + guest name)
+  // Part 2: reservations with outstanding balance (dueRes equivalent) not already counted.
+  // Result = exact sum of the PAID column shown in today's ledger table.
+  const todayRevenue = (() => {
+    const seen = new Set();
+    let total = 0;
+    // Part 1 — same reservation lookup the table uses
+    activeLedgerTx.forEach(t => {
+      const guestId = guests?.find(g => g.name === t.guest_name)?.id;
+      const res = reservations?.find(r => {
+        const roomMatch = (r.room_ids || []).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number);
+        const nameMatch = !guestId || (r.guest_ids || []).includes(guestId) || r.guest_name === t.guest_name;
+        return roomMatch && nameMatch;
+      }) || reservations?.find(r => (r.room_ids || []).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number));
+      if (res && !seen.has(res.id)) {
+        seen.add(res.id);
+        total += computeBill(res)?.paid || 0;
+      }
+    });
+    // Part 2 — outstanding balance reservations not caught in Part 1 (balance > 0 only)
+    const _rDue = r => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
+    reservations.filter(r => (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT') && _rDue(r) > 0).forEach(r => {
+      if (!r?.id || seen.has(r.id)) return;
+      seen.add(r.id);
+      total += computeBill(r)?.paid || 0;
+    });
+    return total;
+  })();
+  const monthRevenue = _bizDayTotal(monthT);
+  function computeBill(r) {
+    const roomNos = (r.room_ids || [r.room_number]).filter(Boolean);
+    const nights = nightsCount(r.check_in, r.check_out) || 1;
+    const allFolios = [...(foliosMap[r.id] || []), ...roomNos.flatMap(rn => (foliosMap[rn] || []).filter(f => !f.reservation_id || f.reservation_id === r.id))].filter((f, i, arr) => arr.findIndex(x => x.id === f.id) === i);
+    const perRoom = roomNos.map(rn => {
+      const room = rooms?.find(rm => String(rm.room_number) === String(rn));
+      const rate = +room?.price || +r.rate_per_night || 0;
+      const roomSubtotal = rate * nights;
+      const roomFolios = allFolios.filter(f => String(f.room_number) === String(rn));
+      const roomExtras = roomFolios.reduce((a, f) => a + (+f.amount || 0), 0);
+      return {
+        room_number: rn,
+        category: room?.category || '—',
+        rate,
+        nights,
+        roomSubtotal,
+        extras: roomExtras,
+        folios: roomFolios,
+        subtotal: roomSubtotal + roomExtras
+      };
+    });
+    const roomCharge = perRoom.reduce((a, p) => a + p.roomSubtotal, 0);
+    const topFolios = allFolios.filter(f => !f.room_number || !roomNos.map(String).includes(String(f.room_number)));
+    const topExtras = topFolios.reduce((a, f) => a + (+f.amount || 0), 0);
+    const extras = perRoom.reduce((a, p) => a + p.extras, 0) + topExtras;
+    const folios = [...perRoom.flatMap(p => p.folios.map(f => ({
+      ...f,
+      __room: p.room_number
+    }))), ...topFolios];
+    const sub = roomCharge + extras;
+    const vatPct = 0,
+      svcPct = 0,
+      tax = 0,
+      svc = 0;
+    const discount = +r.discount_amount || +r.discount || 0;
+    const canonical = +r.total_amount || 0;
+    const rawTotal = canonical > 0 ? canonical + extras : sub > 0 ? sub : 0;
+    const total = Math.max(0, rawTotal - discount);
+    const paid = +r.paid_amount || 0;
+    const due = Math.max(0, total - paid);
+    const roomRate = perRoom[0]?.rate || 0;
+    return {
+      roomCharge,
+      extras,
+      sub,
+      tax,
+      svc,
+      discount,
+      total,
+      paid,
+      due,
+      folios,
+      nights,
+      roomRate,
+      vatPct,
+      svcPct,
+      perRoom,
+      topFolios
+    };
+  }
+  const _resDue = r => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
+  const outstanding = reservations.filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT').reduce((a, r) => a + _resDue(r), 0);
+  const dueRes = reservations.filter(r => {
+    if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false;
+    return _resDue(r) > 0;
+  });
+  const activeRes = reservations.filter(r => {
+    if (r.status === 'CHECKED_IN') return true;
+    if (r.status === 'CHECKED_OUT') return _resDue(r) > 0;
+    return false;
+  });
+  const filteredTx = filter === 'TODAY' ? todayT : filter === 'MONTH' ? monthT : filter === 'DATE' ? calT : transactions;
+  async function saveToken() {
+    const a = +tokenAmt;
+    if (!a || a < 0) {
+      toast('Enter valid token amount', 'error');
+      return;
+    }
+    setTokenSaving(true);
+    try {
+      await fetch(`${SB_URL}/rest/v1/hotel_settings`, {
+        method: 'POST',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${SB_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          key: 'daily_token_amount',
+          value: String(a),
+          tenant_id: TENANT
+        })
+      });
+      setSavedToken(a);
+      toast(`Token amount ${BDT(a)} saved`);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setTokenSaving(false);
+    }
+  }
+  async function doClosingComplete() {
+    const _wallToday = todayStr();
+    const _nextDay = (() => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    })();
+    if (_nextDay > _wallToday) {
+      toast(`Closing already complete for ${_wallToday}. BIZ DAY is ${today} — cannot advance further.`, 'error');
+      return;
+    }
+    if (!window.confirm(`Close BIZ DAY ${today} and advance to ${_nextDay}?\n\nThis is a one-way operation. Verify all payments are recorded.`)) return;
+    const a = +tokenAmt;
+    if (a && a >= 0 && a !== savedToken) {
+      try {
+        await fetch(`${SB_URL}/rest/v1/hotel_settings`, {
+          method: 'POST',
+          headers: {
+            apikey: SB_KEY,
+            Authorization: `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({
+            key: 'daily_token_amount',
+            value: String(a),
+            tenant_id: TENANT
+          })
+        });
+        setSavedToken(a);
+      } catch {}
+    }
+    const todayList = transactions.filter(t => t.fiscal_day === today && t.type !== 'Balance Carried Forward');
+    const totalAmt = todayList.reduce((acc, t) => acc + (+t.amount || 0), 0);
+    const tokenAmount = a || savedToken || 0;
+    const closingAmt = totalAmt - tokenAmount;
+    const now = new Date().toLocaleString('en-BD', {
+      timeZone: 'Asia/Dhaka',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const duesCarried = dueRes.map(r => {
+      const room = (r.room_ids || [r.room_number]).filter(Boolean).join(', ') || '—';
+      const gname = getGN(r);
+      const total = +r.total_amount || 0;
+      const discount = +r.discount_amount || +r.discount || 0;
+      const paid = +r.paid_amount || 0;
+      const due = Math.max(0, total - discount - paid);
+      return {
+        gname,
+        room,
+        total,
+        discount,
+        paid,
+        due,
+        check_in: r.check_in,
+        check_out: r.check_out,
+        resId: r.id
+      };
+    });
+    const totalDue = duesCarried.reduce((a, d) => a + d.due, 0);
+    const txRows = todayList.map(t => `<tr><td>${t.fiscal_day || '—'}</td><td>${t.guest_name || '—'}</td><td>${t.room_number || '—'}</td><td>${t.type || 'Payment'}</td><td style="text-align:right;font-weight:600">৳${Number(t.amount || 0).toLocaleString()}</td></tr>`).join('');
+    const dueRows = duesCarried.length > 0 ? `
+      <h3 style="margin:20px 0 8px;font-size:13px;color:#E05C7A;border-bottom:1px solid #f0c0ca;padding-bottom:4px">⚠ Outstanding Dues — Carried to Next Day</h3>
+      <table><thead><tr style="background:#E05C7A"><th>Guest</th><th>Room</th><th>Check-In</th><th>Check-Out</th><th>Total</th><th>Paid</th><th style="text-align:right">Balance Due</th></tr></thead><tbody>
+        ${duesCarried.map((d, i) => `<tr style="${i % 2 ? 'background:#fdf6f6' : ''}"><td>${d.gname}</td><td>${d.room}</td><td>${d.check_in?.slice(0, 10) || '—'}</td><td>${d.check_out?.slice(0, 10) || '—'}</td><td>৳${d.total.toLocaleString()}</td><td>৳${d.paid.toLocaleString()}</td><td style="text-align:right;font-weight:700;color:#E05C7A">৳${d.due.toLocaleString()}</td></tr>`).join('')}
+      </tbody></table>` : '';
+    const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<style>
+@page{size:A4 portrait;margin:5.08mm}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:10px;background:#fff}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #000}
+.hotel-name{font-size:18px;font-weight:700;color:#000}.hotel-sub{font-size:9px;color:#333;margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
+.report-title{text-align:right}.report-title h2{font-size:13px;font-weight:700}.report-title .meta{font-size:8px;color:#444;margin-top:3px}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+thead tr{background:#000;color:#fff}
+thead th{padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+thead th:last-child{text-align:right}
+tbody tr:nth-child(even){background:#f2f2f2}
+tbody td{padding:4px 7px;border-bottom:1px solid #ccc;font-size:9.5px;color:#000}
+tbody td:last-child{text-align:right;font-weight:600}
+h3{font-size:11px;font-weight:700;color:#000;margin:14px 0 6px;border-bottom:1px solid #000;padding-bottom:3px}
+.closing-box{margin-top:16px;border:2px solid #000;padding:12px 16px;background:#f8f8f8}
+.closing-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;color:#000}
+.closing-row.total{border-top:1px solid #ccc;margin-top:4px;padding-top:6px;font-weight:700}
+.closing-row.due{color:#000;font-style:italic}
+.closing-row.final{border-top:2px solid #000;margin-top:8px;padding-top:8px;font-size:15px;font-weight:800;color:#000}
+.footer{margin-top:12px;padding-top:6px;border-top:1px solid #ccc;display:flex;justify-content:space-between;font-size:8px;color:#555}
+</style></head><body>
+<div class="header"><div><div class="hotel-name">Hotel <em>Fountain</em></div><div class="hotel-sub">Daily Closing Report</div></div><div class="report-title"><h2>Closing: ${today}</h2><div class="meta">Generated: ${now}</div></div></div>
+<table><thead><tr><th>Date</th><th>Guest</th><th>Room</th><th>Payment Type</th><th style="text-align:right">Amount (BDT)</th></tr></thead><tbody>${txRows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">No transactions today</td></tr>'}</tbody></table>
+${dueRows}
+<div class="closing-box">
+  <div class="closing-row total"><span>Total Paid Amount</span><span>৳${totalAmt.toLocaleString()}</span></div>
+  <div class="closing-row"><span>Token Amount</span><span>− ৳${tokenAmount.toLocaleString()}</span></div>
+  ${totalDue > 0 ? `<div class="closing-row due"><span>Outstanding Dues Carried Forward</span><span>৳${totalDue.toLocaleString()}</span></div>` : ''}
+  <div class="closing-row final"><span>Closing Balance</span><span>৳${closingAmt.toLocaleString()}</span></div>
+</div>
+<div className="footer"><span>{_HNAME} CRM · Lumea PMS · Confidential</span><span>${todayList.length} transaction${todayList.length !== 1 ? 's' : ''} · ${duesCarried.length} pending due${duesCarried.length !== 1 ? 's' : ''}</span></div>
+</body></html>`;
+    printPDF(content).then(async () => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + 1);
+      const nextDay = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      try {
+        const existingFWD = transactions.filter(t => t.fiscal_day === nextDay && t.type === 'Balance Carried Forward');
+        if (existingFWD.length > 0) {
+          await Promise.all(existingFWD.map(t => dbDelete('transactions', t.id)));
+        }
+        if (duesCarried.length > 0) {
+          await Promise.all(duesCarried.map(d => dbPost('transactions', {
+            tenant_id: TENANT,
+            fiscal_day: nextDay,
+            guest_name: d.gname,
+            room_number: d.room,
+            amount: d.due,
+            type: 'Balance Carried Forward',
+            reservation_id: d.resId || null
+          })));
+        }
+        await fetch(`${SB_URL}/rest/v1/hotel_settings`, {
+          method: 'POST',
+          headers: {
+            apikey: SB_KEY,
+            Authorization: `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({
+            key: 'active_fiscal_day',
+            value: nextDay,
+            tenant_id: TENANT
+          })
+        });
+        toast(`✓ Day closed · Fiscal day → ${nextDay}`, 'info');
+        reload();
+      } catch (e) {
+        toast('Report open — could not advance fiscal day: ' + e.message, 'error');
+      }
+    });
+  }
+  function downloadPDF() {
+    const realList = filteredTx.filter(t => t.type !== 'Balance Carried Forward');
+    const parsePM = tx => {
+      const s = String(tx?.type || '');
+      const m = s.match(/\(([^)]+)\)/);
+      if (m) return m[1].trim();
+      if (/cash/i.test(s)) return 'Cash';
+      if (/bkash/i.test(s)) return 'Bkash';
+      if (/nagad/i.test(s)) return 'Nagad';
+      if (/card/i.test(s)) return 'Card';
+      return s || '—';
+    };
+    const isPayment = tx => {
+      const t = String(tx?.type || '');
+      if (t === 'Balance Carried Forward') return false;
+      return /payment|cash|bkash|nagad|card|advance|token/i.test(t) || (+tx.amount || 0) > 0;
+    };
+    const periodTotal = realList.reduce((a, t) => a + (+t.amount || 0), 0);
+    const cashTotal = realList.filter(t => /cash/i.test(t.type || '')).reduce((a, t) => a + (+t.amount || 0), 0);
+    const bkashTotal = realList.filter(t => /bkash/i.test(t.type || '')).reduce((a, t) => a + (+t.amount || 0), 0);
+    const findRes = tx => {
+      const rid = tx.reservation_id || tx.res_id;
+      if (rid) return reservations.find(r => String(r.id) === String(rid));
+      return reservations.find(r => (r.room_ids || [r.room_number]).map(String).includes(String(tx.room_number)) && tx.fiscal_day >= (r.check_in || '').slice(0, 10) && tx.fiscal_day <= (r.check_out || '9999-12-31').slice(0, 10));
+    };
+    const enriched = realList.map(tx => {
+      const res = findRes(tx);
+      const bill = res ? computeBill(res) : null;
+      return {
+        guest_name: tx.guest_name || (res ? getGN(res) : '—'),
+        room_number: tx.room_number || (res ? (res.room_ids || [res.room_number]).filter(Boolean).join(',') : '—'),
+        check_in: res?.check_in || '',
+        check_out: res?.check_out || '',
+        bill_total: bill ? +res.total_amount || 0 || bill.sub : 0,
+        // FIX (Bug #1): canonical total wins
+        discount: bill ? bill.discount : res ? +res.discount_amount || +res.discount || 0 : 0,
+        paid: bill ? bill.paid : res ? +res.paid_amount || 0 : 0,
+        balance_due: bill ? bill.due : res ? Math.max(0, (+res.total_amount || 0) - (+res.discount_amount || +res.discount || 0) - (+res.paid_amount || 0)) : 0,
+        payment_method: parsePM(tx),
+        collected_amount: +tx.amount || 0,
+        fiscal_day: tx.fiscal_day
+      };
+    });
+    const duesList = (dueRes || []).map(r => {
+      const bill = computeBill(r);
+      return {
+        guest_name: getGN(r),
+        room_number: (r.room_ids || [r.room_number]).filter(Boolean).join(',') || '—',
+        check_in: r.check_in || '',
+        check_out: r.check_out || '',
+        bill_total: +r.total_amount || 0 || bill?.sub || 0,
+        paid: bill ? bill.paid : +r.paid_amount || 0,
+        balance_due: bill ? bill.due : Math.max(0, (+r.total_amount || 0) - (+r.paid_amount || 0)),
+        status: r.status || ''
+      };
+    }).filter(d => d.balance_due > 0);
+    downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal, outstanding, calDate, savedToken, duesList);
+  }
+  function openDetail(r) {
+    setDetailRes(r);
+    setShowBillDetail(true);
+  }
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "stats-row",
+    style: {
+      gridTemplateColumns: 'repeat(3,1fr)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat",
+    style: {
+      '--ac': 'var(--gold)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-ico"
+  }, "\uD83D\uDCB0"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-lbl"
+  }, filter === 'DATE' && calDate ? (() => {
+    const [y, m, d] = calDate.split('-');
+    const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${+d}-${mo[+m - 1]}-${y}`;
+  })() : (() => {
+    const [y, m, d] = (today || todayStr()).split('-');
+    return `${+d}-${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m - 1]}-${y}`;
+  })(), " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      color: 'var(--gold-light)',
+      marginLeft: 4,
+      fontFamily: 'var(--mono)'
+    }
+  }, "BIZ DAY")), /*#__PURE__*/React.createElement("div", {
+    className: "stat-val"
+  }, BDT(filter === 'DATE' ? _bizDayTotal(calT) : _bizDayTotal(todayT))), /*#__PURE__*/React.createElement("div", {
+    className: "stat-sub"
+  }, filter === 'DATE' ? `${calT.filter(_isPayVehicle).length} payments` : `${reservations.filter(r => r.status === 'CHECKED_IN').length} in-house`)), /*#__PURE__*/React.createElement("div", {
+    className: "stat",
+    style: {
+      '--ac': 'var(--teal)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-ico"
+  }, "\uD83D\uDCC8"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-lbl"
+  }, "This Month"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-val"
+  }, BDT(monthRevenue)), /*#__PURE__*/React.createElement("div", {
+    className: "stat-sub"
+  }, monthT.filter(t => t.type !== 'Balance Carried Forward').length, " transactions")), /*#__PURE__*/React.createElement("div", {
+    className: "stat",
+    style: {
+      '--ac': 'var(--rose)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-ico"
+  }, "\u26A0"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-lbl"
+  }, "Outstanding"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-val"
+  }, BDT(outstanding)), /*#__PURE__*/React.createElement("div", {
+    className: "stat-sub"
+  }, "In-house balance due"))), /*#__PURE__*/React.createElement("div", {
+    className: "flex fac fjb mb4",
+    style: {
+      flexWrap: 'wrap',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tabs",
+    style: {
+      marginBottom: 0
+    }
+  }, (() => {
+    const [y, m, d] = (today || todayStr()).split('-');
+    const lbl = `${+d}-${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m - 1]}-${y}`;
+    return [['TODAY', lbl], ['MONTH', 'MONTH'], ['ALL', 'ALL']];
+  })().map(([f, lbl]) => /*#__PURE__*/React.createElement("button", {
+    key: f,
+    className: `tab${filter === f ? ' on' : ''}`,
+    onClick: () => {
+      setFilter(f);
+      setCalDate('');
+    }
+  }, lbl))), (() => {
+    const fmtCalLabel = d => {
+      if (!d) return null;
+      const [y, m, day] = d.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${+day}-${months[+m - 1]}-${y}`;
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'relative',
+        display: 'inline-flex',
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("input", {
+      type: "date",
+      value: calDate,
+      onChange: e => {
+        setCalDate(e.target.value);
+        if (e.target.value) setFilter('DATE');
+      },
+      style: {
+        opacity: 0,
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        width: '100%',
+        height: '100%',
+        cursor: 'pointer',
+        zIndex: 2
+      },
+      title: "Pick a specific date"
+    }), /*#__PURE__*/React.createElement("button", {
+      className: `tab${filter === 'DATE' ? ' on' : ''}`,
+      style: {
+        borderLeft: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 5,
+        minWidth: calDate ? 'auto' : 38
+      },
+      title: "Pick specific date"
+    }, "\uD83D\uDCC5", calDate && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        letterSpacing: '.04em'
+      }
+    }, fmtCalLabel(calDate))));
+  })()), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap2",
+    style: {
+      alignItems: 'center'
+    }
+  }, currentUser?.role !== 'housekeeping' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      background: 'rgba(200,169,110,.06)',
+      border: '1px solid var(--br)',
+      padding: '4px 10px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      letterSpacing: '.12em',
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      whiteSpace: 'nowrap'
+    }
+  }, "Token"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: tokenAmt,
+    onChange: e => setTokenAmt(e.target.value),
+    placeholder: "0",
+    style: {
+      width: 90,
+      padding: '4px 8px',
+      fontSize: 12
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    style: {
+      padding: '4px 10px',
+      fontSize: 9
+    },
+    disabled: tokenSaving,
+    onClick: saveToken
+  }, tokenSaving ? '…' : 'Save'), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    style: {
+      padding: '4px 10px',
+      fontSize: 9,
+      marginLeft: 6,
+      borderLeft: '1px solid var(--br)',
+      paddingLeft: 10
+    },
+    onClick: downloadPDF,
+    title: "Download specific date report"
+  }, "\uD83D\uDCE5 Download Report")), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold btn-sm",
+    style: {
+      gap: 5,
+      whiteSpace: 'nowrap'
+    },
+    onClick: doClosingComplete
+  }, "\u2713 Closing Complete")))), (() => {
+    let list = filter === 'TODAY' ? activeLedgerTx : filter === 'DATE' ? calT : filter === 'MONTH' ? monthT : transactions;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(t => t.guest_name?.toLowerCase().includes(q) || t.room_number?.includes(q) || t.type?.toLowerCase().includes(q));
+    }
+    const fmtDLabel = d => {
+      if (!d) return 'Today';
+      const [y, m, dy] = d.split('-');
+      const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${+dy}-${mo[+m - 1]}-${y}`;
+    };
+    const label = filter === 'TODAY' ? fmtDLabel('') : filter === 'DATE' ? fmtDLabel(calDate) : filter === 'MONTH' ? 'This Month' : 'All Time';
+    const unifiedGroups = {};
+    list.forEach(t => {
+      // reservation_id on the transaction is authoritative — use it first to prevent
+      // cross-guest misattribution when two reservations share the same room number.
+      const res = t.reservation_id && reservations?.find(r => r.id === t.reservation_id) || (() => {
+        const guestId = guests?.find(g => g.name === t.guest_name)?.id;
+        return reservations?.find(r => {
+          const roomMatch = (r.room_ids || []).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number);
+          const nameMatch = !guestId || (r.guest_ids || []).includes(guestId) || r.guest_name === t.guest_name;
+          return roomMatch && nameMatch;
+        }) || reservations?.find(r => (r.room_ids || []).some(id => String(id) === String(t.room_number)) || String(r.room_number) === String(t.room_number));
+      })();
+      const key = res ? res.id : `tx|${t.guest_name || ''}|${t.room_number || ''}|${t.fiscal_day || ''}`;
+      if (!unifiedGroups[key]) unifiedGroups[key] = {
+        txs: [],
+        res,
+        guest_name: t.guest_name,
+        room_number: t.room_number,
+        isDue: false
+      };
+      unifiedGroups[key].txs.push(t);
+    });
+    if (!search) {
+      // Use activeRes (all CHECKED_IN + CHECKED_OUT with balance) so fully-paid
+      // CHECKED_IN guests still appear in the ledger
+      activeRes.forEach(r => {
+        try {
+          if (!r || !r.id) return;
+          const key = r.id;
+          if (!unifiedGroups[key]) {
+            unifiedGroups[key] = {
+              txs: [],
+              res: r,
+              guest_name: getGN(r),
+              room_number: getRoom(r),
+              isDue: _resDue(r) > 0
+            };
+          } else {
+            unifiedGroups[key].isDue = _resDue(r) > 0;
+            unifiedGroups[key].res = r;
+          }
+        } catch (e) {
+          console.warn('[ledger] skip malformed reservation', r?.id, e);
+        }
+      });
+    }
+
+    // TODAY view: show only guests who OWE MONEY or made a real payment today.
+    // BCF-only + due=0 = ghost row (fully settled — hide after day close).
+    // Guest reappears when a new cash/bkash/folio TX is recorded today.
+    const displayList = filter === 'TODAY' ? Object.values(unifiedGroups).filter(grp => {
+      if (grp.isDue) return true; // still owes money
+      if (grp.res?.status === 'CHECKED_IN') return true; // always show in-house guests
+      return grp.txs.some(t => !/balance carried forward/i.test(t.type || '')); // real TX today
+    }) : Object.values(unifiedGroups);
+    return /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "card-hd"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "card-title",
+      style: {
+        fontSize: 14
+      }
+    }, "Active Billing Ledger \u2014 ", label), /*#__PURE__*/React.createElement("span", {
+      className: "badge bgold"
+    }, displayList.length, " records")), /*#__PURE__*/React.createElement("div", {
+      className: "tbl-wrap"
+    }, /*#__PURE__*/React.createElement("table", {
+      className: "tbl"
+    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Guest"), /*#__PURE__*/React.createElement("th", null, "Room"), /*#__PURE__*/React.createElement("th", null, "Check-In"), /*#__PURE__*/React.createElement("th", null, "Check-Out"), /*#__PURE__*/React.createElement("th", null, "Bill Total"), /*#__PURE__*/React.createElement("th", null, "Discount"), /*#__PURE__*/React.createElement("th", null, "Paid"), /*#__PURE__*/React.createElement("th", null, "Balance Due"), /*#__PURE__*/React.createElement("th", null, "Payments (Filtered)"), /*#__PURE__*/React.createElement("th", null, "Action"))), /*#__PURE__*/React.createElement("tbody", null, displayList.length === 0 ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+      colSpan: 10,
+      style: {
+        textAlign: 'center',
+        padding: '20px 0',
+        color: 'var(--tx3)',
+        fontSize: 12
+      }
+    }, "No billing activity or dues for this period")) : displayList.map(grp => {
+      const r = grp.res;
+      const {
+        total: resTotal,
+        paid: resPaid,
+        due: resDue
+      } = r ? computeBill(r) : {
+        total: 0,
+        paid: 0,
+        due: 0
+      };
+      const _hasCash = grp.txs.some(t => /cash|bkash/i.test(t.type || ''));
+      const byType = {};
+      grp.txs.forEach(t => {
+        if (_hasCash && /final\s*settlement/i.test(t.type || '')) return;
+        const tp = t.type || 'Payment';
+        if (!byType[tp]) byType[tp] = 0;
+        byType[tp] += +t.amount || 0;
+      });
+      const gname = r ? getGN(r) : grp.guest_name || '—';
+      const rno = r ? getRoom(r) : grp.room_number || '—';
+      const chkIn = r ? fmtDate(r.check_in) : grp.txs[0]?.check_in ? fmtDate(grp.txs[0].check_in) : '—';
+      const chkOut = r ? fmtDate(r.check_out) : grp.txs[0]?.check_out ? fmtDate(grp.txs[0].check_out) : '—';
+      const tTotal = r ? resTotal : grp.txs[0]?.bill_total ? +grp.txs[0].bill_total : 0;
+      // PAID column: TODAY = only actual payment txs (excl charges like Stay Extension / BCF)
+      const _isPaymentTx = t => /payment|settlement|advance|deposit|bkash|bank\s*transfer/i.test(t.type || '') && !/balance carried forward/i.test(t.type || '');
+      const tPaid = filter === 'TODAY' ? grp.txs.filter(_isPaymentTx).reduce((s, t) => s + (+t.amount || 0), 0) : r ? resPaid : 0;
+      const tDue = r ? resDue : 0;
+      const tDiscount = r ? +r.discount_amount || +r.discount || 0 : 0;
+      return /*#__PURE__*/React.createElement("tr", {
+        key: r ? r.id : grp.guest_name + '|' + grp.room_number
+      }, /*#__PURE__*/React.createElement("td", {
+        className: "xs"
+      }, gname), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
+        className: "badge bb"
+      }, rno)), /*#__PURE__*/React.createElement("td", {
+        className: "xs muted"
+      }, chkIn), /*#__PURE__*/React.createElement("td", {
+        className: "xs muted"
+      }, chkOut), /*#__PURE__*/React.createElement("td", {
+        className: "xs gold"
+      }, BDT(tTotal)), /*#__PURE__*/React.createElement("td", {
+        className: "xs",
+        style: {
+          color: 'var(--amb)'
+        }
+      }, tDiscount > 0 ? '− ' + BDT(tDiscount) : '—'), /*#__PURE__*/React.createElement("td", {
+        className: "xs",
+        style: {
+          color: 'var(--grn)'
+        }
+      }, BDT(tPaid)), /*#__PURE__*/React.createElement("td", {
+        className: "xs",
+        style: {
+          color: tDue > 0 ? 'var(--rose)' : 'var(--grn)',
+          fontWeight: tDue > 0 ? 600 : 400
+        }
+      }, BDT(tDue)), /*#__PURE__*/React.createElement("td", {
+        className: "xs",
+        style: {
+          lineHeight: 1.8
+        }
+      }, Object.keys(byType).length === 0 ? /*#__PURE__*/React.createElement("span", {
+        className: "muted xs",
+        style: {
+          fontSize: 10
+        }
+      }, "\u2014 No Pymt in Period \u2014") : Object.entries(byType).map(([tp, amt]) => /*#__PURE__*/React.createElement("div", {
+        key: tp,
+        style: {
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          minWidth: 140
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "badge bgold",
+        style: {
+          fontSize: 8
+        }
+      }, tp), /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: 'var(--gold)',
+          fontWeight: 500
+        }
+      }, BDT(amt))))), /*#__PURE__*/React.createElement("td", {
+        style: {
+          whiteSpace: 'nowrap'
+        }
+      }, currentUser?.role !== 'housekeeping' && /*#__PURE__*/React.createElement("button", {
+        className: "btn btn-gold btn-sm",
+        style: {
+          padding: '3px 9px',
+          fontSize: 9,
+          marginRight: 4
+        },
+        onClick: () => {
+          const grossTotal = r ? +r.total_amount || 0 : tTotal;
+          // Use lifetime paid_amount for the modal — NOT today's tPaid (filtered txs).
+          // tPaid resets to 0 each business day; modal must show what's actually been paid.
+          const modalPaid = r ? +r.paid_amount || 0 : tPaid;
+          setBillingRes({
+            _fromRow: true,
+            ...(r || {}),
+            room_number: rno,
+            guest_name: gname,
+            _resId: r?.id || null,
+            _total: grossTotal,
+            _paid: modalPaid,
+            _discount: tDiscount
+          });
+          setShowAdd(true);
+        }
+      }, "+ Pay"), currentUser?.role !== 'housekeeping' && /*#__PURE__*/React.createElement("button", {
+        className: "btn btn-ghost btn-sm",
+        style: {
+          padding: '3px 9px',
+          fontSize: 9,
+          marginRight: 4
+        },
+        onClick: () => {
+          const pInvoiceByType = {
+            ...byType
+          };
+          if (r && Object.keys(pInvoiceByType).length === 0 && tPaid > 0) pInvoiceByType[r.payment_method || 'Cash'] = tPaid;
+          const pBill = r ? computeBill(r) : null;
+          const pGuest = r ? guests?.find(g => String(g.id) === String((r.guest_ids || [])[0])) : null;
+          printInvoice({
+            guest_name: gname,
+            room_number: rno,
+            txs: grp.txs
+          }, r, tTotal, tPaid, tDue, pInvoiceByType, pBill, pGuest);
+        }
+      }, "\uD83D\uDDA8 Print"), currentUser?.role !== 'housekeeping' && r && /*#__PURE__*/React.createElement("button", {
+        className: "btn btn-ghost btn-sm",
+        style: {
+          padding: '3px 9px',
+          fontSize: 9,
+          marginRight: 4
+        },
+        onClick: () => openDetail(r)
+      }, "Detail"), currentUser?.role === 'owner' && grp.txs.length > 0 && /*#__PURE__*/React.createElement("button", {
+        className: "btn btn-danger btn-sm",
+        style: {
+          padding: '3px 7px',
+          fontSize: 9
+        },
+        onClick: async () => {
+          if (!window.confirm(`Delete all ${grp.txs.length} filtered transaction(s) for ${gname}?`)) return;
+          try {
+            for (const t of grp.txs) await dbDelete('transactions', t.id);
+            toast(`${grp.txs.length} transaction(s) deleted`);
+            reload();
+          } catch (e) {
+            toast(e.message, 'error');
+          }
+        }
+      }, "\u2715")));
+    })))));
+  })(), showAdd && /*#__PURE__*/React.createElement(RecordPayModal, {
+    toast: toast,
+    guests: guests,
+    onClose: () => {
+      setShowAdd(false);
+      setBillingRes(null);
+    },
+    reload: () => {
+      reload();
+      db('folios', '?select=*&order=created_at').then(d => {
+        const map = {};
+        (Array.isArray(d) ? d : []).forEach(f => {
+          const k = f.reservation_id || f.room_number;
+          if (!map[k]) map[k] = [];
+          map[k].push(f);
+        });
+        setFoliosMap(map);
+      });
+    },
+    prefill: billingRes,
+    reservations: reservations,
+    businessDate: businessDate
+  }), showBillDetail && detailRes && (() => {
+    const {
+      roomCharge,
+      sub,
+      tax,
+      svc,
+      discount,
+      total,
+      paid,
+      due,
+      folios,
+      nights,
+      roomRate,
+      vatPct,
+      svcPct,
+      perRoom,
+      topFolios
+    } = computeBill(detailRes);
+    const allRoomNos = (detailRes.room_ids || [detailRes.room_number]).filter(Boolean);
+    const relTx = transactions.filter(t => allRoomNos.includes(t.room_number) && t.type !== 'Balance Carried Forward');
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: 'linear-gradient(135deg,rgba(88,166,255,.07),rgba(200,169,110,.05))',
+        border: '1px solid rgba(200,169,110,.18)',
+        padding: '12px 14px',
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex fac fjb",
+      style: {
+        flexWrap: 'wrap',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex fac gap3"
+    }, /*#__PURE__*/React.createElement(Av, {
+      name: detailRes.guest_name,
+      size: 40
+    }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 700,
+        fontSize: 16
+      }
+    }, detailRes.guest_name), /*#__PURE__*/React.createElement("div", {
+      className: "xs muted"
+    }, "Room", allRoomNos.length > 1 ? 's' : '', " ", allRoomNos.join(', '), " \xB7 ", fmtDate(detailRes.check_in), " \u2192 ", fmtDate(detailRes.check_out)), /*#__PURE__*/React.createElement("div", {
+      className: "xs",
+      style: {
+        color: 'var(--amb)',
+        marginTop: 2
+      }
+    }, nights, " night", nights !== 1 ? 's' : '', " \xB7 ", allRoomNos.length, " room", allRoomNos.length !== 1 ? 's' : ''))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'right',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "xs muted"
+    }, "Total Due"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 700,
+        fontSize: 22,
+        color: 'var(--gold)'
+      }
+    }, BDT(due))), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost btn-sm",
+      onClick: () => {
+        setShowBillDetail(false);
+        setDetailRes(null);
+      }
+    }, "\u2715 Close"))), /*#__PURE__*/React.createElement("div", {
+      className: "g2 mb4"
+    }, [['Check-In', fmtDate(detailRes.check_in)], ['Check-Out', fmtDate(detailRes.check_out)], ['Nights', nights], ['Payment Method', detailRes.payment_method || '—'], ['On-Duty Officer', detailRes.on_duty_officer || '—'], ['Status', detailRes.status || '—']].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+      key: l,
+      className: "info-box"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "info-lbl"
+    }, l), /*#__PURE__*/React.createElement("div", {
+      className: "info-val"
+    }, v)))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: 'var(--s2)',
+        border: '1px solid var(--br2)',
+        overflow: 'hidden',
+        marginBottom: 8
+      }
+    }, (perRoom || []).map((p, i) => /*#__PURE__*/React.createElement("div", {
+      key: p.room_number + i,
+      style: {
+        borderBottom: i < perRoom.length - 1 ? '1px solid var(--br2)' : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '8px 12px',
+        background: 'rgba(200,169,110,.06)',
+        borderBottom: '1px solid var(--br2)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        fontWeight: 600,
+        color: 'var(--gold)'
+      }
+    }, "\uD83D\uDECF Room ", p.room_number, " \xB7 ", p.category), /*#__PURE__*/React.createElement("span", {
+      className: "xs",
+      style: {
+        color: 'var(--gold)'
+      }
+    }, nights, "\xD7", BDT(p.rate), " = ", BDT(p.roomSubtotal))), p.folios.length === 0 && p.extras === 0 ? /*#__PURE__*/React.createElement("div", {
+      className: "xs muted",
+      style: {
+        padding: '6px 14px'
+      }
+    }, "No extras charged to this room") : p.folios.map(f => /*#__PURE__*/React.createElement("div", {
+      key: f.id,
+      className: "folio-row",
+      style: {
+        paddingLeft: 20
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, f.description), /*#__PURE__*/React.createElement("span", {
+      className: "badge bgold",
+      style: {
+        marginLeft: 6,
+        fontSize: 8
+      }
+    }, f.category)), /*#__PURE__*/React.createElement("span", {
+      className: "xs gold"
+    }, BDT(f.amount)))), p.extras > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "folio-row",
+      style: {
+        paddingLeft: 20,
+        background: 'rgba(200,169,110,.03)',
+        fontWeight: 600
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "xs muted"
+    }, "Room ", p.room_number, " subtotal"), /*#__PURE__*/React.createElement("span", {
+      className: "xs gold"
+    }, BDT(p.subtotal))))), (topFolios || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        borderTop: '1px solid var(--br2)'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '6px 12px',
+        background: 'rgba(88,166,255,.05)',
+        fontSize: 10,
+        color: 'var(--sky)',
+        letterSpacing: '.1em',
+        textTransform: 'uppercase'
+      }
+    }, "Unattributed Extras"), topFolios.map(f => /*#__PURE__*/React.createElement("div", {
+      key: f.id,
+      className: "folio-row"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, f.description), /*#__PURE__*/React.createElement("span", {
+      className: "badge bb",
+      style: {
+        marginLeft: 6,
+        fontSize: 8
+      }
+    }, f.category)), /*#__PURE__*/React.createElement("span", {
+      className: "xs gold"
+    }, BDT(f.amount))))), relTx.map(t => /*#__PURE__*/React.createElement("div", {
+      key: t.id,
+      className: "folio-row",
+      style: {
+        opacity: .75
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: 'var(--tx2)'
+      }
+    }, t.type || 'Charge'), /*#__PURE__*/React.createElement("span", {
+      className: "badge bb",
+      style: {
+        marginLeft: 6,
+        fontSize: 8
+      }
+    }, t.fiscal_day)), /*#__PURE__*/React.createElement("span", {
+      className: "xs",
+      style: {
+        color: 'var(--sky)'
+      }
+    }, BDT(t.amount))))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '9px 12px',
+        background: 'rgba(200,169,110,.03)',
+        borderTop: '1px solid var(--br2)'
+      }
+    }, [['Subtotal', sub]].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+      key: l,
+      className: "flex fjb xs muted",
+      style: {
+        marginBottom: 3
+      }
+    }, /*#__PURE__*/React.createElement("span", null, l), /*#__PURE__*/React.createElement("span", null, BDT(v)))), discount > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "flex fjb xs",
+      style: {
+        marginBottom: 3,
+        color: 'var(--grn)'
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Discount"), /*#__PURE__*/React.createElement("span", null, "- ", BDT(discount))), [[`VAT ${vatPct || 15}%`, tax], [`Service Charge ${svcPct || 5}%`, svc]].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+      key: l,
+      className: "flex fjb xs muted",
+      style: {
+        marginBottom: 3
+      }
+    }, /*#__PURE__*/React.createElement("span", null, l), /*#__PURE__*/React.createElement("span", null, BDT(v)))), /*#__PURE__*/React.createElement("div", {
+      className: "divider",
+      style: {
+        margin: '6px 0'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "flex fjb",
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: 'var(--gold)'
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Total"), /*#__PURE__*/React.createElement("span", null, BDT(total))), /*#__PURE__*/React.createElement("div", {
+      className: "flex fjb xs",
+      style: {
+        marginTop: 4
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: 'var(--grn)'
+      }
+    }, "Paid: ", BDT(paid)), due > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: 'var(--rose)',
+        fontWeight: 700
+      }
+    }, "Due: ", BDT(due)))));
+  })());
+}
+function RecordPayModal({
+  toast,
+  onClose,
+  reload,
+  prefill,
+  reservations,
+  guests,
+  businessDate
+}) {
+  const fromRow = prefill?._fromRow === true;
+  const _resDue = r => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
+  const dueResList = (reservations || []).filter(r => (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT') && _resDue(r) > 0);
+  const lockedRoom = fromRow ? prefill.room_number || '' : null;
+  const lockedGuest = fromRow ? prefill.guest_name || '' : null;
+  const lockedResId = fromRow ? prefill._resId : null;
+  const lockedDiscount = fromRow ? +prefill._discount || 0 : 0;
+  const lockedDue = fromRow ? Math.max(0, (+prefill._total || 0) - lockedDiscount - (+prefill._paid || 0)) : 0;
+  const initRes = !fromRow && prefill?.id ? prefill : !fromRow && dueResList.length === 1 ? dueResList[0] : null;
+  const [selRes, setSelRes] = useState(initRes);
+  const [resSearch, setResSearch] = useState(initRes ? `${initRes.room_number || ''} — ${initRes.guest_name || ''}` : '');
+  const [showResDrop, setShowResDrop] = useState(false);
+  const dropDueAmt = selRes ? _resDue(selRes) : 0;
+  const [amount, setAmount] = useState(fromRow && lockedDue > 0 ? String(lockedDue) : dropDueAmt > 0 ? String(dropDueAmt) : '');
+  const [type, setType] = useState('Room Payment (Cash)');
+  const [fiscal_day, setFiscalDay] = useState(businessDate || todayStr());
+  const [saving, setSaving] = useState(false);
+  function pickRes(r) {
+    setSelRes(r);
+    setResSearch(`${r.room_number || ''} — ${r.guest_name || ''}`);
+    const due = _resDue(r);
+    if (due > 0) setAmount(String(due));
+    setShowResDrop(false);
+  }
+  function clearRes() {
+    setSelRes(null);
+    setResSearch('');
+    setAmount('');
+    setShowResDrop(true);
+  }
+  async function save() {
+    const a = +amount;
+    if (!a || a <= 0) return toast('Enter valid amount', 'error');
+    if (!fromRow && !selRes && !resSearch) return toast('Select a guest / room', 'error');
+    setSaving(true);
+    const room_number = fromRow ? lockedRoom : selRes?.room_number || resSearch;
+    const guest_name = fromRow ? lockedGuest : selRes?.guest_name || resSearch;
+    const resId = fromRow ? lockedResId : selRes?.id;
+    const resTotal = fromRow ? +prefill._total || 0 : +selRes?.total_amount || 0;
+    const resDiscount = fromRow ? lockedDiscount : +selRes?.discount_amount || +selRes?.discount || 0;
+    const resPaid = fromRow ? +prefill._paid || 0 : +selRes?.paid_amount || 0;
+    const payCap = Math.max(0, resTotal - resDiscount);
+    try {
+      await dbPost('transactions', {
+        room_number,
+        guest_name,
+        type,
+        amount: a,
+        fiscal_day,
+        reservation_id: resId || null,
+        tenant_id: TENANT
+      });
+      if (resId) await dbPatch('reservations', resId, {
+        paid_amount: Math.min(payCap, resPaid + a)
+      });
+      toast(`Payment ${BDT(a)} recorded`);
+      reload();
+      onClose();
+    } catch (e) {
+      toast(e.message, 'error');
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "Record Payment",
+    onClose: onClose,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      disabled: saving,
+      onClick: save
+    }, saving ? 'Saving…' : 'Record Payment'))
+  }, fromRow && /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: '1px solid var(--br)',
+      marginBottom: 14,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(200,169,110,.08)',
+      padding: '10px 14px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderBottom: '1px solid var(--br)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "badge bb",
+    style: {
+      padding: '3px 10px',
+      fontSize: 11
+    }
+  }, lockedRoom || '—'), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 600,
+      fontSize: 13
+    }
+  }, lockedGuest || '—')), lockedDue > 0 ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: 'var(--rose)',
+      background: 'rgba(224,92,122,.1)',
+      border: '1px solid rgba(224,92,122,.25)',
+      padding: '3px 10px'
+    }
+  }, "DUE ", BDT(lockedDue)) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: 'var(--grn)'
+    }
+  }, "\u2713 Settled")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr'
+    }
+  }, [['Check-In', fmtDate(prefill.check_in)], ['Check-Out', fmtDate(prefill.check_out)], ['Nights', nightsCount(prefill.check_in, prefill.check_out) || '—'], ['Method', prefill.payment_method || '—'], ['Officer', prefill.on_duty_officer || '—'], ['Status', prefill.status || '—']].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      padding: '6px 12px',
+      borderBottom: '1px solid var(--br2)',
+      borderRight: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 8,
+      letterSpacing: '.1em',
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      marginBottom: 1
+    }
+  }, l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: 'var(--tx)',
+      fontSize: 12
+    }
+  }, v)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: lockedDiscount > 0 ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr',
+      background: 'rgba(200,169,110,.03)'
+    }
+  }, [['Total', BDT(+prefill._total || 0), 'var(--gold)'], ...(lockedDiscount > 0 ? [['Discount', '− ' + BDT(lockedDiscount), 'var(--amb)']] : []), ['Paid', BDT(+prefill._paid || 0), 'var(--grn)'], ['Balance Due', BDT(lockedDue), lockedDue > 0 ? 'var(--rose)' : 'var(--grn)']].map(([l, v, c]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      padding: '8px 12px',
+      textAlign: 'center',
+      borderRight: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 8,
+      letterSpacing: '.1em',
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      marginBottom: 2
+    }
+  }, l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: c,
+      fontWeight: 700,
+      fontSize: 13
+    }
+  }, v))))), !fromRow && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 12,
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Guest / Room ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--rose)'
+    }
+  }, "*")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: resSearch,
+    placeholder: dueResList.length === 0 ? 'No unsettled reservations' : 'Search room or guest name…',
+    onChange: e => {
+      setResSearch(e.target.value);
+      setSelRes(null);
+      setShowResDrop(true);
+    },
+    onFocus: () => setShowResDrop(true),
+    autoFocus: true,
+    style: {
+      flex: 1
+    }
+  }), selRes && /*#__PURE__*/React.createElement("button", {
+    style: {
+      background: 'none',
+      border: 'none',
+      color: 'var(--tx3)',
+      cursor: 'pointer',
+      fontSize: 16,
+      lineHeight: 1,
+      padding: '0 4px'
+    },
+    onClick: clearRes
+  }, "\u2715")), showResDrop && dueResList.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      zIndex: 60,
+      background: 'var(--s1)',
+      border: '1px solid var(--br)',
+      boxShadow: '0 8px 24px rgba(0,0,0,.6)',
+      maxHeight: 180,
+      overflowY: 'auto'
+    }
+  }, dueResList.filter(r => {
+    const q = resSearch.toLowerCase();
+    return !q || r.room_number?.toLowerCase().includes(q) || r.guest_name?.toLowerCase().includes(q);
+  }).map(r => {
+    const due = _resDue(r);
+    return /*#__PURE__*/React.createElement("div", {
+      key: r.id,
+      onClick: () => pickRes(r),
+      style: {
+        padding: '9px 14px',
+        cursor: 'pointer',
+        borderBottom: '1px solid var(--br2)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      },
+      onMouseEnter: e => e.currentTarget.style.background = 'var(--gdim)',
+      onMouseLeave: e => e.currentTarget.style.background = 'transparent'
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "badge bb"
+    }, r.room_number || '—'), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12
+      }
+    }, r.guest_name || '—')), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: 'var(--rose)',
+        fontWeight: 600
+      }
+    }, BDT(due), " due"));
+  })), selRes && (() => {
+    const selDisc = +selRes.discount_amount || +selRes.discount || 0;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 6,
+        background: 'rgba(200,169,110,.06)',
+        border: '1px solid var(--br)',
+        padding: '8px 12px',
+        fontSize: 11,
+        display: 'flex',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: 'var(--tx2)'
+      }
+    }, "Total: ", /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: 'var(--tx)'
+      }
+    }, BDT(selRes.total_amount || 0)), selDisc > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, " \xB7 Discount: ", /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: 'var(--amb)'
+      }
+    }, "\u2212 ", BDT(selDisc))), "\xB7 Paid: ", /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: 'var(--grn)'
+      }
+    }, BDT(selRes.paid_amount || 0))), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: dropDueAmt > 0 ? 'var(--rose)' : 'var(--grn)',
+        fontWeight: 600
+      }
+    }, "Due: ", BDT(dropDueAmt)));
+  })()), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Amount (BDT) *"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: amount,
+    onChange: e => setAmount(e.target.value),
+    placeholder: "0",
+    autoFocus: fromRow
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Date"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    className: "finput",
+    value: fiscal_day,
+    onChange: e => setFiscalDay(e.target.value)
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Payment Type"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: type,
+    onChange: e => setType(e.target.value)
+  }, ['Room Payment (Cash)', 'Room Payment (Bkash)', 'Room Payment (Nagad)', 'Room Payment (Card)', 'Room Service', 'Restaurant', 'Laundry', 'Misc'].map(t => /*#__PURE__*/React.createElement("option", {
+    key: t
+  }, t)))));
+}
+
+/* ═══════════════════════ REPORTS ════════════════════════════ */
+function ReportsPage({
+  transactions,
+  rooms,
+  reservations,
+  guests
+}) {
+  const [chartActive, setChartActive] = useState(13);
+  const last14 = Array.from({
+    length: 14
+  }, (_, i) => {
+    const d = new Date(todayDhaka());
+    d.setDate(d.getDate() - (13 - i));
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return {
+      d: ds.slice(8),
+      v: transactions.filter(t => t.fiscal_day === ds).reduce((a, t) => a + (+t.amount || 0), 0),
+      ds
+    };
+  });
+  const totalRev = transactions.reduce((a, t) => a + (+t.amount || 0), 0);
+  const occ = rooms.filter(r => r.status === 'OCCUPIED').length;
+  const occPct = rooms.length ? Math.round(occ / rooms.length * 100) : 0;
+  const avgRate = rooms.length ? Math.round(rooms.reduce((a, r) => a + (+r.price || 0), 0) / rooms.length) : 0;
+  const revPAR = Math.round(avgRate * occPct / 100);
+  const catMap = transactions.reduce((a, t) => {
+    if (t.type) a[t.type] = (a[t.type] || 0) + (+t.amount || 0);
+    return a;
+  }, {});
+  const topCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "stats-row"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat",
+    style: {
+      '--ac': 'var(--gold)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-lbl"
+  }, "Total Revenue"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-val"
+  }, BDT(totalRev))), /*#__PURE__*/React.createElement("div", {
+    className: "stat",
+    style: {
+      '--ac': 'var(--sky)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-lbl"
+  }, "Occupancy"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-val"
+  }, occPct, "%"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-sub"
+  }, occ, "/", rooms.length, " rooms")), /*#__PURE__*/React.createElement("div", {
+    className: "stat",
+    style: {
+      '--ac': 'var(--teal)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-lbl"
+  }, "ADR"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-val"
+  }, BDT(avgRate)), /*#__PURE__*/React.createElement("div", {
+    className: "stat-sub"
+  }, "Avg Daily Rate")), /*#__PURE__*/React.createElement("div", {
+    className: "stat",
+    style: {
+      '--ac': 'var(--pur)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-lbl"
+  }, "RevPAR"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-val"
+  }, BDT(revPAR)), /*#__PURE__*/React.createElement("div", {
+    className: "stat-sub"
+  }, "Revenue/Available Room"))), /*#__PURE__*/React.createElement("div", {
+    className: "g2 mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Daily Revenue \u2014 Last 14 Days"), /*#__PURE__*/React.createElement("span", {
+    className: "badge bgold"
+  }, last14[chartActive]?.ds?.slice(5), " \xB7 ", BDT(last14[chartActive]?.v))), /*#__PURE__*/React.createElement("div", {
+    className: "card-body"
+  }, /*#__PURE__*/React.createElement(BarChart, {
+    data: last14,
+    active: chartActive,
+    onHover: setChartActive
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "divider"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex fjb xs muted"
+  }, /*#__PURE__*/React.createElement("span", null, "14-day total"), /*#__PURE__*/React.createElement("span", {
+    className: "gold"
+  }, BDT(last14.reduce((a, d) => a + d.v, 0)))))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Revenue by Category")), /*#__PURE__*/React.createElement("div", {
+    className: "card-body"
+  }, topCats.map(([cat, rev]) => /*#__PURE__*/React.createElement("div", {
+    key: cat,
+    className: "flex fac fjb",
+    style: {
+      padding: '5px 0',
+      borderBottom: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "xs"
+  }, cat), /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "xs gold"
+  }, BDT(rev)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 4,
+      width: Math.round(rev / (topCats[0]?.[1] || 1) * 60),
+      background: 'rgba(200,169,110,.4)',
+      borderRadius: 2
+    }
+  }))))))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Room Category Performance")), /*#__PURE__*/React.createElement("div", {
+    className: "tbl-wrap"
+  }, /*#__PURE__*/React.createElement("table", {
+    className: "tbl"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Category"), /*#__PURE__*/React.createElement("th", null, "Total Rooms"), /*#__PURE__*/React.createElement("th", null, "Rate/Night"), /*#__PURE__*/React.createElement("th", null, "Occupied"), /*#__PURE__*/React.createElement("th", null, "Occupancy %"), /*#__PURE__*/React.createElement("th", null, "RevPAR"))), /*#__PURE__*/React.createElement("tbody", null, ['Fountain Deluxe', 'Premium Deluxe', 'Superior Deluxe', 'Twin Deluxe', 'Royal Suite'].map(cat => {
+    const cr = rooms.filter(r => r.category === cat);
+    if (!cr.length) return null;
+    const rate = cr[0]?.price || 0,
+      occN = cr.filter(r => r.status === 'OCCUPIED').length;
+    const pct = Math.round(occN / cr.length * 100);
+    return /*#__PURE__*/React.createElement("tr", {
+      key: cat
+    }, /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
+      className: "badge bgold"
+    }, cat)), /*#__PURE__*/React.createElement("td", {
+      className: "xs"
+    }, cr.length), /*#__PURE__*/React.createElement("td", {
+      className: "xs gold"
+    }, BDT(rate)), /*#__PURE__*/React.createElement("td", {
+      className: "xs"
+    }, occN), /*#__PURE__*/React.createElement("td", {
+      className: "xs"
+    }, pct, "%"), /*#__PURE__*/React.createElement("td", {
+      className: "xs gold"
+    }, BDT(Math.round(rate * pct / 100))));
+  }))))));
+}
+
+/* ═══════════════════════ SETTINGS (owner-only) ══════════════ */
+function SettingsPage({
+  currentUser,
+  toast,
+  staffList,
+  setStaffList,
+  reservations,
+  rooms,
+  guests
+}) {
+  const isSA = currentUser?.role === 'owner';
+  const [tab, setTab] = useState('hotel');
+  const [hs, setHS] = useState({
+    hotelName: _HNAME,
+    city: _CCITY,
+    currency: _CFG.currencyCode || 'BDT',
+    checkIn: _CFG.checkInTime || '14:00',
+    checkOut: _CFG.checkOutTime || '12:00',
+    vat: String(_VRATE),
+    svc: String(_SRATE)
+  });
+  const [hsSaving, setHsSaving] = useState(false);
+  const HS = k => e => setHS(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const rows = await db('hotel_settings', `?tenant_id=eq.${TENANT}&select=key,value`);
+        if (rows && rows.length > 0) {
+          const map = {};
+          rows.forEach(r => {
+            map[r.key] = r.value;
+          });
+          setHS(p => ({
+            hotelName: map.hotel_name || p.hotelName,
+            city: map.city || p.city,
+            currency: map.currency || p.currency,
+            checkIn: map.check_in || p.checkIn,
+            checkOut: map.check_out || p.checkOut,
+            vat: map.vat_rate || p.vat,
+            svc: map.service_charge || p.svc
+          }));
+        }
+      } catch (e) {
+        console.warn('Settings load:', e.message);
+      }
+    }
+    loadSettings();
+  }, []);
+  async function saveHotelSettings() {
+    setHsSaving(true);
+    try {
+      const entries = [['hotel_name', hs.hotelName], ['city', hs.city], ['currency', hs.currency], ['check_in', hs.checkIn], ['check_out', hs.checkOut], ['vat_rate', hs.vat], ['service_charge', hs.svc]];
+      for (const [key, value] of entries) {
+        await fetch(`${SB_URL}/rest/v1/hotel_settings`, {
+          method: 'POST',
+          headers: {
+            apikey: SB_KEY,
+            Authorization: `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({
+            key,
+            value: String(value),
+            tenant_id: TENANT
+          })
+        });
+      }
+      toast('Hotel settings saved ✓');
+    } catch (e) {
+      toast('Save failed: ' + e.message, 'error');
+    } finally {
+      setHsSaving(false);
+    }
+  }
+  async function deleteUser(id) {
+    if (!window.confirm('Remove this staff account?')) return;
+    try {
+      await dbDelete('staff', id);
+      setStaffList(p => p.filter(s => s.id !== id));
+      toast('Staff account removed');
+    } catch (e) {
+      toast('Delete failed: ' + e.message, 'error');
+    }
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 700
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tabs mb4"
+  }, [['hotel', '🏨 Hotel Info'], ['users', '👥 Staff & Users'], ['devices', '📱 Devices'], ['system', '⚙ System']].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+    key: v,
+    className: `tab${tab === v ? ' on' : ''}`,
+    onClick: () => setTab(v)
+  }, l))), tab === 'hotel' && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Hotel Information"), !isSA && /*#__PURE__*/React.createElement("span", {
+    className: "badge ba"
+  }, "View Only")), /*#__PURE__*/React.createElement("div", {
+    className: "card-body"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Hotel Name"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: hs.hotelName,
+    onChange: HS('hotelName'),
+    disabled: !isSA
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "City / Location"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: hs.city,
+    onChange: HS('city'),
+    disabled: !isSA
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Currency"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: hs.currency,
+    onChange: HS('currency'),
+    disabled: !isSA
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "BDT"
+  }, "BDT \u2014 Bangladeshi Taka (\u09F3)"), /*#__PURE__*/React.createElement("option", {
+    value: "USD"
+  }, "USD \u2014 US Dollar ($)"), /*#__PURE__*/React.createElement("option", {
+    value: "EUR"
+  }, "EUR \u2014 Euro (\u20AC)"))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Timezone"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    disabled: !isSA
+  }, /*#__PURE__*/React.createElement("option", null, "Asia/Dhaka (UTC+6)")))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Standard Check-In"), /*#__PURE__*/React.createElement("input", {
+    type: "time",
+    className: "finput",
+    value: hs.checkIn,
+    onChange: HS('checkIn'),
+    disabled: !isSA
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Standard Check-Out"), /*#__PURE__*/React.createElement("input", {
+    type: "time",
+    className: "finput",
+    value: hs.checkOut,
+    onChange: HS('checkOut'),
+    disabled: !isSA
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "VAT Rate (%)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: hs.vat,
+    onChange: HS('vat'),
+    disabled: !isSA,
+    min: "0",
+    max: "30"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Service Charge (%)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    className: "finput",
+    value: hs.svc,
+    onChange: HS('svc'),
+    disabled: !isSA,
+    min: "0",
+    max: "30"
+  }))), isSA ? /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold mt3",
+    disabled: hsSaving,
+    onClick: saveHotelSettings
+  }, hsSaving ? 'Saving…' : 'Save Settings') : /*#__PURE__*/React.createElement("p", {
+    className: "xs muted mt3"
+  }, "Only the Owner can edit hotel settings."))), tab === 'users' && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Staff Accounts"), isSA && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold btn-sm",
+    onClick: () => setShowAddUser(true)
+  }, "+ Add Staff")), /*#__PURE__*/React.createElement("div", {
+    className: "card-body",
+    style: {
+      padding: '0 15px'
+    }
+  }, staffList.map(u => /*#__PURE__*/React.createElement("div", {
+    key: u.id,
+    className: "user-row"
+  }, /*#__PURE__*/React.createElement(Av, {
+    name: u.name,
+    size: 36
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 500,
+      fontSize: 13
+    }
+  }, u.name), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, u.email), /*#__PURE__*/React.createElement("div", {
+    className: "xs mt3",
+    style: {
+      color: ROLES[u.role]?.color || 'var(--tx2)'
+    }
+  }, ROLES[u.role]?.label)), u.role === 'owner' ? /*#__PURE__*/React.createElement("span", {
+    className: "badge bgold"
+  }, "\u2605 OWNER") : /*#__PURE__*/React.createElement("span", {
+    className: "badge bb"
+  }, u.role), isSA && u.role !== 'owner' && /*#__PURE__*/React.createElement("div", {
+    className: "flex gap2"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: () => setEditUser(u)
+  }, "Edit"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-danger btn-sm",
+    onClick: () => deleteUser(u.id)
+  }, "Remove")))))), tab === 'devices' && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Authorized Devices / Terminals"), /*#__PURE__*/React.createElement("span", {
+    className: "badge bgold"
+  }, staffList.length, " accounts")), /*#__PURE__*/React.createElement("div", {
+    className: "card-body",
+    style: {
+      padding: '0 15px'
+    }
+  }, staffList.map(u => /*#__PURE__*/React.createElement("div", {
+    key: u.id,
+    className: "user-row"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 10,
+      height: 10,
+      borderRadius: '50%',
+      background: ROLES[u.role]?.color,
+      flexShrink: 0,
+      boxShadow: `0 0 6px ${ROLES[u.role]?.color}`
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 500,
+      fontSize: 13
+    }
+  }, u.device || `${u.name}'s Device`), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, u.email)), /*#__PURE__*/React.createElement("span", {
+    className: `badge ${u.role === 'owner' ? 'bgold' : u.role === 'housekeeping' ? 'bteal' : 'bb'}`
+  }, ROLES[u.role]?.label))))), tab === 'system' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Lumea Founder Mode")), /*#__PURE__*/React.createElement("div", {
+    className: "card-body"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(200,169,110,.06)',
+      border: '1px solid rgba(200,169,110,.18)',
+      padding: '12px 14px',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 500,
+      color: 'var(--gold)',
+      marginBottom: 5
+    }
+  }, "\u2605 Admin Bypass Active \u2014 No Subscription Required"), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      lineHeight: 1.8
+    }
+  }, "Accessing Hotel Fountain CRM as the Lumea founder. All modules unlocked with full read/write access to production database ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--gold)',
+      fontWeight: 500
+    }
+  }, "mynwfkgksqqwlqowlscj"), ".")), /*#__PURE__*/React.createElement("div", {
+    className: "g2"
+  }, [['Database', 'mynwfkgksqqwlqowlscj'], ['Region', 'us-east-1 (N. Virginia)'], ['Tenant ID', TENANT.slice(0, 18) + '…'], ['Plan', 'Founder Bypass — Unlimited']].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, l), /*#__PURE__*/React.createElement("div", {
+    className: "info-val",
+    style: {
+      fontSize: 11
+    }
+  }, v)))))), /*#__PURE__*/React.createElement(WorkflowMonitor, {
+    toast: toast
+  }), /*#__PURE__*/React.createElement(GoogleSheetsCard, {
+    toast: toast
+  })), showAddUser && isSA && /*#__PURE__*/React.createElement(AddStaffModal, {
+    toast: toast,
+    onClose: () => setShowAddUser(false),
+    onAdd: u => {
+      setStaffList(p => [...p, u]);
+      toast(`${u.name} added as ${ROLES[u.role]?.label}`);
+      setShowAddUser(false);
+    },
+    existingIds: staffList.map(s => s.id)
+  }), editUser && isSA && /*#__PURE__*/React.createElement(EditStaffModal, {
+    user: editUser,
+    toast: toast,
+    onClose: () => setEditUser(null),
+    onSave: updated => {
+      setStaffList(p => p.map(s => s.id === updated.id ? updated : s));
+      toast('Staff account updated');
+      setEditUser(null);
+    }
+  }));
+}
+function AddStaffModal({
+  toast,
+  onClose,
+  onAdd,
+  existingIds
+}) {
+  const [f, setF] = useState({
+    name: '',
+    email: '',
+    pw: '',
+    role: 'receptionist',
+    device: ''
+  });
+  const F = k => e => setF(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    if (!f.name || !f.email || !f.pw) return toast('Name, email and password required', 'error');
+    setSaving(true);
+    const newId = Math.max(...existingIds, 0) + 1;
+    const newStaff = {
+      id: newId,
+      ...f,
+      av: f.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+      tenant_id: TENANT
+    };
+    try {
+      await dbPost('staff', newStaff);
+      onAdd(newStaff);
+    } catch (e) {
+      toast('Save failed: ' + e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "Add Staff Account",
+    onClose: onClose,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      onClick: save
+    }, "Add Staff"))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Full Name *"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.name,
+    onChange: F('name'),
+    placeholder: "Staff name",
+    autoFocus: true
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Role *"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.role,
+    onChange: F('role')
+  }, Object.entries(ROLES).filter(([k]) => k !== 'owner').map(([k, r]) => /*#__PURE__*/React.createElement("option", {
+    key: k,
+    value: k
+  }, r.label))))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Email *"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    className: "finput",
+    value: f.email,
+    onChange: F('email'),
+    placeholder: "staff@hotel.com"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Password *"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.pw,
+    onChange: F('pw'),
+    placeholder: "Set password"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Device / Terminal Name"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.device,
+    onChange: F('device'),
+    placeholder: "e.g. Front Desk Terminal"
+  })));
+}
+function EditStaffModal({
+  user,
+  toast,
+  onClose,
+  onSave
+}) {
+  const [f, setF] = useState({
+    ...user
+  });
+  const F = k => e => setF(p => ({
+    ...p,
+    [k]: e.target.value
+  }));
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    if (!f.name || !f.email) return toast('All fields required', 'error');
+    setSaving(true);
+    try {
+      const patch = {
+        name: f.name,
+        email: f.email,
+        role: f.role,
+        device: f.device
+      };
+      if (f.pw) patch.pwh = await _hashPw(f.pw);
+      await dbPatch('staff', user.id, patch);
+      onSave({
+        ...f,
+        av: f.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+      });
+    } catch (e) {
+      toast('Save failed: ' + e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: `Edit — ${user.name}`,
+    onClose: onClose,
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost",
+      onClick: onClose
+    }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-gold",
+      disabled: saving,
+      onClick: save
+    }, saving ? 'Saving…' : 'Save Changes'))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Full Name"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.name,
+    onChange: F('name')
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Role"), /*#__PURE__*/React.createElement("select", {
+    className: "fselect",
+    value: f.role,
+    onChange: F('role')
+  }, Object.entries(ROLES).filter(([k]) => k !== 'owner').map(([k, r]) => /*#__PURE__*/React.createElement("option", {
+    key: k,
+    value: k
+  }, r.label))))), /*#__PURE__*/React.createElement("div", {
+    className: "frow"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Email"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    className: "finput",
+    value: f.email,
+    onChange: F('email')
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Password"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.pw,
+    onChange: F('pw')
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Device / Terminal"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: f.device || '',
+    onChange: F('device')
+  })));
+}
+
+/* ═══════════════════════ AI AGENTS ══════════════════════════ */
+function AIAgentsPanel({
+  toast
+}) {
+  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/ai-agents';
+  const ANON = SB_KEY;
+  const [prospectQ, setProspectQ] = useState('event planners in Dhaka needing hotel rooms');
+  const [prospectRes, setProspectRes] = useState(null);
+  const [prospectBusy, setProspectBusy] = useState(false);
+  const [leadId, setLeadId] = useState('');
+  const [closerRes, setCloserRes] = useState(null);
+  const [closerBusy, setCloserBusy] = useState(false);
+  const [analystRes, setAnalystRes] = useState(null);
+  const [analystBusy, setAnalystBusy] = useState(false);
+  const [discountApproved, setDiscountApproved] = useState(false);
+  async function callAgent(action, extra = {}) {
+    try {
+      const r = await fetch(EDGE, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${ANON}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action,
+          ...extra
+        })
+      });
+      const txt = await r.text();
+      try {
+        return JSON.parse(txt);
+      } catch {
+        return {
+          error: 'Non-JSON response',
+          raw: txt.slice(0, 500)
+        };
+      }
+    } catch (e) {
+      return {
+        error: String(e?.message || e)
+      };
+    }
+  }
+  async function runProspect() {
+    setProspectBusy(true);
+    setProspectRes(null);
+    try {
+      setProspectRes(await callAgent('prospect', {
+        query: prospectQ
+      }));
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setProspectBusy(false);
+    }
+  }
+  async function runCloser() {
+    if (!leadId.trim()) {
+      toast('Enter a Lead ID', 'error');
+      return;
+    }
+    setCloserBusy(true);
+    setCloserRes(null);
+    try {
+      setCloserRes(await callAgent('close', {
+        lead_id: leadId.trim()
+      }));
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setCloserBusy(false);
+    }
+  }
+  async function runAnalyst() {
+    setAnalystBusy(true);
+    setAnalystRes(null);
+    try {
+      setAnalystRes(await callAgent('analyze'));
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setAnalystBusy(false);
+    }
+  }
+  async function approveDiscount() {
+    setDiscountApproved(true);
+    toast(`✅ Discount approved: ${analystRes?.suggested_discount}`);
+    await fetch(`${SB_URL}/rest/v1/hotel_settings`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${SB_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        key: 'approved_discount',
+        value: analystRes?.suggested_discount,
+        tenant_id: TENANT
+      })
+    }).catch(() => {});
+  }
+  const agentCard = (ico, title, color, desc, children) => /*#__PURE__*/React.createElement("div", {
+    className: "card mb4",
+    style: {
+      borderColor: color + '33'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd",
+    style: {
+      background: color + '0d'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18,
+      marginRight: 8
+    }
+  }, ico), /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, title), /*#__PURE__*/React.createElement("span", {
+    className: "xs muted",
+    style: {
+      marginLeft: 8
+    }
+  }, desc)), /*#__PURE__*/React.createElement("div", {
+    className: "card-body",
+    style: {
+      padding: 16
+    }
+  }, children));
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(155,114,207,.08)',
+      border: '1px solid rgba(155,114,207,.2)',
+      padding: '10px 14px',
+      marginBottom: 16,
+      fontSize: 11,
+      color: 'var(--pur)'
+    }
+  }, "\uD83E\uDD16 AI Agents powered by Gemini 1.5 Flash \u2014 Connected to your live Supabase data"), agentCard('🔍', 'Agent A — The Prospector', '#58A6FF', 'Finds potential leads & saves them to your leads table', /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "fg mb4"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Search Query"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: prospectQ,
+    onChange: e => setProspectQ(e.target.value),
+    placeholder: "e.g. event planners in Dhaka needing hotel rooms"
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-info",
+    disabled: prospectBusy,
+    onClick: runProspect
+  }, prospectBusy ? '🔍 Scanning…' : '🔍 Find Leads'), prospectRes && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, prospectRes.error ? /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: 'var(--rose)',
+      fontSize: 11,
+      marginBottom: 6
+    }
+  }, "\u26A0 ", prospectRes.error), prospectRes.raw && /*#__PURE__*/React.createElement("details", null, /*#__PURE__*/React.createElement("summary", {
+    className: "xs muted",
+    style: {
+      cursor: 'pointer'
+    }
+  }, "Raw Gemini output"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--s2)',
+      border: '1px solid var(--br)',
+      padding: 10,
+      fontSize: 10,
+      whiteSpace: 'pre-wrap',
+      fontFamily: 'monospace',
+      marginTop: 6,
+      maxHeight: 200,
+      overflow: 'auto'
+    }
+  }, prospectRes.raw))) : /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "xs muted mb4"
+  }, "\u2713 ", prospectRes.leads_found, " leads found, saved & emailed"), (prospectRes.raw_leads || prospectRes.leads || []).map((l, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'var(--s2)',
+      border: '1px solid var(--br2)',
+      padding: '10px 12px',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600,
+      fontSize: 12
+    }
+  }, l.name, " ", /*#__PURE__*/React.createElement("span", {
+    className: "xs muted"
+  }, "\xB7 ", l.company)), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, l.email, " \xB7 ", l.phone), /*#__PURE__*/React.createElement("div", {
+    className: "xs",
+    style: {
+      color: 'var(--sky)',
+      marginTop: 4
+    }
+  }, l.notes), l.source && /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      marginTop: 3
+    }
+  }, "Source: ", l.source))))))), agentCard('✉️', 'Agent B — The Closer', '#C8A96E', 'Writes personalized outreach email for a lead using Gemini', /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "fg mb4"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Lead ID (from leads table)"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: leadId,
+    onChange: e => setLeadId(e.target.value),
+    placeholder: "e.g. 123e4567-e89b-12d3..."
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    disabled: closerBusy,
+    onClick: runCloser
+  }, closerBusy ? '✍️ Writing…' : '✍️ Write Outreach'), closerRes && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, closerRes.error ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: 'var(--rose)',
+      fontSize: 11
+    }
+  }, closerRes.error) : /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "xs muted mb4"
+  }, "Draft written for ", /*#__PURE__*/React.createElement("strong", null, closerRes.lead_name), " \u2014 saved to lead notes"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--s2)',
+      border: '1px solid var(--br)',
+      padding: '12px 14px',
+      fontSize: 11,
+      lineHeight: 1.8,
+      whiteSpace: 'pre-wrap',
+      fontFamily: 'monospace',
+      color: 'var(--tx2)'
+    }
+  }, closerRes.email_draft))))), agentCard('📊', 'Agent C — The Analyst', '#3FB950', 'Monitors transactions, spots patterns, suggests discounts', /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost",
+    disabled: analystBusy,
+    onClick: runAnalyst,
+    style: {
+      marginBottom: 12
+    }
+  }, analystBusy ? '📊 Analyzing…' : '📊 Run Analysis'), analystRes && /*#__PURE__*/React.createElement("div", null, analystRes.error ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: 'var(--rose)',
+      fontSize: 11
+    }
+  }, analystRes.error) : /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "g2 mb4"
+  }, Object.entries(analystRes.day_averages || {}).sort(([, a], [, b]) => b - a).map(([day, avg]) => /*#__PURE__*/React.createElement("div", {
+    key: day,
+    className: "info-box",
+    style: {
+      borderColor: day === analystRes.lowest_day ? 'rgba(224,92,122,.3)' : day === analystRes.highest_day ? 'rgba(63,185,80,.3)' : 'var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, day), /*#__PURE__*/React.createElement("div", {
+    className: "info-val",
+    style: {
+      color: day === analystRes.lowest_day ? 'var(--rose)' : day === analystRes.highest_day ? 'var(--grn)' : 'var(--tx)'
+    }
+  }, BDT(avg))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--s2)',
+      border: '1px solid var(--br)',
+      padding: '12px 14px',
+      fontSize: 11,
+      lineHeight: 1.8,
+      whiteSpace: 'pre-wrap',
+      color: 'var(--tx2)',
+      marginBottom: 12
+    }
+  }, analystRes.analysis), analystRes.needs_approval && !discountApproved && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(200,169,110,.08)',
+      border: '1px solid var(--br)',
+      padding: '10px 14px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--gold)'
+    }
+  }, "Suggested Discount"), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, analystRes.suggested_discount)), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold btn-sm",
+    onClick: approveDiscount
+  }, "\u2713 Approve & Apply")), discountApproved && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: 'var(--grn)',
+      fontSize: 11,
+      padding: '8px 0'
+    }
+  }, "\u2705 Discount approved and saved \u2014 other agents will factor this in"))))));
+}
+
+/* ═══════════════════════ AI RESEARCH (historical leads) ══════ */
+function AIResearchPanel({
+  toast
+}) {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusF, setStatusF] = useState('ALL');
+  const [search, setSearch] = useState('');
+  const [brief, setBrief] = useState(null);
+  const load = () => {
+    setLoading(true);
+    db('leads', '?select=*&order=created_at.desc&limit=200').then(d => {
+      setLeads(Array.isArray(d) ? d : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+    db('hotel_settings', '?key=eq.front_desk_brief&select=value,updated_at&limit=1').then(d => {
+      const v = Array.isArray(d) ? d[0]?.value : null;
+      if (v) {
+        try {
+          setBrief({
+            ...(typeof v === 'string' ? JSON.parse(v) : v),
+            updated_at: d[0]?.updated_at
+          });
+        } catch {}
+      }
+    }).catch(() => {});
+  };
+  useEffect(() => {
+    load();
+  }, []);
+  const statusCounts = leads.reduce((a, l) => {
+    a[l.status || 'new'] = (a[l.status || 'new'] || 0) + 1;
+    return a;
+  }, {});
+  let rows = statusF === 'ALL' ? leads : leads.filter(l => (l.status || 'new') === statusF);
+  if (search) {
+    const q = search.toLowerCase();
+    rows = rows.filter(l => (l.name || '').toLowerCase().includes(q) || (l.company || '').toLowerCase().includes(q) || (l.email || '').toLowerCase().includes(q) || (l.notes || '').toLowerCase().includes(q));
+  }
+  const copyEmail = (id, txt) => {
+    navigator.clipboard?.writeText(txt || '').then(() => toast('Email draft copied')).catch(() => toast('Copy failed', 'error'));
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(63,185,80,.08)',
+      border: '1px solid rgba(63,185,80,.2)',
+      padding: '10px 14px',
+      marginBottom: 16,
+      fontSize: 11,
+      color: 'var(--grn)'
+    }
+  }, "\uD83E\uDDE0 Research history \u2014 all leads generated by AI Prospector, with outreach drafts and status timeline"), brief && /*#__PURE__*/React.createElement("div", {
+    className: "card mb4",
+    style: {
+      borderColor: 'rgba(200,169,110,.3)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd",
+    style: {
+      background: 'rgba(200,169,110,.06)'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "\uD83D\uDCCB Latest Front Desk Brief"), /*#__PURE__*/React.createElement("span", {
+    className: "xs muted",
+    style: {
+      marginLeft: 8
+    }
+  }, brief.updated_at ? new Date(brief.updated_at).toLocaleString() : '')), /*#__PURE__*/React.createElement("div", {
+    className: "card-body",
+    style: {
+      whiteSpace: 'pre-wrap',
+      fontSize: 11,
+      lineHeight: 1.8,
+      color: 'var(--tx2)'
+    }
+  }, brief.brief || '')), /*#__PURE__*/React.createElement("div", {
+    className: "flex fac fjb mb4",
+    style: {
+      flexWrap: 'wrap',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tabs",
+    style: {
+      marginBottom: 0
+    }
+  }, ['ALL', 'new', 'email_drafted', 'briefed_to_front_desk', 'contacted', 'converted'].map(s => /*#__PURE__*/React.createElement("button", {
+    key: s,
+    className: `tab${statusF === s ? ' on' : ''}`,
+    onClick: () => setStatusF(s)
+  }, s === 'ALL' ? `All (${leads.length})` : `${s.replace(/_/g, ' ')} (${statusCounts[s] || 0})`))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "srch"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "xs muted"
+  }, "\u2315"), /*#__PURE__*/React.createElement("input", {
+    placeholder: "Search lead, company, email\u2026",
+    value: search,
+    onChange: e => setSearch(e.target.value)
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: load
+  }, "\u21BB Refresh"))), loading ? /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, "Loading research history\u2026") : rows.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      padding: 20,
+      textAlign: 'center'
+    }
+  }, "No AI research yet. Run Agent A (Prospector) to generate leads.") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    }
+  }, rows.map(l => /*#__PURE__*/React.createElement("div", {
+    key: l.id,
+    className: "card",
+    style: {
+      borderColor: 'var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-body",
+    style: {
+      padding: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac fjb",
+    style: {
+      gap: 12,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 220
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600,
+      fontSize: 13,
+      color: 'var(--tx)'
+    }
+  }, l.name || 'Unknown', " ", /*#__PURE__*/React.createElement("span", {
+    className: "xs muted"
+  }, "\xB7 ", l.company || '—')), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      marginTop: 2
+    }
+  }, l.email || 'no email', " \xB7 ", l.phone || 'no phone'), /*#__PURE__*/React.createElement("div", {
+    className: "xs",
+    style: {
+      color: 'var(--sky)',
+      marginTop: 6,
+      lineHeight: 1.6
+    }
+  }, l.notes || '—')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'right',
+      minWidth: 120
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `badge ${l.status === 'converted' ? 'bgold' : l.status === 'briefed_to_front_desk' ? 'bteal' : l.status === 'email_drafted' ? 'bb' : 'ba'}`
+  }, (l.status || 'new').replace(/_/g, ' ')), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      marginTop: 4
+    }
+  }, l.created_at ? new Date(l.created_at).toLocaleDateString() : ''), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, "Source: ", l.source || 'AI'))), l.email_draft && /*#__PURE__*/React.createElement("details", {
+    style: {
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement("summary", {
+    className: "xs",
+    style: {
+      cursor: 'pointer',
+      color: 'var(--gold)'
+    }
+  }, "\u2709 View email draft"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--s2)',
+      border: '1px solid var(--br)',
+      padding: '10px 12px',
+      marginTop: 6,
+      fontSize: 11,
+      lineHeight: 1.7,
+      whiteSpace: 'pre-wrap',
+      fontFamily: 'monospace',
+      color: 'var(--tx2)'
+    }
+  }, l.email_draft), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    style: {
+      marginTop: 6
+    },
+    onClick: () => copyEmail(l.id, l.email_draft)
+  }, "\uD83D\uDCCB Copy")))))));
+}
+
+/* ═══════════════════════ B2B SWARM PANEL ══════════════════════════ */
+function B2BSwarmPanel({
+  toast
+}) {
+  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/b2b-agents';
+  const [activeAgent, setActiveAgent] = useState('recruiter');
+  const [partners, setPartners] = useState([]);
+  const [loadingPartners, setLoadingPartners] = useState(true);
+  const [busy, setBusy] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [outreach, setOutreach] = useState(null);
+  const [billingResult, setBillingResult] = useState(null);
+  useEffect(() => {
+    loadPartners();
+  }, []);
+  async function loadPartners() {
+    setLoadingPartners(true);
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/b2b_partners?tenant_id=eq.${TENANT}&select=*&order=created_at`, {
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${SB_KEY}`
+        }
+      });
+      const d = await r.json();
+      setPartners(Array.isArray(d) ? d : []);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setLoadingPartners(false);
+    }
+  }
+  async function callB2B(body) {
+    const r = await fetch(EDGE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SB_KEY
+      },
+      body: JSON.stringify(body)
+    });
+    return r.json();
+  }
+  async function doScan() {
+    setBusy('scan');
+    try {
+      const res = await callB2B({
+        agent: 'recruiter',
+        action: 'scan'
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      toast(`✓ ${res.agencies_found} new agencies found & saved`);
+      loadPartners();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function doInvite(partnerId, agencyName) {
+    setBusy(`invite:${partnerId}`);
+    setOutreach(null);
+    try {
+      const res = await callB2B({
+        agent: 'recruiter',
+        action: 'invite',
+        partner_id: partnerId
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      setOutreach({
+        type: 'invite',
+        partner: agencyName,
+        content: res.whatsapp_message,
+        portal_link: res.portal_link
+      });
+      toast(`✓ WhatsApp invite generated for ${agencyName}`);
+      loadPartners();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function doJoiningLetter(partnerId, agencyName) {
+    setBusy(`letter:${partnerId}`);
+    setOutreach(null);
+    try {
+      const res = await callB2B({
+        agent: 'recruiter',
+        action: 'joining_letter',
+        partner_id: partnerId
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      setOutreach({
+        type: 'letter',
+        partner: agencyName,
+        content: res.letter
+      });
+      toast(`✓ Joining letter generated — ${agencyName} marked Active`);
+      loadPartners();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function doBillingDashboard() {
+    setBusy('dashboard');
+    try {
+      const res = await callB2B({
+        agent: 'billing_analyst',
+        action: 'get_dashboard'
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      setDashboard(res);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function doWeeklyRun() {
+    setBusy('weekly');
+    setBillingResult(null);
+    try {
+      const res = await callB2B({
+        agent: 'billing_analyst',
+        action: 'weekly_run'
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      setBillingResult(res);
+      toast(`✓ Weekly run complete — ${res.partners_processed} partners processed`);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  const statusColor = s => s === 'vip' ? 'var(--gold)' : s === 'active' ? 'var(--grn)' : s === 'inactive' ? 'var(--rose)' : 'var(--tx3)';
+  const statusBg = s => s === 'vip' ? 'rgba(200,169,110,.15)' : s === 'active' ? 'rgba(63,185,80,.12)' : s === 'inactive' ? 'rgba(224,92,122,.12)' : 'rgba(255,255,255,.05)';
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'linear-gradient(135deg,rgba(63,185,80,.06),rgba(200,169,110,.04))',
+      border: '1px solid rgba(63,185,80,.2)',
+      padding: '10px 14px',
+      marginBottom: 16,
+      fontSize: 11,
+      color: 'var(--grn)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83E\uDD1D"), /*#__PURE__*/React.createElement("span", null, "B2B Partner Swarm \u2014 3 AI Agents \xB7 Gemini 2.5 Flash")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, partners.length, " partners \xB7 ", partners.filter(p => p.status === 'active' || p.status === 'vip').length, " active")), /*#__PURE__*/React.createElement("div", {
+    className: "tabs mb4"
+  }, [['recruiter', '🔍 Agent 1 — Recruiter'], ['butler', '🛎 Agent 2 — Portal Butler'], ['billing', '💰 Agent 3 — Billing Analyst']].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+    key: v,
+    className: `tab${activeAgent === v ? ' on' : ''}`,
+    onClick: () => setActiveAgent(v)
+  }, l))), activeAgent === 'recruiter' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 22
+    }
+  }, "\uD83D\uDD0D"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 15,
+      color: 'var(--tx)'
+    }
+  }, "Agent 1 \u2014 The Recruiter"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Scans for travel agencies in Dhaka, Chittagong & Sylhet \xB7 Sends WhatsApp invites \xB7 Generates joining letters"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: doScan,
+    disabled: busy === 'scan'
+  }, busy === 'scan' ? '🔄 Scanning…' : '🌐 Scan for New Agencies'), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost",
+    onClick: loadPartners,
+    disabled: loadingPartners
+  }, loadingPartners ? 'Loading…' : '↻ Refresh'))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Partner Agencies (", partners.length, ")")), loadingPartners ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      padding: '20px 0',
+      color: 'var(--tx3)',
+      fontSize: 12
+    }
+  }, "Loading partners\u2026") : /*#__PURE__*/React.createElement("table", {
+    className: "tbl"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Agency"), /*#__PURE__*/React.createElement("th", null, "City"), /*#__PURE__*/React.createElement("th", null, "Contact"), /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null, "Rate/Night"), /*#__PURE__*/React.createElement("th", null, "Bookings"), /*#__PURE__*/React.createElement("th", null, "Actions"))), /*#__PURE__*/React.createElement("tbody", null, partners.length === 0 ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+    colSpan: 7,
+    style: {
+      textAlign: 'center',
+      padding: '20px 0',
+      color: 'var(--tx3)'
+    }
+  }, "No partners yet \u2014 click Scan to find agencies")) : partners.map(p => /*#__PURE__*/React.createElement("tr", {
+    key: p.id
+  }, /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600,
+      fontSize: 12,
+      color: 'var(--tx)'
+    }
+  }, p.agency_name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--sky)'
+    }
+  }, p.email)), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, p.city), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'var(--tx)'
+    }
+  }, p.contact_name || '—'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, p.phone || '—')), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      padding: '2px 8px',
+      background: statusBg(p.status),
+      color: statusColor(p.status),
+      letterSpacing: '.08em',
+      textTransform: 'uppercase',
+      fontWeight: 600
+    }
+  }, p.status === 'vip' ? '⭐ VIP' : p.status)), /*#__PURE__*/React.createElement("td", {
+    className: "xs gold"
+  }, "\u09F3", Number(p.wholesale_rate || 2800).toLocaleString()), /*#__PURE__*/React.createElement("td", {
+    className: "xs",
+    style: {
+      color: 'var(--tx3)'
+    }
+  }, p.total_bookings || 0), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 4,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    style: {
+      fontSize: 9,
+      padding: '3px 8px',
+      background: p.whatsapp_sent ? 'rgba(63,185,80,.1)' : 'rgba(37,211,102,.15)',
+      color: p.whatsapp_sent ? 'var(--grn)' : '#25D366',
+      border: '1px solid currentColor'
+    },
+    disabled: busy === `invite:${p.id}`,
+    onClick: () => doInvite(p.id, p.agency_name)
+  }, busy === `invite:${p.id}` ? 'Sending…' : p.whatsapp_sent ? '✓ Resend WA' : '📱 WhatsApp Invite'), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm btn-gold",
+    style: {
+      fontSize: 9,
+      padding: '3px 8px',
+      opacity: p.joining_letter_sent ? .9 : 1
+    },
+    disabled: busy === `letter:${p.id}`,
+    onClick: () => doJoiningLetter(p.id, p.agency_name)
+  }, busy === `letter:${p.id}` ? 'Generating…' : p.joining_letter_sent ? '✓ Re-generate Letter' : '📄 Joining Letter')))))))), outreach && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--tx)'
+    }
+  }, outreach.type === 'invite' ? '📱 WhatsApp Invite' : '📄 Joining Letter', " \u2014 ", outreach.partner), outreach.type === 'invite' && outreach.portal_link && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--sky)',
+      fontFamily: 'monospace',
+      wordBreak: 'break-all'
+    }
+  }, outreach.portal_link.slice(0, 60), "\u2026")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(0,0,0,.3)',
+      padding: '12px 14px',
+      fontSize: 11,
+      color: 'var(--tx2)',
+      whiteSpace: 'pre-wrap',
+      lineHeight: 1.7,
+      maxHeight: 300,
+      overflow: 'auto',
+      fontFamily: 'monospace'
+    }
+  }, outreach.content), outreach.type === 'invite' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 8,
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "\uD83D\uDCA1 Copy this message and send via WhatsApp to ", outreach.partner))), activeAgent === 'butler' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 22
+    }
+  }, "\uD83D\uDECE"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 15,
+      color: 'var(--tx)'
+    }
+  }, "Agent 2 \u2014 The Portal Butler"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Authenticates partners via Secret Key \xB7 Handles bookings \xB7 Answers room questions \xB7 Checks availability")))), /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Active Partner Portal Keys")), /*#__PURE__*/React.createElement("table", {
+    className: "tbl"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Agency"), /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null, "Secret Key (Portal Auth)"), /*#__PURE__*/React.createElement("th", null, "Portal Link"))), /*#__PURE__*/React.createElement("tbody", null, partners.filter(p => p.status === 'active' || p.status === 'vip').map(p => /*#__PURE__*/React.createElement("tr", {
+    key: p.id
+  }, /*#__PURE__*/React.createElement("td", {
+    style: {
+      fontWeight: 600,
+      fontSize: 12
+    }
+  }, p.agency_name), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      padding: '2px 7px',
+      background: statusBg(p.status),
+      color: statusColor(p.status),
+      letterSpacing: '.08em',
+      textTransform: 'uppercase'
+    }
+  }, p.status)), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("code", {
+    style: {
+      fontSize: 10,
+      color: 'var(--gold)',
+      background: 'rgba(0,0,0,.3)',
+      padding: '2px 6px'
+    }
+  }, p.secret_key?.slice(0, 16), "\u2026")), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("a", {
+    href: `https://hotelfountainbd-crm.vercel.app?b2b=${p.secret_key}`,
+    target: "_blank",
+    style: {
+      fontSize: 10,
+      color: 'var(--sky)'
+    }
+  }, "Open Portal \u2197")))), partners.filter(p => p.status === 'active' || p.status === 'vip').length === 0 && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+    colSpan: 4,
+    style: {
+      textAlign: 'center',
+      padding: '16px 0',
+      color: 'var(--tx3)',
+      fontSize: 11
+    }
+  }, "No active partners yet \u2014 activate via joining letter in Agent 1"))))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      background: 'rgba(88,166,255,.03)',
+      border: '1px solid rgba(88,166,255,.15)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--sky)',
+      marginBottom: 10
+    }
+  }, "How Agent 2 Works Automatically"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, [['🔐 Authentication', 'Partner visits portal link with secret key → Agent 2 verifies identity → grants access to wholesale rates'], ['📅 Booking', 'Partner selects dates & room → Agent 2 confirms rate (৳2,800/night) → creates reservation → notifies front desk'], ['❓ Q&A', 'Partner asks "Does room have balcony?" → Agent 2 answers from hotel knowledge base instantly'], ['🏨 Availability', 'Agent 2 checks both main reservations + B2B bookings to show real-time availability grid']].map(([title, desc], i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(0,0,0,.2)',
+      padding: '10px 12px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: 'var(--tx)',
+      marginBottom: 4
+    }
+  }, title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      lineHeight: 1.5
+    }
+  }, desc)))))), activeAgent === 'billing' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 22
+    }
+  }, "\uD83D\uDCB0"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 15,
+      color: 'var(--tx)'
+    }
+  }, "Agent 3 \u2014 The Billing Analyst"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Runs every Sunday 10 PM \xB7 Tracks commissions \xB7 Sends statements \xB7 Re-engages inactive partners \xB7 Awards VIP status"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: doBillingDashboard,
+    disabled: busy === 'dashboard'
+  }, busy === 'dashboard' ? '📊 Loading…' : '📊 Load B2B Dashboard'), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: doWeeklyRun,
+    disabled: busy === 'weekly'
+  }, busy === 'weekly' ? '⚙ Running…' : '⚡ Run Weekly Cycle Now'))), dashboard && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4,1fr)',
+      gap: 8,
+      marginBottom: 12
+    }
+  }, [['Total Partners', dashboard.summary?.total_partners || 0, 'var(--sky)'], ['Active', dashboard.summary?.active_partners || 0, 'var(--grn)'], ['⭐ VIP', dashboard.summary?.vip_partners || 0, 'var(--gold)'], ['Total B2B Revenue', `৳${(dashboard.summary?.total_revenue || 0).toLocaleString()}`, 'var(--gold)']].map(([label, val, color], i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(0,0,0,.2)',
+      border: '1px solid var(--br)',
+      padding: '10px 12px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      letterSpacing: '.1em',
+      textTransform: 'uppercase',
+      marginBottom: 4
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 20,
+      color,
+      fontFamily: 'var(--serif)',
+      fontWeight: 600
+    }
+  }, val)))), dashboard.recent_bookings?.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card mb3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Recent B2B Bookings")), /*#__PURE__*/React.createElement("table", {
+    className: "tbl"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Partner"), /*#__PURE__*/React.createElement("th", null, "Guest"), /*#__PURE__*/React.createElement("th", null, "Room"), /*#__PURE__*/React.createElement("th", null, "Check-In"), /*#__PURE__*/React.createElement("th", null, "Check-Out"), /*#__PURE__*/React.createElement("th", null, "Revenue"), /*#__PURE__*/React.createElement("th", null, "Commission"))), /*#__PURE__*/React.createElement("tbody", null, dashboard.recent_bookings.map(b => /*#__PURE__*/React.createElement("tr", {
+    key: b.id
+  }, /*#__PURE__*/React.createElement("td", {
+    style: {
+      fontSize: 11,
+      fontWeight: 500
+    }
+  }, b.partner_name), /*#__PURE__*/React.createElement("td", {
+    style: {
+      fontSize: 11
+    }
+  }, b.guest_name || '—'), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
+    className: "badge bb"
+  }, b.room_number || '—')), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, b.check_in), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, b.check_out), /*#__PURE__*/React.createElement("td", {
+    className: "xs gold"
+  }, "\u09F3", Number(b.total_amount || 0).toLocaleString()), /*#__PURE__*/React.createElement("td", {
+    className: "xs",
+    style: {
+      color: 'var(--grn)'
+    }
+  }, "\u09F3", Number(b.commission_amount || 0).toLocaleString()))))))), billingResult && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--tx)',
+      marginBottom: 10
+    }
+  }, "\u26A1 Weekly Run Results \u2014 ", billingResult.partners_processed, " partners processed"), (billingResult.results || []).map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(0,0,0,.2)',
+      border: '1px solid var(--br)',
+      padding: '10px 12px',
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600,
+      fontSize: 12,
+      color: 'var(--tx)'
+    }
+  }, r.partner), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      padding: '2px 8px',
+      background: r.action === 'commission_sent' ? 'rgba(63,185,80,.12)' : r.action === 're-engagement_sent' ? 'rgba(224,92,122,.12)' : 'rgba(255,255,255,.05)',
+      color: r.action === 'commission_sent' ? 'var(--grn)' : r.action === 're-engagement_sent' ? 'var(--rose)' : 'var(--tx3)',
+      letterSpacing: '.08em',
+      textTransform: 'uppercase'
+    }
+  }, r.action === 'commission_sent' ? '💰 Commission Sent' : r.action === 're-engagement_sent' ? '📨 Re-engaged' : '✓ No Action')), r.action === 'commission_sent' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--gold)'
+    }
+  }, "Commission: \u09F3", Number(r.commission || 0).toLocaleString(), " \xB7 ", r.bookings, " booking", r.bookings !== 1 ? 's' : '', " this week"), r.action === 're-engagement_sent' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Inactive ", r.days_inactive, " days \xB7 Discount offer sent"), (r.statement || r.message) && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 6,
+      fontSize: 10,
+      color: 'var(--tx2)',
+      background: 'rgba(0,0,0,.3)',
+      padding: '8px 10px',
+      fontFamily: 'monospace',
+      whiteSpace: 'pre-wrap',
+      maxHeight: 120,
+      overflow: 'auto'
+    }
+  }, r.statement || r.message)))), !dashboard && !billingResult && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      background: 'rgba(200,169,110,.03)',
+      border: '1px solid rgba(200,169,110,.15)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--gold)',
+      marginBottom: 10
+    }
+  }, "\u23F0 Automated Schedule"), [['Every Sunday 10 PM', 'Run weekly cycle — commission statements + re-engagement offers'], ['Active partners (any bookings)', 'Commission statement emailed + VIP check (≥10 total bookings)'], ['Inactive ≥14 days', 'Re-engagement WhatsApp: ৳200 discount code generated'], ['VIP threshold', 'Auto-upgrade to VIP status at 10 total bookings']].map(([trigger, action], i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      gap: 10,
+      marginBottom: 8,
+      padding: '8px 10px',
+      background: 'rgba(0,0,0,.2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--gold)',
+      minWidth: 160,
+      fontWeight: 500
+    }
+  }, trigger), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, action))))));
+}
+
+/* ═══════════════════════ PLAN G — UPSELL PANEL ══════════════════════════ */
+function PlanGPanel({
+  toast,
+  reservations,
+  rooms,
+  guests
+}) {
+  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/plan-g-upsell';
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [dashboard, setDashboard] = useState(null);
+  const [offers, setOffers] = useState([]);
+  const [busy, setBusy] = useState(null);
+  const [agentResult, setAgentResult] = useState(null);
+  const [selectedRes, setSelectedRes] = useState('');
+  const [loadingOffers, setLoadingOffers] = useState(true);
+  useEffect(() => {
+    loadOffers();
+    loadDashboard();
+  }, []);
+  async function call(body) {
+    const r = await fetch(EDGE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SB_KEY
+      },
+      body: JSON.stringify(body)
+    });
+    return r.json();
+  }
+  async function loadOffers() {
+    setLoadingOffers(true);
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/upsell_offers?tenant_id=eq.${TENANT}&order=created_at.desc&limit=50`, {
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${SB_KEY}`
+        }
+      });
+      const d = await r.json();
+      setOffers(Array.isArray(d) ? d : []);
+    } catch (e) {} finally {
+      setLoadingOffers(false);
+    }
+  }
+  async function loadDashboard() {
+    try {
+      const res = await call({
+        action: 'dashboard'
+      });
+      setDashboard(res);
+    } catch (e) {}
+  }
+  async function runAgent(action, resId) {
+    setBusy(action);
+    setAgentResult(null);
+    try {
+      const body = resId ? {
+        action,
+        reservation_id: resId
+      } : {
+        action
+      };
+      const res = await call(body);
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      setAgentResult(res);
+      loadOffers();
+      loadDashboard();
+      const count = res.results?.length || res.processed || 0;
+      toast(`✓ ${action === 'pre_arrival' ? 'Pre-arrival' : 'Room customizer'} — ${count} guest${count !== 1 ? 's' : ''} messaged`);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function acceptOffer(offerId, guestName) {
+    setBusy(`accept:${offerId}`);
+    try {
+      const res = await call({
+        action: 'accept_offer',
+        offer_id: offerId,
+        guest_reply: 'yes'
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      toast(`✓ ৳${Number(res.amount).toLocaleString()} added to ${guestName}'s folio · ${res.assigned_to} alerted`);
+      loadOffers();
+      loadDashboard();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function declineOffer(offerId) {
+    setBusy(`decline:${offerId}`);
+    try {
+      await call({
+        action: 'accept_offer',
+        offer_id: offerId,
+        guest_reply: 'no'
+      });
+      toast('Offer marked as declined');
+      loadOffers();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  const getGN = r => {
+    const gid = String((r.guest_ids || [])[0] || '');
+    const g = guests?.find(g => String(g.id) === gid);
+    return g?.name || 'Unknown Guest';
+  };
+  const statusColor = s => s === 'accepted' ? 'var(--grn)' : s === 'declined' ? 'var(--rose)' : s === 'sent' ? 'var(--sky)' : 'var(--tx3)';
+  const statusBg = s => s === 'accepted' ? 'rgba(63,185,80,.12)' : s === 'declined' ? 'rgba(224,92,122,.12)' : s === 'sent' ? 'rgba(88,166,255,.1)' : 'rgba(255,255,255,.05)';
+  const offerIcon = t => t === 'airport_pickup' ? '🚗' : t === 'early_checkin' ? '🌅' : t === 'jet_lag_menu' ? '🍽' : t === 'room_upgrade' ? '👑' : t === 'sim_card' ? '📱' : t === 'late_checkout' ? '🌙' : '✨';
+  const upcoming = (reservations || []).filter(r => r.status === 'RESERVED' || r.status === 'PENDING').slice(0, 10);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'linear-gradient(135deg,rgba(200,169,110,.08),rgba(88,166,255,.04))',
+      border: '1px solid rgba(200,169,110,.2)',
+      padding: '12px 16px',
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 16,
+      color: 'var(--gold)'
+    }
+  }, "Plan G \u2014 Premium Transit Experience"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      marginTop: 3
+    }
+  }, "3-Agent upsell engine \xB7 Turns \u09F33,500 ADR \u2192 \u09F35,000+ through perfectly timed offers")), dashboard && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 16,
+      textAlign: 'right'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      letterSpacing: '.1em'
+    }
+  }, "Upsell Revenue"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      color: 'var(--gold)',
+      fontFamily: 'var(--serif)'
+    }
+  }, "\u09F3", Number(dashboard.summary?.total_upsell_revenue || 0).toLocaleString())), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      letterSpacing: '.1em'
+    }
+  }, "Conversion"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      color: 'var(--grn)',
+      fontFamily: 'var(--serif)'
+    }
+  }, dashboard.summary?.conversion_rate || 0, "%"))))), /*#__PURE__*/React.createElement("div", {
+    className: "tabs mb4"
+  }, [['dashboard', '📊 Dashboard'], ['agent1', '✈ Agent 1 · Pre-Arrival'], ['agent2', '🍽 Agent 2 · Room Customizer'], ['offers', '📋 All Offers']].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+    key: v,
+    className: `tab${activeTab === v ? ' on' : ''}`,
+    onClick: () => setActiveTab(v)
+  }, l))), activeTab === 'dashboard' && /*#__PURE__*/React.createElement("div", null, dashboard && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4,1fr)',
+      gap: 8,
+      marginBottom: 16
+    }
+  }, [['Offers Sent', dashboard.summary?.total_offers_sent || 0, 'var(--sky)'], ['Accepted', dashboard.summary?.total_accepted || 0, 'var(--grn)'], ['Conversion Rate', `${dashboard.summary?.conversion_rate || 0}%`, 'var(--gold)'], ['Upsell Revenue', `৳${Number(dashboard.summary?.total_upsell_revenue || 0).toLocaleString()}`, 'var(--gold)']].map(([label, val, color], i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(0,0,0,.2)',
+      border: '1px solid var(--br)',
+      padding: '12px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      letterSpacing: '.1em',
+      marginBottom: 4
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      color,
+      fontFamily: 'var(--serif)',
+      fontWeight: 600
+    }
+  }, val)))), dashboard?.by_type && Object.keys(dashboard.by_type).length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Performance by Offer Type")), /*#__PURE__*/React.createElement("table", {
+    className: "tbl"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Offer"), /*#__PURE__*/React.createElement("th", null, "Sent"), /*#__PURE__*/React.createElement("th", null, "Accepted"), /*#__PURE__*/React.createElement("th", null, "Conversion"), /*#__PURE__*/React.createElement("th", null, "Revenue"))), /*#__PURE__*/React.createElement("tbody", null, Object.entries(dashboard.by_type).map(([type, data]) => /*#__PURE__*/React.createElement("tr", {
+    key: type
+  }, /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginRight: 6
+    }
+  }, offerIcon(type)), type.replace(/_/g, ' ').replace(/\w/g, l => l.toUpperCase())), /*#__PURE__*/React.createElement("td", {
+    className: "xs muted"
+  }, data.sent), /*#__PURE__*/React.createElement("td", {
+    className: "xs",
+    style: {
+      color: 'var(--grn)'
+    }
+  }, data.accepted), /*#__PURE__*/React.createElement("td", {
+    className: "xs gold"
+  }, data.sent > 0 ? Math.round(data.accepted / data.sent * 100) : 0, "%"), /*#__PURE__*/React.createElement("td", {
+    className: "xs gold"
+  }, "\u09F3", Number(data.revenue || 0).toLocaleString())))))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Upsell Catalog \u2014 Plan G Offers")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 8
+    }
+  }, [['🚗', 'airport_pickup', 'Airport Pickup', '৳500', '24h before', 'Private car from any Dhaka airport → hotel'], ['🌅', 'early_checkin', 'Early Check-in (9AM-12PM)', '৳1,000', '24h before', 'Guaranteed room from 9:00 AM for morning arrivals'], ['🍽', 'jet_lag_menu', "Chef Samim's Jet Lag Menu", '৳850', '4h before', 'Light recovery meal ready in room on arrival'], ['👑', 'room_upgrade', 'Royal Suite Upgrade', '৳4,000', '4h before', 'Room 303 — balcony, premium amenities'], ['📱', 'sim_card', 'Welcome SIM Pack', '৳800', '4h before', 'Local SIM + 10GB data waiting in room'], ['🌙', 'late_checkout', 'Late Check-out (till 6PM)', '৳1,500', 'Day of', 'Keep room for guests with late flights']].map(([icon, type, title, price, timing, desc]) => /*#__PURE__*/React.createElement("div", {
+    key: type,
+    style: {
+      background: 'rgba(200,169,110,.03)',
+      border: '1px solid var(--br)',
+      padding: '10px 12px',
+      display: 'flex',
+      gap: 10,
+      alignItems: 'flex-start'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18,
+      flexShrink: 0
+    }
+  }, icon), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--tx)'
+    }
+  }, title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      marginTop: 2
+    }
+  }, desc), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 12,
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: 'var(--gold)',
+      fontWeight: 600
+    }
+  }, price), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, timing))))))))), activeTab === 'agent1' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 24
+    }
+  }, "\u2708"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 15,
+      color: 'var(--tx)'
+    }
+  }, "Agent 1 \u2014 Pre-Arrival Specialist"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Sends personalized WhatsApp 24h before check-in \xB7 Offers Airport Pickup (\u09F3500) + Early Check-in (\u09F31,000)"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(88,166,255,.05)',
+      border: '1px solid rgba(88,166,255,.15)',
+      padding: '10px 14px',
+      marginBottom: 14,
+      fontSize: 11,
+      color: 'var(--sky)'
+    }
+  }, "\uD83D\uDCA1 ", /*#__PURE__*/React.createElement("strong", null, "Why it works:"), " Pre-arrival messages have 80% higher acceptance than check-in offers"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      flexWrap: 'wrap',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: () => runAgent('pre_arrival', null),
+    disabled: busy === 'pre_arrival'
+  }, busy === 'pre_arrival' ? '🔄 Running…' : '✈ Run for Tomorrow\'s Arrivals')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingTop: 12,
+      borderTop: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      letterSpacing: '.12em',
+      textTransform: 'uppercase',
+      marginBottom: 8
+    }
+  }, "Or trigger for a specific reservation"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("select", {
+    className: "finput",
+    style: {
+      flex: 1
+    },
+    value: selectedRes,
+    onChange: e => setSelectedRes(e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "\u2014 Select upcoming reservation \u2014"), upcoming.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r.id,
+    value: r.id
+  }, getGN(r), " \xB7 ", (r.room_ids || []).join(','), " \xB7 ", r.check_in?.slice(0, 10)))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold btn-sm",
+    style: {
+      padding: '0 14px',
+      whiteSpace: 'nowrap'
+    },
+    disabled: !selectedRes || busy === 'pre_arrival',
+    onClick: () => runAgent('pre_arrival', selectedRes)
+  }, "Send Offers")))), agentResult?.agent === 'PreArrival' && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--grn)',
+      marginBottom: 10
+    }
+  }, "\u2713 Agent 1 processed ", agentResult.processed, " reservation", agentResult.processed !== 1 ? 's' : ''), (agentResult.results || []).map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(0,0,0,.2)',
+      border: '1px solid var(--br)',
+      padding: '12px',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600,
+      fontSize: 13,
+      color: 'var(--tx)'
+    }
+  }, r.guest), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Room ", r.room, " \xB7 Check-in: ", r.check_in, " \xB7 ", r.phone)), r.skipped ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "\u23ED ", r.skipped) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      background: 'rgba(88,166,255,.12)',
+      color: 'var(--sky)',
+      padding: '2px 8px',
+      letterSpacing: '.1em'
+    }
+  }, "SENT")), r.whatsapp_message && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(37,211,102,.05)',
+      border: '1px solid rgba(37,211,102,.2)',
+      padding: '10px 12px',
+      fontSize: 11,
+      color: 'var(--tx2)',
+      lineHeight: 1.6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: '#25D366',
+      fontWeight: 600,
+      marginBottom: 6,
+      letterSpacing: '.1em'
+    }
+  }, "\uD83D\uDCF1 WHATSAPP MESSAGE"), r.whatsapp_message))))), activeTab === 'agent2' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 24
+    }
+  }, "\uD83C\uDF7D"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 15,
+      color: 'var(--tx)'
+    }
+  }, "Agent 2 \u2014 Room Customizer"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Sends targeted upsells 4h before arrival \xB7 Jet Lag Menu (\u09F3850) \xB7 Room Upgrade \xB7 SIM Pack \xB7 Smart targeting for international guests"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(200,169,110,.05)',
+      border: '1px solid rgba(200,169,110,.15)',
+      padding: '10px 14px',
+      marginBottom: 14,
+      fontSize: 11,
+      color: 'var(--gold)'
+    }
+  }, "\uD83C\uDFAF ", /*#__PURE__*/React.createElement("strong", null, "Smart targeting:"), " International guests \u2192 Jet Lag Menu + SIM Pack \xB7 Local guests \u2192 Jet Lag Menu + Royal Suite Upgrade"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      flexWrap: 'wrap',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: () => runAgent('room_customizer', null),
+    disabled: busy === 'room_customizer'
+  }, busy === 'room_customizer' ? '🔄 Running…' : '🍽 Run for Today\'s Arrivals')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingTop: 12,
+      borderTop: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      letterSpacing: '.12em',
+      textTransform: 'uppercase',
+      marginBottom: 8
+    }
+  }, "Or trigger for specific reservation"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("select", {
+    className: "finput",
+    style: {
+      flex: 1
+    },
+    value: selectedRes,
+    onChange: e => setSelectedRes(e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "\u2014 Select reservation \u2014"), upcoming.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r.id,
+    value: r.id
+  }, getGN(r), " \xB7 ", (r.room_ids || []).join(','), " \xB7 ", r.check_in?.slice(0, 10)))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold btn-sm",
+    style: {
+      padding: '0 14px',
+      whiteSpace: 'nowrap'
+    },
+    disabled: !selectedRes || busy === 'room_customizer',
+    onClick: () => runAgent('room_customizer', selectedRes)
+  }, "Send Offers")))), agentResult?.agent === 'RoomCustomizer' && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--grn)',
+      marginBottom: 10
+    }
+  }, "\u2713 Agent 2 processed ", agentResult.processed, " reservation", agentResult.processed !== 1 ? 's' : ''), (agentResult.results || []).map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(0,0,0,.2)',
+      border: '1px solid var(--br)',
+      padding: '12px',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600,
+      fontSize: 13,
+      color: 'var(--tx)'
+    }
+  }, r.guest), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Room ", r.room, " \xB7 Arrival: ", r.arrival_time, " \xB7 ", r.international ? '🌍 International' : '🇧🇩 Local')), r.skipped ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "\u23ED ", r.skipped) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 4
+    }
+  }, (r.offers_sent || []).map(o => /*#__PURE__*/React.createElement("span", {
+    key: o,
+    style: {
+      fontSize: 9,
+      background: 'rgba(200,169,110,.15)',
+      color: 'var(--gold)',
+      padding: '2px 8px',
+      letterSpacing: '.08em'
+    }
+  }, o.replace(/_/g, ' ').toUpperCase())))), r.whatsapp_message && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(37,211,102,.05)',
+      border: '1px solid rgba(37,211,102,.2)',
+      padding: '10px 12px',
+      fontSize: 11,
+      color: 'var(--tx2)',
+      lineHeight: 1.6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: '#25D366',
+      fontWeight: 600,
+      marginBottom: 6,
+      letterSpacing: '.1em'
+    }
+  }, "\uD83D\uDCF1 WHATSAPP MESSAGE"), r.whatsapp_message))))), activeTab === 'offers' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: 'var(--tx3)'
+    }
+  }, "All upsell offers \u2014 click Accept to bill folio + alert front desk"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: () => {
+      loadOffers();
+      loadDashboard();
+    }
+  }, "\u21BB Refresh")), loadingOffers ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      padding: '24px',
+      color: 'var(--tx3)',
+      fontSize: 12
+    }
+  }, "Loading offers\u2026") : /*#__PURE__*/React.createElement("div", null, offers.length === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      textAlign: 'center',
+      padding: '24px',
+      color: 'var(--tx3)',
+      fontSize: 12
+    }
+  }, "No offers yet \u2014 run Agent 1 or Agent 2 to generate upsell messages"), offers.map(o => /*#__PURE__*/React.createElement("div", {
+    key: o.id,
+    style: {
+      background: 'rgba(0,0,0,.15)',
+      border: `1px solid ${o.status === 'accepted' ? 'rgba(63,185,80,.3)' : o.status === 'declined' ? 'rgba(224,92,122,.2)' : 'var(--br)'}`,
+      padding: '12px 14px',
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 16
+    }
+  }, offerIcon(o.offer_type)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 600,
+      fontSize: 12,
+      color: 'var(--tx)'
+    }
+  }, o.offer_title), /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: 8,
+      fontSize: 11,
+      color: 'var(--gold)',
+      fontWeight: 500
+    }
+  }, "\u09F3", Number(o.offer_price).toLocaleString())), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      padding: '2px 8px',
+      background: statusBg(o.status),
+      color: statusColor(o.status),
+      letterSpacing: '.08em',
+      textTransform: 'uppercase',
+      fontWeight: 600
+    }
+  }, o.status)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'var(--tx2)'
+    }
+  }, o.guest_name, " \xB7 Room ", o.room_number, " \xB7 Check-in: ", o.check_in), o.alert_message && o.status === 'accepted' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 6,
+      fontSize: 10,
+      color: 'var(--grn)',
+      background: 'rgba(63,185,80,.06)',
+      border: '1px solid rgba(63,185,80,.2)',
+      padding: '6px 8px'
+    }
+  }, "\uD83D\uDD14 ", o.alert_message, " \xB7 Assigned: ", /*#__PURE__*/React.createElement("strong", null, o.assigned_to))), o.status === 'sent' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 4,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-success btn-sm",
+    style: {
+      fontSize: 10,
+      padding: '4px 10px'
+    },
+    disabled: busy === `accept:${o.id}`,
+    onClick: () => acceptOffer(o.id, o.guest_name)
+  }, busy === `accept:${o.id}` ? 'Processing…' : '✓ Accept + Bill'), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-sm",
+    style: {
+      fontSize: 10,
+      padding: '4px 8px',
+      background: 'rgba(224,92,122,.1)',
+      color: 'var(--rose)',
+      border: '1px solid rgba(224,92,122,.3)'
+    },
+    disabled: busy === `decline:${o.id}`,
+    onClick: () => declineOffer(o.id)
+  }, "\u2715")), o.status === 'accepted' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--grn)',
+      textAlign: 'right',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", null, "\u2713 Billed ", o.billed ? '✓' : ''), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: 'var(--tx3)'
+    }
+  }, o.assigned_to))))))));
+}
+
+/* ═══════════════════════ LEAD GEN SWARM ══════════════════════════ */
+function LeadGenSwarmPanel({
+  toast
+}) {
+  const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/lead-gen-swarm';
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [leads, setLeads] = useState([]);
+  const [dashboard, setDashboard] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [scoutResult, setScoutResult] = useState(null);
+  const [analystResult, setAnalystResult] = useState(null);
+  const [outreachResult, setOutreachResult] = useState(null);
+  const [replyModal, setReplyModal] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [leadType, setLeadType] = useState('corporate');
+  const [scoreThreshold, setScoreThreshold] = useState(80);
+  const [loadingLeads, setLoadingLeads] = useState(true);
+  useEffect(() => {
+    loadLeads();
+    loadDashboard();
+  }, []);
+  async function call(body) {
+    const r = await fetch(EDGE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SB_KEY
+      },
+      body: JSON.stringify(body)
+    });
+    return r.json();
+  }
+  async function loadLeads() {
+    setLoadingLeads(true);
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/swarm_leads?tenant_id=eq.${TENANT}&select=*&order=intent_score.desc&limit=50`, {
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${SB_KEY}`
+        }
+      });
+      const d = await r.json();
+      setLeads(Array.isArray(d) ? d : []);
+    } catch (e) {} finally {
+      setLoadingLeads(false);
+    }
+  }
+  async function loadDashboard() {
+    try {
+      const d = await call({
+        action: 'dashboard'
+      });
+      setDashboard(d);
+    } catch (e) {}
+  }
+  async function doScout() {
+    setBusy('scout');
+    setScoutResult(null);
+    try {
+      const res = await call({
+        action: 'scout',
+        lead_type: leadType
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      setScoutResult(res);
+      toast(`✓ ${res.leads_found} ${leadType} leads found & saved`);
+      loadLeads();
+      loadDashboard();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function doAnalyzeAll() {
+    setBusy('analyze');
+    setAnalystResult(null);
+    try {
+      const res = await call({
+        action: 'analyze'
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      setAnalystResult(res);
+      toast(`✓ ${res.scored} leads scored · ${res.high_priority_count} high priority`);
+      loadLeads();
+      loadDashboard();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function doAnalyzeLead(leadId) {
+    setBusy(`analyze:${leadId}`);
+    try {
+      const res = await call({
+        action: 'analyze',
+        lead_id: leadId
+      });
+      toast(`✓ Lead scored: ${res.results?.[0]?.score || '?'}/100`);
+      loadLeads();
+      loadDashboard();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function doBulkOutreach() {
+    setBusy('bulk_outreach');
+    setOutreachResult(null);
+    try {
+      const res = await call({
+        action: 'outreach',
+        score_threshold: scoreThreshold
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      setOutreachResult(res);
+      toast(`✓ ${res.sent} outreach messages generated`);
+      loadLeads();
+      loadDashboard();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function doOutreachLead(leadId, channel) {
+    setBusy(`outreach:${leadId}`);
+    try {
+      const res = await call({
+        action: 'outreach',
+        lead_id: leadId,
+        channel
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      toast(`✓ Outreach drafted for ${res.lead_name} via ${res.channel}`);
+      loadLeads();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function doSync(leadId, reply) {
+    setBusy(`sync:${leadId}`);
+    try {
+      const res = await call({
+        action: 'crm_sync',
+        lead_id: leadId,
+        reply_text: reply
+      });
+      if (res.error) {
+        toast(res.error, 'error');
+        return;
+      }
+      toast(`✓ ${res.lead_name} synced to CRM · Front desk notified · Priority: ${res.urgency}`);
+      setReplyModal(null);
+      setReplyText('');
+      loadLeads();
+      loadDashboard();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+  const scoreColor = s => s >= 80 ? 'var(--grn)' : s >= 60 ? 'var(--gold)' : s >= 40 ? 'var(--sky)' : 'var(--tx3)';
+  const scoreBg = s => s >= 80 ? 'rgba(63,185,80,.12)' : s >= 60 ? 'rgba(200,169,110,.12)' : s >= 40 ? 'rgba(88,166,255,.08)' : 'rgba(255,255,255,.04)';
+  const typeIcon = t => t === 'corporate' ? '🏢' : t === 'event_organizer' ? '🎪' : t === 'long_stay' ? '🏠' : '👤';
+  const statusBadge = s => {
+    const map = {
+      new: {
+        color: 'var(--tx3)',
+        bg: 'rgba(255,255,255,.05)',
+        label: 'New'
+      },
+      scored: {
+        color: 'var(--sky)',
+        bg: 'rgba(88,166,255,.1)',
+        label: 'Scored'
+      },
+      outreach_sent: {
+        color: 'var(--gold)',
+        bg: 'rgba(200,169,110,.12)',
+        label: 'Outreach Sent'
+      },
+      replied: {
+        color: 'var(--grn)',
+        bg: 'rgba(63,185,80,.12)',
+        label: 'Replied'
+      },
+      converted: {
+        color: 'var(--grn)',
+        bg: 'rgba(63,185,80,.2)',
+        label: 'Converted'
+      },
+      rejected: {
+        color: 'var(--rose)',
+        bg: 'rgba(224,92,122,.1)',
+        label: 'Rejected'
+      }
+    };
+    return map[s] || {
+      color: 'var(--tx3)',
+      bg: 'rgba(255,255,255,.04)',
+      label: s
+    };
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'linear-gradient(135deg,rgba(88,166,255,.06),rgba(200,169,110,.04))',
+      border: '1px solid rgba(88,166,255,.2)',
+      padding: '12px 16px',
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 16,
+      color: 'var(--sky)'
+    }
+  }, "\uD83C\uDFAF Lead Gen Swarm \u2014 3 AI Agents"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      marginTop: 3
+    }
+  }, "Scout \u2192 Score \u2192 Outreach \u2192 CRM Sync \xB7 Corporate \xB7 Event Organizers \xB7 Long-Stay Expats")), dashboard && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 16,
+      textAlign: 'right'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      letterSpacing: '.1em'
+    }
+  }, "Total Leads"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      color: 'var(--sky)',
+      fontFamily: 'var(--serif)'
+    }
+  }, dashboard.total_leads)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      letterSpacing: '.1em'
+    }
+  }, "High Priority"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      color: 'var(--rose)',
+      fontFamily: 'var(--serif)'
+    }
+  }, dashboard.high_priority)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      letterSpacing: '.1em'
+    }
+  }, "Replied"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      color: 'var(--grn)',
+      fontFamily: 'var(--serif)'
+    }
+  }, dashboard.replied))))), /*#__PURE__*/React.createElement("div", {
+    className: "tabs mb4"
+  }, [['dashboard', '📊 Dashboard'], ['scout', '🔍 Agent 1 · Scout'], ['analyst', '🧠 Agent 2 · Analyst'], ['outreach', '📨 Agent 3 · Outreach'], ['leads', '📋 All Leads']].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+    key: v,
+    className: `tab${activeTab === v ? ' on' : ''}`,
+    onClick: () => setActiveTab(v)
+  }, l))), replyModal && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,.7)',
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    onClick: () => setReplyModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--bg2)',
+      border: '1px solid var(--br)',
+      padding: 24,
+      width: 480,
+      maxWidth: '90vw'
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 15,
+      color: 'var(--tx)',
+      marginBottom: 16
+    }
+  }, "Log Reply \u2014 ", replyModal.name), /*#__PURE__*/React.createElement("div", {
+    className: "fg mb3"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Paste their reply message"), /*#__PURE__*/React.createElement("textarea", {
+    className: "finput",
+    rows: 4,
+    value: replyText,
+    onChange: e => setReplyText(e.target.value),
+    placeholder: "e.g. Yes, we're interested! Can we schedule a site visit next week?",
+    style: {
+      resize: 'vertical'
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      justifyContent: 'flex-end'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost",
+    onClick: () => setReplyModal(null)
+  }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    disabled: !replyText.trim() || busy === `sync:${replyModal.leadId}`,
+    onClick: () => doSync(replyModal.leadId, replyText)
+  }, busy === `sync:${replyModal.leadId}` ? 'Syncing…' : '✓ Sync to CRM + Notify Front Desk')))), activeTab === 'dashboard' && /*#__PURE__*/React.createElement("div", null, dashboard && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4,1fr)',
+      gap: 8,
+      marginBottom: 16
+    }
+  }, [['Total Leads', dashboard.total_leads, 'var(--sky)'], ['High Priority (80+)', dashboard.high_priority, 'var(--rose)'], ['Outreach Sent', dashboard.by_status?.outreach_sent || 0, 'var(--gold)'], ['Replied', dashboard.replied, 'var(--grn)']].map(([l, v, c], i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(0,0,0,.2)',
+      border: '1px solid var(--br)',
+      padding: '12px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      textTransform: 'uppercase',
+      letterSpacing: '.1em',
+      marginBottom: 4
+    }
+  }, l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 24,
+      color: c,
+      fontFamily: 'var(--serif)',
+      fontWeight: 600
+    }
+  }, v)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "By Lead Type")), Object.entries(dashboard.by_type || {}).map(([type, count]) => /*#__PURE__*/React.createElement("div", {
+    key: type,
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      padding: '6px 0',
+      borderBottom: '1px solid var(--br2)',
+      fontSize: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", null, typeIcon(type), " ", type.replace(/_/g, ' ').replace(/\w/g, l => l.toUpperCase())), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--gold)',
+      fontWeight: 600
+    }
+  }, count)))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "By Status")), Object.entries(dashboard.by_status || {}).map(([status, count]) => {
+    const b = statusBadge(status);
+    return /*#__PURE__*/React.createElement("div", {
+      key: status,
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        padding: '6px 0',
+        borderBottom: '1px solid var(--br2)',
+        fontSize: 12
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: b.color
+      }
+    }, b.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: 'var(--gold)',
+        fontWeight: 600
+      }
+    }, count));
+  }))), dashboard.top_leads?.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Top Priority Leads (Score \u226570)")), dashboard.top_leads.map(l => /*#__PURE__*/React.createElement("div", {
+    key: l.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '8px 0',
+      borderBottom: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 36,
+      height: 36,
+      background: scoreBg(l.intent_score),
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontFamily: 'var(--serif)',
+      fontSize: 13,
+      color: scoreColor(l.intent_score),
+      fontWeight: 700,
+      flexShrink: 0
+    }
+  }, l.intent_score), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--tx)',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, l.full_name, " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "\xB7 ", l.title)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, typeIcon(l.lead_type), " ", l.company_name, " \xB7 ", l.area)), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      padding: '2px 8px',
+      background: statusBadge(l.outreach_status).bg,
+      color: statusBadge(l.outreach_status).color,
+      letterSpacing: '.08em',
+      textTransform: 'uppercase',
+      flexShrink: 0
+    }
+  }, statusBadge(l.outreach_status).label)))))), activeTab === 'scout' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 24
+    }
+  }, "\uD83D\uDD0D"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 15,
+      color: 'var(--tx)'
+    }
+  }, "Agent 1 \u2014 The Digital Scout"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Discovers leads from LinkedIn, corporate directories, Facebook groups \xB7 3 lead types: Corporate, Event Organizers, Long-Stay Expats"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr auto',
+      gap: 10,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Lead Type to Scout"), /*#__PURE__*/React.createElement("select", {
+    className: "finput",
+    value: leadType,
+    onChange: e => setLeadType(e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "corporate"
+  }, "\uD83C\uDFE2 Corporate \u2014 HR/Travel Managers in Nikunja, Khilkhet, Uttara"), /*#__PURE__*/React.createElement("option", {
+    value: "event_organizer"
+  }, "\uD83C\uDFAA Event Organizers \u2014 Training coordinators, seminar planners"), /*#__PURE__*/React.createElement("option", {
+    value: "long_stay"
+  }, "\uD83C\uDFE0 Long-Stay \u2014 Expats, consultants moving to Dhaka"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'flex-end'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: doScout,
+    disabled: busy === 'scout',
+    style: {
+      whiteSpace: 'nowrap'
+    }
+  }, busy === 'scout' ? '🔄 Scouting…' : '🔍 Scout Now'))), [{
+    type: 'corporate',
+    icon: '🏢',
+    title: 'Airport Transit Strategy',
+    target: 'HR & Travel Managers at multinationals in Nikunja/Khilkhet/Uttara',
+    pitch: 'Dedicated Corporate Wing · 24/7 check-in · High-speed WiFi · Corporate rates'
+  }, {
+    type: 'event_organizer',
+    icon: '🎪',
+    title: 'Small Gathering Strategy',
+    target: 'Event planners, training coordinators needing space for 10-30 people',
+    pitch: "30-room boutique · Private meeting room · Chef Samim's Day-Use lunch package"
+  }, {
+    type: 'long_stay',
+    icon: '🏠',
+    title: 'Long-Stay Strategy',
+    target: 'Expats & consultants moving to Dhaka, Facebook "Expats in Dhaka" groups',
+    pitch: 'Home-Away-From-Home · 24/7 security · Airport proximity · Weekly/monthly rates'
+  }].map(s => /*#__PURE__*/React.createElement("div", {
+    key: s.type,
+    style: {
+      background: leadType === s.type ? 'rgba(200,169,110,.06)' : 'rgba(0,0,0,.1)',
+      border: `1px solid ${leadType === s.type ? 'rgba(200,169,110,.3)' : 'var(--br)'}`,
+      padding: '10px 12px',
+      marginBottom: 6,
+      cursor: 'pointer'
+    },
+    onClick: () => setLeadType(s.type)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--tx)'
+    }
+  }, s.icon, " ", s.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      marginTop: 3
+    }
+  }, "Target: ", s.target), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--gold)',
+      marginTop: 2
+    }
+  }, "Pitch: ", s.pitch)))), scoutResult && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: 'var(--grn)',
+      fontWeight: 600,
+      marginBottom: 10
+    }
+  }, "\u2713 ", scoutResult.leads_found, " leads found (", scoutResult.lead_type, ")"), (scoutResult.leads || []).map((l, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(0,0,0,.15)',
+      border: '1px solid var(--br)',
+      padding: '10px 12px',
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600,
+      fontSize: 12,
+      color: 'var(--tx)'
+    }
+  }, l.full_name, " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      fontWeight: 400
+    }
+  }, "\xB7 ", l.title)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'var(--sky)',
+      marginTop: 2
+    }
+  }, l.company_name, " \xB7 ", l.area), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      marginTop: 3
+    }
+  }, l.qualification_notes), l.email && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx2)',
+      marginTop: 2
+    }
+  }, l.email, " ", l.phone && `· ${l.phone}`))))), activeTab === 'analyst' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 24
+    }
+  }, "\uD83E\uDDE0"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 15,
+      color: 'var(--tx)'
+    }
+  }, "Agent 2 \u2014 The Intent Analyst"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Scores leads 0-100 \xB7 Analyzes transit needs, event frequency, travel policy \xB7 Score \u226580 \u2192 auto-queued for outreach"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(88,166,255,.05)',
+      border: '1px solid rgba(88,166,255,.15)',
+      padding: '10px 14px',
+      marginBottom: 14,
+      fontSize: 11,
+      color: 'var(--sky)'
+    }
+  }, "\uD83D\uDCCA ", /*#__PURE__*/React.createElement("strong", null, "Scoring logic:"), " Corporate in Nikunja +30 \xB7 Travel/HR role +25 \xB7 Multinational +20 \xB7 Event frequency +40 \xB7 Expat/consultant +40"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: doAnalyzeAll,
+    disabled: busy === 'analyze'
+  }, busy === 'analyze' ? '🧠 Analyzing…' : '🧠 Analyze All Unscored Leads')), analystResult && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--grn)',
+      marginBottom: 10
+    }
+  }, "\u2713 ", analystResult.scored, " leads scored \xB7 ", analystResult.high_priority_count, " high priority (\u226580)"), (analystResult.results || []).map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      gap: 10,
+      padding: '8px 0',
+      borderBottom: '1px solid var(--br2)',
+      alignItems: 'flex-start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 44,
+      height: 44,
+      background: scoreBg(r.score),
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontFamily: 'var(--serif)',
+      fontSize: 16,
+      color: scoreColor(r.score),
+      fontWeight: 700,
+      flexShrink: 0
+    }
+  }, r.score), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--tx)'
+    }
+  }, r.name, " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "\xB7 ", r.company)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 4,
+      marginTop: 4
+    }
+  }, (r.signals || []).map((s, j) => /*#__PURE__*/React.createElement("span", {
+    key: j,
+    style: {
+      fontSize: 9,
+      padding: '2px 6px',
+      background: 'rgba(88,166,255,.08)',
+      color: 'var(--sky)',
+      border: '1px solid rgba(88,166,255,.2)'
+    }
+  }, s))), r.high_priority && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-block',
+      marginTop: 4,
+      fontSize: 9,
+      padding: '2px 8px',
+      background: 'rgba(224,92,122,.12)',
+      color: 'var(--rose)',
+      letterSpacing: '.08em'
+    }
+  }, "\uD83D\uDD34 HIGH PRIORITY")))))), activeTab === 'outreach' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 24
+    }
+  }, "\uD83D\uDCE8"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 15,
+      color: 'var(--tx)'
+    }
+  }, "Agent 3 \u2014 The Outreach Specialist"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "Sends personalized LinkedIn/email/WhatsApp \xB7 Auto-outreach for score \u226580 \xB7 Post-reply: syncs to CRM + alerts front desk"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'flex-end',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Auto-outreach score threshold"), /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: 50,
+    max: 95,
+    step: 5,
+    value: scoreThreshold,
+    onChange: e => setScoreThreshold(+e.target.value),
+    style: {
+      width: '100%',
+      marginTop: 6
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      fontSize: 10,
+      color: 'var(--tx3)',
+      marginTop: 2
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "50 (broad)"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--gold)',
+      fontWeight: 600
+    }
+  }, "Current: ", scoreThreshold, "+"), /*#__PURE__*/React.createElement("span", null, "95 (strict)"))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    onClick: doBulkOutreach,
+    disabled: busy === 'bulk_outreach',
+    style: {
+      whiteSpace: 'nowrap',
+      marginBottom: 0
+    }
+  }, busy === 'bulk_outreach' ? '📨 Sending…' : `📨 Send to All ≥${scoreThreshold}`)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(63,185,80,.05)',
+      border: '1px solid rgba(63,185,80,.15)',
+      padding: '10px 14px',
+      fontSize: 11,
+      color: 'var(--grn)'
+    }
+  }, "\uD83D\uDD04 ", /*#__PURE__*/React.createElement("strong", null, "CRM Sync flow:"), " Guest replies \u2192 log reply below \u2192 Agent 3 analyzes intent \u2192 creates guest profile in CRM \u2192 notifies front desk with priority level")), outreachResult && /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--grn)',
+      marginBottom: 10
+    }
+  }, "\u2713 ", outreachResult.sent, " messages sent (threshold: ", outreachResult.threshold, ")"), (outreachResult.results || []).map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(0,0,0,.15)',
+      border: '1px solid var(--br)',
+      padding: '12px',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 600,
+      fontSize: 12,
+      color: 'var(--tx)'
+    }
+  }, r.lead_name), " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)'
+    }
+  }, "\xB7 ", r.company, " \xB7 Score: ", r.score)), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      padding: '2px 8px',
+      background: 'rgba(200,169,110,.12)',
+      color: 'var(--gold)',
+      letterSpacing: '.08em',
+      textTransform: 'uppercase'
+    }
+  }, r.channel)), r.message && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'var(--tx2)',
+      background: 'rgba(0,0,0,.3)',
+      padding: '8px 10px',
+      fontFamily: 'monospace',
+      lineHeight: 1.6
+    }
+  }, r.message), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      marginTop: 6
+    }
+  }, "Contact: ", r.contact || '—'))))), activeTab === 'leads' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: 'var(--tx3)'
+    }
+  }, leads.length, " leads total \u2014 sorted by score"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: () => {
+      loadLeads();
+      loadDashboard();
+    }
+  }, "\u21BB Refresh")), loadingLeads ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      padding: '24px',
+      color: 'var(--tx3)',
+      fontSize: 12
+    }
+  }, "Loading\u2026") : leads.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      textAlign: 'center',
+      padding: '24px',
+      color: 'var(--tx3)',
+      fontSize: 12
+    }
+  }, "No leads yet \u2014 run Agent 1 to scout") : leads.map(l => {
+    const sb = statusBadge(l.outreach_status);
+    const signals = typeof l.intent_signals === 'string' ? JSON.parse(l.intent_signals || '[]') : l.intent_signals || [];
+    return /*#__PURE__*/React.createElement("div", {
+      key: l.id,
+      style: {
+        background: 'rgba(0,0,0,.12)',
+        border: '1px solid var(--br)',
+        padding: '12px 14px',
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 10,
+        alignItems: 'flex-start'
+      }
+    }, l.intent_score > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 40,
+        height: 40,
+        background: scoreBg(l.intent_score),
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'var(--serif)',
+        fontSize: 14,
+        color: scoreColor(l.intent_score),
+        fontWeight: 700,
+        flexShrink: 0
+      }
+    }, l.intent_score), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: 8,
+        marginBottom: 4
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontWeight: 600,
+        fontSize: 12,
+        color: 'var(--tx)'
+      }
+    }, l.full_name), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        color: 'var(--tx3)',
+        marginLeft: 6
+      }
+    }, l.title), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        padding: '1px 6px',
+        background: 'rgba(88,166,255,.08)',
+        color: 'var(--sky)',
+        marginLeft: 6,
+        letterSpacing: '.06em'
+      }
+    }, typeIcon(l.lead_type), " ", l.lead_type.replace(/_/g, ' '))), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        padding: '2px 8px',
+        background: sb.bg,
+        color: sb.color,
+        letterSpacing: '.08em',
+        textTransform: 'uppercase',
+        flexShrink: 0,
+        fontWeight: 600
+      }
+    }, sb.label)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: 'var(--sky)'
+      }
+    }, l.company_name, " \xB7 ", l.area), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: 'var(--tx3)',
+        marginTop: 2
+      }
+    }, l.email, " ", l.phone && `· ${l.phone}`), signals.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 3,
+        marginTop: 5
+      }
+    }, signals.map((s, i) => /*#__PURE__*/React.createElement("span", {
+      key: i,
+      style: {
+        fontSize: 9,
+        padding: '1px 6px',
+        background: 'rgba(88,166,255,.06)',
+        color: 'var(--sky)',
+        border: '1px solid rgba(88,166,255,.15)'
+      }
+    }, s))), l.outreach_message && /*#__PURE__*/React.createElement("details", {
+      style: {
+        marginTop: 6
+      }
+    }, /*#__PURE__*/React.createElement("summary", {
+      style: {
+        fontSize: 10,
+        color: 'var(--gold)',
+        cursor: 'pointer'
+      }
+    }, "\uD83D\uDCE8 View outreach message \u25BE"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 4,
+        fontSize: 10,
+        color: 'var(--tx2)',
+        background: 'rgba(0,0,0,.3)',
+        padding: '8px 10px',
+        fontFamily: 'monospace',
+        lineHeight: 1.6,
+        maxHeight: 150,
+        overflow: 'auto'
+      }
+    }, l.outreach_message))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        flexShrink: 0
+      }
+    }, l.outreach_status === 'new' && /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-sm",
+      style: {
+        fontSize: 9,
+        padding: '3px 8px',
+        background: 'rgba(88,166,255,.1)',
+        color: 'var(--sky)',
+        border: '1px solid rgba(88,166,255,.3)'
+      },
+      disabled: busy === `analyze:${l.id}`,
+      onClick: () => doAnalyzeLead(l.id)
+    }, busy === `analyze:${l.id}` ? 'Scoring…' : '🧠 Score'), (l.outreach_status === 'scored' || l.intent_score > 0) && l.outreach_status !== 'outreach_sent' && l.outreach_status !== 'replied' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-sm btn-gold",
+      style: {
+        fontSize: 9,
+        padding: '3px 8px'
+      },
+      disabled: !!busy,
+      onClick: () => doOutreachLead(l.id, 'linkedin')
+    }, "\uD83D\uDCBC LinkedIn"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-sm",
+      style: {
+        fontSize: 9,
+        padding: '3px 8px',
+        background: 'rgba(37,211,102,.1)',
+        color: '#25D366',
+        border: '1px solid rgba(37,211,102,.3)'
+      },
+      disabled: !!busy,
+      onClick: () => doOutreachLead(l.id, 'whatsapp')
+    }, "\uD83D\uDCF1 WhatsApp")), l.outreach_status === 'outreach_sent' && /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-sm",
+      style: {
+        fontSize: 9,
+        padding: '3px 8px',
+        background: 'rgba(63,185,80,.1)',
+        color: 'var(--grn)',
+        border: '1px solid rgba(63,185,80,.3)'
+      },
+      onClick: () => {
+        setReplyModal({
+          leadId: l.id,
+          name: l.full_name
+        });
+        setReplyText('');
+      }
+    }, "\u2709 Log Reply"), l.outreach_status === 'replied' && !l.crm_synced && /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-sm btn-gold",
+      style: {
+        fontSize: 9,
+        padding: '3px 8px'
+      },
+      disabled: !!busy,
+      onClick: () => doSync(l.id, 'interested')
+    }, "\uD83D\uDD04 Sync CRM"), l.crm_synced && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: 'var(--grn)'
+      }
+    }, "\u2713 CRM"))));
+  })));
+}
+
+/* ═══════════════════════ WORKFLOW MONITOR ══════════════════ */
+function WorkflowMonitor({
+  toast
+}) {
+  const [runs, setRuns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [triggering, setTriggering] = useState(null);
+  const SB_ANON = SB_KEY;
+  const BASE = 'https://mynwfkgksqqwlqowlscj.supabase.co';
+  const WORKFLOWS = [{
+    id: 'morning-briefing',
+    label: 'Morning Briefing',
+    slug: 'wf-morning-briefing',
+    time: '7:00 AM daily',
+    body: '{}'
+  }, {
+    id: 'checkout-reminder',
+    label: 'Checkout Reminder',
+    slug: 'wf-checkout-alerts',
+    time: '10:30 AM daily',
+    body: '{"mode":"reminder"}'
+  }, {
+    id: 'overdue-alert',
+    label: 'Overdue Alert',
+    slug: 'wf-checkout-alerts',
+    time: '12:30 PM daily',
+    body: '{"mode":"overdue"}'
+  }, {
+    id: 'evening-revenue',
+    label: 'Evening Revenue Report',
+    slug: 'wf-evening-report',
+    time: '9:00 PM daily',
+    body: '{}'
+  }, {
+    id: 'weekly-summary',
+    label: 'Weekly Summary',
+    slug: 'wf-period-reports',
+    time: 'Mon 8:00 AM',
+    body: '{"mode":"weekly"}'
+  }, {
+    id: 'monthly-report',
+    label: 'Monthly Report',
+    slug: 'wf-period-reports',
+    time: '1st of month',
+    body: '{"mode":"monthly"}'
+  }, {
+    id: 'competitor-monitor',
+    label: 'Competitor Monitor',
+    slug: 'wf-competitor-monitor',
+    time: '6:00 AM daily',
+    body: '{}'
+  }, {
+    id: 'backup-verification',
+    label: 'Backup Verification',
+    slug: 'wf-backup-verify',
+    time: 'Sunday 11 PM',
+    body: '{}'
+  }];
+  useEffect(() => {
+    db('workflow_runs', '?select=workflow_name,status,duration_ms,records_processed,ran_at&order=ran_at.desc&limit=50').then(d => {
+      setRuns(Array.isArray(d) ? d : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+  async function triggerNow(wf) {
+    setTriggering(wf.id);
+    try {
+      const resp = await fetch(`${BASE}/functions/v1/${wf.slug}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SB_ANON
+        },
+        body: wf.body
+      });
+      const data = await resp.json();
+      if (data.error) toast(`${wf.label}: ${data.error}`, 'error');else toast(`${wf.label} triggered ✓`);
+      const fresh = await db('workflow_runs', '?select=workflow_name,status,duration_ms,records_processed,ran_at&order=ran_at.desc&limit=50');
+      setRuns(Array.isArray(fresh) ? fresh : []);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+    setTriggering(null);
+  }
+  const lastRun = wfId => runs.find(r => r.workflow_name === wfId);
+  const fmtTime = ts => ts ? new Date(ts).toLocaleString('en', {
+    timeZone: 'Asia/Dhaka',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : 'Never';
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card mb4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap2"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 16
+    }
+  }, "\u26A1"), /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Email ", /*#__PURE__*/React.createElement("em", {
+    style: {
+      fontStyle: 'italic',
+      color: 'var(--gold)'
+    }
+  }, "Workflows"))), /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "sync-dot"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "xs muted"
+  }, "10 cron jobs active"))), /*#__PURE__*/React.createElement("div", {
+    className: "card-body",
+    style: {
+      padding: 0
+    }
+  }, loading ? /*#__PURE__*/React.createElement("div", {
+    className: "xs muted",
+    style: {
+      padding: '18px',
+      textAlign: 'center'
+    }
+  }, "Loading workflow history\u2026") : WORKFLOWS.map((wf, i) => {
+    const last = lastRun(wf.id);
+    const isOk = last?.status === 'success';
+    const isTrig = triggering === wf.id;
+    return /*#__PURE__*/React.createElement("div", {
+      key: wf.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 16px',
+        borderBottom: i < WORKFLOWS.length - 1 ? '1px solid var(--br2)' : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        flexShrink: 0,
+        background: last ? isOk ? 'var(--grn)' : 'var(--rose)' : 'var(--tx3)',
+        boxShadow: last ? isOk ? '0 0 5px var(--grn)' : '0 0 5px var(--rose)' : 'none'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        fontWeight: 300,
+        color: 'var(--tx)'
+      }
+    }, wf.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        color: 'var(--tx3)',
+        letterSpacing: '.08em',
+        marginTop: 1,
+        display: 'flex',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDD50 ", wf.time), last && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: isOk ? 'var(--grn)' : 'var(--rose)'
+      }
+    }, "Last: ", fmtTime(last.ran_at)), last?.duration_ms && /*#__PURE__*/React.createElement("span", null, last.duration_ms, "ms"))), last && /*#__PURE__*/React.createElement("span", {
+      className: `badge ${isOk ? 'bg' : 'br_'}`,
+      style: {
+        fontSize: 8
+      }
+    }, last.status), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost btn-sm",
+      disabled: !!triggering,
+      onClick: () => triggerNow(wf),
+      style: {
+        fontSize: 9,
+        padding: '3px 10px',
+        letterSpacing: '.1em'
+      }
+    }, isTrig ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+      className: "spinner",
+      style: {
+        width: 10,
+        height: 10
+      }
+    })) : '▶ Run'));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 16px',
+      background: 'rgba(200,169,110,.03)',
+      borderTop: '1px solid var(--br2)',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "xs muted"
+  }, "All emails \u2192 ", _HEMAIL), /*#__PURE__*/React.createElement("span", {
+    className: "xs muted"
+  }, runs.length, " runs logged"))));
+}
+
+/* ═══════════════════════ GOOGLE SHEETS CARD ════════════════ */
+function GoogleSheetsCard({
+  toast
+}) {
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState(null);
+  const [counts, setCounts] = useState(null);
+  const [sheetId, setSheetId] = useState('1uekoRKGuhMLXBW8AY3ONr-vPTyml9QDoJgRYA3HsPNU');
+  const EDGE_FN = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/sync-to-sheets';
+  const SB_ANON = SB_KEY;
+  async function runSync() {
+    setSyncing(true);
+    try {
+      const resp = await fetch(EDGE_FN, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SB_ANON
+        },
+        body: '{}'
+      });
+      const data = await resp.json();
+      if (data.error) toast(data.error, 'error');else {
+        setLastSync(data.synced_at);
+        setCounts(data.counts);
+        toast('All data synced to Google Sheets ✓');
+      }
+    } catch (e) {
+      toast('Sync failed: ' + e.message, 'error');
+    } finally {
+      setSyncing(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-hd"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap2"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 16
+    }
+  }, "\uD83D\uDCCA"), /*#__PURE__*/React.createElement("span", {
+    className: "card-title"
+  }, "Google Sheets ", /*#__PURE__*/React.createElement("em", {
+    style: {
+      fontStyle: 'italic',
+      color: 'var(--gold)'
+    }
+  }, "Backup"))), lastSync && /*#__PURE__*/React.createElement("span", {
+    className: "badge bg"
+  }, "Synced ", new Date(lastSync).toLocaleTimeString())), /*#__PURE__*/React.createElement("div", {
+    className: "card-body"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(63,185,80,.05)',
+      border: '1px solid rgba(63,185,80,.15)',
+      padding: '10px 13px',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 400,
+      color: 'var(--grn)',
+      marginBottom: 3
+    }
+  }, "\uD83D\uDD04 Auto-Sync Active"), /*#__PURE__*/React.createElement("div", {
+    className: "xs muted"
+  }, "Every INSERT/UPDATE on all 6 tables syncs to Google Sheets in real-time via database triggers.")), counts && /*#__PURE__*/React.createElement("div", {
+    className: "g2 mb4"
+  }, [['🛏 Rooms', counts.rooms], ['👤 Guests', counts.guests], ['📅 Reservations', counts.reservations], ['💰 Transactions', counts.transactions], ['🧾 Folios', counts.folios], ['🧹 Housekeeping', counts.housekeeping_tasks]].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    className: "info-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "info-lbl"
+  }, l), /*#__PURE__*/React.createElement("div", {
+    className: "info-val gold"
+  }, v, " rows")))), /*#__PURE__*/React.createElement("div", {
+    className: "fg"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "flbl"
+  }, "Spreadsheet ID"), /*#__PURE__*/React.createElement("input", {
+    className: "finput",
+    value: sheetId,
+    onChange: e => setSheetId(e.target.value.trim()),
+    placeholder: "Paste Spreadsheet ID"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap2",
+    style: {
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-gold",
+    disabled: syncing,
+    onClick: runSync
+  }, syncing ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "spinner",
+    style: {
+      width: 12,
+      height: 12
+    }
+  }), ' ', "Syncing\u2026") : '📊 Sync All Data Now'), sheetId && /*#__PURE__*/React.createElement("a", {
+    href: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+    target: "_blank",
+    rel: "noopener",
+    className: "btn btn-ghost"
+  }, "\u2197 Open Sheet"))));
+}
+
+/* ═══════════════════════ ROOT APP ═══════════════════════════ */
+function LeadPipelinePage_REMOVED() {
+  const [leads, setLeads] = React.useState([]);
+  const [log, setLog] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [filter, setFilter] = React.useState('all');
+  const [search, setSearch] = React.useState('');
+  const [selected, setSelected] = React.useState(null);
+  const [runningBot, setRunningBot] = React.useState(false);
+  const [botResult, setBotResult] = React.useState(null);
+  const botTimerRef = React.useRef(null);
+  const STATUS_CFG = {
+    pending: {
+      label: 'Pending',
+      color: '#7A6A5A',
+      bg: 'rgba(122,106,90,.18)'
+    },
+    contacted: {
+      label: 'Contacted',
+      color: '#58A6FF',
+      bg: 'rgba(88,166,255,.12)'
+    },
+    replied: {
+      label: 'Replied',
+      color: '#FCD34D',
+      bg: 'rgba(252,211,77,.12)'
+    },
+    audited: {
+      label: 'Audited',
+      color: '#A78BFA',
+      bg: 'rgba(167,139,250,.12)'
+    },
+    deal_ready: {
+      label: 'Deal Ready',
+      color: '#4ADE80',
+      bg: 'rgba(74,222,128,.12)'
+    },
+    closed_won: {
+      label: 'Closed Won',
+      color: '#C8A96E',
+      bg: 'rgba(200,169,110,.15)'
+    },
+    not_interested: {
+      label: 'Not Interested',
+      color: '#F87171',
+      bg: 'rgba(248,113,113,.10)'
+    }
+  };
+  const ICP_CFG = {
+    strong: {
+      label: 'Strong',
+      color: '#4ADE80'
+    },
+    good: {
+      label: 'Good',
+      color: '#58A6FF'
+    },
+    partial: {
+      label: 'Partial',
+      color: '#FCD34D'
+    }
+  };
+  const FILTERS = [{
+    key: 'all',
+    label: 'All'
+  }, {
+    key: 'pending',
+    label: 'Pending'
+  }, {
+    key: 'contacted',
+    label: 'Contacted'
+  }, {
+    key: 'replied',
+    label: 'Replied'
+  }, {
+    key: 'deal_ready',
+    label: 'Deal Ready'
+  }, {
+    key: 'audited',
+    label: 'Audited'
+  }];
+  const scoreColor = s => s >= 9 ? '#4ADE80' : s >= 7 ? '#FCD34D' : s >= 4 ? '#F97316' : '#F87171';
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('en-BD', {
+    timeZone: 'Asia/Dhaka',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : '—';
+  const loadData = React.useCallback(async silent => {
+    if (silent) setRefreshing(true);else setLoading(true);
+    try {
+      const [l, og] = await Promise.all([db('corporate_leads', `?tenant_id=eq.${TENANT}&select=*&order=priority.asc,created_at.asc`), db('outreach_log', `?tenant_id=eq.${TENANT}&select=*&order=sent_at.desc&limit=100`)]);
+      const leadsArr = Array.isArray(l) ? l : [];
+      const logArr = Array.isArray(og) ? og : [];
+      setLeads(leadsArr);
+      setLog(logArr);
+      setSelected(prev => prev ? leadsArr.find(x => x.id === prev.id) || null : null);
+    } catch (e) {
+      console.error('[LeadPipeline] load error', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Derived
+  const stats = {
+    total: leads.length,
+    contacted: leads.filter(l => ['contacted', 'replied', 'audited', 'deal_ready', 'closed_won'].includes(l.status)).length,
+    replied: leads.filter(l => ['replied', 'audited', 'deal_ready', 'closed_won'].includes(l.status)).length,
+    deal_ready: leads.filter(l => l.status === 'deal_ready').length
+  };
+  const s = search.toLowerCase();
+  const filtered = leads.filter(l => {
+    if (filter !== 'all' && l.status !== filter) return false;
+    if (s && !l.company_name?.toLowerCase().includes(s) && !l.contact_name?.toLowerCase().includes(s) && !l.contact_email?.toLowerCase().includes(s)) return false;
+    return true;
+  });
+  const leadLog = selected ? log.filter(e => e.lead_id === selected.id) : [];
+  const handleRunBot = React.useCallback(async () => {
+    setRunningBot(true);
+    setBotResult(null);
+    if (botTimerRef.current) clearTimeout(botTimerRef.current);
+    try {
+      const res = await fetch('/api/agents/outreach-bot', {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (data.error) {
+        const msg = data.error.includes('schema cache') ? 'DB function not ready — wait 30s and retry' : data.error.includes('BREVO') ? 'Email service error — check BREVO_API_KEY in Vercel' : data.error.includes('Env missing') ? 'Missing env var: ' + data.error.split(':')[1] : data.error;
+        setBotResult({
+          ok: false,
+          msg
+        });
+      } else {
+        const names = (data.results || []).filter(r => r.sent).map(r => r.lead).join(', ');
+        setBotResult({
+          ok: true,
+          processed: data.processed ?? 0,
+          names
+        });
+        botTimerRef.current = setTimeout(() => setBotResult(null), 10000);
+        await loadData(true);
+      }
+    } catch (e) {
+      setBotResult({
+        ok: false,
+        msg: String(e)
+      });
+    }
+    setRunningBot(false);
+  }, [loadData]);
+  const handleStatusChange = React.useCallback(async (leadId, newStatus) => {
+    try {
+      await dbPatch('corporate_leads', leadId, {
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      });
+      await loadData(true);
+    } catch (e) {
+      console.error('[LeadPipeline] status patch error', e);
+    }
+  }, [loadData]);
+  if (loading) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      color: 'var(--tx3)',
+      fontSize: 13
+    }
+  }, "Loading lead pipeline\u2026");
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '24px 28px',
+      overflowY: 'auto',
+      height: '100%',
+      background: 'var(--bg)',
+      boxSizing: 'border-box'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 22,
+      color: 'var(--gold)',
+      marginBottom: 4
+    }
+  }, "Corporate ", /*#__PURE__*/React.createElement("em", null, "Lead Pipeline")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'var(--tx3)',
+      letterSpacing: '.12em',
+      textTransform: 'uppercase'
+    }
+  }, _HLOC)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => loadData(true),
+    disabled: refreshing,
+    style: {
+      background: 'none',
+      border: '1px solid var(--br2)',
+      color: refreshing ? 'var(--gold)' : 'var(--tx3)',
+      padding: '7px 14px',
+      fontSize: 11,
+      letterSpacing: '.08em',
+      cursor: 'pointer',
+      fontFamily: 'var(--sans)',
+      textTransform: 'uppercase'
+    }
+  }, refreshing ? '⟳' : '↻ Refresh'), /*#__PURE__*/React.createElement("button", {
+    onClick: handleRunBot,
+    disabled: runningBot,
+    style: {
+      background: runningBot ? 'rgba(200,169,110,.06)' : 'rgba(200,169,110,.15)',
+      border: '1px solid rgba(200,169,110,.35)',
+      color: 'var(--gold)',
+      padding: '7px 20px',
+      fontSize: 12,
+      letterSpacing: '.08em',
+      cursor: runningBot ? 'not-allowed' : 'pointer',
+      fontFamily: 'var(--sans)',
+      textTransform: 'uppercase'
+    }
+  }, runningBot ? '⟳ Sending emails…' : '▶ Run OutreachBot'))), botResult && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: botResult.ok ? 'rgba(74,222,128,.07)' : 'rgba(248,113,113,.07)',
+      border: `1px solid ${botResult.ok ? 'rgba(74,222,128,.25)' : 'rgba(248,113,113,.25)'}`,
+      padding: '10px 16px',
+      marginBottom: 16,
+      fontSize: 12,
+      color: botResult.ok ? '#4ADE80' : '#F87171',
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      lineHeight: 1.7
+    }
+  }, botResult.ok ? `✓ OutreachBot sent ${botResult.processed} email${botResult.processed !== 1 ? 's' : ''}${botResult.names ? ' — ' + botResult.names : ''}` : `⚠ ${botResult.msg}`), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (botTimerRef.current) clearTimeout(botTimerRef.current);
+      setBotResult(null);
+    },
+    style: {
+      background: 'none',
+      border: 'none',
+      color: 'inherit',
+      cursor: 'pointer',
+      fontSize: 18,
+      opacity: .6,
+      padding: 0,
+      lineHeight: 1
+    }
+  }, "\xD7")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4,1fr)',
+      gap: 10,
+      marginBottom: 20
+    }
+  }, [{
+    label: 'Total Leads',
+    val: stats.total,
+    color: 'var(--tx2)'
+  }, {
+    label: 'Contacted',
+    val: stats.contacted,
+    color: '#58A6FF'
+  }, {
+    label: 'Replied',
+    val: stats.replied,
+    color: '#FCD34D'
+  }, {
+    label: 'Deal Ready 🔥',
+    val: stats.deal_ready,
+    color: '#4ADE80'
+  }].map(s => /*#__PURE__*/React.createElement("div", {
+    key: s.label,
+    style: {
+      background: 'var(--s4)',
+      border: '1px solid var(--br2)',
+      padding: '14px 18px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--mono)',
+      fontSize: 28,
+      color: s.color,
+      lineHeight: 1
+    }
+  }, s.val), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: '.14em',
+      textTransform: 'uppercase',
+      color: 'var(--tx3)',
+      marginTop: 5
+    }
+  }, s.label)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: selected ? '1fr 320px' : '1fr 280px',
+      gap: 14,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--s4)',
+      border: '1px solid var(--br2)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      borderBottom: '1px solid var(--br2)',
+      paddingRight: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flex: 1,
+      overflowX: 'auto',
+      padding: '0 6px'
+    }
+  }, FILTERS.map(f => {
+    const cnt = f.key === 'all' ? leads.length : leads.filter(l => l.status === f.key).length;
+    return /*#__PURE__*/React.createElement("button", {
+      key: f.key,
+      onClick: () => setFilter(f.key),
+      style: {
+        background: 'none',
+        border: 'none',
+        color: filter === f.key ? 'var(--gold)' : 'var(--tx3)',
+        padding: '10px 11px',
+        fontSize: 11,
+        letterSpacing: '.08em',
+        textTransform: 'uppercase',
+        cursor: 'pointer',
+        borderBottom: filter === f.key ? '2px solid var(--gold)' : '2px solid transparent',
+        marginBottom: -1,
+        fontFamily: 'var(--sans)',
+        whiteSpace: 'nowrap',
+        flexShrink: 0
+      }
+    }, f.label, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        opacity: .55,
+        fontFamily: 'var(--mono)',
+        fontSize: 10
+      }
+    }, "(", cnt, ")"));
+  })), /*#__PURE__*/React.createElement("input", {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: "Search\u2026",
+    style: {
+      background: 'rgba(255,255,255,.04)',
+      border: '1px solid var(--br2)',
+      color: 'var(--tx)',
+      padding: '5px 10px',
+      fontSize: 11,
+      outline: 'none',
+      width: 130,
+      fontFamily: 'var(--sans)'
+    }
+  })), filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 40,
+      textAlign: 'center',
+      color: 'var(--tx3)',
+      fontSize: 13
+    }
+  }, search ? `No leads matching "${search}"` : 'No leads in this filter.') : /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      borderCollapse: 'collapse'
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
+    style: {
+      borderBottom: '1px solid var(--br2)'
+    }
+  }, ['Company', 'Contact', 'ICP', 'Status', 'Score', 'Priority'].map(h => /*#__PURE__*/React.createElement("th", {
+    key: h,
+    style: {
+      textAlign: 'left',
+      padding: '9px 14px',
+      fontSize: 10,
+      letterSpacing: '.14em',
+      textTransform: 'uppercase',
+      color: 'var(--tx3)',
+      fontWeight: 400
+    }
+  }, h)))), /*#__PURE__*/React.createElement("tbody", null, filtered.map((lead, i) => {
+    const st = STATUS_CFG[lead.status] || STATUS_CFG.pending;
+    const icp = ICP_CFG[lead.icp_score] || ICP_CFG.good;
+    const isSel = selected?.id === lead.id;
+    return /*#__PURE__*/React.createElement("tr", {
+      key: lead.id,
+      onClick: () => setSelected(isSel ? null : lead),
+      style: {
+        borderBottom: '1px solid rgba(200,169,110,.05)',
+        cursor: 'pointer',
+        background: isSel ? 'rgba(200,169,110,.07)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.012)',
+        borderLeft: isSel ? '2px solid var(--gold)' : '2px solid transparent'
+      }
+    }, /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 14px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 500,
+        fontSize: 13,
+        color: 'var(--tx)'
+      }
+    }, lead.company_name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: 'var(--tx3)',
+        marginTop: 2,
+        fontFamily: 'var(--mono)'
+      }
+    }, lead.company_address?.split(',')[0] || '—')), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 14px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: 'var(--tx2)'
+      }
+    }, lead.contact_name || lead.contact_title || '—'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: 'var(--gold)',
+        fontFamily: 'var(--mono)',
+        marginTop: 2
+      }
+    }, lead.contact_email || '—')), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 14px'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: icp.color,
+        background: `${icp.color}18`,
+        padding: '2px 8px',
+        border: `1px solid ${icp.color}30`
+      }
+    }, icp.label)), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 14px'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: st.color,
+        background: st.bg,
+        padding: '3px 10px',
+        border: `1px solid ${st.color}30`
+      }
+    }, lead.status === 'deal_ready' ? '🔥 ' : '', st.label)), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 14px',
+        fontFamily: 'var(--mono)',
+        fontSize: 13,
+        color: lead.deal_score ? scoreColor(lead.deal_score) : 'var(--tx3)'
+      }
+    }, lead.deal_score ? `${lead.deal_score}/10` : '—'), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 14px'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        letterSpacing: '.1em',
+        textTransform: 'uppercase',
+        color: lead.priority === 'high' ? '#F87171' : lead.priority === 'med' ? 'var(--gold)' : 'var(--tx3)',
+        fontWeight: lead.priority === 'high' ? 600 : 400
+      }
+    }, (lead.priority || '—').toUpperCase())));
+  }))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, selected ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--s4)',
+      border: '1px solid rgba(200,169,110,.28)',
+      padding: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 16,
+      color: 'var(--tx)',
+      marginBottom: 3
+    }
+  }, selected.company_name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      letterSpacing: '.1em',
+      textTransform: 'uppercase'
+    }
+  }, selected.industry || 'Industry Unknown')), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSelected(null),
+    style: {
+      background: 'none',
+      border: 'none',
+      color: 'var(--tx3)',
+      cursor: 'pointer',
+      fontSize: 18,
+      lineHeight: 1,
+      padding: 0,
+      opacity: .7
+    }
+  }, "\xD7")), selected.deal_score ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '10px 12px',
+      background: 'rgba(0,0,0,.2)',
+      border: `1px solid ${scoreColor(selected.deal_score)}25`,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      minWidth: 44
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--mono)',
+      fontSize: 28,
+      color: scoreColor(selected.deal_score),
+      lineHeight: 1
+    }
+  }, selected.deal_score), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      letterSpacing: '.14em',
+      marginTop: 2
+    }
+  }, "/10")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      letterSpacing: '.12em',
+      textTransform: 'uppercase',
+      marginBottom: 6
+    }
+  }, "CEO Score"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 3,
+      background: 'rgba(255,255,255,.07)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: '100%',
+      width: `${selected.deal_score * 10}%`,
+      background: scoreColor(selected.deal_score)
+    }
+  })))) : null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      letterSpacing: '.12em',
+      textTransform: 'uppercase',
+      marginBottom: 8
+    }
+  }, "Contact"), [{
+    lbl: 'Name',
+    val: selected.contact_name || '—'
+  }, {
+    lbl: 'Title',
+    val: selected.contact_title || '—'
+  }, {
+    lbl: 'Email',
+    val: selected.contact_email || '—',
+    mono: true,
+    gold: true
+  }, {
+    lbl: 'Phone',
+    val: selected.contact_phone || '—',
+    mono: true
+  }, {
+    lbl: 'Web',
+    val: selected.company_website || '—',
+    mono: true
+  }].map(row => /*#__PURE__*/React.createElement("div", {
+    key: row.lbl,
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginBottom: 5
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: 'var(--tx3)',
+      width: 34,
+      flexShrink: 0,
+      paddingTop: 1
+    }
+  }, row.lbl), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: row.gold ? 'var(--gold)' : 'var(--tx2)',
+      fontFamily: row.mono ? 'var(--mono)' : 'var(--sans)',
+      wordBreak: 'break-all',
+      lineHeight: 1.4
+    }
+  }, row.val)))), leadLog.find(e => e.ceo_next_action) && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 12px',
+      background: 'rgba(200,169,110,.05)',
+      border: '1px solid rgba(200,169,110,.2)',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--gold)',
+      letterSpacing: '.12em',
+      textTransform: 'uppercase',
+      marginBottom: 4
+    }
+  }, "\u2192 Recommended Action"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: 'var(--tx)',
+      lineHeight: 1.6
+    }
+  }, leadLog.find(e => e.ceo_next_action).ceo_next_action)), leadLog.find(e => e.deal_score_reason) && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 12px',
+      background: 'rgba(0,0,0,.15)',
+      border: '1px solid var(--br2)',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      letterSpacing: '.12em',
+      textTransform: 'uppercase',
+      marginBottom: 4
+    }
+  }, "CEO Reasoning"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'var(--tx2)',
+      lineHeight: 1.7
+    }
+  }, leadLog.find(e => e.deal_score_reason).deal_score_reason?.split('|')[0]?.trim())), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      letterSpacing: '.12em',
+      textTransform: 'uppercase',
+      marginBottom: 8
+    }
+  }, "Update Status"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 5
+    }
+  }, Object.entries(STATUS_CFG).map(([key, cfg]) => {
+    const active = selected.status === key;
+    return /*#__PURE__*/React.createElement("button", {
+      key: key,
+      onClick: () => !active && handleStatusChange(selected.id, key),
+      style: {
+        fontSize: 10,
+        padding: '3px 8px',
+        cursor: active ? 'default' : 'pointer',
+        letterSpacing: '.04em',
+        background: active ? cfg.bg : 'transparent',
+        color: active ? cfg.color : 'var(--tx3)',
+        border: active ? `1px solid ${cfg.color}50` : '1px solid rgba(255,255,255,.07)'
+      }
+    }, cfg.label);
+  }))), selected.notes && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'var(--tx3)',
+      lineHeight: 1.7,
+      padding: '8px 0',
+      borderTop: '1px solid var(--br2)',
+      marginBottom: 10
+    }
+  }, selected.notes), leadLog.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: '1px solid var(--br2)',
+      paddingTop: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: 'var(--tx3)',
+      letterSpacing: '.12em',
+      textTransform: 'uppercase',
+      marginBottom: 10
+    }
+  }, "Activity (", leadLog.length, ")"), leadLog.slice(0, 6).map(e => /*#__PURE__*/React.createElement("div", {
+    key: e.id,
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginBottom: 10,
+      fontSize: 11
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      flexShrink: 0
+    }
+  }, e.is_deal_ready ? '🔥' : e.direction === 'inbound' ? '📥' : '📤'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: 'var(--tx2)',
+      marginBottom: 2,
+      lineHeight: 1.4
+    }
+  }, e.subject?.substring(0, 44) || '(no subject)'), e.deal_score && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: scoreColor(e.deal_score),
+      fontFamily: 'var(--mono)',
+      fontSize: 10,
+      marginBottom: 1
+    }
+  }, "Score: ", e.deal_score, "/10"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: 'var(--tx3)',
+      fontFamily: 'var(--mono)',
+      fontSize: 10
+    }
+  }, fmtDate(e.sent_at))))))) :
+  /*#__PURE__*/
+  /* Recent Activity (when nothing selected) */
+  React.createElement("div", {
+    style: {
+      background: 'var(--s4)',
+      border: '1px solid var(--br2)',
+      padding: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      letterSpacing: '.14em',
+      textTransform: 'uppercase',
+      color: 'var(--gold)',
+      marginBottom: 14
+    }
+  }, "Recent Activity"), log.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: 'var(--tx3)'
+    }
+  }, "No activity yet.") : log.slice(0, 8).map((entry, i) => {
+    const company = leads.find(l => l.id === entry.lead_id)?.company_name;
+    return /*#__PURE__*/React.createElement("div", {
+      key: entry.id,
+      style: {
+        borderBottom: i < 7 ? '1px solid rgba(200,169,110,.06)' : 'none',
+        paddingBottom: 10,
+        marginBottom: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 3
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11
+      }
+    }, entry.is_deal_ready ? '🔥' : entry.direction === 'inbound' ? '📥' : '📤'), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        textTransform: 'uppercase',
+        letterSpacing: '.1em',
+        color: entry.is_deal_ready ? '#4ADE80' : entry.direction === 'inbound' ? '#FCD34D' : '#58A6FF'
+      }
+    }, entry.is_deal_ready ? 'Deal Ready' : entry.direction === 'inbound' ? 'Reply' : 'Outreach'), entry.deal_score && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        color: '#4ADE80',
+        fontFamily: 'var(--mono)',
+        marginLeft: 'auto'
+      }
+    }, entry.deal_score, "/10")), company && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: 'var(--gold)',
+        marginBottom: 2
+      }
+    }, company), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: 'var(--tx2)',
+        marginBottom: 2
+      }
+    }, entry.subject?.substring(0, 44) || '(no subject)'), entry.ceo_next_action && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: 'var(--tx3)',
+        fontStyle: 'italic',
+        marginBottom: 2
+      }
+    }, "\u2192 ", entry.ceo_next_action.substring(0, 52)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: 'var(--tx3)',
+        fontFamily: 'var(--mono)'
+      }
+    }, fmtDate(entry.sent_at)));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--s4)',
+      border: '1px solid var(--br2)',
+      padding: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      letterSpacing: '.14em',
+      textTransform: 'uppercase',
+      color: 'var(--gold)',
+      marginBottom: 12
+    }
+  }, "Agent Status"), [{
+    name: 'OutreachBot',
+    status: 'Cron 9AM BDT',
+    icon: '📤',
+    color: '#58A6FF'
+  }, {
+    name: 'ReplyIntake',
+    status: 'Webhook live',
+    icon: '📥',
+    color: '#4ADE80'
+  }, {
+    name: 'CEOAuditor',
+    status: 'On demand',
+    icon: '🧠',
+    color: '#A78BFA'
+  }, {
+    name: 'DealAlert',
+    status: 'Auto-trigger',
+    icon: '🔥',
+    color: '#FCD34D'
+  }].map(agent => /*#__PURE__*/React.createElement("div", {
+    key: agent.name,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 14
+    }
+  }, agent.icon), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: 'var(--tx)',
+      fontWeight: 500
+    }
+  }, agent.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: agent.color
+    }
+  }, agent.status)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 6,
+      height: 6,
+      borderRadius: '50%',
+      background: agent.color,
+      boxShadow: `0 0 6px ${agent.color}`
+    }
+  })))))));
+}
+function App() {
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState('dashboard');
+  const [data, setData] = useState({
+    rooms: [],
+    guests: [],
+    reservations: [],
+    transactions: [],
+    tasks: []
+  });
+  const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
+  useEffect(() => {
+    const el = document.getElementById('loading');
+    if (el) el.style.display = 'none';
+  }, []);
+  const [clock, setClock] = useState(new Date());
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifRoomSels, setNotifRoomSels] = useState({});
+  const [confirmingIds, setConfirmingIds] = useState(new Set());
+  const [staffList, setStaffList] = useState(INIT_STAFF);
+  const [businessDate, setBusinessDate] = useState(todayStr());
+  useEffect(() => {
+    db('staff', `?tenant_id=eq.${TENANT}&select=*&order=id`).then(d => {
+      if (Array.isArray(d) && d.length > 0) setStaffList(d);
+    }).catch(() => {}); // silently fall back to INIT_STAFF
+  }, []);
+  const toastRef = useRef();
+  const toast = useCallback((msg, type = 'success') => {
+    setToastMsg({
+      msg,
+      type
+    });
+    clearTimeout(toastRef.current);
+    toastRef.current = setTimeout(() => setToastMsg(null), 3500);
+  }, []);
+  useEffect(() => {
+    const t = setInterval(() => setClock(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const loadAll = useCallback(async () => {
+    try {
+      const [rooms, guests, reservations, transactions, tasks, bdRows] = await Promise.all([db('rooms', `?tenant_id=eq.${TENANT}&select=*&order=room_number`), dbAll('guests', `?tenant_id=eq.${TENANT}&select=*&order=name`), db('reservations', `?tenant_id=eq.${TENANT}&select=*&order=check_in.desc&limit=500`), db('transactions', `?tenant_id=eq.${TENANT}&select=*&amount=gt.0&order=timestamp.desc&limit=400`), db('housekeeping_tasks', `?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`), db('hotel_settings', `?tenant_id=eq.${TENANT}&key=eq.active_fiscal_day&select=value`).catch(() => [])]);
+      if (Array.isArray(bdRows) && bdRows[0]?.value) setBusinessDate(bdRows[0].value);
+      setData({
+        rooms: Array.isArray(rooms) ? rooms : [],
+        guests: Array.isArray(guests) ? guests : [],
+        reservations: Array.isArray(reservations) ? reservations : [],
+        transactions: Array.isArray(transactions) ? transactions : [],
+        tasks: Array.isArray(tasks) ? tasks : []
+      });
+    } catch (e) {
+      console.error('Load failed', e);
+      toast('Failed to refresh data — check connection', 'error');
+    }
+  }, [toast]);
+  useEffect(() => {
+    if (!user) {
+      setData({
+        rooms: [],
+        guests: [],
+        reservations: [],
+        transactions: [],
+        tasks: []
+      });
+      return;
+    }
+    setLoading(true);
+    const loadTimeout = setTimeout(() => setLoading(false), 10000); // force clear after 10s
+    loadAll().finally(() => {
+      clearTimeout(loadTimeout);
+      setLoading(false);
+    });
+    const interval = setInterval(loadAll, 90000);
+    return () => clearInterval(interval);
+  }, [user]); // intentionally omit loadAll to avoid re-running on every render
+
+  function signOut() {
+    setUser(null);
+    setPage('dashboard');
+    setNotifOpen(false);
+    setData({
+      rooms: [],
+      guests: [],
+      reservations: [],
+      transactions: [],
+      tasks: []
+    });
+    setToastMsg(null);
+  }
+  if (!user) return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement(LoginPage, {
+    onLogin: u => {
+      setUser({
+        ...u
+      });
+      setPage('dashboard');
+    },
+    staffList: staffList
+  }));
+  if (loading && user) return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'column',
+      gap: 16,
+      background: 'var(--bg)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontWeight: 300,
+      fontSize: 32,
+      color: 'var(--gold)',
+      letterSpacing: '.02em'
+    }
+  }, "Hotel ", /*#__PURE__*/React.createElement("em", {
+    style: {
+      fontStyle: 'italic'
+    }
+  }, "Fountain")), /*#__PURE__*/React.createElement("div", {
+    className: "spinner"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--sans)',
+      fontSize: 9,
+      color: 'var(--tx3)',
+      letterSpacing: '.18em',
+      textTransform: 'uppercase',
+      fontWeight: 200
+    }
+  }, "Connecting to Management System\u2026")));
+  const allowed = ROLES[user.role]?.pages || [];
+  const cur = allowed.includes(page) ? page : allowed[0];
+  const pendResList = data.reservations.filter(r => r.status === 'PENDING');
+  const pendRes = pendResList.length;
+  const hkUrgent = data.tasks.filter(t => t.status === 'pending' && t.priority === 'high').length;
+  const dirtyRooms = data.rooms.filter(r => r.status === 'DIRTY').length;
+  const totalNotifs = pendRes + hkUrgent + dirtyRooms;
+  function getPendingGuestInfo(res) {
+    const guestId = String((res.guest_ids || [])[0] || '');
+    const g = data.guests.find(x => String(x.id) === guestId);
+    const sr = res.special_requests || '';
+    const roomMatch = sr.match(/Room Type:\s*([^|]+)/);
+    const phoneMatch = sr.match(/Phone:\s*([^|]+)/);
+    const emailMatch = sr.match(/Email:\s*([^|]+)/);
+    return {
+      name: g?.name || res.on_duty_officer || 'Walk-in Guest',
+      phone: g?.phone || (phoneMatch ? phoneMatch[1].trim() : '—'),
+      email: g?.email || (emailMatch ? emailMatch[1].trim() : '—'),
+      roomType: (roomMatch ? roomMatch[1].trim() : null) || (res.room_ids || []).join(', ') || 'Not assigned',
+      checkIn: res.check_in,
+      checkOut: res.check_out,
+      isOnline: sr.includes('ONLINE BOOKING'),
+      id: res.id
+    };
+  }
+  const NAV_ITEMS = [{
+    id: 'dashboard',
+    ico: '⬡',
+    label: 'Dashboard',
+    sect: 'OVERVIEW'
+  }, {
+    id: 'rooms',
+    ico: '▦',
+    label: 'Room Management'
+  }, {
+    id: 'reservations',
+    ico: '◈',
+    label: 'Reservations',
+    badge: pendRes
+  }, {
+    id: 'guests',
+    ico: '◉',
+    label: 'Guests & CRM'
+  }, {
+    id: 'housekeeping',
+    ico: '✦',
+    label: 'Housekeeping',
+    badge: hkUrgent + dirtyRooms,
+    sect: 'OPERATIONS'
+  }, {
+    id: 'billing',
+    ico: '◎',
+    label: 'Billing & Invoices'
+  }, {
+    id: 'reports',
+    ico: '▣',
+    label: 'Reports',
+    sect: 'ANALYTICS'
+  }, {
+    id: 'settings',
+    ico: '◌',
+    label: 'Settings',
+    sect: 'SYSTEM'
+  }].filter(n => allowed.includes(n.id));
+  const PAGE_TITLES = {
+    dashboard: 'Dashboard',
+    rooms: 'Room Management',
+    reservations: 'Reservations',
+    guests: 'Guest CRM',
+    housekeeping: 'Housekeeping',
+    billing: 'Billing & Invoices',
+    reports: 'Reports & Analytics',
+    settings: 'Settings'
+  };
+  const bdParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dhaka',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    weekday: 'short',
+    hourCycle: 'h12'
+  }).formatToParts(clock);
+  const _p = k => bdParts.find(p => p.type === k)?.value || '';
+  const clockStr = (() => {
+    const hh = _p('hour'),
+      mm = _p('minute'),
+      ss = _p('second'),
+      dp = _p('dayPeriod');
+    const timeStr = `${hh}:${mm}:${ss} ${dp}`;
+    const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return timeStr + ' · ' + _p('weekday') + ', ' + parseInt(_p('day')) + ' ' + mo[+_p('month') - 1] + ' ' + _p('year');
+  })();
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement("div", {
+    className: "app"
+  }, /*#__PURE__*/React.createElement("aside", {
+    className: "sidebar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "s-head"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "s-brand"
+  }, "Hotel ", /*#__PURE__*/React.createElement("em", null, "Fountain")), /*#__PURE__*/React.createElement("div", {
+    className: "s-tag"
+  }, "The Pulse of Modern Hospitality"), /*#__PURE__*/React.createElement("div", {
+    className: "s-hotel"
+  }, "\uD83C\uDFE8 Management CRM")), /*#__PURE__*/React.createElement("nav", {
+    className: "s-nav"
+  }, NAV_ITEMS.map(item => /*#__PURE__*/React.createElement("div", {
+    key: item.id
+  }, item.sect && /*#__PURE__*/React.createElement("div", {
+    className: "s-sect"
+  }, item.sect), /*#__PURE__*/React.createElement("div", {
+    className: `nav-item${cur === item.id ? ' on' : ''}`,
+    onClick: () => setPage(item.id)
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "ico"
+  }, item.ico), /*#__PURE__*/React.createElement("span", null, item.label), item.badge > 0 && /*#__PURE__*/React.createElement("span", {
+    className: "n-badge"
+  }, item.badge))))), /*#__PURE__*/React.createElement("div", {
+    className: "s-foot"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "av",
+    style: {
+      width: 30,
+      height: 30,
+      fontSize: 11,
+      background: `linear-gradient(135deg,${avColor(user.name)},rgba(0,0,0,.5))`,
+      color: '#EEE9E2',
+      flexShrink: 0,
+      fontFamily: 'var(--sans)',
+      fontWeight: 400
+    }
+  }, user.av), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--sans)',
+      fontSize: 12,
+      fontWeight: 300,
+      color: 'var(--tx)',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      letterSpacing: '.02em'
+    }
+  }, user.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'var(--sans)',
+      fontSize: 8,
+      color: ROLES[user.role]?.color || 'var(--gold)',
+      letterSpacing: '.1em',
+      marginTop: 1,
+      fontWeight: 200,
+      textTransform: 'uppercase'
+    }
+  }, ROLES[user.role]?.label)), /*#__PURE__*/React.createElement("button", {
+    title: "Sign Out",
+    style: {
+      background: 'none',
+      border: '1px solid var(--br2)',
+      color: 'var(--tx3)',
+      cursor: 'pointer',
+      fontSize: 12,
+      padding: '4px 8px',
+      transition: 'all .15s',
+      flexShrink: 0,
+      lineHeight: 1,
+      fontFamily: 'var(--sans)'
+    },
+    onClick: signOut,
+    onMouseEnter: e => {
+      e.currentTarget.style.color = 'var(--rose)';
+      e.currentTarget.style.borderColor = 'rgba(224,92,122,.35)';
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.color = 'var(--tx3)';
+      e.currentTarget.style.borderColor = 'var(--br2)';
+    }
+  }, "\u23FB")))), /*#__PURE__*/React.createElement("main", {
+    className: "main"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "topbar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tb-title"
+  }, PAGE_TITLES[cur]), /*#__PURE__*/React.createElement("div", {
+    className: "flex fac gap2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "sync-dot"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "xs muted"
+  }, "Live")), /*#__PURE__*/React.createElement("div", {
+    className: "tb-meta"
+  }, clockStr), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    style: {
+      position: 'relative',
+      padding: '5px 10px',
+      fontSize: 15
+    },
+    onClick: e => {
+      e.stopPropagation();
+      setNotifOpen(p => !p);
+    }
+  }, "\uD83D\uDD14", totalNotifs > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      width: 7,
+      height: 7,
+      borderRadius: '50%',
+      background: 'var(--rose)',
+      boxShadow: '0 0 5px var(--rose)',
+      animation: 'pulse 2s infinite'
+    }
+  })), notifOpen && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      right: 0,
+      top: 'calc(100% + 8px)',
+      width: 360,
+      background: 'var(--s1)',
+      border: '1px solid var(--br)',
+      boxShadow: '0 20px 60px rgba(0,0,0,.8)',
+      zIndex: 200,
+      overflow: 'hidden',
+      animation: 'mIn .18s ease'
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 16px',
+      borderBottom: '1px solid var(--br2)',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      background: 'rgba(200,169,110,.04)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13
+    }
+  }, "\uD83D\uDD14"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: 'var(--serif)',
+      fontSize: 16,
+      fontWeight: 300,
+      color: 'var(--tx)'
+    }
+  }, "Notifications"), totalNotifs > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      background: 'var(--rose)',
+      color: '#fff',
+      fontSize: 9,
+      padding: '1px 7px',
+      fontFamily: 'var(--sans)',
+      fontWeight: 400,
+      letterSpacing: '.06em'
+    }
+  }, totalNotifs)), /*#__PURE__*/React.createElement("button", {
+    style: {
+      background: 'none',
+      border: 'none',
+      color: 'var(--tx3)',
+      cursor: 'pointer',
+      fontSize: 16,
+      lineHeight: 1
+    },
+    onClick: () => setNotifOpen(false)
+  }, "\xD7")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxHeight: 480,
+      overflowY: 'auto'
+    }
+  }, pendResList.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '8px 16px',
+      fontSize: 8,
+      letterSpacing: '.18em',
+      color: 'var(--gold)',
+      textTransform: 'uppercase',
+      fontFamily: 'var(--sans)',
+      fontWeight: 200,
+      background: 'rgba(200,169,110,.03)',
+      borderBottom: '1px solid var(--br2)'
+    }
+  }, "\uD83D\uDCC5 Pending Booking Requests \u2014 ", pendResList.length, " new"), pendResList.map(res => {
+    const info = getPendingGuestInfo(res);
+    return /*#__PURE__*/React.createElement("div", {
+      key: res.id,
+      style: {
+        padding: '14px 16px',
+        borderBottom: '1px solid var(--br2)',
+        background: info.isOnline ? 'rgba(200,169,110,.03)' : 'transparent'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 10,
+        marginBottom: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 34,
+        height: 34,
+        borderRadius: '50%',
+        background: `linear-gradient(135deg,var(--gold),rgba(200,169,110,.3))`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'var(--sans)',
+        fontSize: 12,
+        color: '#07090E',
+        fontWeight: 500,
+        flexShrink: 0
+      }
+    }, info.name.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontFamily: 'var(--sans)',
+        fontSize: 13,
+        fontWeight: 400,
+        color: 'var(--tx)',
+        marginBottom: 2
+      }
+    }, info.name), info.isOnline && /*#__PURE__*/React.createElement("span", {
+      style: {
+        background: 'rgba(200,169,110,.12)',
+        border: '1px solid rgba(200,169,110,.25)',
+        color: 'var(--gold)',
+        fontSize: 7.5,
+        padding: '1px 6px',
+        fontFamily: 'var(--sans)',
+        letterSpacing: '.1em',
+        textTransform: 'uppercase'
+      }
+    }, "Online Booking"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 8,
+        color: 'var(--tx3)',
+        fontFamily: 'var(--sans)',
+        fontWeight: 200,
+        letterSpacing: '.06em',
+        textAlign: 'right',
+        whiteSpace: 'nowrap'
+      }
+    }, fmtDate(info.checkIn), /*#__PURE__*/React.createElement("br", null), "\u2192 ", fmtDate(info.checkOut))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 6,
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: 'rgba(200,169,110,.04)',
+        border: '1px solid var(--br2)',
+        padding: '7px 10px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 7,
+        letterSpacing: '.16em',
+        color: 'var(--tx3)',
+        textTransform: 'uppercase',
+        fontFamily: 'var(--sans)',
+        marginBottom: 3,
+        fontWeight: 200
+      }
+    }, "\uD83D\uDCDE Contact"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: 'var(--tx)',
+        fontFamily: 'var(--sans)',
+        fontWeight: 300
+      }
+    }, info.phone)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: 'rgba(200,169,110,.04)',
+        border: '1px solid var(--br2)',
+        padding: '7px 10px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 7,
+        letterSpacing: '.16em',
+        color: 'var(--tx3)',
+        textTransform: 'uppercase',
+        fontFamily: 'var(--sans)',
+        marginBottom: 3,
+        fontWeight: 200
+      }
+    }, "\uD83C\uDFF7 Room Type"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: 'var(--gold)',
+        fontFamily: 'var(--sans)',
+        fontWeight: 300
+      }
+    }, info.roomType)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: 'rgba(200,169,110,.04)',
+        border: '1px solid var(--br2)',
+        padding: '7px 10px',
+        gridColumn: 'span 2'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 7,
+        letterSpacing: '.16em',
+        color: 'var(--tx3)',
+        textTransform: 'uppercase',
+        fontFamily: 'var(--sans)',
+        marginBottom: 3,
+        fontWeight: 200
+      }
+    }, "\u2709\uFE0F Email"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: 'var(--tx2)',
+        fontFamily: 'var(--sans)',
+        fontWeight: 300,
+        wordBreak: 'break-all'
+      }
+    }, info.email))), (() => {
+      const availRooms = data.rooms.filter(r => r.status === 'AVAILABLE');
+      const preferred = availRooms.filter(r => r.category === info.roomType);
+      const roomList = preferred.length > 0 ? preferred : availRooms;
+      const selRoom = notifRoomSels[res.id] || roomList[0]?.room_number || '';
+      const isConfirming = confirmingIds.has(res.id);
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          gap: 6,
+          alignItems: 'center'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 7,
+          letterSpacing: '.14em',
+          color: 'var(--tx3)',
+          textTransform: 'uppercase',
+          fontFamily: 'var(--sans)',
+          fontWeight: 200,
+          whiteSpace: 'nowrap'
+        }
+      }, "Assign Room"), /*#__PURE__*/React.createElement("select", {
+        className: "fselect",
+        style: {
+          flex: 1,
+          fontSize: 11,
+          padding: '4px 8px',
+          background: '#1C1510',
+          color: 'var(--tx)',
+          border: '1px solid rgba(200,169,110,.25)'
+        },
+        value: selRoom,
+        onChange: e => setNotifRoomSels(p => ({
+          ...p,
+          [res.id]: e.target.value
+        }))
+      }, roomList.length === 0 && /*#__PURE__*/React.createElement("option", {
+        value: ""
+      }, "\u2014 No AVAILABLE rooms \u2014"), roomList.map(r => /*#__PURE__*/React.createElement("option", {
+        key: r.id,
+        value: r.room_number
+      }, r.room_number, " \xB7 ", r.category || '', " \xB7 \u09F3", (+r.price || 0).toLocaleString(), "/night")))), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement("button", {
+        className: "btn btn-success btn-sm",
+        style: {
+          flex: 1,
+          justifyContent: 'center',
+          fontSize: 9.5,
+          letterSpacing: '.1em',
+          opacity: isConfirming ? 0.6 : 1
+        },
+        disabled: isConfirming || !selRoom || roomList.length === 0,
+        onClick: async () => {
+          if (isConfirming) return;
+          setConfirmingIds(p => {
+            const s = new Set(p);
+            s.add(res.id);
+            return s;
+          });
+          try {
+            const fresh = await db('rooms', `?tenant_id=eq.${TENANT}&room_number=eq.${selRoom}&status=eq.AVAILABLE&select=id,room_number`);
+            if (!fresh || fresh.length === 0) {
+              toast('Room no longer available — pick another', 'error');
+              setConfirmingIds(p => {
+                const s = new Set(p);
+                s.delete(res.id);
+                return s;
+              });
+              loadAll();
+              return;
+            }
+            const roomRec = data.rooms.find(r => String(r.room_number) === String(selRoom))(() => {
+              const ciDate = new Date((res.check_in || '').replace(' ', 'T').split('+')[0]);
+              const coDate = new Date((res.check_out || '').replace(' ', 'T').split('+')[0]);
+              const nights = !isNaN(ciDate) && !isNaN(coDate) ? Math.max(1, Math.round((coDate - ciDate) / 86400000)) : 1;
+              const roomPrice = +(roomRec?.price || 0);
+              const computedTotal = roomPrice * nights || +(res.total_amount || 0);
+              return dbPatch('reservations', res.id, {
+                status: 'RESERVED',
+                room_ids: [String(selRoom)],
+                room_id: roomRec.id,
+                room_type: roomRec.category || info.roomType || '',
+                total_amount: computedTotal
+              });
+            })();
+            await dbPatch('rooms', roomRec.id, {
+              status: 'RESERVED'
+            });
+            try {
+              await fetch(`${SB_URL}/functions/v1/send-booking-email`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${SB_KEY}`
+                },
+                body: JSON.stringify({
+                  to: info.email,
+                  guestName: info.name,
+                  roomNo: selRoom,
+                  roomType: info.roomType,
+                  checkIn: info.checkIn,
+                  checkOut: info.checkOut,
+                  total: res.total_amount || 0,
+                  phone: info.phone
+                })
+              });
+            } catch (emailErr) {
+              console.warn('Email send failed:', emailErr);
+            }
+            toast(`✓ Room ${selRoom} assigned & confirmation sent to ${info.email}`, 'success');
+            setNotifRoomSels(p => {
+              const n = {
+                ...p
+              };
+              delete n[res.id];
+              return n;
+            });
+            loadAll();
+          } catch (e) {
+            toast(e.message, 'error');
+          } finally {
+            setConfirmingIds(p => {
+              const s = new Set(p);
+              s.delete(res.id);
+              return s;
+            });
+          }
+        }
+      }, isConfirming ? 'Confirming…' : '✓ Confirm & Send Email'), /*#__PURE__*/React.createElement("button", {
+        className: "btn btn-ghost btn-sm",
+        style: {
+          fontSize: 9.5,
+          letterSpacing: '.1em',
+          borderColor: 'rgba(220,50,50,.3)',
+          color: 'var(--rose)'
+        },
+        disabled: isConfirming,
+        onClick: async () => {
+          if (!confirm(`Cancel booking for ${info.name}?`)) return;
+          try {
+            await dbPatch('reservations', res.id, {
+              status: 'CANCELLED'
+            });
+            toast(`Booking for ${info.name} cancelled`, 'info');
+            loadAll();
+          } catch (e) {
+            toast(e.message, 'error');
+          }
+        }
+      }, "\u2715 Cancel")));
+    })());
+  })), hkUrgent > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "notif-item",
+    onClick: () => {
+      setPage('housekeeping');
+      setNotifOpen(false);
+    }
+  }, "\uD83E\uDDF9 ", hkUrgent, " high-priority housekeeping task", hkUrgent > 1 ? 's' : ''), dirtyRooms > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "notif-item",
+    onClick: () => {
+      setPage('housekeeping');
+      setNotifOpen(false);
+    }
+  }, "\uD83C\uDFE8 ", dirtyRooms, " room", dirtyRooms > 1 ? 's' : '', " require cleaning"), totalNotifs === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "notif-item",
+    style: {
+      textAlign: 'center',
+      color: 'var(--tx3)',
+      cursor: 'default',
+      padding: '20px'
+    }
+  }, "\u2713 All clear \u2014 no alerts")))), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: 'var(--mono)',
+      fontSize: 9,
+      color: 'var(--gold-light)',
+      letterSpacing: '.1em',
+      border: '1px solid rgba(200,169,110,.3)',
+      padding: '3px 8px',
+      marginRight: 4
+    },
+    title: "Current Business Date"
+  }, (() => {
+    if (!businessDate) return '—';
+    const [y, m, d] = businessDate.split('-');
+    return `${+d}-${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m - 1]}-${y}`;
+  })()), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: () => {
+      loadAll();
+      toast('Data refreshed', 'info');
+    },
+    title: "Refresh data"
+  }, "\u21BB")), /*#__PURE__*/React.createElement("div", {
+    className: "content",
+    onClick: () => notifOpen && setNotifOpen(false)
+  }, cur === 'dashboard' && /*#__PURE__*/React.createElement(Dashboard, {
+    rooms: data.rooms,
+    guests: data.guests,
+    reservations: data.reservations,
+    transactions: data.transactions,
+    setPage: setPage,
+    businessDate: businessDate
+  }), cur === 'rooms' && /*#__PURE__*/React.createElement(RoomsPage, {
+    rooms: data.rooms,
+    guests: data.guests,
+    reservations: data.reservations,
+    toast: toast,
+    currentUser: user,
+    reload: loadAll,
+    businessDate: businessDate
+  }), cur === 'reservations' && /*#__PURE__*/React.createElement(ReservationsPage, {
+    reservations: data.reservations,
+    guests: data.guests,
+    rooms: data.rooms,
+    toast: toast,
+    currentUser: user,
+    reload: loadAll,
+    businessDate: businessDate,
+    transactions: data.transactions
+  }), cur === 'guests' && /*#__PURE__*/React.createElement(GuestsPage, {
+    guests: data.guests,
+    reservations: data.reservations,
+    toast: toast,
+    currentUser: user,
+    reload: loadAll
+  }), cur === 'housekeeping' && /*#__PURE__*/React.createElement(HousekeepingPage, {
+    tasks: data.tasks,
+    rooms: data.rooms,
+    toast: toast,
+    currentUser: user,
+    reload: loadAll
+  }), cur === 'billing' && /*#__PURE__*/React.createElement(BillingPage, {
+    transactions: data.transactions,
+    reservations: data.reservations,
+    rooms: data.rooms,
+    guests: data.guests,
+    toast: toast,
+    reload: loadAll,
+    currentUser: user,
+    businessDate: businessDate
+  }), cur === 'reports' && /*#__PURE__*/React.createElement(ReportsPage, {
+    transactions: data.transactions,
+    rooms: data.rooms,
+    reservations: data.reservations,
+    guests: data.guests
+  }), cur === 'settings' && /*#__PURE__*/React.createElement(SettingsPage, {
+    currentUser: user,
+    toast: toast,
+    staffList: staffList,
+    setStaffList: setStaffList,
+    reservations: data.reservations,
+    rooms: data.rooms,
+    guests: data.guests
+  })))), toastMsg && /*#__PURE__*/React.createElement(Toast, {
+    msg: toastMsg.msg,
+    type: toastMsg.type
+  }));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));
