@@ -22,15 +22,16 @@ const SENDER_NAME   = `Lumea Deal Bot — ${process.env.HOTEL_NAME || 'Hotel Fou
 const SENDER_EMAIL  = process.env.HOTEL_SENDER_EMAIL       || 'hotellfountainbd@gmail.com';
 
 interface DealAlertPayload {
-  log_id:        string;
-  lead_id:       string;
-  company_name:  string;
-  contact_name?: string;
-  reply_text:    string;
-  score:         number;
-  reasoning:     string;
-  signals:       string[];
-  next_action:   string;
+  log_id:         string;
+  lead_id:        string;
+  company_name:   string;
+  contact_name?:  string;
+  contact_email?: string;
+  reply_text:     string;
+  score:          number;
+  reasoning:      string;
+  signals:        string[];
+  next_action:    string;
 }
 
 // ── Supabase RPC helper ───────────────────────────────────────────────────────
@@ -111,7 +112,7 @@ function buildAlertHtml(p: DealAlertPayload): string {
   <!-- CTA BUTTONS -->
   <tr><td style="padding:28px 40px">
     <div style="margin-bottom:12px">
-      <a href="mailto:${p.contact_name ?? ''}?subject=Re: ${process.env.HOTEL_NAME || 'Hotel Fountain'} Corporate Partnership"
+      <a href="mailto:${p.contact_email ?? ''}?subject=Re: ${process.env.HOTEL_NAME || 'Hotel Fountain'} Corporate Partnership"
          style="display:inline-block;background:#C8A96E;color:#07090E;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:12px 28px">
         Reply Now →
       </a>
