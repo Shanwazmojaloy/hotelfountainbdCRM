@@ -12,7 +12,14 @@
 - NEVER commit secrets, credentials, or .env files
 - After any bash `cat >>` append to a .tsx/.ts file, immediately verify with `tail -5` and `tsc --noEmit` — appends frequently corrupt files silently
 - After any Edit to `public/crm.html`, grep for `ReactDOM.createRoot` AND `</html>` before `git add` — truncation regression check
+- After EVERY Edit to `public/crm-src.jsx`: run `npm run build:crm` immediately. If Babel errors near line 5470+, tail is truncated — recover with Python splice anchored at `cur==='rooms'` line (see coding_conventions.md)
 - All git commits MUST originate from Windows PowerShell, NOT from the bash sandbox (`.git/*.lock` files are owned by Windows UID and cannot be removed from sandbox)
+- `_isRealPayment` MUST use positive match: `/payment|settlement|advance|deposit|bkash|bank\s*transfer/i` — exclusion-only allows charges (Stay Extension, Room Service) to count as revenue
+- Billing PAID column TODAY filter: use `_isPaymentTx` positive match — NOT a blanket exclusion of BCF. Stay Extension is a CHARGE not a payment.
+- `unifiedGroups` in BillingPage: always match TX → reservation by `reservation_id` FIRST, room+name fallback second — prevents cross-guest misattribution when two reservations share a room number
+- +PAY button does NOT auto-update `reservation.paid_amount` — after recording payment, manually: `UPDATE reservations SET paid_amount = <total> WHERE id = '<id>'`
+- `computeBill` rawTotal: `canonical>0 ? canonical + extras : sub` — extras (folio charges) ALWAYS add on top of `total_amount`. Never discard extras when canonical is set.
+- NEVER update `paid_amount` directly in reservations without also INSERTing a matching row in `transactions` (type='Room Payment (Cash)', fiscal_day=today, reservation_id). Skipping the TX row makes Billing & Invoices page blind to the payment.
 - After `git filter-repo`, run `git reflog expire --expire=now --all && git gc --prune=now` before pushing
 
 ## File Organization
