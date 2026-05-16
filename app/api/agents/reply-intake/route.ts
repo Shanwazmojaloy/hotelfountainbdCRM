@@ -145,12 +145,13 @@ export async function POST(req: Request) {
             Authorization: `Bearer ${process.env.CRON_SECRET}`,
           },
           body: JSON.stringify({
-            log_id:        logId,
-            lead_id:       matchedLead.id,
-            company_name:  matchedLead.company_name,
-            contact_name:  matchedLead.contact_name,
-            reply_text:    replyText,
-            reply_subject: subject,
+            log_id:         logId,
+            lead_id:        matchedLead.id,
+            company_name:   matchedLead.company_name,
+            contact_name:   matchedLead.contact_name,
+            contact_email:  senderEmail,   // verified: this is who replied
+            reply_text:     replyText,
+            reply_subject:  subject,
           }),
         });
       } catch (e) {
