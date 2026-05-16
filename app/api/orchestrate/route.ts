@@ -6,7 +6,13 @@ import { AnalystAgent } from '@/agents/analyst';
 import { insertLead, getLeadByEmail, insertTransaction } from '@/services/supabase';
 import { backupTransaction } from '@/services/make';
 
-export async function POST() {
+export async function POST(req: Request) {
+  // Auth guard — only CRON_SECRET callers allowed
+  const auth = req.headers.get('authorization');
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   console.log('=== Vercel API Triggered: Antigravity 3-Agent Sales Engine ===\n');
 
   try {

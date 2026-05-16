@@ -155,7 +155,7 @@ export default function HotelFountainLanding() {
     if (new Date(checkOut) <= new Date(checkIn)) { setAvailResult({ rooms: [], error: 'Check-out must be after check-in.' }); return; }
     setSearching(true); setAvailResult(null);
     try {
-      let q = supabase.from('rooms').select('*').eq('status', 'available');
+      let q = supabase.from('rooms').select('*').eq('status', 'AVAILABLE');
       if (roomType) q = q.eq('type', roomType);
       const { data, error } = await q;
       if (error) throw error;

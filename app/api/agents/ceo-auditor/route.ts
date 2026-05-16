@@ -17,12 +17,13 @@ const TENANT         = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-
 const DEAL_THRESHOLD = 7;
 
 interface AuditPayload {
-  log_id:         string;
-  lead_id:        string;
-  company_name:   string;
-  contact_name?:  string;
-  reply_text:     string;
-  reply_subject?: string;
+  log_id:          string;
+  lead_id:         string;
+  company_name:    string;
+  contact_name?:   string;
+  contact_email?:  string;
+  reply_text:      string;
+  reply_subject?:  string;
 }
 
 interface ClaudeAuditResult {
@@ -134,6 +135,7 @@ async function auditAndPersist(payload: AuditPayload) {
         body: JSON.stringify({
           log_id: payload.log_id, lead_id: payload.lead_id,
           company_name: payload.company_name, contact_name: payload.contact_name,
+          contact_email: payload.contact_email,
           reply_text: payload.reply_text,
           score: audit.score, reasoning: audit.reasoning,
           signals: audit.signals, next_action: audit.next_action,
@@ -197,8 +199,9 @@ export async function GET(req: Request) {
     log_id:        row.log_id,
     lead_id:       row.log_lead_id,
     company_name:  row.lead_company_name ?? 'Unknown',
-    contact_name:  row.lead_contact_name ?? undefined,
-    reply_text:    row.log_body ?? '',
+    contact_name:  row.lead_contact_name  ?? undefined,
+    contact_email: row.lead_contact_email ?? undefined,
+    reply_text:    row.log_body  ?? '',
     reply_subject: row.log_subject ?? undefined,
   };
 

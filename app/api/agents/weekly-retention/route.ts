@@ -81,7 +81,7 @@ export async function GET(req: Request) {
         'reservations',
         `select=check_in,check_out,room_type,total_amount` +
         `&tenant_id=eq.${TENANT}` +
-        `&guest_id=eq.${guest.id}` +
+        `&guest_ids=cs.{${guest.id}}` +
         `&order=check_out.desc` +
         `&limit=2`
       );

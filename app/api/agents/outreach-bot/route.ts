@@ -162,7 +162,7 @@ async function runOutreachBot(req: NextRequest) {
           p_direction: 'outbound',
           p_channel:   'email',
           p_subject:   subject,
-          p_body:      buildOutreachText(company, contact),
+          p_body:      buildOutreachText(company, contact, tenant),
           p_sent_at:   new Date().toISOString(),
         }),
       });
