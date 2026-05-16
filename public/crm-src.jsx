@@ -2805,15 +2805,24 @@ ${dueRows}
         })
 
         // Build base list — business rules:
-        //   TODAY  : isDue guests always shown (no time limit); ghost BCF-only+settled hidden.
+        //   TODAY  : isDue guests always shown; recently checked-out (≤3 days) shown for
+        //            invoice access even if fully settled; ghost BCF-only+settled older rows hidden.
         //   DATE   : all groups shown; activeRes injection means due guests appear even with
         //            no TX on that date. Payment-date rule: a payment TX on date X lands in
         //            calT, so guest ALWAYS appears when filtering DATE=X.
         //   MONTH/ALL: all groups shown.
+        const _recentCheckout = grp => {
+          if (grp.res?.status !== 'CHECKED_OUT') return false
+          try {
+            const co=new Date((grp.res.check_out||'')); const bd=new Date(businessDate||todayStr())
+            return !isNaN(co)&&!isNaN(bd)&&(bd-co)/86400000<=3
+          } catch{return false}
+        }
         const _baseList = (filter==='TODAY')
           ? Object.values(unifiedGroups).filter(grp => {
-              if (grp.isDue) return true              // outstanding balance — always visible
-              if (grp.res?.status === 'CHECKED_IN') return true   // in-house always
+              if (grp.isDue) return true                      // outstanding balance — always
+              if (grp.res?.status === 'CHECKED_IN') return true  // in-house always
+              if (_recentCheckout(grp)) return true           // checked out ≤3 days — show for invoice
               return grp.txs.some(t => !/balance carried forward/i.test(t.type||''))
             })
           : Object.values(unifiedGroups)
