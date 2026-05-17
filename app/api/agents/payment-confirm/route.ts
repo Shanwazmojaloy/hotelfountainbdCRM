@@ -35,7 +35,7 @@ const PLAN_LABELS: Record<string, string> = {
 // ── Supabase RPC helper ───────────────────────────────────────────────────────
 function sbRpc(rpcName: string, params: Record<string, unknown>) {
   const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-  const SB_KEY = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  const SB_KEY = (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
   return fetch(`${SB_URL}/rest/v1/rpc/${rpcName}`, {
     method: 'POST',
     headers: {
@@ -328,9 +328,4 @@ export async function GET(req: Request) {
     p_triggered_by: 'shan:one-tap',
   }).catch(() => null);
 
-  // ── Return success page to Shan ───────────────────────────────────────────
-  return new Response(
-    shanSuccessPage(hotel_name, slug, planLabel, contact_name, tenantOk, emailOk),
-    { status: 200, headers: { 'Content-Type': 'text/html' } },
-  );
-}
+  // ── Retu

@@ -69,7 +69,7 @@ function buildFollowUpText(company: string, contactName: string | null): string 
 
 async function runFollowUpBot() {
   const SB_URL    = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-  const SB_KEY    = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  const SB_KEY    = (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
   if (!SB_KEY) return { ok: false, error: 'Env missing: NEXT_PUBLIC_SUPABASE_ANON_KEY' };
   const BREVO_KEY = (process.env.BREVO_API_KEY || '').trim();
   if (!BREVO_KEY) return { ok: false, error: 'Env missing: BREVO_API_KEY' };
@@ -170,3 +170,4 @@ export async function POST() {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);
 }
+                                                                                          
