@@ -2843,8 +2843,9 @@ ${dueRows}
                 if (_billDue(_r) > 0) return true            // owes money — always visible
                 return (_r.check_out||'').slice(0,10) > bd   // within stay → show; past checkout date → hide
               }
-              if (grp.isDue) return true                     // CHECKED_OUT with balance
-              return _hasTodayTx(grp)                        // today activity only
+              // CHECKED_OUT: only show if has ANY transaction on today's business date
+              // (BCF = carried-forward entry counts; old unpaid records with no today tx are hidden)
+              return grp.txs.some(t => (t.fiscal_day||'').startsWith(bd))
             })
           : Object.values(unifiedGroups)
         // Apply search at group level — covers activeRes-injected guests with no TX on the
