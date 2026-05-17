@@ -2819,19 +2819,20 @@ ${dueRows}
         //            no TX on that date. Payment-date rule: a payment TX on date X lands in
         //            calT, so guest ALWAYS appears when filtering DATE=X.
         //   MONTH/ALL: all groups shown.
-        const _recentCheckout = grp => {
-          if (grp.res?.status !== 'CHECKED_OUT') return false
-          try {
-            const co=new Date((grp.res.check_out||'')); const bd=new Date(businessDate||todayStr())
-            return !isNaN(co)&&!isNaN(bd)&&(bd-co)/86400000<=3
-          } catch{return false}
+        // _hasTodayTx: true only if this group has a non-BCF transaction on today's
+        // business date. Fully-paid checked-out guests with no today activity are hidden.
+        const _hasTodayTx = grp => {
+          const bd = businessDate || todayStr()
+          return grp.txs.some(t =>
+            (t.fiscal_day||'').startsWith(bd) &&
+            !/balance carried forward/i.test(t.type||'')
+          )
         }
         const _baseList = (filter==='TODAY')
           ? Object.values(unifiedGroups).filter(grp => {
-              if (grp.isDue) return true                      // outstanding balance — always
-              if (grp.res?.status === 'CHECKED_IN') return true  // in-house always
-              if (_recentCheckout(grp)) return true           // checked out ≤3 days — show for invoice
-              return grp.txs.some(t => !/balance carried forward/i.test(t.type||''))
+              if (grp.isDue) return true                       // outstanding balance — always visible
+              if (grp.res?.status === 'CHECKED_IN') return true   // in-house always visible
+              return _hasTodayTx(grp)                          // has real activity on today's business date
             })
           : Object.values(unifiedGroups)
         // Apply search at group level — covers activeRes-injected guests with no TX on the
