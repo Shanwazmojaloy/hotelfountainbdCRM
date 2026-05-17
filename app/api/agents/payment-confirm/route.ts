@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────────────────────────────────────
 // PaymentConfirm Agent  —  GET /api/agents/payment-confirm
 //
 // Shan's ONE-TAP activation link — embedded in the deal-alert email.

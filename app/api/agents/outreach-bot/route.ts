@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────────────────────────────────────
 // OutreachBot Agent  —  /api/agents/outreach-bot
 // Cron: daily 9:00 AM BDT (3:00 AM UTC)
 //
@@ -136,7 +136,7 @@ async function runOutreachBot(req: NextRequest) {
         body: JSON.stringify({
           sender:  { name: tenant.sender_name, email: tenant.hotel_email },
           to:      [{ email, name: contact ?? company }],
-          replyTo: { name: tenant.sender_name, email: process.env.REPLY_EMAIL || 'replies@fountainbd.com' },
+          replyTo: { name: tenant.sender_name, email: tenant.hotel_email },
           subject,
           htmlContent: buildOutreachHtml(company, contact, title, tenant),
           textContent: buildOutreachText(company, contact, tenant),
