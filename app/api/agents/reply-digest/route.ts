@@ -158,7 +158,11 @@ export async function GET(req: Request) {
   return NextResponse.json(result);
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  const auth = req.headers.get('authorization');
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const result = await runReplyDigest();
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);

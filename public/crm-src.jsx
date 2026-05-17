@@ -905,7 +905,7 @@ function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toas
     if(!a||a<=0) return toast('Enter valid amount','error')
     setCollectSaving(true)
     try {
-      await dbPatch('reservations',activeRes.id,{paid_amount:a})
+      await dbPatch('reservations',activeRes.id,{paid_amount:Math.min(total,(+activeRes.paid_amount||0)+a)})
       await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:businessDate||todayStr(),reservation_id:activeRes?.id||null,tenant_id:TENANT})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
@@ -5576,3 +5576,4 @@ function App() {
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null))
 t(App, null))
+t')).render(React.createElement(App, null))
