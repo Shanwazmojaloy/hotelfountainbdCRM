@@ -5179,7 +5179,7 @@ function App() {
   const [notifRoomSels,setNotifRoomSels]=useState({})
   const [confirmingIds,setConfirmingIds]=useState(new Set())
   const [staffList,setStaffList]=useState(INIT_STAFF)
-  const [businessDate,setBusinessDate]=useState(todayStr())
+  const [businessDate,setBusinessDate]=useState(null) // only set from hotel_settings.active_fiscal_day — never auto-advances
   useEffect(()=>{
     db('staff',`?tenant_id=eq.${TENANT}&select=*&order=id`)
       .then(d=>{ if(Array.isArray(d)&&d.length>0) setStaffList(d) })
@@ -5205,7 +5205,11 @@ function App() {
         db('housekeeping_tasks',`?tenant_id=eq.${TENANT}&select=*&order=created_at.desc&limit=100`),
         db('hotel_settings',`?tenant_id=eq.${TENANT}&key=eq.active_fiscal_day&select=value`).catch(()=>[]),
       ])
-      if(Array.isArray(bdRows)&&bdRows[0]?.value) setBusinessDate(bdRows[0].value)
+      if(Array.isArray(bdRows)&&bdRows[0]?.value) {
+        setBusinessDate(bdRows[0].value)
+      }
+      // NOTE: if active_fiscal_day row absent, businessDate stays null.
+      // Components fall back to todayStr() via (businessDate||todayStr()) — correct.
       setData({
         rooms:Array.isArray(rooms)?rooms:[],
         guests:Array.isArray(guests)?guests:[],
