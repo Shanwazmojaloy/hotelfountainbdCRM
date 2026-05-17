@@ -36,7 +36,7 @@ const PLANS = {
 // ── Supabase RPC helper ───────────────────────────────────────────────────────
 function sbRpc(rpcName: string, params: Record<string, unknown>) {
   const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-  const SB_KEY = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  const SB_KEY = (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
   return fetch(`${SB_URL}/rest/v1/rpc/${rpcName}`, {
     method: 'POST',
     headers: {
@@ -265,17 +265,4 @@ export async function POST(req: Request) {
   await sbRpc('deal_log_notification', {
     p_tenant_id:    TENANT,
     p_workflow:     'payment-send',
-    p_body:         `Payment instructions sent to ${contactEmail} for ${payload.company_name} (${plan.label} plan). Email: ${emailOk ? 'sent' : 'failed'}`,
-    p_status:       emailOk ? 'success' : 'error',
-    p_triggered_by: 'agent:deal-alert',
-  });
-
-  return NextResponse.json({
-    ok:        emailOk,
-    agent:     'payment-send',
-    sent_to:   contactEmail,
-    company:   payload.company_name,
-    plan:      planKey,
-    timestamp: new Date().toISOString(),
-  });
-}
+    p_body:         `Payment instructions s
