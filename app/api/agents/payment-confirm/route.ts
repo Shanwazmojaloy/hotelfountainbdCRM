@@ -328,4 +328,9 @@ export async function GET(req: Request) {
     p_triggered_by: 'shan:one-tap',
   }).catch(() => null);
 
-  // ── Retu
+  // ── Return success page to Shan ───────────────────────────────────────────
+  return new Response(
+    shanSuccessPage(hotel_name, slug, planLabel, contact_name, tenantOk, emailOk),
+    { status: 200, headers: { 'Content-Type': 'text/html' } },
+  );
+}

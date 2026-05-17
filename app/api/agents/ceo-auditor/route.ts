@@ -218,4 +218,6 @@ export async function GET(req: Request) {
       next_action: audit.next_action, timestamp: new Date().toISOString(),
     });
   } catch (e) {
-    return NextResponse.json({ error: 
+    return NextResponse.json({ error: `Audit failed: ${String(e)}` }, { status: 500 });
+  }
+}

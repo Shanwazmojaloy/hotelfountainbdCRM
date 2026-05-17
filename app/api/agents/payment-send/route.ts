@@ -265,4 +265,17 @@ export async function POST(req: Request) {
   await sbRpc('deal_log_notification', {
     p_tenant_id:    TENANT,
     p_workflow:     'payment-send',
-    p_body:         `Payment instructions s
+    p_body:         `Payment instructions sent to ${contactEmail} for ${payload.company_name} (${plan.label} plan). Email: ${emailOk ? 'sent' : 'failed'}`,
+    p_status:       emailOk ? 'success' : 'error',
+    p_triggered_by: 'agent:deal-alert',
+  });
+
+  return NextResponse.json({
+    ok:        emailOk,
+    agent:     'payment-send',
+    sent_to:   contactEmail,
+    company:   payload.company_name,
+    plan:      planKey,
+    timestamp: new Date().toISOString(),
+  });
+}
