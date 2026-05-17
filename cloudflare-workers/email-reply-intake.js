@@ -17,8 +17,10 @@
 //      → Catch-all → Send to Worker: email-reply-intake
 //
 // Env vars (set in Cloudflare Dashboard → Workers → Settings → Variables):
-//   REPLY_INTAKE_URL  = https://fountainbd.com/api/agents/reply-intake
-//   CRON_SECRET       = (same value as Vercel CRON_SECRET)
+//   REPLY_INTAKE_URL     = https://fountainbd.com/api/agents/reply-intake
+//   CRON_SECRET          = (same value as Vercel CRON_SECRET)
+//   VERCEL_BYPASS_TOKEN  = (from Vercel Dashboard → Settings → Deployment Protection
+//                           → Protection Bypass for Automation → copy secret)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import PostalMime from 'postal-mime';
@@ -60,9 +62,16 @@ export default {
     // ── 3. Forward to reply-intake agent ──────────────────────────────────
     const intakeUrl = env.REPLY_INTAKE_URL ?? 'https://fountainbd.com/api/agents/reply-intake';
 
+    // Build headers — add Vercel bypass token if set so the request clears
+    // Vercel Deployment Protection without needing SSO
+    const headers = { 'Content-Type': 'application/json' };
+    if (env.VERCEL_BYPASS_TOKEN) {
+      headers['x-vercel-protection-bypass'] = env.VERCEL_BYPASS_TOKEN;
+    }
+
     const res = await fetch(intakeUrl, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body:    JSON.stringify(payload),
     });
 

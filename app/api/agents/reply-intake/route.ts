@@ -123,8 +123,12 @@ export async function POST(req: Request) {
     });
     if (logRes.ok) {
       const logData = await logRes.json().catch(() => null);
-      // RPC returns UUID scalar
-      logId = typeof logData === 'string' ? logData : (logData as Record<string, string>)?.id ?? null;
+      // PostgREST returns scalar RETURNS uuid as a JSON array ["<uuid>"]
+      logId = Array.isArray(logData)
+        ? (logData[0] ?? null)
+        : typeof logData === 'string'
+          ? logData
+          : (logData as Record<string, string>)?.id ?? null;
     }
 
     // ── Update lead status to 'replied' ───────────────────────────────────
