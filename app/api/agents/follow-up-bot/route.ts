@@ -136,7 +136,7 @@ async function runFollowUpBot() {
         method: 'POST', headers: sbH,
         body: JSON.stringify({
           p_lead_id: lead.id,
-          p_status: ok ? 'contacted' : 'contacted',
+          p_status: ok ? 'contacted' : 'pending',
           p_last_contacted_at: ok ? new Date().toISOString() : null,
         }),
       });
@@ -165,7 +165,11 @@ export async function GET(req: Request) {
   return NextResponse.json(result);
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  const auth = req.headers.get('authorization');
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const result = await runFollowUpBot();
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);

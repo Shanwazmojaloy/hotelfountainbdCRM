@@ -64,7 +64,7 @@ export async function GET(req: Request) {
   try {
     const txns = await dbGet(
       'transactions',
-      `select=amount,type&tenant_id=eq.${TENANT}&created_at=gte.${startUtc}&created_at=lte.${endUtc}`
+      `select=amount,type&tenant_id=eq.${TENANT}&fiscal_day=eq.${today}`
     );
     const txnTotal = (txns ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 

@@ -202,8 +202,12 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(result);
 }
 
-// POST — CRM manual trigger (no auth required; CRM-internal use only)
+// POST — CRM manual trigger (requires CRON_SECRET)
 export async function POST(req: NextRequest) {
+  const auth = req.headers.get('authorization');
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const result = await runOutreachBot(req);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);

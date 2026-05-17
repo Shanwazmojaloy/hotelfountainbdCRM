@@ -132,7 +132,7 @@ function buildAlertHtml(p: DealAlertPayload): string {
   <!-- CTA BUTTONS -->
   <tr><td style="padding:28px 40px">
     <div style="margin-bottom:12px">
-      <a href="mailto:${p.contact_email ?? p.contact_name ?? ''}?subject=Re: Lumea CRM for ${p.company_name}"
+      <a href="mailto:${p.contact_email ?? ''}?subject=Re: Lumea CRM for ${p.company_name}"
          style="display:inline-block;background:#C8A96E;color:#07090E;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:12px 28px;margin-right:8px">
         Reply Now →
       </a>

@@ -906,7 +906,7 @@ function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toas
     setCollectSaving(true)
     try {
       await dbPatch('reservations',activeRes.id,{paid_amount:a})
-      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:todayStr(),reservation_id:activeRes?.id||null,tenant_id:TENANT})
+      await dbPost('transactions',{type:'Advance Payment',amount:a,room_number:room.room_number,guest_name:guest?.name,fiscal_day:businessDate||todayStr(),reservation_id:activeRes?.id||null,tenant_id:TENANT})
       toast(`৳${a.toLocaleString()} collected`)
       reload()
     } catch(e){ toast(e.message,'error') }
@@ -5575,3 +5575,4 @@ function App() {
   )
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null))
+t(App, null))
