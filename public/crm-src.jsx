@@ -2830,9 +2830,9 @@ ${dueRows}
         }
         const _baseList = (filter==='TODAY')
           ? Object.values(unifiedGroups).filter(grp => {
-              if (grp.isDue) return true                       // outstanding balance — always visible
-              if (grp.res?.status === 'CHECKED_IN') return true   // in-house always visible
-              return _hasTodayTx(grp)                          // has real activity on today's business date
+              if (grp.isDue) return true    // outstanding balance — always visible regardless of date
+              return _hasTodayTx(grp)      // only show if there is a real tx on today's business date
+              // NOTE: CHECKED_IN with ৳0 balance intentionally hidden until a charge/payment is posted
             })
           : Object.values(unifiedGroups)
         // Apply search at group level — covers activeRes-injected guests with no TX on the
