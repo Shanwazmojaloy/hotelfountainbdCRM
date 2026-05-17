@@ -2828,11 +2828,23 @@ ${dueRows}
             !/balance carried forward/i.test(t.type||'')
           )
         }
+        // ── TODAY filter rules ──────────────────────────────────────────────
+        // CHECKED_IN + due > 0              → always show (owes money)
+        // CHECKED_IN + check_out > bd + ৳0  → show (still within booked stay)
+        // CHECKED_IN + check_out ≤ bd + ৳0  → hide (new day started, fully paid)
+        // CHECKED_OUT + due > 0             → always show
+        // CHECKED_OUT + ৳0 + today tx       → show (settled today)
+        // CHECKED_OUT + ৳0 + no today tx    → hide
         const _baseList = (filter==='TODAY')
           ? Object.values(unifiedGroups).filter(grp => {
-              if (grp.res?.status === 'CHECKED_IN') return true  // in-house always visible (any balance)
-              if (grp.isDue) return true                          // outstanding balance always visible
-              return _hasTodayTx(grp)                            // has real activity on today's business date
+              const _r = grp.res
+              const bd = businessDate || todayStr()
+              if (_r?.status === 'CHECKED_IN') {
+                if (_billDue(_r) > 0) return true            // owes money — always visible
+                return (_r.check_out||'').slice(0,10) > bd   // within stay → show; past checkout date → hide
+              }
+              if (grp.isDue) return true                     // CHECKED_OUT with balance
+              return _hasTodayTx(grp)                        // today activity only
             })
           : Object.values(unifiedGroups)
         // Apply search at group level — covers activeRes-injected guests with no TX on the
