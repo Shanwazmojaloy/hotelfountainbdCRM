@@ -42,7 +42,7 @@ export async function GET(req: Request) {
       const data = await res.json()
 
       if (data?.data?.expires_at) {
-        expiresAt = data.data.expires_at
+        expiresAt = data.data.expires_at as number
         const msLeft = (expiresAt * 1000) - Date.now()
         daysLeft = Math.floor(msLeft / 86400000)
       } else if (data?.data?.is_valid === false) {
@@ -105,5 +105,8 @@ export async function GET(req: Request) {
     expires_at: expiresAt ? new Date(expiresAt * 1000).toISOString() : null,
     days_remaining: daysLeft,
     alert_sent: needsAlert,
+  })
+}
+t,
   })
 }

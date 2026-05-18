@@ -28,9 +28,9 @@ const _resDue = (r: {
 }): number =>
   Math.max(
     0,
-    (+r.total_amount || 0) -
-      (+r.discount_amount || +r.discount || 0) -
-      (+r.paid_amount || 0)
+    (+(r.total_amount ?? 0) || 0) -
+      (+(r.discount_amount ?? 0) || +(r.discount ?? 0) || 0) -
+      (+(r.paid_amount ?? 0) || 0)
   )
 
 // ── 2. Date math — nights count ──────────────────────────────────────
@@ -73,9 +73,9 @@ type Reservation = {
 const resBalance = (r: Reservation): number =>
   Math.max(
     0,
-    (+r.total_amount || 0) -
-      (+r.discount_amount || +r.discount || 0) -
-      (+r.paid_amount || 0)
+    (+(r.total_amount ?? 0) || 0) -
+      (+(r.discount_amount ?? 0) || +(r.discount ?? 0) || 0) -
+      (+(r.paid_amount ?? 0) || 0)
   )
 
 function applyStatusFilter(reservations: Reservation[], filter: string): Reservation[] {
@@ -419,5 +419,8 @@ describe('isChargeFolio — folio admin-row filter', () => {
 
   it('passes through a telecom surcharge folio (contains no banned words)', () => {
     expect(isChargeFolio({ category: 'Telecom', description: 'IDD call surcharge' })).toBe(true)
+  })
+})
+escription: 'IDD call surcharge' })).toBe(true)
   })
 })

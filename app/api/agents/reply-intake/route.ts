@@ -1,16 +1,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ReplyIntake Agent  —  /api/agents/reply-intake
-// Brevo Inbound Email Parsing Webhook (no auth header — verified by Brevo sig)
+// Brevo Inbound Email Parsing Webhook — secured by shared token in query param.
 //
 // Brevo sends POST with JSON array when an inbound email arrives.
 // Flow: parse sender → match lead → store in outreach_log →
 //       call CEOAuditor inline for scoring.
 //
 // Configure in Brevo: Settings → Inbound Parsing → Webhook URL:
-//   https://fountainbd.com/api/agents/reply-intake
+//   https://fountainbd.com/api/agents/reply-intake?token=BREVO_WEBHOOK_TOKEN
+//
+// Set BREVO_WEBHOOK_TOKEN in Vercel env vars. If not set, verification is
+// skipped (backward compat) — set this env var before multi-tenant launch.
 //
 // Auth: all DB ops via SECURITY DEFINER RPCs (anon key — no sb_secret_* needed)
 // ─────────────────────────────────────────────────────────────────────────────
+import { createHmac, timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -64,6 +68,32 @@ function stripHtml(html: string): string {
 }
 
 export async function POST(req: Request) {
+  // ── Webhook token verification ─────────────────────────────────────────
+  // Brevo inbound parsing doesn't support HMAC headers, so we secure via a
+  // shared secret in the query string. Set BREVO_WEBHOOK_TOKEN in Vercel and
+  // configure the Brevo webhook URL to include ?token=<value>.
+  const webhookToken = process.env.BREVO_WEBHOOK_TOKEN;
+  if (webhookToken) {
+    const url = new URL(req.url);
+    const providedToken = url.searchParams.get('token') ?? '';
+    let tokenValid = false;
+    try {
+      // Constant-time comparison to prevent timing attacks
+      const expected = Buffer.from(
+        createHmac('sha256', webhookToken).update(webhookToken).digest('hex')
+      );
+      const provided = Buffer.from(
+        createHmac('sha256', webhookToken).update(providedToken).digest('hex')
+      );
+      tokenValid = expected.length === provided.length && timingSafeEqual(expected, provided);
+    } catch {
+      tokenValid = false;
+    }
+    if (!tokenValid) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -172,4 +202,46 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ ok: true, agent: 'reply-intake', processed });
+}
+ied', {
+        p_lead_id: matchedLead.id,
+      });
+    }
+
+    // ── Trigger CEO Auditor ────────────────────────────────────────
+    if (logId && matchedLead) {
+      try {
+        const auditorUrl = new URL('/api/agents/ceo-auditor', process.env.NEXT_PUBLIC_APP_URL ?? 'https://fountainbd.com');
+        await fetch(auditorUrl.toString(), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.CRON_SECRET}`,
+          },
+          body: JSON.stringify({
+            log_id:         logId,
+            lead_id:        matchedLead.id,
+            company_name:   matchedLead.company_name,
+            contact_name:   matchedLead.contact_name,
+            contact_email:  senderEmail,
+            reply_text:     replyText,
+            reply_subject:  subject,
+          }),
+        });
+      } catch (e) {
+        console.error('[reply-intake] Failed to trigger ceo-auditor:', e);
+      }
+    }
+
+    processed.push({
+      sender:       senderEmail,
+      subject,
+      matched_lead: matchedLead?.company_name ?? 'unknown',
+      log_id:       logId,
+    });
+  }
+
+  return NextResponse.json({ ok: true, agent: 'reply-intake', processed });
+}
+.json({ ok: true, agent: 'reply-intake', processed });
 }
