@@ -66,7 +66,11 @@ export async function GET(req: Request) {
       'transactions',
       `select=amount,type&tenant_id=eq.${TENANT}&fiscal_day=eq.${today}`
     );
-    const txnTotal = (txns ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    // Exclude Balance Carried Forward — these are accounting entries, not real cash.
+    // Matches the CRM BillingPage _bizDayTotalFn logic exactly.
+    const txnTotal = (txns ?? [])
+      .filter((r: any) => !/balance carried forward/i.test(r.type ?? ''))
+      .reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 
     let closingTotal = 0;
     try {
