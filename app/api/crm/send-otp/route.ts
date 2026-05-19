@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -24,19 +25,10 @@ function sha256(text: string): string {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
 
-async function sbFetch(path: string, opts: RequestInit = {}) {
-  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
-    ...opts,
-    headers: {
-      'apikey': SB_SERVICE_KEY,
-      'Authorization': `Bearer ${SB_SERVICE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation',
-      ...(opts.headers as Record<string, string> || {}),
-    },
+function getSupabase() {
+  return createClient(SB_URL, SB_SERVICE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
-  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
-  return res.json();
 }
 
 async function sendEmail(to: string, code: string) {
@@ -80,12 +72,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'email is required' }, { status: 400 });
     }
 
-    // Look up staff by email
-    const rows = await sbFetch(
-      `staff?tenant_id=eq.${TENANT}&email=eq.${encodeURIComponent(email.trim())}&select=id,activated`
-    );
+    if (!SB_SERVICE_KEY) {
+      console.error('[send-otp] SUPABASE_SERVICE_ROLE_KEY is not set');
+      return NextResponse.json({ error: 'Server configuration error — contact admin' }, { status: 500 });
+    }
 
-    if (!Array.isArray(rows) || rows.length === 0) {
+    const supabase = getSupabase();
+
+    // Look up staff by email
+    const { data: rows, error: fetchErr } = await supabase
+      .from('staff')
+      .select('id, activated')
+      .eq('tenant_id', TENANT)
+      .eq('email', email.trim())
+      .limit(1);
+
+    if (fetchErr) {
+      console.error('[send-otp] DB lookup error:', fetchErr.message, fetchErr.code);
+      throw new Error(`DB error: ${fetchErr.message}`);
+    }
+
+    if (!rows || rows.length === 0) {
       return NextResponse.json({ error: 'No pending account found for this email' }, { status: 404 });
     }
 
@@ -100,20 +107,16 @@ export async function POST(req: NextRequest) {
     const codeHash = sha256(code);
     const codeExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
-    // Store hash + expiry in DB (no phone)
-    await sbFetch(`staff?id=eq.${staff.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ otp_hash: codeHash, otp_expires: codeExpires }),
-    });
+    // Store hash + expiry in DB
+    const { error: patchErr } = await supabase
+      .from('staff')
+      .update({ otp_hash: codeHash, otp_expires: codeExpires })
+      .eq('id', staff.id);
+
+    if (patchErr) {
+      console.error('[send-otp] DB update error:', patchErr.message);
+      throw new Error(`DB update error: ${patchErr.message}`);
+    }
 
     // Send email
-    await sendEmail(email.trim(), code);
-
-    return NextResponse.json({ ok: true, message: 'Verification code sent' });
-
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    console.error('[send-otp]', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
-}
+  
