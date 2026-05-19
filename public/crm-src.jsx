@@ -534,7 +534,7 @@ function LoginPage({onLogin, staffList}) {
       const pwHash=await _hashPw(actPw)
       // Fetch the staff record (need id + otp_hash + otp_expires)
       const SB_URL='https://mynwfkgksqqwlqowlscj.supabase.co'
-      const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1Zbndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcwNDIwMTQsImV4cCI6MjA2MjYxODAxNH0.uQ2-oxWb-gFl_3LFVirGjJPFCXQeRZ4l5EJkP1iY8hs'
+      const SB_KEY='sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh'
       const TENANT_ID='46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
       const r=await fetch(`${SB_URL}/rest/v1/staff?tenant_id=eq.${TENANT_ID}&email=eq.${encodeURIComponent(actEmail.trim())}&select=id,otp_hash,otp_expires,activated`,{
         headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
