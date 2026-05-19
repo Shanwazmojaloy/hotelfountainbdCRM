@@ -3505,27 +3505,38 @@ function SettingsPage({currentUser,toast,staffList,setStaffList,reservations,roo
             <span className="card-title">Staff Accounts</span>
             {isSA&&<button className="btn btn-gold btn-sm" onClick={()=>setShowAddUser(true)}>+ Add Staff</button>}
           </div>
-          <div className="card-body" style={{padding:'0 15px'}}>
+          <div className="card-body" style={{display:'flex',flexDirection:'column',gap:10,padding:'15px'}}>
             {staffList.map(u=>(
-              <div key={u.id} className="user-row" style={{alignItems:'center'}}>
-                <Av name={u.name} size={36}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:500,fontSize:13}}>{u.name}</div>
-                  <div className="xs muted">{u.email}</div>
-                  <div style={{display:'flex',alignItems:'center',gap:6,marginTop:4,flexWrap:'wrap'}}>
+              <div key={u.id} style={{border:'1px solid var(--brd)',borderRadius:8,padding:'14px 16px',background:'rgba(255,255,255,0.02)',display:'flex',flexDirection:'column',gap:10}}>
+                {/* Identity row */}
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <Av name={u.name} size={40}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:14,color:'var(--tx1)'}}>{u.name}</div>
+                    <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--tx2)',marginTop:2}}>{u.email}</div>
+                  </div>
+                </div>
+                {/* Status + actions row */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,paddingTop:6,borderTop:'1px solid var(--brd)'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                     {u.role==='owner'
                       ?<span className="badge bgold">★ OWNER</span>
                       :<span className="badge bb" style={{textTransform:'uppercase'}}>{ROLES[u.role]?.label||u.role}</span>
                     }
-                    {u.activated===false&&<span style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--rose)',letterSpacing:'.1em',background:'rgba(248,113,113,.08)',padding:'2px 6px',border:'1px solid rgba(248,113,113,.2)',borderRadius:3}}>PENDING ACTIVATION</span>}
+                    {u.activated===false&&(
+                      <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--rose)',letterSpacing:'.08em',background:'rgba(248,113,113,.08)',padding:'3px 8px',border:'1px solid rgba(248,113,113,.25)',borderRadius:4}}>PENDING ACTIVATION</span>
+                    )}
+                    {u.activated===true&&u.role!=='owner'&&(
+                      <span style={{fontFamily:'var(--mono)',fontSize:9,color:'#4ade80',letterSpacing:'.08em',background:'rgba(74,222,128,.08)',padding:'3px 8px',border:'1px solid rgba(74,222,128,.25)',borderRadius:4}}>ACTIVE</span>
+                    )}
                   </div>
+                  {isSA&&u.role!=='owner'&&(
+                    <div style={{display:'flex',gap:6,flexShrink:0}}>
+                      <button className="btn btn-ghost btn-sm" onClick={()=>setEditUser(u)}>Edit</button>
+                      <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u.id)}>Remove</button>
+                    </div>
+                  )}
                 </div>
-                {isSA&&u.role!=='owner'&&(
-                  <div className="flex gap2" style={{flexShrink:0}}>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>setEditUser(u)}>Edit</button>
-                    <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u.id)}>Remove</button>
-                  </div>
-                )}
               </div>
             ))}
           </div>
