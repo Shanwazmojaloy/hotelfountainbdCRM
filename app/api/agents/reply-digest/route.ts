@@ -13,7 +13,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const TENANT        = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const SENDER_NAME   = process.env.HOTEL_SENDER_NAME     || 'Shan Ahmed — Hotel Fountain BD';
+// SENDER_NAME unused — display name embedded in email templates directly
 const SENDER_EMAIL  = process.env.HOTEL_SENDER_EMAIL    || 'hotellfountainbd@gmail.com';
 const HOTEL_NAME    = process.env.HOTEL_NAME            || 'Hotel Fountain BD';
 const DIGEST_TO     = process.env.HOTEL_SENDER_EMAIL    || 'hotellfountainbd@gmail.com';

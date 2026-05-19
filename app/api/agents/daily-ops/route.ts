@@ -69,7 +69,7 @@ export async function GET(req: Request) {
     // Exclude Balance Carried Forward — these are accounting entries, not real cash.
     // Matches the CRM BillingPage _bizDayTotalFn logic exactly.
     const txnTotal = (txns ?? [])
-      .filter((r: Record<string, unknown>) => !/balance carried forward/i.test(r.type ?? ''))
+      .filter((r: Record<string, unknown>) => !/balance carried forward/i.test(String(r.type ?? '')))
       .reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
 
     let closingTotal = 0;
