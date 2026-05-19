@@ -3585,10 +3585,6 @@ function SettingsPage({currentUser,toast,staffList,setStaffList,reservations,roo
         <EditStaffModal user={editUser} toast={toast} onClose={()=>setEditUser(null)}
           onSave={updated=>{ setStaffList(p=>p.map(s=>s.id===updated.id?updated:s)); toast('Staff account updated'); setEditUser(null) }}/>
       )}
-    </div>
-  )
-}
-
       {tab==='security'&&isSA&&(
         <div className="card">
           <div className="card-hd"><span className="card-title">🔐 Security</span></div>
@@ -3612,6 +3608,9 @@ function SettingsPage({currentUser,toast,staffList,setStaffList,reservations,roo
           </div>
         </div>
       )}
+    </div>
+  )
+}
 
 function AddStaffModal({toast,onClose,onAdd,existingIds}) {
   const [f,setF]=useState({name:'',email:'',role:'receptionist',device:''})
