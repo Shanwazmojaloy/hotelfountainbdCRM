@@ -3254,11 +3254,15 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
     const resId       = fromRow?lockedResId:selRes?.id
     const resTotal    = fromRow?(+prefill._total||0):(+selRes?.total_amount||0)
     const resDiscount = fromRow?lockedDiscount:(+selRes?.discount_amount||+selRes?.discount||0)
-    const resPaid     = fromRow?(+prefill._paid||0):(+selRes?.paid_amount||0)
-    const payCap      = Math.max(0, resTotal - resDiscount)
+    // payCap: prefill._total is computeBill output (already net-of-discount); don't subtract discount again.
+    const payCap      = fromRow ? resTotal : Math.max(0, resTotal - resDiscount)
     try{
       await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,reservation_id:resId||null,tenant_id:TENANT})
-      if(resId) await dbPatch('reservations',resId,{paid_amount:Math.min(payCap,resPaid+a)})
+      if(resId){
+        const freshRows=await db('reservations',`?id=eq.${resId}&select=paid_amount&limit=1`)
+        const freshPaid=Array.isArray(freshRows)&&freshRows.length?+(freshRows[0].paid_amount||0):0
+        await dbPatch('reservations',resId,{paid_amount:Math.min(payCap,freshPaid+a)})
+      }
       toast(`Payment ${BDT(a)} recorded`); reload(); onClose()
     }catch(e){ toast(e.message,'error'); setSaving(false) }
   }
