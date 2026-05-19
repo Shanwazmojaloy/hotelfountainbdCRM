@@ -485,7 +485,6 @@ function LoginPage({onLogin, staffList}) {
   // ── Activate state ──
   const [actStep,setActStep]=useState(1) // 1=email+phone, 2=otp+password
   const [actEmail,setActEmail]=useState('')
-  const [actPhone,setActPhone]=useState('')
   const [actOtp,setActOtp]=useState('')
   const [actPw,setActPw]=useState('')
   const [actPw2,setActPw2]=useState('')
@@ -507,17 +506,17 @@ function LoginPage({onLogin, staffList}) {
 
   // ── Activation Step 1: request OTP ──
   async function doRequestOtp() {
-    if(!actEmail||!actPhone){ setActErr('Enter your email and phone number.'); return }
+    if(!actEmail){ setActErr('Enter your work email address.'); return }
     setActBusy(true); setActErr(''); setActMsg('')
     try {
       const res=await fetch('/api/crm/send-otp',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email:actEmail.trim(),phone:actPhone.trim()})
+        body:JSON.stringify({email:actEmail.trim()})
       })
       const data=await res.json()
-      if(!res.ok) throw new Error(data.error||'Failed to send OTP')
-      setActMsg('A 4-digit code was sent to '+actPhone.trim()+'. Valid for 5 minutes.')
+      if(!res.ok) throw new Error(data.error||'Failed to send code')
+      setActMsg('A 5-digit code was sent to '+actEmail.trim()+'. Valid for 5 minutes.')
       setActStep(2)
     } catch(e){ setActErr(e.message) }
     finally{ setActBusy(false) }
@@ -525,7 +524,7 @@ function LoginPage({onLogin, staffList}) {
 
   // ── Activation Step 2: verify OTP + set password ──
   async function doActivate() {
-    if(!actOtp||actOtp.length!==4){ setActErr('Enter the 4-digit code from your SMS.'); return }
+    if(!actOtp||actOtp.length!==5){ setActErr('Enter the 5-digit code from your email.'); return }
     if(!actPw||actPw.length<6){ setActErr('Password must be at least 6 characters.'); return }
     if(actPw!==actPw2){ setActErr('Passwords do not match.'); return }
     setActBusy(true); setActErr('')
@@ -546,7 +545,7 @@ function LoginPage({onLogin, staffList}) {
       if(s.activated) throw new Error('Account already activated. Sign in instead.')
       if(!s.otp_hash) throw new Error('No pending OTP. Request a new code.')
       if(new Date(s.otp_expires)<new Date()) throw new Error('Code expired. Request a new code.')
-      if(s.otp_hash!==otpHash) throw new Error('Incorrect code. Check your SMS and try again.')
+      if(s.otp_hash!==otpHash) throw new Error('Incorrect code. Check your email and try again.')
       // Activate: set pwh, phone, activated=true, clear otp fields
       const upd=await fetch(`${SB_URL}/rest/v1/staff?id=eq.${s.id}`,{
         method:'PATCH',
@@ -669,20 +668,13 @@ function LoginPage({onLogin, staffList}) {
               {actStep===1&&(
                 <div>
                   <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--tx3)',marginBottom:16,textAlign:'center',lineHeight:1.6}}>
-                    Enter your work email and phone number.<br/>We'll send a 4-digit code to verify.
+                    Enter your work email.<br/>We'll send a 5-digit code to verify.
                   </div>
                   <div className="fg" style={{marginBottom:10}}>
                     <label className="flbl">Work Email</label>
                     <input className="finput" type="email" value={actEmail}
                       onChange={e=>{setActEmail(e.target.value);setActErr('')}}
                       placeholder="your@email.com" autoComplete="off"/>
-                  </div>
-                  <div className="fg" style={{marginBottom:10}}>
-                    <label className="flbl">Phone Number (with country code)</label>
-                    <input className="finput" type="tel" value={actPhone}
-                      onChange={e=>{setActPhone(e.target.value);setActErr('')}}
-                      placeholder="+8801XXXXXXXXX" autoComplete="off"/>
-                    <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--tx3)',marginTop:3}}>e.g. +8801712345678</div>
                   </div>
                   {actErr&&<div className="lc-error">{actErr}</div>}
                   <button className="btn btn-gold w100"
@@ -697,10 +689,10 @@ function LoginPage({onLogin, staffList}) {
                 <div>
                   {actMsg&&<div style={{fontFamily:'var(--sans)',fontSize:11,color:'rgba(74,222,128,.8)',marginBottom:12,textAlign:'center',padding:'8px',background:'rgba(74,222,128,.06)',borderRadius:4,border:'1px solid rgba(74,222,128,.15)'}}>{actMsg}</div>}
                   <div className="fg" style={{marginBottom:10}}>
-                    <label className="flbl">Verification Code (4 digits)</label>
-                    <input className="finput" type="text" maxLength={4} value={actOtp}
+                    <label className="flbl">Verification Code (5 digits)</label>
+                    <input className="finput" type="text" maxLength={5} value={actOtp}
                       onChange={e=>{setActOtp(e.target.value.replace(/\D/g,''));setActErr('')}}
-                      placeholder="1234" autoComplete="off"
+                      placeholder="12345" autoComplete="off"
                       style={{letterSpacing:'.5em',fontSize:20,textAlign:'center'}}/>
                   </div>
                   <div className="fg" style={{marginBottom:10}}>
