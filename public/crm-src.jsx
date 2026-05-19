@@ -3507,26 +3507,25 @@ function SettingsPage({currentUser,toast,staffList,setStaffList,reservations,roo
           </div>
           <div className="card-body" style={{padding:'0 15px'}}>
             {staffList.map(u=>(
-              <div key={u.id} className="user-row">
+              <div key={u.id} className="user-row" style={{alignItems:'center'}}>
                 <Av name={u.name} size={36}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:500,fontSize:13}}>{u.name}</div>
                   <div className="xs muted">{u.email}</div>
-                  <div className="xs mt3" style={{color:ROLES[u.role]?.color||'var(--tx2)'}}>{ROLES[u.role]?.label}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginTop:4,flexWrap:'wrap'}}>
+                    {u.role==='owner'
+                      ?<span className="badge bgold">★ OWNER</span>
+                      :<span className="badge bb" style={{textTransform:'uppercase'}}>{ROLES[u.role]?.label||u.role}</span>
+                    }
+                    {u.activated===false&&<span style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--rose)',letterSpacing:'.1em',background:'rgba(248,113,113,.08)',padding:'2px 6px',border:'1px solid rgba(248,113,113,.2)',borderRadius:3}}>PENDING ACTIVATION</span>}
+                  </div>
                 </div>
-                {u.role==='owner'
-                  ?<span className="badge bgold">★ OWNER</span>
-                  :<span className="badge bb">{u.role}</span>
-                }
-                <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
-                  {u.activated===false&&<span style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--rose)',letterSpacing:'.1em',background:'rgba(248,113,113,.08)',padding:'2px 6px',border:'1px solid rgba(248,113,113,.2)',borderRadius:3}}>PENDING ACTIVATION</span>}
-                  {isSA&&u.role!=='owner'&&(
-                    <div className="flex gap2">
-                      <button className="btn btn-ghost btn-sm" onClick={()=>setEditUser(u)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u.id)}>Remove</button>
-                    </div>
-                  )}
-                </div>
+                {isSA&&u.role!=='owner'&&(
+                  <div className="flex gap2" style={{flexShrink:0}}>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>setEditUser(u)}>Edit</button>
+                    <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u.id)}>Remove</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -5761,4 +5760,4 @@ function App() {
     </>
   )
 }
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null))
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));
