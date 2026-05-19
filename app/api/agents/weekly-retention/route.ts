@@ -88,7 +88,7 @@ export async function GET(req: Request) {
     } catch { stays = []; }
 
     const ltv = stays.reduce((s: number, r: Record<string, unknown>) => s + Number(r.total_amount ?? 0), 0);
-    const lastStay = stays[0]?.check_out ?? null;
+    const lastStay = (stays[0]?.check_out ?? null) as string | null;
     const daysSinceStay = lastStay
       ? Math.floor((Date.now() - new Date(lastStay).getTime()) / 86400000)
       : 999;
