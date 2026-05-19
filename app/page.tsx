@@ -401,13 +401,14 @@ export default function HotelFountainLanding() {
                   <div className="gs" style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>{availResult.rooms.length} Room{availResult.rooms.length !== 1 ? 's' : ''} Available</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
                     {availResult.rooms.map((r: Record<string, unknown>, i: number) => {
-                      const cat = ROOMS.find(rm => rm.supabaseType === (r.type || r.supabaseType)) || ROOMS[0];
+                      const rm = r as { id?: string; name?: string; type?: string; supabaseType?: string; rate?: number };
+                      const cat = ROOMS.find(c => c.supabaseType === (rm.type || rm.supabaseType)) || ROOMS[0];
                       return (
-                        <div key={r.id || i} style={{ padding: 16, background: 'rgba(200,169,110,.04)', border: '1px solid var(--br)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          <div className="cg" style={{ fontSize: 18, color: 'var(--tx)' }}>{r.name || cat.name}</div>
+                        <div key={rm.id || i} style={{ padding: 16, background: 'rgba(200,169,110,.04)', border: '1px solid var(--br)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div className="cg" style={{ fontSize: 18, color: 'var(--tx)' }}>{rm.name || cat.name}</div>
                           <div className="gs" style={{ fontSize: 9, color: 'var(--tx3)', letterSpacing: '.1em', textTransform: 'uppercase' }}>Up to {cat.maxGuests} Guests</div>
-                          <div className="cg" style={{ fontSize: 20, color: 'var(--gold)' }}>৳{(r.rate || cat.rate).toLocaleString()} <span className="gs" style={{ fontSize: 10, color: 'var(--tx3)' }}>/night</span></div>
-                          <button className="gb" style={{ padding: '9px 0', fontSize: 9, marginTop: 4 }} onClick={() => { setBookingModal({ open: true, room: { ...cat, ...r } }); setBookStatus('idle'); setBookForm({ name: '', email: '', phone: '', address: '' }); }}>Book This Room</button>
+                          <div className="cg" style={{ fontSize: 20, color: 'var(--gold)' }}>৳{(rm.rate || cat.rate).toLocaleString()} <span className="gs" style={{ fontSize: 10, color: 'var(--tx3)' }}>/night</span></div>
+                          <button className="gb" style={{ padding: '9px 0', fontSize: 9, marginTop: 4 }} onClick={() => { setBookingModal({ open: true, room: { ...cat, ...rm } }); setBookStatus('idle'); setBookForm({ name: '', email: '', phone: '', address: '' }); }}>Book This Room</button>
                         </div>
                       );
                     })}
