@@ -4,7 +4,7 @@
 // Called during staff account activation:
 //   1. Verify email exists in staff table and is not yet activated
 //   2. Generate 5-digit code, SHA-256 hash it, store in DB with 5-min expiry
-//   3. Send code to staff's registered email via Resend
+//   3. Send code to staff's registered email via Brevo
 //
 // No auth required — rate-limited by requiring a valid staff email in DB.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ export const maxDuration = 15;
 const SB_URL         = process.env.NEXT_PUBLIC_SUPABASE_URL      || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY     || '';
 const TENANT         = process.env.NEXT_PUBLIC_TENANT_ID         || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const RESEND_API_KEY = process.env.RESEND_API_KEY                || '';
+const BREVO_API_KEY  = process.env.BREVO_API_KEY                 || '';
 const FROM_EMAIL     = process.env.CRM_FROM_EMAIL                || 'noreply@fountainbd.com';
 
 function sha256(text: string): string {
@@ -32,19 +32,19 @@ function getSupabase() {
 }
 
 async function sendEmail(to: string, code: string) {
-  if (!RESEND_API_KEY) throw new Error('Email service not configured — contact admin');
+  if (!BREVO_API_KEY) throw new Error('Email service not configured — contact admin');
 
-  const res = await fetch('https://api.resend.com/emails', {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'api-key': BREVO_API_KEY,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: `Hotel Fountain CRM <${FROM_EMAIL}>`,
-      to: [to],
+      sender: { name: 'Hotel Fountain CRM', email: FROM_EMAIL },
+      to: [{ email: to }],
       subject: 'Your Account Activation Code',
-      html: `
+      htmlContent: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#F9F7F2;border-radius:8px;">
           <h2 style="color:#1A1816;font-size:18px;margin-bottom:8px;">Hotel Fountain CRM</h2>
           <p style="color:#2D2A26;font-size:14px;margin-bottom:24px;">Your account activation code:</p>
@@ -58,7 +58,7 @@ async function sendEmail(to: string, code: string) {
   });
 
   if (!res.ok) {
-    const err = await res.json();
+    const err = await res.json().catch(() => ({ message: res.status }));
     throw new Error(`Email send failed: ${err.message || res.status}`);
   }
   return res.json();
@@ -115,17 +115,4 @@ export async function POST(req: NextRequest) {
 
     if (patchErr) {
       console.error('[send-otp] DB update error:', patchErr.message);
-      throw new Error(`DB update error: ${patchErr.message}`);
-    }
-
-    // Send email
-    await sendEmail(email.trim(), code);
-
-    return NextResponse.json({ ok: true, message: 'Verification code sent' });
-
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    console.error('[send-otp]', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
-}
+      throw new Error(`DB update 
