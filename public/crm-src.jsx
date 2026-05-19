@@ -3254,11 +3254,17 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
     const resId       = fromRow?lockedResId:selRes?.id
     const resTotal    = fromRow?(+prefill._total||0):(+selRes?.total_amount||0)
     const resDiscount = fromRow?lockedDiscount:(+selRes?.discount_amount||+selRes?.discount||0)
-    const resPaid     = fromRow?(+prefill._paid||0):(+selRes?.paid_amount||0)
-    const payCap      = Math.max(0, resTotal - resDiscount)
+    // payCap: prefill._total is computeBill output (already net-of-discount); don't subtract discount again.
+    // For manual-search path, total_amount is raw so discount must be subtracted.
+    const payCap      = fromRow ? resTotal : Math.max(0, resTotal - resDiscount)
     try{
       await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,reservation_id:resId||null,tenant_id:TENANT})
-      if(resId) await dbPatch('reservations',resId,{paid_amount:Math.min(payCap,resPaid+a)})
+      if(resId){
+        // Fetch live paid_amount — avoids stale snapshot overwriting concurrent updates
+        const freshRows = await db('reservations',`?id=eq.${resId}&select=paid_amount&limit=1`)
+        const freshPaid = Array.isArray(freshRows)&&freshRows.length ? +(freshRows[0].paid_amount||0) : 0
+        await dbPatch('reservations',resId,{paid_amount:Math.min(payCap,freshPaid+a)})
+      }
       toast(`Payment ${BDT(a)} recorded`); reload(); onClose()
     }catch(e){ toast(e.message,'error'); setSaving(false) }
   }
@@ -5781,4 +5787,57 @@ function App() {
                                     </div>
                                   </div>
                                 )
-   
+                              })()}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* HK urgent tasks */}
+                    {hkUrgent>0&&(
+                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                        🧹 {hkUrgent} high-priority housekeeping task{hkUrgent>1?'s':''}
+                      </div>
+                    )}
+
+                    {/* Dirty rooms */}
+                    {dirtyRooms>0&&(
+                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
+                        🏨 {dirtyRooms} room{dirtyRooms>1?'s':''} require cleaning
+                      </div>
+                    )}
+
+                    {/* All clear */}
+                    {totalNotifs===0&&(
+                      <div className="notif-item" style={{textAlign:'center',color:'var(--tx3)',cursor:'default',padding:'20px'}}>✓ All clear — no alerts</div>
+                    )}
+
+                  </div>{/* end scroll */}
+                </div>
+              )}
+            </div>
+
+            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--gold-light)',letterSpacing:'.1em',border:'1px solid rgba(200,169,110,.3)',padding:'3px 8px',marginRight:4}} title="Current Business Date">{(()=>{if(!businessDate)return'—';const[y,m,d]=businessDate.split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()}</span>
+          <button className="btn btn-ghost btn-sm" onClick={()=>{ loadAll(); toast('Data refreshed','info') }} title="Refresh data">↻</button>
+          </div>
+
+          {/* Close notif by clicking content area */}
+          <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
+            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} businessDate={businessDate}/>}
+            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
+            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
+            {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
+            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
+            {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
+
+            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests} onSignOut={signOut}/>}
+          </div>
+        </main>
+      </div>
+            {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type}/>}
+    </>
+  )
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));
