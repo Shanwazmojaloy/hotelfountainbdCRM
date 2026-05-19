@@ -119,4 +119,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Send email
-  
+    await sendEmail(email.trim(), code);
+
+    return NextResponse.json({ ok: true, message: 'Verification code sent' });
+
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    console.error('[send-otp]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
