@@ -3070,9 +3070,14 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
   const [showResDrop,setShowResDrop]=useState(false)
   const dropDueAmt=selRes?_resDue(selRes):0
 
+  // Smart fiscal_day: checked-out stays post to their check_out date, not today.
+  // This prevents past-stay payments from inflating the current BIZ DAY total.
+  const _smartFiscalDay = r => (r?.status==='CHECKED_OUT'&&r?.check_out) ? r.check_out.slice(0,10) : (businessDate||todayStr())
+  const _initFiscalDay = fromRow ? _smartFiscalDay(prefill) : _smartFiscalDay(initRes)
+
   const [amount,setAmount]=useState(fromRow&&lockedDue>0?String(lockedDue):dropDueAmt>0?String(dropDueAmt):'')
   const [type,setType]=useState('Room Payment (Cash)')
-  const [fiscal_day,setFiscalDay]=useState(businessDate||todayStr())
+  const [fiscal_day,setFiscalDay]=useState(_initFiscalDay)
   const [saving,setSaving]=useState(false)
 
   function pickRes(r){
@@ -3081,8 +3086,9 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
     const due=_resDue(r)
     if(due>0) setAmount(String(due))
     setShowResDrop(false)
+    setFiscalDay(_smartFiscalDay(r))  // auto-adjust fiscal_day when guest is selected
   }
-  function clearRes(){ setSelRes(null); setResSearch(''); setAmount(''); setShowResDrop(true) }
+  function clearRes(){ setSelRes(null); setResSearch(''); setAmount(''); setShowResDrop(true); setFiscalDay(businessDate||todayStr()) }
 
   async function save(){
     const a=+amount
