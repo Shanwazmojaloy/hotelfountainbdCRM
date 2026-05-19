@@ -115,4 +115,17 @@ export async function POST(req: NextRequest) {
 
     if (patchErr) {
       console.error('[send-otp] DB update error:', patchErr.message);
-      throw new Error(`DB update 
+      throw new Error(`DB update error: ${patchErr.message}`);
+    }
+
+    // Send email
+    await sendEmail(email.trim(), code);
+
+    return NextResponse.json({ ok: true, message: 'Verification code sent' });
+
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    console.error('[send-otp]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
