@@ -2468,17 +2468,16 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   }
 
   const _resDue = r => Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0))
+  // _billDue includes folio extras (HALF DAY CHARGE, Stay Extension, etc.) via computeBill.
+  // Always use this — not _resDue — for outstanding balance display and due-guest filtering.
+  const _billDue = r => (computeBill(r)?.due || 0)
   const outstanding = reservations
     .filter(r => r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT')
-    .reduce((a, r) => a + _resDue(r), 0)
+    .reduce((a, r) => a + _billDue(r), 0)
   const dueRes = reservations.filter(r => {
     if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false
-    return _resDue(r) > 0
+    return _billDue(r) > 0
   })
-  // Use computeBill.due (not _resDue) so folio extras (HALF DAY CHARGE, etc.)
-  // are included in the outstanding check — _resDue only reads total_amount which
-  // may lag behind folios added after the reservation was created.
-  const _billDue = r => (computeBill(r)?.due || 0)
   const activeRes = reservations.filter(r => {
     if (r.status === 'CHECKED_IN') return true
     if (r.status === 'CHECKED_OUT') {
@@ -2915,7 +2914,9 @@ ${dueRows}
                         <td style={{whiteSpace:'nowrap'}}>
                           {currentUser?.role!=='housekeeping'&&(
                             <button className="btn btn-gold btn-sm" style={{padding:'3px 9px',fontSize:9,marginRight:4}} onClick={()=>{
-                              const grossTotal = r ? (+r.total_amount||0) : tTotal
+                              // Use computeBill total so folio extras are included in payCap.
+                              // r.total_amount alone would cap paid_amount below the real bill when extras exist.
+                              const grossTotal = r ? (computeBill(r)?.total || (+r.total_amount||0)) : tTotal
                               // Use lifetime paid_amount for the modal — NOT today's tPaid (filtered txs).
                               // tPaid resets to 0 each business day; modal must show what's actually been paid.
                               const modalPaid = r ? (+r.paid_amount||0) : tPaid
@@ -5575,5 +5576,3 @@ function App() {
   )
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null))
-t(App, null))
-t')).render(React.createElement(App, null))
