@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CRM OTP Sender  —  POST /api/crm/send-otp
+// CRM Email Verification  —  POST /api/crm/send-otp
 //
 // Called during staff account activation:
 //   1. Verify email exists in staff table and is not yet activated
-//   2. Generate 4-digit OTP, SHA-256 hash it, store in DB with 5-min expiry
-//   3. Send SMS via Twilio to the provided phone number
+//   2. Generate 5-digit code, SHA-256 hash it, store in DB with 5-min expiry
+//   3. Send code to staff's registered email via Resend
 //
 // No auth required — rate-limited by requiring a valid staff email in DB.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17,9 +17,8 @@ export const maxDuration = 15;
 const SB_URL         = process.env.NEXT_PUBLIC_SUPABASE_URL      || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY     || '';
 const TENANT         = process.env.NEXT_PUBLIC_TENANT_ID         || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const TWILIO_SID     = process.env.TWILIO_ACCOUNT_SID            || '';
-const TWILIO_TOKEN   = process.env.TWILIO_AUTH_TOKEN             || '';
-const TWILIO_FROM    = process.env.TWILIO_FROM_NUMBER            || '';
+const RESEND_API_KEY = process.env.RESEND_API_KEY                || '';
+const FROM_EMAIL     = process.env.CRM_FROM_EMAIL                || 'noreply@fountainbd.com';
 
 function sha256(text: string): string {
   return crypto.createHash('sha256').update(text).digest('hex');
@@ -40,48 +39,53 @@ async function sbFetch(path: string, opts: RequestInit = {}) {
   return res.json();
 }
 
-async function sendSMS(to: string, body: string) {
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
-  const creds = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-  const params = new URLSearchParams({ To: to, From: TWILIO_FROM, Body: body });
-  const res = await fetch(url, {
+async function sendEmail(to: string, code: string) {
+  if (!RESEND_API_KEY) throw new Error('Email service not configured — contact admin');
+
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
+    headers: {
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: `Hotel Fountain CRM <${FROM_EMAIL}>`,
+      to: [to],
+      subject: 'Your Account Activation Code',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#F9F7F2;border-radius:8px;">
+          <h2 style="color:#1A1816;font-size:18px;margin-bottom:8px;">Hotel Fountain CRM</h2>
+          <p style="color:#2D2A26;font-size:14px;margin-bottom:24px;">Your account activation code:</p>
+          <div style="background:#2D2A26;border-radius:6px;padding:20px;text-align:center;letter-spacing:0.5em;font-size:32px;font-weight:700;color:#C5A059;font-family:monospace;">
+            ${code}
+          </div>
+          <p style="color:#6B6259;font-size:12px;margin-top:20px;">Valid for 5 minutes. Do not share this code.</p>
+        </div>
+      `,
+    }),
   });
+
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(`Twilio ${res.status}: ${err.message}`);
+    throw new Error(`Email send failed: ${err.message || res.status}`);
   }
   return res.json();
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, phone } = await req.json() as { email?: string; phone?: string };
+    const { email } = await req.json() as { email?: string };
 
-    if (!email || !phone) {
-      return NextResponse.json({ error: 'email and phone are required' }, { status: 400 });
-    }
-
-    // Validate phone is E.164-ish (starts with + and digits)
-    const cleanPhone = phone.trim();
-    if (!/^\+[1-9]\d{6,14}$/.test(cleanPhone)) {
-      return NextResponse.json({ error: 'Phone must be in international format e.g. +8801XXXXXXXXX' }, { status: 400 });
-    }
-
-    // Check Twilio config
-    if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
-      return NextResponse.json({ error: 'SMS service not configured — contact admin' }, { status: 503 });
+    if (!email) {
+      return NextResponse.json({ error: 'email is required' }, { status: 400 });
     }
 
     // Look up staff by email
     const rows = await sbFetch(
-      `staff?tenant_id=eq.${TENANT}&email=eq.${encodeURIComponent(email)}&select=id,activated`
+      `staff?tenant_id=eq.${TENANT}&email=eq.${encodeURIComponent(email.trim())}&select=id,activated`
     );
 
     if (!Array.isArray(rows) || rows.length === 0) {
-      // Don't reveal whether email exists — generic message
       return NextResponse.json({ error: 'No pending account found for this email' }, { status: 404 });
     }
 
@@ -91,21 +95,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Account already activated. Use the Sign In tab.' }, { status: 409 });
     }
 
-    // Generate 4-digit OTP
-    const otp = String(Math.floor(1000 + Math.random() * 9000));
-    const otpHash = sha256(otp);
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min
+    // Generate 5-digit code
+    const code = String(Math.floor(10000 + Math.random() * 90000));
+    const codeHash = sha256(code);
+    const codeExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
-    // Store hash + expiry + phone in DB
+    // Store hash + expiry in DB (no phone)
     await sbFetch(`staff?id=eq.${staff.id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ otp_hash: otpHash, otp_expires: otpExpires, phone: cleanPhone }),
+      body: JSON.stringify({ otp_hash: codeHash, otp_expires: codeExpires }),
     });
 
-    // Send SMS
-    await sendSMS(cleanPhone, `Hotel Fountain CRM: Your activation code is ${otp}. Valid for 5 minutes.`);
+    // Send email
+    await sendEmail(email.trim(), code);
 
-    return NextResponse.json({ ok: true, message: 'OTP sent' });
+    return NextResponse.json({ ok: true, message: 'Verification code sent' });
 
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
