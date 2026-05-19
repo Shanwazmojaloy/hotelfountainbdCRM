@@ -68,7 +68,7 @@ const ROLES = {
 }
 
 const INIT_STAFF = [
-  {id:1, name:'Shanwaz Ahmed', email:'ahmedshanwaz5@gmail.com', pwh:'8e9ab9f07e898e50bbe3cc6c7a18f96b2943f840531bef605540d5793ba9b254', role:'owner', av:'SA', device:'Admin / Founder', session_v:1, activated:true},
+  {id:1, name:'Shanwaz Ahmed', email:'ahmedshanwaz5@gmail.com', pwh:null, role:'owner', av:'SA', device:'Admin / Founder', session_v:2, activated:false},
 ]
 const _hashPw=async p=>{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 
