@@ -130,7 +130,7 @@ export default function HotelFountainLanding() {
   const [guests, setGuests] = useState('2 Guests');
   const [searching, setSearching] = useState(false);
   const [availResult, setAvailResult] = useState<{ rooms: Record<string, unknown>[]; error?: string } | null>(null);
-  const [bookingModal, setBookingModal] = useState<{ open: boolean; room: Record<string, unknown> | null }>({ open: false, room: null });
+  const [bookingModal, setBookingModal] = useState<{ open: boolean; room: { name?: string; rate?: number; supabaseType?: string; [key: string]: unknown } | null }>({ open: false, room: null });
   const [bookForm, setBookForm] = useState({ name: '', email: '', phone: '', address: '' });
   const [bookStatus, setBookStatus] = useState<'idle' | 'sending' | 'success'>('idle');
   const [mobileMenu, setMobileMenu] = useState(false);
