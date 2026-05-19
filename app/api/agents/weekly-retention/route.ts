@@ -58,7 +58,7 @@ export async function GET(req: Request) {
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  let guests: any[];
+  let guests: Record<string, unknown>[];
   try {
     guests = await dbGet(
       'guests',
@@ -68,14 +68,14 @@ export async function GET(req: Request) {
       `&or=(last_contacted.is.null,last_contacted.lt.${thirtyDaysAgo})` +
       `&marketing_opt_out=eq.false`
     );
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 
   const queued = [];
 
   for (const guest of guests ?? []) {
-    let stays: any[] = [];
+    let stays: Record<string, unknown>[] = [];
     try {
       stays = await dbGet(
         'reservations',
@@ -87,7 +87,7 @@ export async function GET(req: Request) {
       );
     } catch { stays = []; }
 
-    const ltv = stays.reduce((s: number, r: any) => s + Number(r.total_amount ?? 0), 0);
+    const ltv = stays.reduce((s: number, r: Record<string, unknown>) => s + Number(r.total_amount ?? 0), 0);
     const lastStay = stays[0]?.check_out ?? null;
     const daysSinceStay = lastStay
       ? Math.floor((Date.now() - new Date(lastStay).getTime()) / 86400000)

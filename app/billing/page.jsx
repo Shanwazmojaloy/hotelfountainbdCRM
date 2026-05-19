@@ -118,9 +118,12 @@ export default function BillingPage() {
           const totalPaidEver = Number(invoice?.paid_amount || 0);
           const balanceDue = Math.max(0, billTotal - totalPaidEver);
 
-          // Payments collected within the active date range
+          // Payments collected within the active date range.
+          // Exclude "Balance Carried Forward" — accounting entries, not real cash.
+          // Mirrors daily-ops revenue-manager logic so email report == billing page.
           const collectionToday = grp.txs
             .filter(t => {
+              if (/balance carried forward/i.test(t.type ?? '')) return false;
               const d = (t.fiscal_day || t.created_at || '').slice(0, 10);
               return d >= dateFrom && d <= dateTo;
             })

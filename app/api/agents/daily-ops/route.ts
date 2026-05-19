@@ -58,7 +58,7 @@ export async function GET(req: Request) {
   }
 
   const results: Record<string, unknown> = {};
-  const { today, startUtc, endUtc } = dhakaDay();
+  const { today } = dhakaDay();
 
   // ── REVENUE MANAGER ──────────────────────────────────────────────
   try {
@@ -69,8 +69,8 @@ export async function GET(req: Request) {
     // Exclude Balance Carried Forward — these are accounting entries, not real cash.
     // Matches the CRM BillingPage _bizDayTotalFn logic exactly.
     const txnTotal = (txns ?? [])
-      .filter((r: any) => !/balance carried forward/i.test(r.type ?? ''))
-      .reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+      .filter((r: Record<string, unknown>) => !/balance carried forward/i.test(r.type ?? ''))
+      .reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
 
     let closingTotal = 0;
     try {
