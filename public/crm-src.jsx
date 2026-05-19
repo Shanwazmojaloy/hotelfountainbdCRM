@@ -2684,40 +2684,120 @@ ${dueRows}
 <div className="footer"><span>{_HNAME} CRM · Lumea PMS · Confidential</span><span>${todayList.length} transaction${todayList.length!==1?'s':''} · ${duesCarried.length} pending due${duesCarried.length!==1?'s':''}</span></div>
 </body></html>`
 
-    printPDF(content).then(async()=>{
-      const d=new Date(today); d.setDate(d.getDate()+1)
-      const nextDay=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-      try{
-        const existingFWD = transactions.filter(t=>t.fiscal_day===nextDay && t.type==='Balance Carried Forward');
-        if(existingFWD.length > 0) {
-          await Promise.all(existingFWD.map(t => dbDelete('transactions', t.id)));
-        }
-        
-        if(duesCarried.length > 0) {
-          await Promise.all(duesCarried.map(d=>(
-            dbPost('transactions', {
-              tenant_id: TENANT,
-              fiscal_day: nextDay,
-              guest_name: d.gname,
-              room_number: d.room,
-              amount: d.due,
-              type: 'Balance Carried Forward',
-              reservation_id: d.resId||null
-            })
-          )))
-        }
-
-        await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
-          method:'POST',
-          headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-          body:JSON.stringify({key:'active_fiscal_day',value:nextDay,tenant_id:TENANT})
-        })
-        toast(`✓ Day closed · Fiscal day → ${nextDay}`,'info')
-        reload()
-      }catch(e){
-        toast('Report open — could not advance fiscal day: '+e.message,'error')
-      }
+    // ── Excel Backup Export ──────────────────────────────────────────────────
+    const _XLSX_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+    if (!window.XLSX) {
+      await new Promise((res, rej) => {
+        const _s = document.createElement('script'); _s.src = _XLSX_CDN
+        _s.onload = res; _s.onerror = () => rej(new Error('SheetJS CDN load failed'))
+        document.head.appendChild(_s)
+      })
+    }
+    const XL = window.XLSX
+    const _sheetName = (()=>{
+      const _dd = new Date(today)
+      return `${String(_dd.getDate()).padStart(2,'0')}-${String(_dd.getMonth()+1).padStart(2,'0')}-${_dd.getFullYear()}`
+    })()
+    const _monthTotal = (monthT||[]).filter(t=>t.type!=='Balance Carried Forward').reduce((a,t)=>a+(+t.amount||0),0)
+    const _getPM = rTxs => [...new Set(rTxs.map(t=>{
+      const tp=String(t.type||'')
+      if(/cash/i.test(tp))return'Cash'; if(/bkash/i.test(tp))return'Bkash'
+      if(/nagad/i.test(tp))return'Nagad'; if(/card/i.test(tp))return'Card'
+      if(/bank.?transfer/i.test(tp))return'Bank'; return null
+    }).filter(Boolean))].join(', ')||'—'
+    // Build guest rows: all CHECKED_IN + outstanding CHECKED_OUT (duesCarried)
+    const _seenEx = new Set(); const _exRows = []
+    reservations.filter(r=>r.status==='CHECKED_IN').forEach(r=>{
+      if(!r?.id||_seenEx.has(r.id))return; _seenEx.add(r.id)
+      const {total,paid,due,discount}=computeBill(r)
+      const rTxs=transactions.filter(t=>t.reservation_id===r.id||(r.room_ids||[r.room_number]).map(String).includes(String(t.room_number)))
+      _exRows.push([getGN(r),getRoom(r),r.check_in?.slice(0,10)||'—',r.check_out?.slice(0,10)||'—',total,discount,paid,due,_getPM(rTxs)])
     })
+    duesCarried.forEach(dc=>{
+      const rr=reservations.find(re=>re.id===dc.resId)
+      if(rr&&_seenEx.has(rr.id))return; if(rr?.id)_seenEx.add(rr.id)
+      const dcTxs=rr?transactions.filter(t=>t.reservation_id===rr.id):[]
+      _exRows.push([dc.gname,dc.room,dc.check_in?.slice(0,10)||'—',dc.check_out?.slice(0,10)||'—',dc.total,dc.discount||0,dc.paid,dc.due,_getPM(dcTxs)])
+    })
+    const _wsData = [
+      ['Hotel Fountain — Daily Closing Backup'],
+      ['Business Day',today,'','Generated',new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka'})],
+      [],
+      ['BIZ DAY TOTAL',totalAmt,'THIS MONTH TOTAL',_monthTotal,'OUTSTANDING BALANCE',totalDue],
+      [],
+      ['Guest Name','Room','Check-In','Check-Out','Bill Total','Discount','Paid','Balance Due','Payment Method'],
+      ..._exRows
+    ]
+    const _ws = XL.utils.aoa_to_sheet(_wsData)
+    _ws['!cols']=[{wch:24},{wch:8},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:14},{wch:16}]
+    const _FNAME = 'Hotel_Fountain_Financial_Backup_2026.xlsx'
+    let _wb = null; let _fh = null
+    const _fsaOk = typeof window.showOpenFilePicker === 'function'
+    if (_fsaOk) {
+      try {
+        const [_h] = await window.showOpenFilePicker({
+          id:'hf-backup', startIn:'downloads',
+          types:[{description:'Excel Workbook',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]
+        })
+        _fh = _h
+        const _file = await _h.getFile()
+        _wb = XL.read(await _file.arrayBuffer(), {type:'array'})
+        if (_wb.SheetNames.includes(_sheetName)) {
+          const _ow = window.confirm(`Sheet "${_sheetName}" already exists in the backup file.\n\nOK = Overwrite  |  Cancel = Append below existing data`)
+          if (!_ow) {
+            const _ex = XL.utils.sheet_to_json(_wb.Sheets[_sheetName],{header:1,defval:''})
+            _wb.Sheets[_sheetName] = XL.utils.aoa_to_sheet([..._ex,[],['— Appended Closing —'],..._exRows])
+          } else { _wb.Sheets[_sheetName] = _ws }
+        } else { XL.utils.book_append_sheet(_wb, _ws, _sheetName) }
+      } catch(_pe) {
+        _wb = XL.utils.book_new(); XL.utils.book_append_sheet(_wb, _ws, _sheetName)
+      }
+    } else { _wb = XL.utils.book_new(); XL.utils.book_append_sheet(_wb, _ws, _sheetName) }
+    const _buf = XL.write(_wb, {bookType:'xlsx',type:'array'})
+    const _blob = new Blob([_buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})
+    if (_fh) {
+      const _wr = await _fh.createWritable(); await _wr.write(_blob); await _wr.close()
+    } else if (typeof window.showSaveFilePicker === 'function') {
+      try {
+        const _sh = await window.showSaveFilePicker({suggestedName:_FNAME,types:[{description:'Excel Workbook',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]})
+        const _wr2 = await _sh.createWritable(); await _wr2.write(_blob); await _wr2.close()
+      } catch(_se) {
+        if (_se.name!=='AbortError'){const _u=URL.createObjectURL(_blob);const _a=document.createElement('a');_a.href=_u;_a.download=_FNAME;_a.click();setTimeout(()=>URL.revokeObjectURL(_u),5000)}
+      }
+    } else {
+      const _u=URL.createObjectURL(_blob);const _a=document.createElement('a');_a.href=_u;_a.download=_FNAME;_a.click();setTimeout(()=>URL.revokeObjectURL(_u),5000)
+    }
+    // ── Advance Fiscal Day ───────────────────────────────────────────────────
+    const _nd=new Date(today); _nd.setDate(_nd.getDate()+1)
+    const nextDay=`${_nd.getFullYear()}-${String(_nd.getMonth()+1).padStart(2,'0')}-${String(_nd.getDate()).padStart(2,'0')}`
+    try{
+      const existingFWD = transactions.filter(t=>t.fiscal_day===nextDay && t.type==='Balance Carried Forward');
+      if(existingFWD.length > 0) {
+        await Promise.all(existingFWD.map(t => dbDelete('transactions', t.id)));
+      }
+      if(duesCarried.length > 0) {
+        await Promise.all(duesCarried.map(dc=>(
+          dbPost('transactions', {
+            tenant_id: TENANT,
+            fiscal_day: nextDay,
+            guest_name: dc.gname,
+            room_number: dc.room,
+            amount: dc.due,
+            type: 'Balance Carried Forward',
+            reservation_id: dc.resId||null
+          })
+        )))
+      }
+      await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
+        method:'POST',
+        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+        body:JSON.stringify({key:'active_fiscal_day',value:nextDay,tenant_id:TENANT})
+      })
+      toast(`✓ Day Closed: Report backed up to ${_FNAME}`,'info')
+      reload()
+    }catch(e){
+      toast('Excel exported — could not advance fiscal day: '+e.message,'error')
+    }
   }
 
   function downloadPDF() {
@@ -5696,79 +5776,4 @@ function App() {
                                               })
                                             }catch(emailErr){console.warn('Email send failed:',emailErr)}
                                             toast(`✓ Room ${selRoom} assigned & confirmation sent to ${info.email}`,'success')
-                                            setNotifRoomSels(p=>{const n={...p};delete n[res.id];return n})
-                                            loadAll()
-                                          }catch(e){toast(e.message,'error')}
-                                          finally{setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s})}
-                                        }}
-                                      >{isConfirming?'Confirming…':'✓ Confirm & Send Email'}</button>
-                                      <button
-                                        className="btn btn-ghost btn-sm"
-                                        style={{fontSize:9.5,letterSpacing:'.1em',borderColor:'rgba(220,50,50,.3)',color:'var(--rose)'}}
-                                        disabled={isConfirming}
-                                        onClick={async()=>{
-                                          if(!confirm(`Cancel booking for ${info.name}?`)) return
-                                          try{
-                                            await dbPatch('reservations',res.id,{status:'CANCELLED'})
-                                            toast(`Booking for ${info.name} cancelled`,'info')
-                                            loadAll()
-                                          }catch(e){toast(e.message,'error')}
-                                        }}
-                                      >✕ Cancel</button>
-                                    </div>
-                                  </div>
-                                )
-                              })()}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-
-                    {/* HK urgent tasks */}
-                    {hkUrgent>0&&(
-                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
-                        🧹 {hkUrgent} high-priority housekeeping task{hkUrgent>1?'s':''}
-                      </div>
-                    )}
-
-                    {/* Dirty rooms */}
-                    {dirtyRooms>0&&(
-                      <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
-                        🏨 {dirtyRooms} room{dirtyRooms>1?'s':''} require cleaning
-                      </div>
-                    )}
-
-                    {/* All clear */}
-                    {totalNotifs===0&&(
-                      <div className="notif-item" style={{textAlign:'center',color:'var(--tx3)',cursor:'default',padding:'20px'}}>✓ All clear — no alerts</div>
-                    )}
-
-                  </div>{/* end scroll */}
-                </div>
-              )}
-            </div>
-
-            <span style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--gold-light)',letterSpacing:'.1em',border:'1px solid rgba(200,169,110,.3)',padding:'3px 8px',marginRight:4}} title="Current Business Date">{(()=>{if(!businessDate)return'—';const[y,m,d]=businessDate.split('-');return `${+d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}`})()}</span>
-          <button className="btn btn-ghost btn-sm" onClick={()=>{ loadAll(); toast('Data refreshed','info') }} title="Refresh data">↻</button>
-          </div>
-
-          {/* Close notif by clicking content area */}
-          <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
-            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} businessDate={businessDate}/>}
-            {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
-            {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
-            {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
-            {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
-            {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
-
-            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests} onSignOut={signOut}/>}
-          </div>
-        </main>
-      </div>
-            {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type}/>}
-    </>
-  )
-}
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));
+                  
