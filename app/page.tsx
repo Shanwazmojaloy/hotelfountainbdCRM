@@ -129,8 +129,8 @@ export default function HotelFountainLanding() {
   const [roomType, setRoomType] = useState('');
   const [guests, setGuests] = useState('2 Guests');
   const [searching, setSearching] = useState(false);
-  const [availResult, setAvailResult] = useState<{ rooms: any[]; error?: string } | null>(null);
-  const [bookingModal, setBookingModal] = useState<{ open: boolean; room: any | null }>({ open: false, room: null });
+  const [availResult, setAvailResult] = useState<{ rooms: Record<string, unknown>[]; error?: string } | null>(null);
+  const [bookingModal, setBookingModal] = useState<{ open: boolean; room: Record<string, unknown> | null }>({ open: false, room: null });
   const [bookForm, setBookForm] = useState({ name: '', email: '', phone: '', address: '' });
   const [bookStatus, setBookStatus] = useState<'idle' | 'sending' | 'success'>('idle');
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -208,6 +208,7 @@ export default function HotelFountainLanding() {
       {/* NAV */}
       <nav className="gs" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 60px', background: navScrolled ? 'rgba(7,9,14,.97)' : 'linear-gradient(180deg,rgba(7,9,14,.95) 0%,transparent 100%)', borderBottom: `1px solid ${navScrolled ? 'rgba(200,169,110,.15)' : 'rgba(200,169,110,.06)'}`, transition: 'all .4s' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Hotel Fountain Logo" style={{ height: 36, width: 'auto', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <div className="cg" style={{ fontSize: 20, color: 'var(--tx)', fontWeight: 400, letterSpacing: '.04em' }}>Hotel <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Fountain</em></div>
         </div>
@@ -255,6 +256,7 @@ export default function HotelFountainLanding() {
           </div>
         </div>
         <div className="hero-right-panel" style={{ position: 'relative', overflow: 'hidden' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/front-view.jpg" alt="Hotel Fountain Front View" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,var(--dark) 0%,rgba(7,9,14,.25) 30%,transparent 60%)', zIndex: 1, pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 60% 50%,rgba(200,169,110,.06) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 2 }} />
@@ -285,6 +287,7 @@ export default function HotelFountainLanding() {
           {ROOMS.map(room => (
             <div key={room.id} className="rc" style={{ background: 'var(--dark2)', overflow: 'hidden' }}>
               <div style={{ height: 220, position: 'relative', overflow: 'hidden', background: room.gradient }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={room.img} alt={room.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,transparent 40%,rgba(7,9,14,.85) 100%)' }} />
                 <div style={{ position: 'absolute', top: 16, left: 16, fontSize: 8, letterSpacing: '.2em', textTransform: 'uppercase', background: 'rgba(200,169,110,.15)', border: '1px solid rgba(200,169,110,.3)', color: 'var(--gold)', padding: '5px 10px', fontFamily: 'Geist,sans-serif' }}>{room.category}</div>
@@ -361,7 +364,7 @@ export default function HotelFountainLanding() {
           Check <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Availability</em>
         </h2>
         <p className="gs" style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--tx2)', maxWidth: 520, fontWeight: 300, marginBottom: 48 }}>
-          Select your dates and preferred room type. We'll show you real-time availability from our rooms database.
+          Select your dates and preferred room type. We&apos;ll show you real-time availability from our rooms database.
         </p>
         <div className="gc" style={{ maxWidth: 860, padding: 48, position: 'relative', zIndex: 1 }}>
           <div className="avail-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, marginBottom: 32 }}>
@@ -397,7 +400,7 @@ export default function HotelFountainLanding() {
                 <div>
                   <div className="gs" style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>{availResult.rooms.length} Room{availResult.rooms.length !== 1 ? 's' : ''} Available</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-                    {availResult.rooms.map((r: any, i: number) => {
+                    {availResult.rooms.map((r: Record<string, unknown>, i: number) => {
                       const cat = ROOMS.find(rm => rm.supabaseType === (r.type || r.supabaseType)) || ROOMS[0];
                       return (
                         <div key={r.id || i} style={{ padding: 16, background: 'rgba(200,169,110,.04)', border: '1px solid var(--br)', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -488,6 +491,7 @@ export default function HotelFountainLanding() {
       {/* FOOTER */}
       <footer className="gs" style={{ background: 'var(--dark)', borderTop: '1px solid var(--br)', padding: '32px 60px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Logo" style={{ height: 28, width: 'auto', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <div className="cg" style={{ fontSize: 17, color: 'var(--tx)', fontWeight: 400 }}>Hotel <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Fountain</em></div>
         </div>
@@ -532,7 +536,7 @@ export default function HotelFountainLanding() {
                   ].map(f => (
                     <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <label className="gs" style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--tx3)' }}>{f.label}</label>
-                      <input type={f.type} className="fi gs" placeholder={f.ph} value={(bookForm as any)[f.key]} onChange={e => setBookForm(p => ({ ...p, [f.key]: e.target.value }))} />
+                      <input type={f.type} className="fi gs" placeholder={f.ph} value={(bookForm as Record<string, string>)[f.key]} onChange={e => setBookForm(p => ({ ...p, [f.key]: e.target.value }))} />
                     </div>
                   ))}
                 </div>

@@ -64,8 +64,8 @@ export async function GET(req: Request) {
         daysLeft = null // unknown; assume valid but warn in response
       }
     }
-  } catch (e: any) {
-    tokenError = e.message
+  } catch (e: unknown) {
+    tokenError = e instanceof Error ? e.message : String(e)
   }
 
   const needsAlert = tokenError !== null || (daysLeft !== null && daysLeft < WARN_DAYS)
@@ -93,7 +93,7 @@ export async function GET(req: Request) {
           textContent: body,
         }),
       })
-    } catch (_) { /* non-fatal — log but don't fail */ }
+    } catch { /* non-fatal — log but don't fail */ }
   }
 
   return NextResponse.json({
