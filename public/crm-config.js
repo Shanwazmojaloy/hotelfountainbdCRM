@@ -29,12 +29,7 @@ window.CRM_CONFIG = {
   vatPct:       15,
   svcPct:       5,
 
-  // ── Operations ────────────────────────────────────────────────────────────
-  checkInTime:  '14:00',
-  checkOutTime: '12:00',
-  roomCount:    28,
-  timezone:     'Asia/Dhaka',
-};
+  // ── Backup ────────────────────────────────────────────────────────────────
+  sheetsBackupId: '1MjqNY4_q78xldaA3M8pnFEFI7RiPwGh0npA-EDiYwas',
 
-// Update browser tab title immediately
-document.title = 'Lumea — ' + window.CRM_CONFIG.hotelName + ' CRM';
+  // ── Operations ──────────────────────────────────────�
