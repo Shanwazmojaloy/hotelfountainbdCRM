@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const _TENANT         = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+// TENANT sourced per-request via getTenantFromHeaders() — no module-level constant needed
 const DEAL_THRESHOLD = 7;
 
 interface AuditPayload {
