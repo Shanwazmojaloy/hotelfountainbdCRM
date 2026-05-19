@@ -107,6 +107,3 @@ export async function GET(req: Request) {
     alert_sent: needsAlert,
   })
 }
-t,
-  })
-}
