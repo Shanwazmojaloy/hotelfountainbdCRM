@@ -74,7 +74,8 @@ export async function GET(req: Request) {
 
   const queued = [];
 
-  for (const guest of guests ?? []) {
+  for (const _g of guests ?? []) {
+    const guest = _g as { id: string; name: string; email: string; phone: string; total_stays: number; last_contacted: string | null; marketing_opt_out: boolean };
     let stays: Record<string, unknown>[] = [];
     try {
       stays = await dbGet(
