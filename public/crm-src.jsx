@@ -3120,7 +3120,7 @@ ${dueRows}
       })()}
 
       {/* Record Payment modal */}
-      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations} businessDate={businessDate}/>}
+      {showAdd&&<RecordPayModal toast={toast} guests={guests} onClose={()=>{setShowAdd(false);setBillingRes(null)}} reload={()=>{reload();db('folios','?select=*&order=created_at').then(d=>{const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)});setFoliosMap(map)})}} prefill={billingRes} reservations={reservations} businessDate={businessDate} billDue={_billDue} computeBill={computeBill}/>}
 
       {/* Full Billing Detail Modal — opens from Record Billing button */}
       {showBillDetail&&detailRes&&(()=>{
@@ -3212,10 +3212,13 @@ ${dueRows}
   )
 }
 
-function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,businessDate}) {
+function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,businessDate,billDue,computeBill}) {
   const fromRow=prefill?._fromRow===true
-  const _resDue = r => Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0))
-  const dueResList=(reservations||[]).filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&_resDue(r)>0)
+  // Use billDue (includes folio extras via computeBill) — single source of truth with
+  // Dashboard "Outstanding" stat. Raw-column _resDue removed: it diverged from computeBill
+  // whenever folio extras existed (Room Service, Half Day Charge, Stay Extension).
+  const _due = r => (typeof billDue === 'function' ? billDue(r) : Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0)))
+  const dueResList=(reservations||[]).filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&_due(r)>0)
 
   const lockedRoom  = fromRow?(prefill.room_number||''):null
   const lockedGuest = fromRow?(prefill.guest_name||''):null
@@ -3227,7 +3230,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
   const [selRes,setSelRes]=useState(initRes)
   const [resSearch,setResSearch]=useState(initRes?`${initRes.room_number||''} — ${initRes.guest_name||''}`:'')
   const [showResDrop,setShowResDrop]=useState(false)
-  const dropDueAmt=selRes?_resDue(selRes):0
+  const dropDueAmt=selRes?_due(selRes):0
 
   // Smart fiscal_day: checked-out stays post to their check_out date, not today.
   // This prevents past-stay payments from inflating the current BIZ DAY total.
@@ -3242,7 +3245,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
   function pickRes(r){
     setSelRes(r)
     setResSearch(`${r.room_number||''} — ${r.guest_name||''}`)
-    const due=_resDue(r)
+    const due=_due(r)
     if(due>0) setAmount(String(due))
     setShowResDrop(false)
     setFiscalDay(_smartFiscalDay(r))  // auto-adjust fiscal_day when guest is selected
@@ -3257,11 +3260,13 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
     const room_number = fromRow?lockedRoom:(selRes?.room_number||resSearch)
     const guest_name  = fromRow?lockedGuest:(selRes?.guest_name||resSearch)
     const resId       = fromRow?lockedResId:selRes?.id
-    const resTotal    = fromRow?(+prefill._total||0):(+selRes?.total_amount||0)
     const resDiscount = fromRow?lockedDiscount:(+selRes?.discount_amount||+selRes?.discount||0)
-    // payCap: prefill._total is computeBill output (already net-of-discount); don't subtract discount again.
-    // For manual-search path, total_amount is raw so discount must be subtracted.
-    const payCap      = fromRow ? resTotal : Math.max(0, resTotal - resDiscount)
+    // payCap = full net-of-discount bill INCLUDING folio extras. computeBill.total is already
+    // net of discount AND folio-extras-inclusive. Raw total_amount alone would cap below the
+    // real bill whenever extras exist (Room Service, Half Day Charge, Stay Extension).
+    const _resTotalRaw = fromRow?(+prefill._total||0):(+selRes?.total_amount||0)
+    const _billTotal   = (!fromRow && selRes && typeof computeBill==='function') ? (computeBill(selRes)?.total||0) : 0
+    const payCap       = fromRow ? _resTotalRaw : Math.max(0, _billTotal>0 ? _billTotal : (_resTotalRaw - resDiscount))
     try{
       await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,reservation_id:resId||null,tenant_id:TENANT})
       if(resId){
@@ -3342,7 +3347,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
               {dueResList
                 .filter(r=>{const q=resSearch.toLowerCase();return !q||(r.room_number?.toLowerCase().includes(q)||r.guest_name?.toLowerCase().includes(q))})
                 .map(r=>{
-                  const due=_resDue(r)
+                  const due=_due(r)
                   return(
                     <div key={r.id} onClick={()=>pickRes(r)}
                       style={{padding:'9px 14px',cursor:'pointer',borderBottom:'1px solid var(--br2)',display:'flex',justifyContent:'space-between',alignItems:'center'}}
@@ -5836,6 +5841,16 @@ function App() {
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
+
+            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests} onSignOut={signOut}/>}
+          </div>
+        </main>
+      </div>
+            {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type}/>}
+    </>
+  )
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));    {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
 
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests} onSignOut={signOut}/>}
           </div>
