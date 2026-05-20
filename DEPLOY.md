@@ -1,6 +1,6 @@
 # Lumea CRM — Operator Deploy Runbook
 
-> Last updated: 2026-05-14  
+> Last updated: 2026-05-20  
 > Environment: Next.js 15 on Vercel Hobby · Supabase PostgreSQL · Windows dev machine
 
 ---
@@ -117,8 +117,12 @@ Location: Vercel Dashboard → Project → Settings → Environment Variables
 | `ANTHROPIC_API_KEY` | All | CEOAuditor AI agent |
 | `GMAIL_USER` | All | IMAP poll inbox (reply-intake) |
 | `GMAIL_APP_PASSWORD` | All | Gmail app-specific password |
-| `FACEBOOK_PAGE_TOKEN` | All | Facebook page posting (**expires 2026-06-30**) |
-| `FACEBOOK_PAGE_ID` | All | Facebook page ID |
+| `FACEBOOK_PAGE_TOKEN` | All | Facebook page posting (**PERMANENT** — renewed 2026-05-19 via fb_exchange_token) |
+| `FACEBOOK_PAGE_ID` | All | Facebook page ID (`111521248040168`) |
+| `FACEBOOK_APP_ID` | All | Facebook App ID (`964308212964963`) — required by `fb-token-check` for `debug_token` expiry detection |
+| `FACEBOOK_APP_SECRET` | All | Facebook App Secret — required by `fb-token-check` for `debug_token` expiry detection |
+| `BREVO_WEBHOOK_TOKEN` | All | Inbound reply webhook bearer token (verified via `timingSafeEqual` in `reply-intake`) |
+| `SUPABASE_URL` | Supabase secrets | Used by Edge Functions (`lighthouse-summary`, `booking-webhook`) — set via `supabase secrets set` |
 
 **Staging Supabase (Preview scope):**
 - `NEXT_PUBLIC_SUPABASE_URL` = `https://szaffsybjomkvtecupks.supabase.co`
@@ -161,13 +165,28 @@ Defined in `vercel.json`. All schedules are UTC; BDT = UTC+6.
 
 | Path | Schedule (UTC) | BDT | Purpose |
 |---|---|---|---|
-| `/api/agents/outreach-bot` | `0 3 * * *` | 9:00 AM daily | Corporate lead emails |
-| `/api/agents/daily-ops` | `0 2 * * *` | 8:00 AM daily | Revenue reconciliation + Facebook post |
-| `/api/agents/weekly-retention` | `0 3 * * 1` | 9:00 AM Monday | Guest retention outreach |
-| `/api/agents/reply-intake-poll` | `0 1 * * *` | 7:00 AM daily | Gmail IMAP reply check |
-| `/api/agents/fb-token-check` | `0 2 1 * *` | 8:00 AM 1st of month | Facebook token expiry alert |
+| `/api/agents/reply-intake-poll` | `0 1 * * *` | 7:00 AM | Gmail IMAP reply check |
+| `/api/agents/reply-digest`      | `0 2 * * *` | 8:00 AM | Inbound reply digest |
+| `/api/agents/outreach-bot`      | `0 3 * * *` | 9:00 AM | Corporate lead emails |
+| `/api/agents/follow-up-bot`     | `0 4 * * *` | 10:00 AM | Follow-up sequences |
+| `/api/agents/daily-ops`         | `0 5 * * *` | 11:00 AM | Revenue reconciliation + Facebook post |
+| `/api/agents/fb-token-check`    | `0 6 * * *` | 12:00 PM | Facebook token expiry alert |
+| `/api/agents/lighthouse-tick`   | `0 19 * * *`| 01:00 AM next day | Lighthouse anchor cache (forwards to Supabase Edge fn `lighthouse-summary`) |
 
-**Hobby plan limit:** 2 cron jobs, daily-or-lower frequency. Current = 5 crons. If Vercel rejects on next deploy, upgrade to Pro ($20/month) for unlimited crons.
+**Rule:** Never schedule two crons at the same UTC time — Vercel Hobby silently drops one.
+
+### Lighthouse first-run seed (manual, after first deploy of this feature)
+
+After applying `20260520_lighthouse_summaries.sql` and deploying the Edge Function, seed today's row so `/api/ai/assist` has a global anchor immediately (the cron only fires at 19:00 UTC):
+
+```powershell
+$secret = (Get-Content .env.local | Select-String CRON_SECRET).ToString().Split("=")[1]
+Invoke-WebRequest -Uri "https://fountainbd.com/api/agents/lighthouse-tick" -Headers @{ Authorization = "Bearer $secret" }
+# verify in Supabase:
+# SELECT tenant_id, snapshot_date, occupancy_pct, revenue_today_bdt FROM v_lighthouse_latest;
+```
+
+Required Supabase function secrets before first run: `ANTHROPIC_API_KEY`, `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`. Deploy the function with `--no-verify-jwt` — auth is enforced by the `Authorization: Bearer ${CRON_SECRET}` check inside the function body.
 
 **Test a cron manually (PowerShell):**
 ```powershell
@@ -225,16 +244,13 @@ git push origin main
 | CRM URL | `https://fountainbd.com/crm.html` |
 | Tenant UUID | `46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8` |
 | Alert email | `ahmedshanwaz5@gmail.com` |
-| Facebook token expiry | **2026-06-30** — renew via Graph API Explorer |
 
 ---
 
-## 11. Staff Login Credentials
+## 11. Authentication
 
-| Role | Email | Password |
-|---|---|---|
-| Owner/Founder | owner@hotelfountain.com | owner2026 |
-| Front Desk | fo.hotelfountain799@gmail.com | front2026 |
-| Housekeeping | hotelfountain.hk@gmail.com | hk2026 |
-| Manager | manager@hotelfountain.com | mgr2026 |
-| Accountant | accounts@hotelfountain.com | acc2026 |
+Staff login is handled by the OTP flow:
+- Frontend modal in `crm.html` → calls `/api/crm/send-otp` (server-side Brevo email).
+- Magic code stored in `auth_otps` table with short TTL; verified server-side.
+- Permanent owner: `ahmedshanwaz5@gmail.com` (see `memory/admin_account_protection.md` — never reset).
+- Hardcoded passwords in legacy HTML files (`crm_live.html`, `hotel-fountain-crm.html`) are **not in use** and not Vercel-served. Only `public/crm.html` is live.

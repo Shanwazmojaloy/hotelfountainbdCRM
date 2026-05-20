@@ -1166,8 +1166,70 @@ If a shared helper is ever needed, move to module scope (before all `function` /
 
 **Bundle:** `crm-bundle.js` → 279,608 bytes. Commit pending PowerShell push.
 
+### Lighthouse Anchor Architecture (2026-05-20)
+
+**Decision:** Two-layer context system for all Claude-backed CRM operations. Global hotel state is precomputed nightly; per-request calls only fetch the immediate `reservation_id` / `guest_id` / `room_number` slice. Cuts token cost on `/api/ai/assist` and gives every LLM call a consistent hotel-wide anchor.
+
+**Layer 1 — Lighthouse (Global Anchor):**
+- New table `public.lighthouse_summaries` (tenant-scoped, unique on `tenant_id, snapshot_date`). Holds structured anchors (occupancy %, ADR, MTD revenue, unpaid balance, orphan count, blocked rooms, pending leads, VIP in-house) plus a ~150-token Haiku-synthesised `narrative_md`.
+- RLS: service role only. No anon/auth policy — clients never read directly.
+- View `public.v_lighthouse_latest` (SECURITY INVOKER) returns one row per tenant.
+
+**Layer 2 — Local Context (Immediate Focus):**
+- `/api/ai/assist` (POST) accepts `{ scope: { reservation_id? | guest_id? | room_number? }, user_request, tenant_id? }`.
+- Reduces `balance_due_bdt` and `paid_to_date_bdt` from raw `transactions` filtered by `reservation_id`. **No cached totals.**
+- Orphan transactions (NULL `reservation_id`) surface in Lighthouse only — never folded into a guest's local view (preserves ৳13,600 rule).
+
+**Trigger chain:** Vercel cron `/api/agents/lighthouse-tick` at **19:00 UTC** (= 01:00 BDT next day) → forwards to Supabase Edge Function `lighthouse-summary` with `Authorization: Bearer ${CRON_SECRET}` → loops `tenants WHERE is_active` → upserts one row per tenant per day.
+
+**Models:** Haiku 4.5 (`claude-haiku-4-5-20251001`) for nightly narrative; Sonnet 4.6 (`claude-sonnet-4-6`) for live `/api/ai/assist` responses.
+
+**Required Supabase function secrets:** `ANTHROPIC_API_KEY`, `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`.
+
+**Files added / modified:**
+- `supabase/migrations/20260520_lighthouse_summaries.sql`
+- `supabase/functions/lighthouse-summary/index.ts`
+- `app/api/ai/assist/route.ts`
+- `app/api/agents/lighthouse-tick/route.ts`
+- `vercel.json` — new cron slot `0 19 * * *`
+
+**Permanent rule:** Any new top-level operational metric (e.g., F&B revenue, housekeeping SLA) must be added to BOTH the Edge Function aggregator AND the `lighthouse_summaries` schema before being exposed to the LLM. Never let `/api/ai/assist` re-derive a metric the Lighthouse already owns.
+
+**Payment classification — aligned with `_bizDayTotal` / `todayRev` (2026-05-20 follow-up, corrected):**
+Both the Edge Function and `/api/ai/assist` use a local `_isRealPayment(t)` helper that mirrors the module-scope helper in `crm-src.jsx`:
+```js
+// POSITIVE MATCH — required after the 2026-05-15 TALHA JUBAYER incident.
+// Exclusion-only would let Stay Extension / Room Service / F&B pass as revenue.
+/payment|settlement|advance|deposit|bkash|bank\s*transfer/i.test(t.type) &&
+!/balance carried forward/i.test(t.type)
+```
+**First-pass mistake (corrected same session):** I initially wrote an exclusion-only filter (`!BCF && !FS`). That directly contradicts the explicit positive-match rule in `coding_conventions.md` L137–151. Replaced with the positive-match form before code was committed.
+
+**Why positive match:** Charge types (Stay Extension, Room Service, Food & Bev) are not synthetic — they're legitimate `transactions` rows that just aren't payments. Exclusion-only filters can't tell them apart from real payments. Any new payment label MUST contain one of: `payment | settlement | advance | deposit | bkash | bank transfer`.
+
+**Orphan definition tightened:** `orphan_folios_count` now counts only transactions where `reservation_id IS NULL AND _isRealPayment(t)`. BCF/FS rows without a `reservation_id` are bookkeeping artefacts, not orphans, and are correctly ignored.
+
+**Balance formula in `/api/ai/assist`:** `balance_due_bdt = max(0, reservations.total_amount − Σ real payments)`. No separate CHARGE bucket — matches the existing CRM data model where folio line items are not represented as a distinct `type='CHARGE'`.
+
+### Lighthouse Migration Status (2026-05-20)
+
+**✅ Migration applied 2026-05-20 via Supabase MCP `apply_migration`.**
+- `public.lighthouse_summaries` table — LIVE in production
+- `idx_lighthouse_tenant_date` index — LIVE
+- RLS policy `lighthouse_service_all` (service_role only) — LIVE
+- `public.v_lighthouse_latest` view (SECURITY INVOKER) — LIVE
+
+**⏳ First-run seed still pending.** Cron fires tonight at 19:00 UTC (01:00 BDT). Manual seed:
+```bash
+curl -X GET -H "Authorization: Bearer $CRON_SECRET" \
+  https://fountainbd.com/api/agents/lighthouse-tick
+```
+Pre-check: `ANTHROPIC_API_KEY`, `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` must be set in Supabase function secrets.
+
 ### Pending (carry forward)
 
 - **Orphan TX** — 1 row `reservation_id IS NULL`; pull row, confirm amount, reconcile or DELETE
 - **Facebook Page Token** — renew before **2026-06-30** (Graph API Explorer → Shanwaz Ahmed account → update Vercel env var `FACEBOOK_PAGE_TOKEN`)
 - **Corporate leads** — 8 leads still missing contact emails in `corporate_leads` table
+- **BREVO_WEBHOOK_TOKEN** — Vercel env var not yet set; Brevo inbound parsing is enterprise-only, low priority
+- **`outstanding` stat diverges from `computeBill.due`** when folio extras exist — minor display bug, still open
