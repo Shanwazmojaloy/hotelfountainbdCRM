@@ -1,9 +1,18 @@
 # Facebook Page Token Renewal — Hotel Fountain BD
 
-**When to run:** When `fb-token-check` cron sends an alert email, or when `days_remaining < 30`.
+**When to run:** When `fb-token-check` cron sends an alert email, or when the token is suspected leaked / compromised.
 
-**Current token expires:** 2026-07-02 (44 days from 2026-05-19)
-**Alert fires from:** ~2026-06-02 (daily emails to ahmedshanwaz5@gmail.com)
+**Current token (as of 2026-05-20):**
+- **Type:** PERMANENT page token (`expires_at: 0`)
+- **Verified via:** `GET https://graph.facebook.com/debug_token?input_token=<token>&access_token=<token>` (self-introspect)
+- **Page:** Hotel Fountain (id `111521248040168`)
+- **App:** Hotel Fountain (id `964308212964963`)
+- **Scopes:** `pages_show_list`, `business_management`, `pages_read_engagement`, `pages_manage_posts`, `public_profile`
+- **Soft deadline (data_access_expires_at):** 2026-08-02 14:47 UTC — Facebook's separate user-data-access window (auto-extends when owner logs into FB)
+
+**Renewal cadence:** Not on a schedule. Renew ONLY when (a) `data_access_expires_at` passes without owner FB login and Graph calls start returning OAuthException, or (b) token is exposed in a chat / commit / log and must be rotated for security.
+
+**fb-token-check fallback mode warning:** `FACEBOOK_APP_SECRET` is NOT in Vercel env vars. Without it, the cron runs in `/me`-validity mode (binary valid/invalid) and cannot read expiry. The check still works for catching revoked tokens. To enable full expiry detection, add `FACEBOOK_APP_SECRET` from developers.facebook.com → App Settings → Basic → App Secret → Show.
 
 ---
 
@@ -84,4 +93,4 @@ Expected: `"days_remaining": 60+, "token_valid": true, "alert_sent": false`
 ## Where to find FACEBOOK_APP_SECRET
 Vercel Dashboard → hotelfountainbd-vercel → Settings → Environment Variables → `FACEBOOK_APP_SECRET`
 
-OR: developers.facebook.com → Hotel Fountain app (ID: 904308212904963) → Settings → Basic → App Secret → Show
+OR: developers.facebook.com → Hotel Fountain app (ID: `964308212964963`) → Settings → Basic → App Secret → Show

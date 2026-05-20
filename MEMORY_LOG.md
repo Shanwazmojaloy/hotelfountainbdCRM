@@ -1226,3 +1226,54 @@ Vercel marked `CRON_SECRET` (and `ANTHROPIC_API_KEY`) as **Sensitive** — value
 - Supabase PAT `[REDACTED-SUPABASE-PAT]`
 - (CRON_SECRET `53qwr…` is fine — it's a service-auth value not tied to a human account)
 
+
+## Session 2026-05-20 — Session 16 (Vercel ops + Billing fix + Verifications)
+
+**Why:** Six-item pending_tasks cleanup. Goal was to close everything not blocked on external user action (Namecheap DNS, Facebook OAuth login).
+
+### Items closed
+
+| # | Item | Outcome |
+|---|---|---|
+| 1 | `BREVO_WEBHOOK_TOKEN` env var on Vercel | Created (id `4vBaYSN73g9Q6TeY`), redeployed `dpl_4LEH58aQtd6bZZ7c7rWHrGJpWJbA`. Verified: no/wrong token → 401, correct token → 200 `{ok:true,agent:reply-intake,processed:[]}`. |
+| 2 | Multi-tenant Vercel config | `ADMIN_SECRET` (id `H9VlvqZM7LzJz9jC`) + `NEXT_PUBLIC_APEX_DOMAIN=lumea.app` (id `ZGobbAEQmLiZPQBL`) added. Both `lumea.app` and `*.lumea.app` added to Vercel project (owner-verified). `20260515_tenants.sql` migration verified already-applied (memory was stale). Redeployed `dpl_5SfaPKN1ZjHbr4nMdzgJjFesrr48`. **DNS pointing still pending at Namecheap** — see "User-blocked" below. |
+| 3 | FB Page Token verification | Pulled token from Vercel via dashboard reveal. Graph `debug_token` self-introspect returned: `is_valid=true`, `expires_at=0` (permanent), `type=PAGE`, `profile_id=111521248040168`, `app_id=964308212964963`, scopes covering pages_show_list / business_management / pages_read_engagement / pages_manage_posts / public_profile. `data_access_expires_at=1785600452` (2026-08-02 14:47 UTC) is a separate soft deadline that auto-extends with use. Old "2026-06-30" deadline removed from pending_tasks. |
+| 4 | Corporate leads — missing emails | All 88 rows already have `contact_email` (memory called out 8 NULLs that have since been filled across prior sessions). Two minor DQ items found + fixed: Universal IT (`ce16c4a6-...`) had NULL `contact_name` → set to "HR Team"; Square Apparels (`efc1d7dc-...`) had wrong-domain `md.kanchon@roche.com` → nulled with note for manual sqgc.com lookup. |
+| 5 | `outstanding` stat vs `computeBill.due` divergence | **Real fix.** Root cause: `RecordPayModal` (line 3215) had its own raw-column `_resDue` helper that diverged from Dashboard's `_billDue = computeBill(r).due` whenever folio extras existed (Room Service, Half Day Charge, Stay Extension). Passed `_billDue` + `computeBill` as props from caller (line 3123), replaced local `_resDue` with `_due` wrapping the prop, switched `payCap` from `total_amount-discount` to `computeBill(selRes).total` for manual-search path so the cap properly includes extras. Committed `7eeed92`, deployed `dpl_Hd4BfZkD9aBYmbdQE1YGoUyJQmA4`. Verified live: bundle contains `billDue:X,computeBill:G` minified prop pass-through. |
+| 6 | +PAY auto-update `reservation.paid_amount` | Memory was stale — both `saveCollectAmount` (line 999) and `RecordPayModal.save` (line 3276) already `dbPatch paid_amount = Math.min(total, existing+a)`. No-op. Minor backlog: `saveCollectAmount` uses snapshot `activeRes.paid_amount` while RecordPayModal fresh-fetches — race-prone if two staff hit +PAY concurrently. |
+
+### File-tail truncation recurrence (v3.4 / v3.3.1 pattern again)
+
+While editing RecordPayModal, the Edit tool again silently truncated the file tail — last 11 lines including `ReactDOM.createRoot(...)` mount call were lost. Caught immediately via `babel parse` failing with "Unterminated JSX contents (5842:235)". Restored via `printf`-style heredoc append. Build passed.
+
+**Pre-commit invariant (reinforced):** After ANY Edit to `public/crm-src.jsx`, immediately grep for BOTH `ReactDOM.createRoot` AND a line containing the mount call. Bundle byte count after `npm run build:crm` should be ≥ 560KB. If missing or smaller, restore tail BEFORE the next Edit.
+
+### Repo cleanup (commit `531d6bf`)
+
+- 20 push-helper `.bat`/`.ps1` files removed via `git clean -fd` (CLEANUP_ORPHANS, PUSH_*, RUN_PUSH, SET_SUPABASE_SECRETS, git_push_now)
+- `cloudflare-workers/.wrangler/` cache cleared
+- `lumea_login_preview.png` deleted
+- `.gitignore` updated: `hotelfountainbd-*.json` (GCP service account key), `.env.production`, `*.local.json`
+- New tracked files: `scripts/setup-multitenant-vercel.ps1` (operational), `FACEBOOK_TOKEN_RENEWAL.md` (runbook), `public/airport_theory_social.png` (FB social card)
+
+### Security cleanup
+
+- Vercel PAT `htup5kyp8ZXQ...` (1-day expiry) revoked via `DELETE /v3/user/tokens/{id}`. Verified 401 on retry.
+- Other tokens preserved: "landing page deploy" (id `DQvpFejduckcY1uF...`, exp 2026-08), "Claude" (id `deKXL2JQJmXRBKbU...`, exp 2026-08).
+
+### Scheduled DNS watcher
+
+`lumea-dns-watcher` cron task created — polls every 30 min, alerts when `lumea.app` A record matches Vercel IPs (`216.198.79.1` / `64.29.17.1`) AND wildcard CNAME resolves. Stored at `C:\Users\ahmed\OneDrive\Documents\Claude\Scheduled\lumea-dns-watcher\SKILL.md`.
+
+### User-blocked items remaining (cannot be fixed by Claude alone)
+
+1. **Namecheap DNS for lumea.app** — A `@` → `216.198.79.1` AND `64.29.17.1` (remove existing `192.64.119.177` parking); CNAME `*` → `cname.vercel-dns.com.`. Vercel domain already verified for ownership; only DNS pointing remains.
+2. **FB Page Token rotation** — leaked in chat transcript. Owner must regenerate via Graph API Explorer → Long-Lived Page Access Token → paste back so Vercel env `hLHcHfhZOuj54E5C` can be PATCH'd. Requires fresh 1-day Vercel PAT mint after the one revoked above.
+3. **Save `ADMIN_SECRET` to password manager** — `a0a0a84a983d2a5d1a12f385b155198aa078f5cb9571acbeb758bb00f2489a2e` is the only key to `POST /api/admin/onboard-tenant`. Not stored anywhere except Vercel env (encrypted, can't be re-read post-set).
+4. **`git stash drop stash@{0}`** — leftover stash from this session's rebase noise.
+
+### Invariants reinforced
+
+- **Vercel env IDs are not stable** — they change when an env var is recreated (delete + re-add). The 2026-05-01 anon key ID `E6ALkqIyxUpKQg3P` is dead; live ID is `JJXfBgutdjM4nXoL`. Always `GET /v10/projects/.../env` to re-fetch IDs before any PATCH.
+- **Don't decrypt Vercel envs via PAT** — `?decrypt=true` returns empty values via Personal Access Token. Only the deployment runtime can read decrypted env vars. To audit values, use Dashboard reveal or `vercel env pull` from a logged-in CLI session.
+- **Service-role bypasses RLS** — confirmed across multiple cron routes. `current_tenant_id()` falls back to Hotel Fountain UUID `46bbc3ff-...` when `app.current_tenant_id` is unset (preserves single-tenant CRM compatibility while enabling multi-tenant routing).
