@@ -2758,8 +2758,11 @@ ${dueRows}
       if(existingFWD.length > 0) {
         await Promise.all(existingFWD.map(t => dbDelete('transactions', t.id)));
       }
-      if(duesCarried.length > 0) {
-        await Promise.all(duesCarried.map(dc=>(
+      // Bug 1: skip zero-amount BCF inserts (violates amount > 0 constraint)
+      // Bug 2: use allSettled so orphaned reservation_id FK errors don't abort the batch
+      const bcfInserts = duesCarried.filter(dc => dc.due > 0);
+      if(bcfInserts.length > 0) {
+        const bcfResults = await Promise.allSettled(bcfInserts.map(dc =>
           dbPost('transactions', {
             tenant_id: TENANT,
             fiscal_day: nextDay,
@@ -2769,7 +2772,9 @@ ${dueRows}
             type: 'Balance Carried Forward',
             reservation_id: dc.resId||null
           })
-        )))
+        ));
+        const bcfFailed = bcfResults.filter(r => r.status === 'rejected');
+        if (bcfFailed.length > 0) console.warn('BCF partial failures (orphaned IDs skipped):', bcfFailed.map(r => r.reason));
       }
       await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
         method:'POST',
