@@ -50,8 +50,106 @@ function sbRpc(rpcName: string, params: Record<string, unknown>) {
   });
 }
 
-// ── Claude AI audit ───────────────────────────────────────────────────────────
-async function runCEOAudit(payload: AuditPayload): Promise<ClaudeAuditResult> {
+// ── Deterministic heuristic fallback (mirrors public.fn_heuristic_audit) ──────
+// Used when Claude is unreachable: no Anthropic credits, invalid key, network
+// error, or malformed JSON response. Guarantees the audit pipeline always
+// completes — no more silent NULLs in outreach_log audit columns.
+function runHeuristicAudit(payload: AuditPayload): ClaudeAuditResult {
+  const txt = `${payload.reply_text ?? ''} ${payload.reply_subject ?? ''}`.toLowerCase();
+  const bodyOnly = (payload.reply_text ?? '').toLowerCase().trim();
+  const subj = (payload.reply_subject ?? '').toLowerCase();
+
+  // Test / debug noise
+  const testBodies = ['test', 'test body', 'testing', 'testing new key'];
+  if (subj.startsWith('test') || testBodies.includes(bodyOnly)) {
+    return {
+      score: 1,
+      reasoning: 'Body matches test/debug pattern, not a genuine reply.',
+      signals: [],
+      objections: ['test/debug data'],
+      next_action: 'Skip — flag for cleanup; do not treat as a real lead reply.',
+      is_deal_ready: false,
+    };
+  }
+
+  // Hard rejection / auto-reply
+  if (/(unsubscribe|remove (me|from)|stop emailing|do not (email|contact)|not interested|out of office|auto.?reply|automatic reply)/.test(txt)) {
+    return {
+      score: 1,
+      reasoning: 'Hard rejection, unsubscribe, or auto-reply.',
+      signals: [],
+      objections: ['Explicit unsubscribe / not interested / auto-reply'],
+      next_action: 'Mark as unsubscribed; remove from outreach list.',
+      is_deal_ready: false,
+    };
+  }
+
+  // Hot — booking/meeting/quote intent
+  if (/(meeting|schedule|book |booking|invoice|quote|pricing|send (the )?details|let'?s (talk|discuss|meet)|next week|this week|tour|visit|come over|come by|how much|what.*cost|available on|set up a (call|meeting))/.test(txt)) {
+    return {
+      score: 9,
+      reasoning: 'Reply contains explicit booking, meeting, or pricing intent.',
+      signals: ['Specific booking/meeting/pricing intent'],
+      objections: [],
+      next_action: 'Reply within 1 hour with calendar slots + pricing.',
+      is_deal_ready: true,
+    };
+  }
+
+  // Warm — positive interest
+  if (/(interested|demo|tell me more|would like to (know|see)|send (info|brochure)|follow up|sounds (good|interesting|great)|please share|more information)/.test(txt)) {
+    return {
+      score: 7,
+      reasoning: 'Reply shows positive interest, asks for more info.',
+      signals: ['Positive interest expressed'],
+      objections: [],
+      next_action: 'Send pitch deck + a calendar link for a 20-min call.',
+      is_deal_ready: true,
+    };
+  }
+
+  // Lukewarm
+  if (/(consider|maybe later|not (right )?now|perhaps|future|circle back|keep us posted|in (a )?few months)/.test(txt)) {
+    return {
+      score: 5,
+      reasoning: 'Reply is non-committal — needs nurturing.',
+      signals: [],
+      objections: ['Non-committal / not buying now'],
+      next_action: 'Move to nurture sequence; check back in 30 days.',
+      is_deal_ready: false,
+    };
+  }
+
+  // Polite rejection / incumbent
+  if (/(already (have|use|using)|currently have|all set|no need|not looking|we are good|content with|happy with our current)/.test(txt)) {
+    return {
+      score: 3,
+      reasoning: 'Polite rejection — has existing provider.',
+      signals: [],
+      objections: ['Has incumbent solution'],
+      next_action: 'Quarterly long-tail touch; do not push.',
+      is_deal_ready: false,
+    };
+  }
+
+  // Default neutral
+  return {
+    score: 5,
+    reasoning: 'Neutral reply — no clear buying signal or rejection.',
+    signals: [],
+    objections: [],
+    next_action: 'Send a polite follow-up in 3 days.',
+    is_deal_ready: false,
+  };
+}
+
+// ── Claude AI audit (with heuristic fallback) ────────────────────────────────
+async function runCEOAudit(payload: AuditPayload): Promise<ClaudeAuditResult & { source: 'claude' | 'heuristic'; fallback_reason?: string }> {
+  const anthropicKey = (process.env.ANTHROPIC_API_KEY ?? '').trim();
+  if (!anthropicKey) {
+    return { ...runHeuristicAudit(payload), source: 'heuristic', fallback_reason: 'ANTHROPIC_API_KEY missing' };
+  }
+
   const hotelDesc = process.env.HOTEL_DESCRIPTION || 'Hotel Fountain BD, a boutique 24-room hotel in Nikunja 2, Dhaka';
   const prompt = `You are the CEO of ${hotelDesc}. Review this reply from a corporate lead.
 
@@ -80,40 +178,60 @@ Respond ONLY with valid JSON:
   "is_deal_ready": <true if score >= 7>
 }`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
 
-  if (!response.ok) throw new Error(`Claude API error: ${response.status} ${await response.text()}`);
+    if (!response.ok) {
+      const errBody = await response.text();
+      console.error('[ceo-auditor] Claude API non-ok', response.status, errBody);
+      let reason = `Claude HTTP ${response.status}`;
+      try {
+        const j = JSON.parse(errBody);
+        if (j?.error?.message) reason = String(j.error.message).slice(0, 160);
+      } catch (_) { /* ignore */ }
+      return { ...runHeuristicAudit(payload), source: 'heuristic', fallback_reason: reason };
+    }
 
-  const data = await response.json();
-  const text = data.content?.[0]?.text ?? '{}';
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('No JSON in Claude response');
+    const data = await response.json();
+    const text = data.content?.[0]?.text ?? '{}';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[ceo-auditor] No JSON in Claude response');
+      return { ...runHeuristicAudit(payload), source: 'heuristic', fallback_reason: 'Claude returned no JSON' };
+    }
 
-  const result = JSON.parse(jsonMatch[0]) as ClaudeAuditResult;
-  result.is_deal_ready = result.score >= DEAL_THRESHOLD;
-  return result;
+    const result = JSON.parse(jsonMatch[0]) as ClaudeAuditResult;
+    result.is_deal_ready = result.score >= DEAL_THRESHOLD;
+    return { ...result, source: 'claude' };
+  } catch (e) {
+    console.error('[ceo-auditor] Claude fetch error', e);
+    return { ...runHeuristicAudit(payload), source: 'heuristic', fallback_reason: String(e).slice(0, 160) };
+  }
 }
 
 // ── Shared audit + persist logic ──────────────────────────────────────────────
 async function auditAndPersist(payload: AuditPayload) {
   const audit = await runCEOAudit(payload);
+  const sourceTag = audit.source === 'heuristic'
+    ? ` [heuristic${audit.fallback_reason ? `: ${audit.fallback_reason}` : ''}]`
+    : '';
 
   await sbRpc('ceo_update_log', {
     p_log_id:            payload.log_id,
     p_deal_score:        audit.score,
-    p_deal_score_reason: `${audit.reasoning} | Signals: ${audit.signals.join('; ')} | Objections: ${audit.objections.join('; ')}`,
+    p_deal_score_reason: `${audit.reasoning} | Signals: ${audit.signals.join('; ')} | Objections: ${audit.objections.join('; ')}${sourceTag}`,
     p_ceo_next_action:   audit.next_action,
     p_is_deal_ready:     audit.is_deal_ready,
     p_audited_at:        new Date().toISOString(),
@@ -174,7 +292,9 @@ export async function POST(req: Request) {
       ok: true, agent: 'ceo-auditor',
       lead: payload.company_name, score: audit.score,
       is_deal_ready: audit.is_deal_ready, reasoning: audit.reasoning,
-      next_action: audit.next_action, timestamp: new Date().toISOString(),
+      next_action: audit.next_action,
+      source: audit.source, fallback_reason: audit.fallback_reason ?? null,
+      timestamp: new Date().toISOString(),
     });
   } catch (e) {
     return NextResponse.json({ error: `Audit failed: ${String(e)}` }, { status: 500 });
@@ -215,7 +335,9 @@ export async function GET(req: Request) {
       ok: true, agent: 'ceo-auditor',
       lead: payload.company_name, score: audit.score,
       is_deal_ready: audit.is_deal_ready, reasoning: audit.reasoning,
-      next_action: audit.next_action, timestamp: new Date().toISOString(),
+      next_action: audit.next_action,
+      source: audit.source, fallback_reason: audit.fallback_reason ?? null,
+      timestamp: new Date().toISOString(),
     });
   } catch (e) {
     return NextResponse.json({ error: `Audit failed: ${String(e)}` }, { status: 500 });
