@@ -1599,30 +1599,52 @@ function GuestSearchInput({guests, value, onChange}) {
 }
 
 function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
-  const availRooms=rooms.filter(r=>r.status==='AVAILABLE')
   const [f,setF]=useState({
-    guestId:'', roomNos:[availRooms[0]?.room_number||''],
+    guestId:'', roomNos:[''],
     checkIn:todayStr(), checkOut:'',
     total:'', paid:'', discount:'', method:'Cash', notes:'', officer:'', stayType:'CHECK_IN'
   })
   const F=k=>e=>setF(p=>({...p,[k]:e.target.value}))
   const [saving,setSaving]=useState(false)
-  const [availableRooms,setAvailableRooms]=useState(availRooms)
+  // {room_number: {check_in, check_out, guest_name}} - rooms with overlapping reservations in the chosen window
+  const [roomConflicts,setRoomConflicts]=useState({})
   const [loadingRooms,setLoadingRooms]=useState(false)
 
-  // Date-based availability: re-query when dates change (Future Reservation mode only)
+  // Effective query window - CHECK_IN defaults to 1-night when check-out blank
+  const winIn = f.checkIn || todayStr()
+  const winOut = f.checkOut || (()=>{ const d=new Date(winIn+'T00:00:00'); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10) })()
+
+  // Both flows: flag rooms whose existing bookings overlap [winIn, winOut). Standard hotel overlap - back-to-back OK.
   useEffect(()=>{
-    if(f.stayType==='CHECK_IN'){ setAvailableRooms(availRooms); return }
-    if(!f.checkIn||!f.checkOut||f.checkIn>=f.checkOut){ setAvailableRooms(rooms.filter(r=>r.status!=='OUT_OF_ORDER'&&r.status!=='DIRTY')); return }
+    if(!winIn||!winOut||winIn>=winOut){ setRoomConflicts({}); return }
     setLoadingRooms(true)
-    db('reservations',`?select=room_ids&status=in.(RESERVED,CHECKED_IN,CONFIRMED)&check_in=lt.${f.checkOut}&check_out=gt.${f.checkIn}`)
+    db('reservations',`?select=id,room_ids,check_in,check_out,guest_name&status=in.(RESERVED,CHECKED_IN,CONFIRMED)&check_in=lt.${winOut}&check_out=gt.${winIn}`)
       .then(conflicts=>{
-        const blocked=new Set((conflicts||[]).flatMap(r=>r.room_ids||[]).map(String))
-        setAvailableRooms(rooms.filter(r=>!blocked.has(String(r.room_number))&&r.status!=='OUT_OF_ORDER'&&r.status!=='DIRTY'))
+        const map={}
+        ;(conflicts||[]).forEach(r=>{
+          (r.room_ids||[]).forEach(rid=>{
+            const k=String(rid)
+            if(!map[k] || r.check_in < map[k].check_in) map[k]={check_in:r.check_in,check_out:r.check_out,guest_name:r.guest_name}
+          })
+        })
+        setRoomConflicts(map)
       })
-      .catch(()=>setAvailableRooms(rooms.filter(r=>r.status!=='OUT_OF_ORDER'&&r.status!=='DIRTY')))
+      .catch(()=>setRoomConflicts({}))
       .finally(()=>setLoadingRooms(false))
-  },[f.checkIn,f.checkOut,f.stayType])
+  },[winIn,winOut,f.stayType])
+
+  // Rooms eligible to render (still hide hard-broken inventory)
+  const displayRooms = rooms.filter(r=>r.status!=='OUT_OF_ORDER'&&r.status!=='DIRTY')
+  const _shortDate = s=>{ if(!s) return ''; const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) }
+  const roomLabel = r => {
+    const conflict = roomConflicts[String(r.room_number)]
+    const occupiedBlock = f.stayType==='CHECK_IN' && r.status==='OCCUPIED' && !conflict
+    let suffix = ''
+    if(conflict) suffix = ` — Booked ${_shortDate(conflict.check_in)} → ${_shortDate(conflict.check_out)}`
+    else if(occupiedBlock) suffix = ' — Currently Occupied'
+    return { blocked: !!conflict || occupiedBlock, text: `${r.room_number} — ${r.category} — ${BDT(r.price)}/n${suffix}` }
+  }
+  const openRoomsCount = displayRooms.filter(r=>!roomLabel(r).blocked).length
 
   const autoNights=f.checkIn&&f.checkOut?nightsCount(f.checkIn,f.checkOut):0
   const autoTotal=f.roomNos.filter(Boolean).reduce((sum,rn)=>{
@@ -1635,9 +1657,16 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
 
   async function save() {
     if(!f.guestId) return toast('Select a guest','error')
-    if(!f.roomNos.filter(Boolean).length) return toast('Select at least one room','error')
+    const _selRooms=f.roomNos.filter(Boolean)
+    if(!_selRooms.length) return toast('Select at least one room','error')
     if(!f.checkIn||!f.checkOut) return toast('Set check-in and check-out dates','error')
     if(autoNights<=0) return toast('Check-out must be after check-in','error')
+    // Conflict guard - block overlap with existing reservations on the same room(s)
+    const _blocked=_selRooms.filter(rn=>roomConflicts[String(rn)])
+    if(_blocked.length){
+      const c=roomConflicts[String(_blocked[0])]
+      return toast(`Room ${_blocked.join(', ')} already booked ${_shortDate(c.check_in)} → ${_shortDate(c.check_out)}`,'error')
+    }
     setSaving(true)
     try {
       const isCheckIn=f.stayType==='CHECK_IN'
@@ -1691,19 +1720,20 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
           <GuestSearchInput guests={guests} value={f.guestId} onChange={id=>setF(p=>({...p,guestId:id}))}/>
         </div>
         <div className="fg">
-          <label className="flbl">Room(s) * {loadingRooms?<span style={{color:'var(--gold)',fontSize:10}}> Checking availability…</span>:availableRooms.length===0&&<span style={{color:'var(--rose)'}}>— no available rooms</span>}</label>
+          <label className="flbl">Room(s) * {loadingRooms?<span style={{color:'var(--gold)',fontSize:10}}> Checking availability…</span>:openRoomsCount===0&&<span style={{color:'var(--rose)'}}>— no available rooms for these dates</span>}</label>
           {f.roomNos.map((rn,idx)=>(
             <div key={idx} style={{display:'flex',gap:6,marginBottom:5,alignItems:'center'}}>
               <select className="fselect" style={{flex:1}} value={rn} onChange={e=>{const a=[...f.roomNos];a[idx]=e.target.value;setF(p=>({...p,roomNos:a}))}}>
                 <option value="">— select room —</option>
-                {availableRooms.filter(r=>r.room_number===rn||!f.roomNos.includes(r.room_number)).map(r=>(
-                  <option key={r.id} value={r.room_number}>{r.room_number} — {r.category} — {BDT(r.price)}/n</option>
-                ))}
+                {displayRooms.filter(r=>r.room_number===rn||!f.roomNos.includes(r.room_number)).map(r=>{
+                  const lbl=roomLabel(r)
+                  return <option key={r.id} value={r.room_number} disabled={lbl.blocked} style={lbl.blocked?{color:'#9a8a6e',fontStyle:'italic'}:undefined}>{lbl.text}</option>
+                })}
               </select>
               {f.roomNos.length>1&&<button type="button" style={{background:'none',border:'1px solid rgba(248,113,113,.3)',color:'var(--rose)',cursor:'pointer',padding:'4px 8px',fontSize:12}} onClick={()=>setF(p=>({...p,roomNos:p.roomNos.filter((_,i)=>i!==idx)}))}>✕</button>}
             </div>
           ))}
-          {availableRooms.filter(r=>!f.roomNos.includes(r.room_number)).length>0&&(
+          {displayRooms.filter(r=>!roomLabel(r).blocked&&!f.roomNos.includes(r.room_number)).length>0&&(
             <button type="button" style={{background:'none',border:'1px dashed rgba(200,169,110,.35)',color:'var(--gold)',cursor:'pointer',padding:'5px 10px',fontSize:10,letterSpacing:'.08em',width:'100%',marginTop:2}} onClick={()=>setF(p=>({...p,roomNos:[...p.roomNos,'']}))}>+ Add Room</button>
           )}
         </div>
@@ -5841,16 +5871,6 @@ function App() {
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
-
-            {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests} onSignOut={signOut}/>}
-          </div>
-        </main>
-      </div>
-            {toastMsg&&<Toast msg={toastMsg.msg} type={toastMsg.type}/>}
-    </>
-  )
-}
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));    {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
 
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests} onSignOut={signOut}/>}
           </div>
