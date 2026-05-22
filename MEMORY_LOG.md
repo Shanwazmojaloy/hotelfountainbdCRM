@@ -1277,3 +1277,55 @@ While editing RecordPayModal, the Edit tool again silently truncated the file ta
 - **Vercel env IDs are not stable** — they change when an env var is recreated (delete + re-add). The 2026-05-01 anon key ID `E6ALkqIyxUpKQg3P` is dead; live ID is `JJXfBgutdjM4nXoL`. Always `GET /v10/projects/.../env` to re-fetch IDs before any PATCH.
 - **Don't decrypt Vercel envs via PAT** — `?decrypt=true` returns empty values via Personal Access Token. Only the deployment runtime can read decrypted env vars. To audit values, use Dashboard reveal or `vercel env pull` from a logged-in CLI session.
 - **Service-role bypasses RLS** — confirmed across multiple cron routes. `current_tenant_id()` falls back to Hotel Fountain UUID `46bbc3ff-...` when `app.current_tenant_id` is unset (preserves single-tenant CRM compatibility while enabling multi-tenant routing).
+
+---
+
+## 2026-05-22 · Future-Reservation Block + Tail-Corruption Flag
+
+### Feature shipped: Overlap-aware room dropdown
+
+`NewReservationModal` (crm-src.jsx ~L1601) now blocks a room from selection when any reservation in status `RESERVED | CHECKED_IN | CONFIRMED` overlaps the candidate window `[check_in, check_out)`. Standard hotel overlap — same-day turnover allowed (a 27 May checkout can be followed by a 27 May check-in). Applies to BOTH `DIRECT CHECK-IN` and `FUTURE RESERVATION` tabs.
+
+UX contract:
+- Conflicting room appears in the `<select>` as `301 — Fountain Deluxe — ৳4,000/n — Booked 25 May → 27 May`, italicised, `disabled` attribute set.
+- Empty-state copy: `— no available rooms for these dates`.
+- Submit guard re-checks `roomConflicts` map before `dbPost('reservations',...)`; throws toast `Room 301 already booked 25 May → 27 May` if a stale conflict was selected.
+- `OCCUPIED` rooms during a DIRECT CHECK-IN show `— Currently Occupied` (existing in-house guest, no overlap row needed).
+
+Query: `?select=id,room_ids,check_in,check_out,guest_name&status=in.(RESERVED,CHECKED_IN,CONFIRMED)&check_in=lt.${winOut}&check_out=gt.${winIn}` — minimal columns to avoid bloat.
+
+### ⚠️ Tail corruption in crm-src.jsx (recurs across rebases)
+
+`public/crm-src.jsx` in `HEAD` (commit `7eeed92`) ends with a duplicated 11-line block — the legitimate `ReactDOM.createRoot(...)` call at the bottom is preceded by a SECOND copy of App's content section concatenated onto the same line as a first `ReactDOM.createRoot(...);`. This is invalid syntax and breaks `npm run build:crm` with `BABEL_PARSE_ERROR` at the broken line.
+
+The May-20 `crm-bundle.js` (`2a8219c build: regenerate crm-bundle.js after rebase`) was built BEFORE the duplication was introduced, which is why prod kept working despite a broken source. Any rebase that re-applies the offending commit will resurrect the duplicate.
+
+**Detection:** `grep -c "ReactDOM.createRoot" public/crm-src.jsx` must return **1**. If it returns 2, strip the block between the two occurrences plus everything appended after the semicolon of the first occurrence.
+
+**One-liner fix (run from `Hotel Fountain BD CRM/`):**
+
+```bash
+python3 -c "
+src=open('public/crm-src.jsx').read()
+m='ReactDOM.createRoot(document.getElementById(\\'root\\')).render(React.createElement(App, null));'
+i=src.find(m); j=src.find(m,i+1)
+if j>0: open('public/crm-src.jsx','w').write(src[:i+len(m)]+'\n')
+"
+```
+
+### Edge Case Audit — overlap detection
+
+(a) **Back-to-back same-day turnover (allowed by design).**
+Reservation A checks out 27 May; new check-in window starts 27 May. Postgres filter `check_in=lt.${winOut} AND check_out=gt.${winIn}` evaluates `A.check_in < '2026-05-27' AND A.check_out > '2026-05-27'` → A.check_out IS `'2026-05-27'` which is NOT greater-than `'2026-05-27'` → row excluded → room shows available. Correct.
+
+(b) **Editing an existing reservation's dates (KNOWN GAP).**
+The overlap check lives only in `NewReservationModal`. The edit-reservation flow (`ReservationsPage` row → View → date inputs) does NOT re-query `roomConflicts`. A staff member CAN currently extend a 27 May checkout to 30 May even if another booking already holds the room 28–30 May. **TODO:** lift `roomConflicts` logic into a shared hook (`useRoomConflicts(winIn,winOut,excludeReservationId)`) and wire it into the edit modal — passing the current reservation's `id` so it doesn't flag itself.
+
+(c) **Multi-room reservation with partial conflict.**
+User selects rooms `[301, 302, 303]`; only 302 has a future booking. Current behaviour: dropdown disables 302 with the booking label so the user cannot re-select it. If 302 was pre-selected and the date was changed AFTER, the submit guard catches it: toast names the conflicting rooms (`Room 302 already booked …`) and the entire save is rejected — no partial reservations created. This preserves the cascade-delete invariant from `CLAUDE.md` (no orphan room rows).
+
+(d) **Cancelled reservations.**
+The `status=in.(RESERVED,CHECKED_IN,CONFIRMED)` filter explicitly EXCLUDES `CANCELLED`, `CHECKED_OUT`, and `NO_SHOW` — a cancelled booking does not block a new check-in. Confirmed against `agency_workflow_crm.md` status pipeline.
+
+(e) **Multi-tenant safety.**
+The query inherits the active tenant's RLS scope via the `SB_KEY` publishable key — no explicit `tenant_id=eq.${TENANT}` filter needed. If RLS is ever loosened to `SECURITY DEFINER`, this query will leak cross-tenant bookings; the invariant from CLAUDE.md (`SECURITY INVOKER` default) keeps us safe.
