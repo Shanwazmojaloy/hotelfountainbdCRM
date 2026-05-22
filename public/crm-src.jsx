@@ -6,7 +6,7 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 ═══════════════════════════════════════════════════════════ */
 
 const SB_URL = 'https://mynwfkgksqqwlqowlscj.supabase.co'
-const SB_KEY = (window.__env&&window.__env.SB_KEY)||'sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh'
+const SB_KEY = (window.__env&&window.__env.SB_KEY)||'sb_publishable_v2XOonwuDa2gi-Z4-o40Og_1ig4AKec'
 const _CFG     = window.CRM_CONFIG || {}
 const TENANT   = _CFG.tenantId     || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 const _HNAME   = _CFG.hotelName    || 'Hotel Fountain BD'
@@ -534,7 +534,7 @@ function LoginPage({onLogin, staffList}) {
       const pwHash=await _hashPw(actPw)
       // Fetch the staff record (need id + otp_hash + otp_expires)
       const SB_URL='https://mynwfkgksqqwlqowlscj.supabase.co'
-      const SB_KEY='sb_publishable_YVx6y5ai5WXlZZ9jhCLugQ_67DaIVsh'
+      const SB_KEY='sb_publishable_v2XOonwuDa2gi-Z4-o40Og_1ig4AKec'
       const TENANT_ID='46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
       const r=await fetch(`${SB_URL}/rest/v1/staff?tenant_id=eq.${TENANT_ID}&email=eq.${encodeURIComponent(actEmail.trim())}&select=id,otp_hash,otp_expires,activated`,{
         headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
