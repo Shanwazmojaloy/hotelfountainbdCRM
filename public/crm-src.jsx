@@ -2346,8 +2346,8 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
   @page{size:A4 landscape;margin:10mm 12mm}
   @media print{.actions{display:none}body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0}}
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{background:#FBF8F1;color:#1F1B16;font-family:'Natom Pro','Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:11px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
-  .page{max-width:1180px;margin:0 auto;padding:36px 44px;background:#FBF8F1}
+  html,body{background:#FBF8F1;color:#1F1B16;font-family:'Natom Pro','Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:12.5px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  .page{width:100%;max-width:none;margin:0;padding:28px 40px;background:#FBF8F1;min-height:100vh}
   .actions{position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:99}
   .actions button{font-family:'Natom Pro','Inter',sans-serif;font-size:12px;padding:8px 14px;border:1px solid #9C7A3E;background:#9C7A3E;color:#FBF8F1;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:2px;font-weight:500}
   .actions button.ghost{background:transparent;color:#9C7A3E}
@@ -2357,14 +2357,14 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
   .brand{display:flex;align-items:center;gap:20px;flex:1;min-width:0}
   .brand img.logo{width:76px;height:76px;object-fit:contain;flex:none;display:block}
   .brand .txt{display:flex;flex-direction:column;min-width:0}
-  .brand h1{font-size:22px;font-weight:700;letter-spacing:.8px;color:#1F1B16;text-transform:uppercase;line-height:1.1;margin:0}
+  .brand h1{font-size:26px;font-weight:700;letter-spacing:.8px;color:#1F1B16;text-transform:uppercase;line-height:1.1;margin:0}
   .brand h1 em{font-style:normal;color:#C8A96E;font-weight:500;letter-spacing:1px}
-  .brand .tag{font-style:italic;font-size:11px;letter-spacing:1.5px;color:#C8A96E;margin-top:3px;font-weight:400}
-  .brand .contact{font-size:9.5px;color:#5A544A;line-height:1.6;margin-top:6px;letter-spacing:.2px}
+  .brand .tag{font-style:italic;font-size:13px;letter-spacing:1.5px;color:#C8A96E;margin-top:4px;font-weight:400}
+  .brand .contact{font-size:10.5px;color:#5A544A;line-height:1.6;margin-top:8px;letter-spacing:.2px}
   .brand .contact span{color:#8A8276;font-weight:500}
   .meta{text-align:right;min-width:240px}
-  .meta .doc-label{font-size:18px;font-weight:700;letter-spacing:4px;color:#1F1B16;margin-bottom:6px}
-  .meta .period{font-size:13px;color:#9C7A3E;font-weight:600;letter-spacing:.4px;margin-bottom:8px}
+  .meta .doc-label{font-size:22px;font-weight:700;letter-spacing:4px;color:#1F1B16;margin-bottom:8px}
+  .meta .period{font-size:15px;color:#9C7A3E;font-weight:600;letter-spacing:.4px;margin-bottom:10px}
   .meta .lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-top:4px}
   .meta .v{color:#5A544A;font-size:11px}
 
@@ -2375,53 +2375,53 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
   .stat.bkash{border-top-color:#D02A77}
   .stat.out{border-top-color:#B14D4D}
   .stat .lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:8px;font-weight:600}
-  .stat .val{font-size:22px;font-weight:700;color:#1F1B16;letter-spacing:.3px}
+  .stat .val{font-size:26px;font-weight:700;color:#1F1B16;letter-spacing:.3px}
   .stat.cash .val{color:#4A7C59}
   .stat.bkash .val{color:#D02A77}
   .stat.out .val{color:#B14D4D}
   .stat .sub{font-size:9.5px;color:#8A8276;margin-top:4px;font-style:italic}
 
   /* Section headers */
-  .sec-hdr{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 8px;margin-top:8px;margin-bottom:0;font-size:13px;font-weight:600;letter-spacing:.5px;color:#1F1B16;border-bottom:2px solid #C8A96E}
+  .sec-hdr{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 10px;margin-top:14px;margin-bottom:0;font-size:15px;font-weight:600;letter-spacing:.5px;color:#1F1B16;border-bottom:2px solid #C8A96E}
   .sec-hdr.due{color:#B14D4D;border-bottom-color:#B14D4D}
-  .sec-hdr .sec-meta{font-size:10px;font-weight:400;color:#8A8276;letter-spacing:.5px;text-transform:uppercase}
+  .sec-hdr .sec-meta{font-size:11px;font-weight:400;color:#8A8276;letter-spacing:.5px;text-transform:uppercase}
 
   /* Tables */
   table.tbl{width:100%;border-collapse:collapse;margin-bottom:22px;border:2px solid #D9CFB8;border-top:none;background:#FFFDF7;table-layout:fixed}
-  table.tbl thead th{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276;text-align:left;padding:11px 12px;border-bottom:1px solid #D9CFB8;font-weight:600;background:#F7F2E6}
+  table.tbl thead th{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276;text-align:left;padding:13px 14px;border-bottom:1px solid #D9CFB8;font-weight:600;background:#F7F2E6}
   table.tbl thead th.num{text-align:right}
-  table.tbl tbody td{padding:9px 12px;border-bottom:1px solid #F2EEE4;font-size:10.5px;color:#1F1B16;vertical-align:middle;word-wrap:break-word}
+  table.tbl tbody td{padding:10px 14px;border-bottom:1px solid #F2EEE4;font-size:12px;color:#1F1B16;vertical-align:middle;word-wrap:break-word}
   table.tbl tbody tr:last-child td{border-bottom:none}
   table.tbl tbody tr:nth-child(even){background:#FBF8F1}
   table.tbl td.g{font-weight:500;color:#1F1B16}
   table.tbl td.rno{color:#9C7A3E;font-weight:600;letter-spacing:.4px}
-  table.tbl td.dt{color:#8A8276;font-size:10px;white-space:nowrap}
+  table.tbl td.dt{color:#8A8276;font-size:11.5px;white-space:nowrap}
   table.tbl td.num{text-align:right;font-weight:500}
   table.tbl td.num.pos{color:#4A7C59}
   table.tbl td.num.bal-due{color:#B14D4D;font-weight:600}
   table.tbl td.num.bal-paid{color:#8A8276}
-  table.tbl tfoot td{padding:11px 12px;background:#F7F2E6;border-top:2px solid #C8A96E;font-size:11px;font-weight:600;color:#1F1B16}
+  table.tbl tfoot td{padding:13px 14px;background:#F7F2E6;border-top:2px solid #C8A96E;font-size:12.5px;font-weight:600;color:#1F1B16}
   table.tbl tfoot td.tf-lbl{letter-spacing:.5px}
   table.tbl tfoot td.num{text-align:right}
   table.tbl tfoot td.num.bal-due{color:#B14D4D}
   .due-table thead th{background:#FBE9E9;color:#B14D4D}
 
   /* Payment method pill */
-  .pm{display:inline-block;padding:3px 9px;border-radius:2px;font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;background:#EAE6DD;color:#5A544A;border:1px solid #D9CFB8}
+  .pm{display:inline-block;padding:4px 10px;border-radius:2px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;background:#EAE6DD;color:#5A544A;border:1px solid #D9CFB8}
   .pm-cash{background:#EAF3EE;color:#4A7C59;border-color:#B8D4C2}
   .pm-bkash{background:#FCE4EF;color:#D02A77;border-color:#F3B8D2}
   .pm-advancepayment, .pm-advance{background:#F7F2E6;color:#9C7A3E;border-color:#D9CFB8}
   .pm-status{background:#FBE9E9;color:#B14D4D;border-color:#E8C5C5}
 
   /* Closing summary */
-  .closing{margin-top:8px;border:2px solid #D9CFB8;background:#FFFDF7;padding:16px 22px;border-radius:3px;border-top:3px solid #C8A96E;max-width:520px;margin-left:auto}
-  .closing-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;font-size:11.5px;color:#5A544A}
+  .closing{margin-top:14px;border:2px solid #D9CFB8;background:#FFFDF7;padding:20px 26px;border-radius:3px;border-top:3px solid #C8A96E;max-width:600px;margin-left:auto}
+  .closing-row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;font-size:13px;color:#5A544A}
   .closing-row .num{font-weight:500;color:#1F1B16}
   .closing-row.pos .num{color:#4A7C59}
   .closing-row.token{color:#9C7A3E;font-style:italic;border-top:1px dashed #D9CFB8;padding-top:10px;margin-top:6px}
   .closing-row.token .num{color:#9C7A3E}
-  .closing-row.final{border-top:2px solid #C8A96E;margin-top:10px;padding-top:14px;font-size:15px;font-weight:700;color:#1F1B16;letter-spacing:.3px}
-  .closing-row.final .num{font-size:18px;color:#1F1B16}
+  .closing-row.final{border-top:2px solid #C8A96E;margin-top:12px;padding-top:16px;font-size:17px;font-weight:700;color:#1F1B16;letter-spacing:.3px}
+  .closing-row.final .num{font-size:22px;color:#1F1B16}
 
   /* Footer */
   .ftr{margin-top:32px;padding-top:18px;border-top:1px solid #EAE6DD;display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276}
@@ -3336,8 +3336,15 @@ ${dueRows}
                 if (_billDue(_r) > 0) return true            // owes money — always visible
                 return (_r.check_out||'').slice(0,10) > bd   // within stay → show; past checkout date → hide
               }
-              // CHECKED_OUT: only show if has ANY transaction on today's business date
-              // (BCF = carried-forward entry counts; old unpaid records with no today tx are hidden)
+              // CHECKED_OUT — match Reservations DUE behaviour:
+              //   • outstanding balance → ALWAYS show (regardless of today's tx)
+              //   • zero balance but has tx today (e.g. settled today) → show for receipt access
+              //   • zero balance and no tx today → hide (already resolved)
+              if (_r?.status === 'CHECKED_OUT') {
+                if (_billDue(_r) > 0) return true
+                return grp.txs.some(t => (t.fiscal_day||'').startsWith(bd))
+              }
+              // Orphan groups without a reservation: keep visible if they had today activity
               return grp.txs.some(t => (t.fiscal_day||'').startsWith(bd))
             })
           : Object.values(unifiedGroups)
