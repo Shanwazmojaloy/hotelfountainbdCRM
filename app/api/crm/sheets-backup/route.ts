@@ -50,7 +50,6 @@ export async function POST(req: NextRequest) {
     const existing = meta.data.sheets?.find(
       s => s.properties?.title === sheetName
     )
-    const sheetId = existing?.properties?.sheetId
 
     if (!existing) {
       // Create new sheet tab

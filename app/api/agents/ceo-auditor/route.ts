@@ -200,7 +200,7 @@ Respond ONLY with valid JSON:
       try {
         const j = JSON.parse(errBody);
         if (j?.error?.message) reason = String(j.error.message).slice(0, 160);
-      } catch (_) { /* ignore */ }
+      } catch { /* ignore JSON parse failure — keep generic reason */ }
       return { ...runHeuristicAudit(payload), source: 'heuristic', fallback_reason: reason };
     }
 
