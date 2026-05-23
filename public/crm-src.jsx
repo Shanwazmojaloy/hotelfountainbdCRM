@@ -448,6 +448,93 @@ function Modal({title,onClose,children,footer,wide}) {
   )
 }
 
+// ── Outstanding-dues helper: collect every CHECKED_IN / CHECKED_OUT reservation
+//    for the same guest (by guest_id) with balance_due > 0. Includes the current
+//    reservation so the popup shows a single unified total. ─────────────────
+function findGuestOutstandingDues(currentRes, reservations, billDueFn) {
+  if (!currentRes || !Array.isArray(reservations)) return { items: [], total: 0 }
+  const gid = String((currentRes.guest_ids||[])[0] || '')
+  const dueOf = typeof billDueFn === 'function'
+    ? billDueFn
+    : (r => Math.max(0, (+r.total_amount||0) - (+r.discount_amount||+r.discount||0) - (+r.paid_amount||0)))
+  const items = reservations
+    .filter(r => {
+      if (r.status !== 'CHECKED_IN' && r.status !== 'CHECKED_OUT') return false
+      const rgid = String((r.guest_ids||[])[0] || '')
+      // Match by guest_id; if current res has no gid, fall back to id match (current only).
+      return gid ? (rgid === gid) : (String(r.id) === String(currentRes.id))
+    })
+    .map(r => ({
+      id: r.id,
+      room_number: (r.room_ids||[r.room_number]).filter(Boolean).join(', '),
+      check_in: r.check_in,
+      check_out: r.check_out,
+      status: r.status,
+      due: dueOf(r),
+      isCurrent: String(r.id) === String(currentRes.id)
+    }))
+    .filter(x => x.due > 0)
+    .sort((a,b) => {
+      if (a.isCurrent && !b.isCurrent) return -1
+      if (!a.isCurrent && b.isCurrent) return 1
+      return String(a.check_in||'').localeCompare(String(b.check_in||''))
+    })
+  return { items, total: items.reduce((acc, x) => acc + x.due, 0) }
+}
+
+// ── Reusable warning modal shown when a guest with outstanding balance is
+//    about to be checked out. Lists every unpaid stay (room · dates · amount),
+//    grand total, and forces explicit Proceed Anyway / Cancel decision. ────
+function OutstandingDuesWarning({ items, total, guestName, onCancel, onProceed }) {
+  return (
+    <Modal title="⚠ Outstanding Balance Detected" onClose={onCancel}
+      footer={<>
+        <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-danger" onClick={onProceed}>Proceed Anyway</button>
+      </>}>
+      <div style={{textAlign:'center',padding:'4px 0 14px'}}>
+        <div style={{fontSize:30,marginBottom:8}}>💰</div>
+        <div style={{fontWeight:700,fontSize:17,marginBottom:2}}>{guestName||'Guest'}</div>
+        <div className="xs muted">{items.length} reservation{items.length!==1?'s':''} with outstanding balance</div>
+      </div>
+      <div style={{border:'1px solid var(--br2)',borderRadius:4,overflow:'hidden',marginBottom:14}}>
+        <table className="tbl" style={{margin:0}}>
+          <thead><tr>
+            <th style={{fontSize:10}}>Room</th>
+            <th style={{fontSize:10}}>Check-In</th>
+            <th style={{fontSize:10}}>Check-Out</th>
+            <th style={{fontSize:10}}>Status</th>
+            <th style={{fontSize:10,textAlign:'right'}}>Amount Due</th>
+          </tr></thead>
+          <tbody>
+            {items.map(it => (
+              <tr key={it.id} style={it.isCurrent?{background:'rgba(200,169,110,.10)'}:{}}>
+                <td>
+                  <span className="badge bb">{it.room_number||'—'}</span>
+                  {it.isCurrent && <span className="xs gold" style={{marginLeft:6,fontWeight:700}}>(current)</span>}
+                </td>
+                <td className="xs muted">{fmtDate(it.check_in)}</td>
+                <td className="xs muted">{fmtDate(it.check_out)}</td>
+                <td><SBadge status={it.status}/></td>
+                <td className="xs" style={{textAlign:'right',color:'var(--rose)',fontWeight:700,fontFamily:'var(--mono)'}}>{BDT(it.due)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{padding:'12px 16px',background:'rgba(225,93,93,.08)',border:'1px solid rgba(225,93,93,.3)',borderRadius:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span style={{fontSize:13,fontWeight:700,color:'var(--tx)',letterSpacing:'.3px'}}>Total Outstanding</span>
+        <span style={{fontSize:19,fontWeight:800,color:'var(--rose)',fontFamily:'var(--mono)'}}>{BDT(total)}</span>
+      </div>
+      <div className="xs muted" style={{marginTop:12,textAlign:'center',lineHeight:1.55}}>
+        This guest has unpaid balances across the bookings above.<br/>
+        Settle before check-out, or click <strong style={{color:'var(--rose)'}}>Proceed Anyway</strong> to continue.
+      </div>
+    </Modal>
+  )
+}
+
+
 function BarChart({data,active,onHover}) {
   const max=Math.max(...data.map(d=>d.v),1)
   const bcRef=useRef(null)
@@ -1142,7 +1229,24 @@ function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toas
         <AddChargeModal roomNo={room.room_number} resId={activeRes?.id}
           toast={toast} onClose={()=>setShowCharge(false)} onDone={addFolioCharge}/>
       )}
-      {showCO&&(
+      {showCO&&(()=>{
+        // Compute every outstanding stay for this guest (current + prior). When the
+        // guest has more than just the current room's bill unpaid, show the detailed
+        // breakdown via OutstandingDuesWarning instead of the simple confirm.
+        const _dues = findGuestOutstandingDues(activeRes, reservations)
+        const _showFull = _dues.items.length > 1 || _dues.total > due
+        if (_showFull) {
+          return (
+            <OutstandingDuesWarning
+              items={_dues.items}
+              total={_dues.total}
+              guestName={guest?.name||activeRes?.guest_name||'Guest'}
+              onCancel={()=>setShowCO(false)}
+              onProceed={()=>{doCheckout();setShowCO(false)}}
+            />
+          )
+        }
+        return (
         <Modal title="Confirm Guest Checkout" onClose={()=>setShowCO(false)}
           footer={<><button className="btn btn-ghost" onClick={()=>setShowCO(false)}>Cancel</button><button className="btn btn-danger" onClick={()=>{doCheckout();setShowCO(false)}}>✓ Confirm Checkout</button></>}>
           <div style={{textAlign:'center',padding:'8px 0 12px'}}>
@@ -1162,7 +1266,8 @@ function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toas
             <div className="xs muted mt3">Room will move to Dirty / Housekeeping</div>
           </div>
         </Modal>
-      )}
+        )
+      })()}
     </Modal>
   )
 }
@@ -1309,7 +1414,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,bu
       </div>
 
       {selRes&&(
-        <ReservationDetail res={selRes} guests={guests} rooms={rooms} toast={toast}
+        <ReservationDetail res={selRes} guests={guests} rooms={rooms} reservations={reservations} toast={toast}
           onClose={()=>setSelRes(null)} reload={()=>{reload();setSelRes(null)}} isOwner={currentUser?.role==='owner'}
           businessDate={businessDate} transactions={transactions}/>
       )}
@@ -1321,7 +1426,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,bu
   )
 }
 
-function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,businessDate,transactions}) {
+function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,isOwner,businessDate,transactions}) {
   const [status,setStatus]=useState(res.status)
   const [paidAmt,setPaidAmt]=useState(String(res.paid_amount||''))
   const [discountAmt,setDiscountAmt]=useState(String(res.discount_amount||res.discount||''))
@@ -1347,7 +1452,21 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
   const balance=Math.max(0,totalAmt-discountNum-paidNum)
   const selectableRooms=rooms.filter(r=>r.status==='AVAILABLE'||roomArr.includes(r.room_number))
 
-  async function save() {
+  const [duesGate, setDuesGate] = useState(null)
+
+  async function save(opts) {
+    const _bypassDues = opts && opts.bypassDues === true
+    // Pre-flight: if transitioning to CHECKED_OUT and the guest has any outstanding
+    // balance across their other reservations, show the warning modal first and
+    // only proceed after explicit confirmation.
+    if (!_bypassDues && status === 'CHECKED_OUT' && res.status !== 'CHECKED_OUT') {
+      const draft = { ...res, paid_amount: paidNum, discount_amount: discountNum, total_amount: totalAmt }
+      const dues = findGuestOutstandingDues(draft, (reservations||[]).map(r=>String(r.id)===String(res.id)?draft:r))
+      if (dues.items.length > 0) {
+        setDuesGate(dues)
+        return
+      }
+    }
     setSaving(true)
     try {
       const newRoomNos=roomArr.filter(Boolean)
@@ -1602,6 +1721,15 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
           <div style={{flex:1}}/>
           {res.status==='RESERVED'&&(
             <button className="btn btn-ghost" onClick={printConfirmation} title="Print Booking Confirmation">🖨 Print Confirmation</button>
+          )}
+          {duesGate && (
+            <OutstandingDuesWarning
+              items={duesGate.items}
+              total={duesGate.total}
+              guestName={gn}
+              onCancel={()=>setDuesGate(null)}
+              onProceed={()=>{ setDuesGate(null); save({bypassDues:true}) }}
+            />
           )}
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
           <button className="btn btn-gold" disabled={saving} onClick={save}>{saving?'Saving…':'Save Changes'}</button>
