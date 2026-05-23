@@ -1423,6 +1423,12 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
     const fmt = n => '৳' + Number(n||0).toLocaleString('en-BD')
     const confNo = 'HF-' + String(res.id||'').slice(0,8).toUpperCase()
     const issued = new Date().toLocaleString('en-GB',{timeZone:'Asia/Dhaka',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    // Hotel Fountain identity — embedded so the new print window has no network dep
+    const HF_LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAggAAAIICAYAAAAL/BZjAABt3klEQVR42u3deZxkVXk28N9z7r1V1cuszACDooC4MXGJELfXCKgxGBXXbgU0RhMhcQHBLRqT6javryLK4vIqvDFRkcVuFqPGPQ64RKPgQpxBEJR1WGd6pteqe+85z/vHPbfqVE11T88wzAzM7/uh6Z7uWm7dunXPc859znMAIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIaB/y/wGVkK+oriO4iAAAAABJRU5ErkJgg'
+    const HF_ADDR  = 'House-05, Road-02, Nikunja-02, Dhaka 1229, Bangladesh'
+    const HF_EMAIL = 'hotellfountainbd@gmail.com'
+    const HF_SITE  = 'fountainbd.com'
+    const HF_PHONE = '+880 1322-840799'
     const rows = roomArr.filter(Boolean).map(rn=>{
       const rm=rooms.find(r=>String(r.room_number)===String(rn))
       const rate=+rm?.price||0
@@ -1437,25 +1443,30 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
     }).join('')
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Booking Confirmation · ${esc(confNo)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{background:#FBF8F1;color:#1F1B16;font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.55}
+  html,body{background:#FBF8F1;color:#1F1B16;font-family:'Natom Pro','Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;line-height:1.55;-webkit-font-smoothing:antialiased}
   .page{max-width:780px;margin:0 auto;padding:48px 56px;background:#FBF8F1}
-  .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #EAE6DD;padding-bottom:24px;margin-bottom:32px}
-  .brand h1{font-family:'Libre Baskerville',serif;font-size:28px;font-weight:700;letter-spacing:.5px;color:#1F1B16}
-  .brand h1 em{font-style:italic;color:#9C7A3E;font-weight:400}
-  .brand .tag{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#8A8276;margin-top:4px}
+  .hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-bottom:2px solid #C8A96E;padding-bottom:28px;margin-bottom:32px}
+  .brand{display:flex;align-items:center;gap:18px}
+  .brand img.logo{width:72px;height:72px;object-fit:contain;flex:none}
+  .brand .txt{display:flex;flex-direction:column}
+  .brand h1{font-family:'Natom Pro','Inter',sans-serif;font-size:26px;font-weight:700;letter-spacing:.8px;color:#1F1B16;text-transform:uppercase}
+  .brand h1 em{font-style:normal;color:#C8A96E;font-weight:500;letter-spacing:1px}
+  .brand .tag{font-family:'Natom Pro','Inter',sans-serif;font-style:italic;font-size:12px;letter-spacing:1.5px;color:#C8A96E;margin-top:6px;font-weight:400}
+  .brand .contact{font-family:'Natom Pro','Inter',sans-serif;font-size:9.5px;color:#5A544A;line-height:1.7;margin-top:8px;letter-spacing:.3px}
+  .brand .contact span{color:#8A8276}
   .meta{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5A544A;line-height:1.7}
   .meta .conf{color:#9C7A3E;font-weight:500;font-size:12px}
-  .doc-title{font-family:'Libre Baskerville',serif;font-size:22px;font-weight:400;letter-spacing:.3px;margin-bottom:6px}
+  .doc-title{font-family:'Natom Pro','Inter',sans-serif;font-size:22px;font-weight:600;letter-spacing:.5px;margin-bottom:6px;color:#1F1B16}
   .doc-sub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:32px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
-  .box{border:1px solid #EAE6DD;background:#FFFDF7;padding:18px 20px;border-radius:2px}
+  .box{border:2px solid #D9CFB8;background:#FFFDF7;padding:18px 20px;border-radius:3px}
   .lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:6px}
-  .val{font-family:'Libre Baskerville',serif;font-size:15px;color:#1F1B16}
+  .val{font-family:'Natom Pro','Inter',sans-serif;font-size:15px;font-weight:500;color:#1F1B16;letter-spacing:.2px}
   .val.mono{font-family:'IBM Plex Mono',monospace;font-size:13px}
-  table{width:100%;border-collapse:collapse;margin-bottom:24px;border:1px solid #EAE6DD;background:#FFFDF7}
+  table{width:100%;border-collapse:collapse;margin-bottom:24px;border:2px solid #D9CFB8;background:#FFFDF7;border-radius:3px;overflow:hidden}
   thead th{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;text-align:left;padding:12px 14px;border-bottom:1px solid #EAE6DD;font-weight:500}
   thead th.num{text-align:right}
   tbody td{padding:14px;border-bottom:1px solid #F2EEE4;font-size:13px}
@@ -1476,7 +1487,7 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
   .terms{margin-top:32px;font-size:10px;color:#8A8276;line-height:1.7}
   .terms h4{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#5A544A;margin-bottom:8px;font-weight:500}
   .actions{position:fixed;top:16px;right:16px;display:flex;gap:8px}
-  .actions button{font-family:'DM Sans',sans-serif;font-size:12px;padding:8px 14px;border:1px solid #9C7A3E;background:#9C7A3E;color:#FBF8F1;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:2px}
+  .actions button{font-family:'Natom Pro','Inter',sans-serif;font-size:12px;padding:8px 14px;border:1px solid #9C7A3E;background:#9C7A3E;color:#FBF8F1;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:2px;font-weight:500}
   .actions button.ghost{background:transparent;color:#9C7A3E}
   @media print{.actions{display:none}body{background:#fff}.page{padding:24px 32px}}
 </style></head><body>
@@ -1484,8 +1495,15 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
 <div class="page">
   <div class="hdr">
     <div class="brand">
-      <h1>Hotel <em>Fountain</em></h1>
-      <div class="tag">The Pulse of Modern Hospitality · Dhaka</div>
+      <img class="logo" src="${HF_LOGO}" alt="Hotel Fountain"/>
+      <div class="txt">
+        <h1>Hotel <em>Fountain</em></h1>
+        <div class="tag">Luxury In Comfort</div>
+        <div class="contact">
+          ${esc(HF_ADDR)}<br/>
+          <span>Email</span> ${esc(HF_EMAIL)} &nbsp;·&nbsp; <span>Web</span> ${esc(HF_SITE)} &nbsp;·&nbsp; <span>Tel</span> ${esc(HF_PHONE)}
+        </div>
+      </div>
     </div>
     <div class="meta">
       <div class="conf">${esc(confNo)}</div>
@@ -1545,8 +1563,8 @@ function ReservationDetail({res,guests,rooms,toast,onClose,reload,isOwner,busine
   </div>
 
   <div class="ftr">
-    <div>Hotel Fountain · Dhaka, Bangladesh</div>
-    <div>fountainbd.com</div>
+    <div>${esc(HF_PHONE)} &nbsp;·&nbsp; ${esc(HF_EMAIL)}</div>
+    <div>${esc(HF_SITE)}</div>
   </div>
 </div>
 <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),350))</script>
