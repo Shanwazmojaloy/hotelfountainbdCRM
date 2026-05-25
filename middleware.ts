@@ -38,9 +38,30 @@ function extractSlug(host: string): string {
   return DEFAULT_SLUG;
 }
 
+// Hosts that should serve the Lumea PMS marketing landing on `/` instead of
+// the Hotel Fountain landing. Anything beyond `/` is passed through unchanged
+// (so /crm.html, /api/*, etc. still work).
+const LUMEA_MARKETING_HOSTS = new Set([
+  'lumea.fountainbd.com',
+  'www.lumea.fountainbd.com',
+]);
+
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
+  const hostname = host.split(':')[0];
   const slug = extractSlug(host);
+  const { pathname } = request.nextUrl;
+
+  // Host-based rewrite: lumea.fountainbd.com/ → /lumea
+  // (Keeps the canonical URL as lumea.fountainbd.com but renders app/lumea/page.tsx)
+  if (LUMEA_MARKETING_HOSTS.has(hostname) && pathname === '/') {
+    const rewritten = request.nextUrl.clone();
+    rewritten.pathname = '/lumea';
+    const response = NextResponse.rewrite(rewritten);
+    response.headers.set('x-tenant-slug', slug);
+    response.headers.set('x-lumea-marketing', '1');
+    return response;
+  }
 
   const response = NextResponse.next();
   response.headers.set('x-tenant-slug', slug);
