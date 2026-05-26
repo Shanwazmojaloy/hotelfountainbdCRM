@@ -98,8 +98,8 @@ function useCountUp(from: number, to: number, durationMs: number, trigger: boole
 }
 
 // ─── IntersectionObserver hook ──────────────────────────────────────────────
-function useInView<T extends HTMLElement>(rootMargin = '-10% 0px'): [React.RefObject<T | null>, boolean] {
-  const ref = useRef<T | null>(null);
+function useInView<T extends HTMLElement>(rootMargin = '-10% 0px'): [React.RefObject<T>, boolean] {
+  const ref = useRef<T>(null!) as React.RefObject<T>;
   const [inView, setInView] = useState(false);
   useEffect(() => {
     const el = ref.current;
