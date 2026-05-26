@@ -12,6 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 
 const WHATSAPP_URL =
   'https://wa.me/8801322840799?text=Hi%20Lumea%20team%2C%20I%27d%20like%20to%20learn%20more%20about%20your%20PMS%20for%20my%20hotel.';
@@ -372,11 +373,11 @@ export default function LumeaLandingPage() {
 
       {/* ─── Navigation ──────────────────────────────────────────────────── */}
       <nav className="nav" style={{ animation: 'fadeDown .8s cubic-bezier(.16,1,.3,1) both' }}>
-        <a href="/" className="brand">
+        <Link href="/" className="brand">
           <span className="brand-word">LUMEA</span>
           <span className="brand-dot">·</span>
           <span className="brand-sub">PMS for Boutique Hotels</span>
-        </a>
+        </Link>
         <div className="nav-links">
           <a href="#features" className="nav-link">Features</a>
           <a href="#stats" className="nav-link">Numbers</a>
