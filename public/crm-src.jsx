@@ -1350,9 +1350,36 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,bu
   const [search,setSearch]=useState('')
   const [selRes,setSelRes]=useState(null)
   const [showNew,setShowNew]=useState(false)
+  const [foliosMap,setFoliosMap]=useState({})
+
+  // Fetch folios once on mount so DUE filter math matches Billing & Invoices Outstanding.
+  // MEMORY_LOG invariant: _billDue (computeBill-equivalent) is the source of truth for
+  // outstanding balance display and due-guest filtering — folios (F&B etc.) must count.
+  useEffect(()=>{
+    db('folios','?select=*&order=created_at').then(d=>{
+      const map={};(Array.isArray(d)?d:[]).forEach(f=>{const k=f.reservation_id||f.room_number;if(!map[k])map[k]=[];map[k].push(f)})
+      setFoliosMap(map)
+    }).catch(()=>{})
+  },[])
 
   const sc=reservations.reduce((a,r)=>{a[r.status]=(a[r.status]||0)+1;return a},{})
-  const resBalance=r=>Math.max(0,(+r.total_amount||0)-(+r.discount_amount||+r.discount||0)-(+r.paid_amount||0))
+  // resBalance: mirror of BillingPage.computeBill().due — uses max(canonical, rooms+folios) so
+  // reservations whose total_amount has NOT been resynced after Add Charge still show true due.
+  const resBalance=r=>{
+    const nights=nightsCount(r.check_in,r.check_out)||1
+    const roomNos=(r.room_ids||[r.room_number]).filter(Boolean)
+    const allFolios=[
+      ...(foliosMap[r.id]||[]),
+      ...roomNos.flatMap(rn=>(foliosMap[rn]||[]).filter(f=>!f.reservation_id||f.reservation_id===r.id))
+    ].filter((f,i,arr)=>arr.findIndex(x=>x.id===f.id)===i)
+    const roomCharge=roomNos.reduce((a,rn)=>{const rm=rooms?.find(x=>String(x.room_number)===String(rn));return a+((+rm?.price||+r.rate_per_night||0)*nights)},0)
+    const extras=allFolios.reduce((a,f)=>a+(+f.amount||0),0)
+    const sub=roomCharge+extras
+    const canonical=+r.total_amount||0
+    const discount=+r.discount_amount||+r.discount||0
+    const paid=+r.paid_amount||0
+    return Math.max(0, Math.max(canonical,sub) - discount - paid)
+  }
   const dueCount=reservations.filter(r=>(r.status==='CHECKED_IN'||r.status==='CHECKED_OUT')&&resBalance(r)>0).length
   const getGN=gids=>{const fid=String((gids||[])[0]||'');const g=guests.find(g=>String(g.id)===fid);return g?g.name:'Unknown'}
 
