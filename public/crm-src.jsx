@@ -2998,7 +2998,14 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     const vatPct=0, svcPct=0, tax=0, svc=0
     const discount=+r.discount_amount||+r.discount||0
     const canonical=+r.total_amount||0
-    const rawTotal = canonical>0 ? canonical + extras : (sub>0 ? sub : 0)
+    // canonical (reservations.total_amount) is the persisted gross subtotal.
+    // Add Charge writes (rooms+folios) back to total_amount, so canonical already includes extras.
+    // sub is the live recompute (roomCharge + extras from foliosMap).
+    // Use max() so:
+    //  • canonical-with-extras + same folios in map  → no double-count (max = canonical = sub)
+    //  • canonical-rooms-only + folio added without resync → sub wins, extras still counted
+    //  • orphan/zero canonical → sub fallback
+    const rawTotal = Math.max(canonical, sub)
     const total=Math.max(0,rawTotal-discount)
     const paid=+r.paid_amount||0
     const due=Math.max(0,total-paid)
