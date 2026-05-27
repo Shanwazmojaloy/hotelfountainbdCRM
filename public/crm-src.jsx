@@ -3701,7 +3701,11 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
   const lockedGuest = fromRow?(prefill.guest_name||''):null
   const lockedResId = fromRow?prefill._resId:null
   const lockedDiscount = fromRow?(+prefill._discount||0):0
-  const lockedDue   = fromRow?Math.max(0,(+prefill._total||0)-lockedDiscount-(+prefill._paid||0)):0
+  // lockedDue: prefill._total is already net of discount (caller sets it to computeBill.total
+  // = max(0, canonical - discount)). NEVER subtract lockedDiscount again here â€” that would
+  // double-apply the discount and silently mark partially-paid stays as Settled. The Discount
+  // column in the footer below is informational only; the math anchor is _total.
+  const lockedDue   = fromRow?Math.max(0,(+prefill._total||0)-(+prefill._paid||0)):0
 
   const initRes=!fromRow&&prefill?.id?prefill:(!fromRow&&dueResList.length===1?dueResList[0]:null)
   const [selRes,setSelRes]=useState(initRes)
