@@ -1978,9 +1978,16 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType) {
       </tr>
     </tfoot>
   </table>
-  <div style="margin-top:16px;padding-top:8px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:center">
-    <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase">Hotel Fountain · Lumea PMS · Confidential</div>
-    <div style="font-size:7.5px;color:#8D6F57">Computer-generated invoice — no signature required</div>
+  <div style="margin-top:16px;padding-top:10px;border-top:1px solid #8D6F57;display:flex;justify-content:space-between;align-items:flex-end">
+    <div>
+      <div style="font-size:7.5px;color:#8D6F57;letter-spacing:.1em;text-transform:uppercase">Hotel Fountain · Lumea PMS · Confidential</div>
+      <div style="font-size:7.5px;color:#8D6F57;margin-top:3px">Computer-generated invoice — no signature required</div>
+    </div>
+    <div style="text-align:center;flex-shrink:0;margin-left:16px">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=88x88&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="88" height="88" style="display:block;margin-bottom:4px" alt="WhatsApp QR"/>
+      <div style="font-size:6.5px;color:#8D6F57;letter-spacing:.12em;text-transform:uppercase;margin-bottom:1px">Scan to WhatsApp</div>
+      <div style="font-size:7.5px;font-weight:700;color:#1C1510;font-family:monospace">+880 1322-840799</div>
+    </div>
   </div>
   </body></html>`
   printPDF(content)
