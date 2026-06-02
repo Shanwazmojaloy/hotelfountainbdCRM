@@ -1329,3 +1329,237 @@ The `status=in.(RESERVED,CHECKED_IN,CONFIRMED)` filter explicitly EXCLUDES `CANC
 
 (e) **Multi-tenant safety.**
 The query inherits the active tenant's RLS scope via the `SB_KEY` publishable key — no explicit `tenant_id=eq.${TENANT}` filter needed. If RLS is ever loosened to `SECURITY DEFINER`, this query will leak cross-tenant bookings; the invariant from CLAUDE.md (`SECURITY INVOKER` default) keeps us safe.
+
+---
+
+Referral Queue Cascade Fix (v3.x — 2026-05-26):
+- **Symptom:** Reservation delete blocked with Postgres error code `23503`: `update or delete on table "reservations" violates foreign key constraint "referral_queue_reservation_id_fkey" on table "referral_queue"`. Reproduced on SHAMSUL ISLAM reservation (Room 306, 15→16 May 2026, ৳4,500 Cash, REF :RAHAZUL).
+- **Root cause:** `referral_queue.reservation_id` FK was created with `ON DELETE NO ACTION` while every other child of `reservations` (folios, transactions, billing_invoices, guest_ledger, payment_transactions, review_requests, upsell_offers) was already `ON DELETE CASCADE`. Single odd-one-out violating the CLAUDE.md Cascade Delete directive.
+- **Audit query** (run before adding any new reservation child table to confirm cascade coverage):
+```sql
+SELECT tc.table_name, tc.constraint_name, rc.delete_rule
+FROM information_schema.table_constraints tc
+JOIN information_schema.referential_constraints rc USING (constraint_name)
+JOIN information_schema.constraint_column_usage ccu
+  ON rc.unique_constraint_name = ccu.constraint_name
+WHERE tc.constraint_type='FOREIGN KEY'
+  AND ccu.table_name='reservations'
+  AND tc.table_schema='public';
+```
+Every row's `delete_rule` MUST be `CASCADE`. Any `NO ACTION` / `RESTRICT` / `SET NULL` is a regression.
+- **Migration applied** (`cascade_referral_queue_on_reservation_delete`, project `mynwfkgksqqwlqowlscj`):
+```sql
+ALTER TABLE public.referral_queue
+  DROP CONSTRAINT IF EXISTS referral_queue_reservation_id_fkey;
+ALTER TABLE public.referral_queue
+  ADD CONSTRAINT referral_queue_reservation_id_fkey
+  FOREIGN KEY (reservation_id) REFERENCES public.reservations(id)
+  ON DELETE CASCADE;
+```
+- **Invariant:** Any new table that stores `reservation_id` MUST declare `REFERENCES reservations(id) ON DELETE CASCADE` at create time. Per CLAUDE.md "Every Delete action must be a Cascade Delete" — orphan referral_queue rows would otherwise re-fire outreach bots against deleted bookings (RAHAZUL commission ghost-trigger risk).
+- **Verification:** Re-ran audit post-migration; all 8 reservation children now report `CASCADE`. No code/UI change required — pure DDL fix.
+
+---
+
+Billing Due Math — Canonical Anchor (v3.4 — 2026-05-26, commit `aa693bd`):
+
+**Owner-confirmed invariant (the ৳13,600-class rule, now formalized):**
+```
+balance_due = max(0, total_amount − discount_amount − paid_amount)
+```
+`reservations.total_amount` IS the gross subtotal — the single source of truth. Folio extras (HALF DAY CHARGE, Stay Extension, F&B, Dinner Bill) are billable ONLY if `Add Charge` has resynced `total_amount`. Standalone folios that exist in the `folios` table without a matching `total_amount` resync are NOT billed.
+
+**The full saga (4 commits, 1 reversal — read this before touching billing math):**
+
+| # | Commit | Direction | Result |
+|---|---|---|---|
+| 1 | `9192ac0` | computeBill: `Math.max(canonical, sub)` | Fixed ARULNAYAGAN ৳57,960 → ৳51,080 (was double-counting F&B because canonical already included it). But still inflated other reservations where canonical was rooms-only and folios were posted without resync. |
+| 2 | `3af3c43` | ReservationsPage.resBalance also folio-aware (matched Billing) | WRONG DIRECTION. Made Reservations DUE inflate to match Billing's bloated ৳205,522. Owner pushed back: simple canonical math IS the truth, Billing was wrong. |
+| 3 | `aa693bd` | computeBill: `canonical > 0 ? canonical : sub`; ReservationsPage.resBalance reverted to simple `total - discount - paid` | **FINAL & SHIPPED.** Folios only count if Add Charge resynced canonical. Both pages now agree. |
+
+**Wrong-then-right pattern — preserve these test cases:**
+
+| Case | canonical | sub (rooms+folios) | discount | paid | Correct due | Old (max) | New (canonical) |
+|---|---|---|---|---|---|---|---|
+| ARULNAYAGAN | 58,880 | 58,880 | 7,800 | 0 | **51,080** | 51,080 ✓ | 51,080 ✓ |
+| Rooms-only canonical + orphan folio | 4,000 | 4,200 | 0 | 0 | **4,000** | 4,200 ✗ | 4,000 ✓ |
+| Zero canonical (legacy) | 0 | 4,200 | 0 | 0 | 4,200 | 4,200 ✓ | 4,200 ✓ (sub fallback) |
+
+**Why the user-facing total_amount editor matters:** when the owner edits a reservation's "TOTAL AMOUNT" field in the modal, they set canonical directly. That value wins over any computed sub. If a server-side cron or background sync ever rebuilds total_amount from `rooms + folios`, it MUST respect manual edits — otherwise we re-introduce the ৳113,602 over-count.
+
+**Anti-pattern to NEVER reintroduce:**
+```js
+const rawTotal = canonical + extras       // double-counts when Add Charge already synced
+const rawTotal = Math.max(canonical, sub) // counts orphan folios that owner didn't intend to bill
+```
+**Canonical formula (the only one):**
+```js
+const rawTotal = canonical > 0 ? canonical : sub
+const total = Math.max(0, rawTotal - discount)
+const due = Math.max(0, total - paid)
+```
+
+**Cross-page invariant:** `ReservationsPage.resBalance` and `BillingPage._billDue` (via `computeBill().due`) MUST produce identical values for every reservation. If they diverge, one of them is wrong — start by checking which side imported folios into its math.
+
+---
+
+Guest Deduplication — 2,773 → 1,470 (2026-05-26):
+
+**Trigger:** Owner reported "many duplicates with same guests" in the Guest CRM (2,772 entries with obvious dupes like `A K M RAFIQUL HAQUE` ×2, `A K M RASEL` ×2). Most rows have blank phone/email/ID — staff re-entered the same guest under new UUIDs.
+
+**Approach:** two-pass merge with full FK redirect, layered backups.
+
+**Pass 1 — Permissive** (`dedup_guests_permissive_20260526_v2`):
+- Group key: `UPPER(regexp_replace(TRIM(name), '\s+', ' ', 'g'))`
+- Required: COUNT(DISTINCT normalized_phone) ≤ 1 AND COUNT(DISTINCT id_doc) ≤ 1 (no conflicting identifiers)
+- Canonical pick: max `total_stays` DESC, max `total_spent` DESC, min `id` ASC
+- Removed: 1,225 dupes → guests count 2,773 → 1,548
+
+**Pass 2 — Aggressive** (`dedup_guests_aggressive_20260526`):
+- Group key: same normalized name
+- Ignores phone/ID conflicts
+- Canonical pick: prefer guests with phone-or-id present, then most stays/spent, then oldest UUID
+- Removed: 78 dupes → 1,548 → 1,470
+
+**FK redirect — required because most child constraints are RESTRICT, not CASCADE:**
+```sql
+UPDATE billing_invoices    SET guest_id = canonical_id WHERE guest_id = dupe_id;  -- RESTRICT
+UPDATE guest_ledger        SET guest_id = canonical_id WHERE guest_id = dupe_id;  -- RESTRICT
+UPDATE payment_transactions SET guest_id = canonical_id WHERE guest_id = dupe_id; -- RESTRICT
+UPDATE review_requests     SET guest_id = canonical_id WHERE guest_id = dupe_id;  -- NO ACTION
+UPDATE swarm_leads         SET guest_id = canonical_id WHERE guest_id = dupe_id;  -- SET NULL (would auto-null on delete)
+UPDATE reservations r SET guest_ids = ARRAY(SELECT DISTINCT COALESCE(m.canonical_id, gid)
+                                            FROM unnest(r.guest_ids) gid LEFT JOIN _dedup_map m ON m.dupe_id = gid)
+       WHERE EXISTS (SELECT 1 FROM unnest(r.guest_ids) gid JOIN _dedup_map m ON m.dupe_id = gid);
+```
+Failure to update FKs first causes the DELETE in step 5 to throw `23503 foreign_key_violation` and the whole migration rolls back. (Hit this in v1 — see error log entries from 2026-05-26.)
+
+**Field coalescing rule for canonical (preserve any non-empty value across the dupe group):**
+- text fields: `COALESCE(NULLIF(canonical.field,''), MAX(dupe.field) FILTER (WHERE NULLIF...))` — non-blank wins
+- numeric aggregates: SUM(total_stays), SUM(total_spent), SUM(loyalty_points) — additive
+- booleans: BOOL_OR(vip), BOOL_OR(marketing_opt_out) — sticky-true
+- last_contacted: GREATEST(canonical, dupe) — newest wins
+
+**Backups (DO NOT DROP until ≥30 days verified):**
+- `public._backup_guests_20260526` — 2,773 rows, pre-permissive snapshot
+- `public._backup_reservation_guest_ids_20260526` — 1,114 rows, original guest_ids[] linkage
+- `public._dedup_map_20260526` — 1,225 dupe→canonical pairs (permissive)
+- `public._backup_guests_20260526_agg` — 1,548 rows, post-permissive / pre-aggressive
+- `public._backup_reservation_guest_ids_20260526_agg` — 1,114 rows, post-permissive linkage
+- `public._dedup_map_20260526_agg` — 78 dupe→canonical pairs (aggressive)
+
+**Rollback recipe (selective, by canonical_id):**
+```sql
+-- Restore one canonically-merged guest (split a wrong aggressive merge back out)
+INSERT INTO public.guests SELECT g.* FROM public._backup_guests_20260526_agg g
+  WHERE g.id IN (SELECT dupe_id FROM public._dedup_map_20260526_agg WHERE canonical_id = '<canonical-uuid>');
+UPDATE public.reservations r SET guest_ids = b.guest_ids
+  FROM public._backup_reservation_guest_ids_20260526_agg b WHERE b.reservation_id = r.id;
+-- Then re-subtract aggregate stats from canonical if needed.
+```
+
+**Integrity invariants confirmed post-merge:**
+- 0 orphan reservation.guest_ids
+- 0 orphan billing_invoices.guest_id / guest_ledger.guest_id / payment_transactions.guest_id
+- 0 same-name duplicates remaining (both pass rules satisfied)
+
+---
+
+Build-Unblock Chain (2026-05-26):
+
+The billing fix took 3 PRs to actually deploy because two prior commits (`92fb433` cinematic landing, `30482ce` lumea-marketing landing) had been failing the production build for ~48h, blocking ALL subsequent commits:
+
+| Commit | Failure | Fix |
+|---|---|---|
+| `92fb433`, `30482ce` | ESLint `@next/next/no-html-link-for-pages` at `app/lumea/page.tsx:375` (`<a href="/">`) | `0298704`: swap for `<Link href="/">` + `import Link from 'next/link'`. Note: `<a href="/crm.html">` is fine because crm.html is a static file in `public/`, not a Next route. |
+| `0298704` | TS5 strict at `lumea/page.tsx:147`: `RefObject<HTMLDivElement \| null>` not assignable to `LegacyRef<HTMLDivElement>` | `381cc9e`: change `useInView` return to `RefObject<T>` (drop nullable) + cast `useRef<T>(null!) as React.RefObject<T>`. Runtime unchanged since React 18's `RefObject<T>.current` is typed `T \| null` regardless. |
+
+**Lesson:** when a build fails with multiple stacked broken commits, fixes must land in the same chronological order they broke things (lint → TS → billing). A new push doesn't "skip" the prior errors — Vercel rebuilds from HEAD each time.
+
+**Detection:** before pushing a billing-only change, check `list_deployments` for the project; if the most recent deploy state is ERROR, pull build logs FIRST and stack fixes accordingly.
+
+---
+
+OneDrive Tail Truncation (recurring 2026-05-26):
+
+`public/crm-src.jsx` and `app/lumea/page.tsx` repeatedly lost their final lines (including `ReactDOM.createRoot` mount, JSX closing tags) after edits in this session. Symptom: file shrinks by 5-15 lines, last line ends mid-token. Affects working copy only; HEAD remains intact.
+
+**Suspected cause:** Cowork sandbox writes through OneDrive sync; under contention, OneDrive flushes the file mid-write and truncates the tail. Same symptom previously documented in `crm-src-tail-corruption` memory under a different cause (rebase-resurrected duplicate `ReactDOM.createRoot` block).
+
+**Pre-commit guard (add to every push script touching these files):**
+```bash
+grep -c "ReactDOM.createRoot" public/crm-src.jsx  # must return 1
+tail -1 app/lumea/page.tsx                        # must be `}` not mid-token
+```
+
+**Recovery:** if truncated, restore from HEAD: `git show HEAD:<path> > <path>` then re-apply the change with the Python in-line script pattern used in this session (read full HEAD content, do `assert src.count(old) == 1`, write whole file at once). Avoid the Edit tool for these two files until the OneDrive write-flush issue is investigated separately.
+
+**TODO:** investigate whether excluding the repo folder from OneDrive sync (or moving it outside OneDrive entirely) eliminates the truncation. If yes, document the migration path.
+
+---
+
+RecordPayModal Double-Discount Fix (v3.5 — 2026-05-27, commit `2f436c6`):
+
+**Symptom:** Billing & Invoices list showed correct balance due, but clicking `+ PAY` opened a Record Payment modal that displayed wrong figures. ZUBAYED KHAN and SHAMIM SIR 405 were flagged "✓ Settled" with Balance Due ৳0 even though the list showed ৳2,000 each. ARULNAYAGAN modal showed ৳43,280 due instead of the correct ৳51,080.
+
+**Root cause:** double-application of discount across the caller→modal boundary.
+
+`BillingPage` (line ~3548) sets `prefill._total = computeBill(r).total`, which per the v3.4 canonical anchor returns `max(0, canonical - discount)` — already net of discount.
+
+`RecordPayModal` (line 3704) then computed:
+```js
+const lockedDue = fromRow ? Math.max(0, (+prefill._total||0) - lockedDiscount - (+prefill._paid||0)) : 0
+```
+Subtracting `lockedDiscount` again applies the same discount twice.
+
+**Math trace (ARULNAYAGAN):**
+- canonical = 58,880, discount = 7,800, paid = 0
+- `_total` passed in = max(0, 58880 − 7800) = 51,080 (already net)
+- lockedDue (old) = max(0, 51,080 − 7,800 − 0) = 43,280   ← double-discount bug
+- lockedDue (new) = max(0, 51,080 − 0) = 51,080   ← matches list, matches owner spec
+
+**Special-case math (ZUBAYED, discount > canonical):**
+- canonical = 4,500, discount = 2,500, paid = 0
+- `_total` = max(0, 4500 − 2500) = 2,000
+- lockedDue (old) = max(0, 2000 − 2500 − 0) = 0   ← falsely showed Settled
+- lockedDue (new) = max(0, 2000 − 0) = 2,000   ← correctly shows owed
+
+**Fix** (`public/crm-src.jsx:3704`):
+```diff
+- const lockedDue   = fromRow?Math.max(0,(+prefill._total||0)-lockedDiscount-(+prefill._paid||0)):0
++ const lockedDue   = fromRow?Math.max(0,(+prefill._total||0)-(+prefill._paid||0)):0
+```
+
+**Invariant blacklisted:** any modal/widget that takes `computeBill.total` (or any pre-discounted figure) and subtracts discount AGAIN is double-applying. The Discount column rendered in the modal footer (line 3796) is **informational only** — it's NOT a subtrahend. The math anchor is `_total`, which is already net.
+
+**payCap unchanged** (line 3744-3746): still uses `prefill._total` as the gross cap on `paid_amount`. Since `_total` is the post-discount net total, the cap correctly prevents overpaying beyond what's owed.
+
+**Deploy chain saga (worth keeping for future Claude):**
+
+The fix took 5 PowerShell push-script revisions to actually ship because of a chain of issues unrelated to the bug itself:
+
+1. **v1 (PUSH_MODAL.ps1)**: pre-commit guard used `Select-String -SimpleMatch -Pattern "ReactDOM\.createRoot"`. `-SimpleMatch` treats the pattern as a literal string, so the `\.` was searched for as an actual backslash-dot. The file (correctly containing `ReactDOM.createRoot`) yielded 0 matches → false-alarm ABORT.
+
+2. **v2 (PUSH_MODAL_V2.ps1)**: rewrote with multi-line `$old`/`$new` in double-quoted strings. PowerShell expanded `$prefill._total` and `||` as expressions → parse errors before the script even ran.
+
+3. **v3 (PUSH_MODAL_V3.ps1)**: switched to single-quoted strings + here-strings (`@'...'@`) to defeat interpolation. But still used `-SimpleMatch -Pattern 'ReactDOM\.createRoot'` → same false-alarm abort on HEAD restore.
+
+4. **v4 (PUSH_MODAL_V4.ps1)**: added `git checkout HEAD -- public/crm-src.jsx` for restore, still hit the `-SimpleMatch` regex bug.
+
+5. **v5 (PUSH_MODAL_V5.ps1)** **shipped** ✓: dropped `-SimpleMatch`, so `\.` is interpreted as regex (literal dot). Verify pattern now matches reality. Patch applied, bundle rebuilt, pushed clean.
+
+**PowerShell verify-pattern rule (add to all future push scripts):**
+```powershell
+# CORRECT — regex backslash-dot matches a literal dot
+$count = (Select-String -Path public\crm-src.jsx -Pattern 'ReactDOM\.createRoot').Count
+
+# WRONG — -SimpleMatch makes \. a literal backslash-dot, never matches
+$count = (Select-String -Path public\crm-src.jsx -Pattern 'ReactDOM\.createRoot' -SimpleMatch).Count
+
+# ALSO CORRECT — literal dot without -SimpleMatch is interpreted as regex any-char (still matches)
+$count = (Select-String -Path public\crm-src.jsx -Pattern 'ReactDOM.createRoot' -SimpleMatch).Count
+```
+
+**PowerShell string-quoting rule:** any string literal containing JS code with `$`, `||`, or expression-like patterns MUST use single quotes (`'...'`) or single-quoted here-strings (`@'...'@`). Double-quoted strings interpolate.
+
+This deployment chain pattern (false-alarm guard → wrong fix direction → quoting bug → restore method tweak → final ship) burned ~5 round-trips. Keep this section as a reference next time a Windows-side push script touches crm-src.jsx.
