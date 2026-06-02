@@ -2479,8 +2479,7 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  @page{size:A4 landscape;margin:10mm 12mm}
-  @media print{.actions{display:none}body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0}}
+  @page{size:A4 landscape;margin:6mm 8mm}
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{background:#FBF8F1;color:#1F1B16;font-family:'Natom Pro','Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:12.5px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
   .page{width:100%;max-width:none;margin:0;padding:28px 40px;background:#FBF8F1;min-height:100vh}
@@ -2561,6 +2560,45 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
 
   /* Footer */
   .ftr{margin-top:32px;padding-top:18px;border-top:1px solid #EAE6DD;display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276}
+
+  /* ── Print overrides — fit single A4 landscape page ── */
+  @media print{
+    .actions{display:none}
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:8px !important;line-height:1.25 !important;zoom:.7}
+    .page{padding:0 !important;max-width:none !important;width:100% !important;margin:0 !important;background:#fff !important;min-height:0 !important}
+    .hdr{padding-bottom:8px !important;margin-bottom:8px !important;gap:14px !important;border-bottom-width:1px !important}
+    .brand{gap:12px !important}
+    .brand img.logo{width:48px !important;height:48px !important}
+    .brand h1{font-size:16px !important;letter-spacing:.4px !important}
+    .brand .tag{font-size:8.5px !important;margin-top:1px !important;letter-spacing:1px !important}
+    .brand .contact{font-size:7.5px !important;margin-top:3px !important;line-height:1.3 !important}
+    .meta{min-width:160px !important}
+    .meta .doc-label{font-size:14px !important;margin-bottom:3px !important;letter-spacing:2px !important}
+    .meta .period{font-size:10px !important;margin-bottom:4px !important}
+    .meta .lbl{font-size:7px !important;margin-top:2px !important;letter-spacing:1.2px !important}
+    .meta .v{font-size:8px !important}
+    .stats{gap:8px !important;margin-bottom:10px !important}
+    .stat{padding:7px 10px !important;border-width:1px !important;border-top-width:2px !important}
+    .stat .lbl{font-size:7px !important;margin-bottom:3px !important;letter-spacing:1.2px !important}
+    .stat .val{font-size:15px !important;letter-spacing:.2px !important}
+    .stat .sub{font-size:7px !important;margin-top:2px !important}
+    .sec-hdr{padding:5px 0 4px !important;margin-top:6px !important;font-size:10px !important;border-bottom-width:1px !important}
+    .sec-hdr .sec-meta{font-size:8px !important;letter-spacing:.3px !important}
+    table.tbl{margin-bottom:8px !important;border-width:1px !important}
+    table.tbl thead th{padding:4px 6px !important;font-size:7px !important;letter-spacing:1px !important;border-bottom-width:.5px !important}
+    table.tbl tbody td{padding:3px 6px !important;font-size:8px !important}
+    table.tbl td.dt{font-size:7.5px !important}
+    table.tbl tfoot td{padding:5px 6px !important;font-size:8.5px !important;border-top-width:1px !important}
+    .pm{padding:1px 5px !important;font-size:7px !important;letter-spacing:.3px !important;border-width:.5px !important}
+    .closing{margin-top:8px !important;padding:10px 14px !important;max-width:360px !important;border-width:1px !important;border-top-width:2px !important}
+    .closing-row{padding:3px 0 !important;font-size:9px !important}
+    .closing-row.token{padding-top:5px !important;margin-top:3px !important}
+    .closing-row.final{margin-top:6px !important;padding-top:8px !important;font-size:11px !important;border-top-width:1.5px !important}
+    .closing-row.final .num{font-size:14px !important}
+    .ftr{margin-top:10px !important;padding-top:6px !important;font-size:7px !important;letter-spacing:1px !important;border-top-width:.5px !important}
+    .hdr,.stats,.sec-hdr,table.tbl,.closing,.ftr{page-break-inside:avoid}
+    table.tbl tr{page-break-inside:avoid}
+  }
 </style></head><body>
 <div class="actions"><button onclick="window.print()">Print</button><button class="ghost" onclick="window.close()">Close</button></div>
 <div class="page">
