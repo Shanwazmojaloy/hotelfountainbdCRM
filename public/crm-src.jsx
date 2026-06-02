@@ -3352,9 +3352,9 @@ ${dueRows}
         room_number: tx.room_number || (res ? (res.room_ids||[res.room_number]).filter(Boolean).join(',') : '—'),
         check_in: res?.check_in || '',
         check_out: res?.check_out || '',
-        bill_total: bill ? ((+res.total_amount||0) || bill.sub) : 0, // FIX (Bug #1): canonical total wins
+        bill_total: bill ? bill.total : 0, // NET (matches Billing & Invoices web view); was gross before
         discount: bill ? bill.discount : (res ? (+res.discount_amount||+res.discount||0) : 0),
-        paid: bill ? bill.paid : (res ? (+res.paid_amount||0) : 0),
+        paid: +tx.amount||0,  // today's collected (matches web PAID when filter=TODAY)
         balance_due: bill ? bill.due : (res ? Math.max(0,(+res.total_amount||0)-(+res.discount_amount||+res.discount||0)-(+res.paid_amount||0)) : 0),
         payment_method: parsePM(tx),
         collected_amount: +tx.amount||0,
@@ -3368,7 +3368,7 @@ ${dueRows}
         room_number: (r.room_ids||[r.room_number]).filter(Boolean).join(',') || '—',
         check_in: r.check_in || '',
         check_out: r.check_out || '',
-        bill_total: ((+r.total_amount||0) || bill?.sub || 0),
+        bill_total: bill ? bill.total : 0,  // NET, matches Billing & Invoices web view
         paid: bill ? bill.paid : (+r.paid_amount||0),
         balance_due: bill ? bill.due : Math.max(0,(+r.total_amount||0)-(+r.paid_amount||0)),
         status: r.status || ''
