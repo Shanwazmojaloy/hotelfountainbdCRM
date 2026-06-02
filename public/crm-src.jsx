@@ -1606,13 +1606,20 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
   .totals .row.bal.paid{color:#4A7C59}
   .stamp{display:inline-block;border:1px solid #9C7A3E;color:#9C7A3E;padding:4px 12px;font-size:10px;letter-spacing:3px;text-transform:uppercase;font-weight:500;border-radius:1px}
   .notes{margin-top:8px;padding:16px 20px;border-left:2px solid #9C7A3E;background:#F7F2E6;font-size:12px;color:#5A544A;font-style:italic}
-  .ftr{margin-top:48px;padding-top:24px;border-top:1px solid #EAE6DD;display:flex;justify-content:space-between;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276}
-  .terms{margin-top:32px;font-size:10px;color:#8A8276;line-height:1.7}
+  @page{size:A4 portrait;margin:14mm 12mm}
+  .ftr{margin-top:36px;padding-top:18px;border-top:1px solid #EAE6DD;display:flex;justify-content:space-between;align-items:flex-end}
+  .ftr-left{font-size:9.5px;color:#8A8276;line-height:1.8;letter-spacing:.3px}
+  .ftr-left .ftr-name{font-weight:600;color:#5A544A;letter-spacing:1.2px;text-transform:uppercase;font-size:10px;margin-bottom:3px}
+  .ftr-qr{text-align:center;flex:none}
+  .ftr-qr img{display:block;width:64px;height:64px;border:1px solid #EAE6DD;padding:2px;background:#fff;border-radius:2px}
+  .ftr-qr-label{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:#9C7A3E;margin-top:4px}
+  .ftr-qr-num{font-size:9px;color:#5A544A;font-weight:500;margin-top:1px}
+  .terms{margin-top:24px;font-size:10px;color:#8A8276;line-height:1.7}
   .terms h4{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#5A544A;margin-bottom:8px;font-weight:500}
   .actions{position:fixed;top:16px;right:16px;display:flex;gap:8px}
   .actions button{font-family:'Natom Pro','Inter',sans-serif;font-size:12px;padding:8px 14px;border:1px solid #9C7A3E;background:#9C7A3E;color:#FBF8F1;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:2px;font-weight:500}
   .actions button.ghost{background:transparent;color:#9C7A3E}
-  @media print{.actions{display:none}body{background:#fff}.page{padding:24px 32px}}
+  @media print{.actions{display:none}.page{padding:18px 24px}}
 </style></head><body>
 <div class="actions"><button onclick="window.print()">Print</button><button class="ghost" onclick="window.close()">Close</button></div>
 <div class="page">
@@ -1686,11 +1693,32 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
   </div>
 
   <div class="ftr">
-    <div>${esc(HF_PHONE)} &nbsp;·&nbsp; ${esc(HF_EMAIL)}</div>
-    <div>${esc(HF_SITE)}</div>
+    <div class="ftr-left">
+      <div class="ftr-name">Hotel Fountain</div>
+      <div>${esc(HF_ADDR)}</div>
+      <div>${esc(HF_PHONE)} &nbsp;·&nbsp; ${esc(HF_EMAIL)}</div>
+      <div>${esc(HF_SITE)}</div>
+    </div>
+    <div class="ftr-qr">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=64x64&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="64" height="64" alt="WhatsApp QR"/>
+      <div class="ftr-qr-label">Scan for WhatsApp</div>
+      <div class="ftr-qr-num">+880 1322-840799</div>
+    </div>
   </div>
 </div>
-<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),350))</script>
+<script>
+window.addEventListener('load',()=>{
+  const imgs=document.images;
+  let n=imgs.length;
+  if(!n){setTimeout(()=>window.print(),200);return}
+  let done=0;
+  const check=()=>{if(++done>=n)setTimeout(()=>window.print(),120)};
+  for(let i=0;i<n;i++){
+    if(imgs[i].complete)check();
+    else{imgs[i].addEventListener('load',check);imgs[i].addEventListener('error',check)}
+  }
+})
+</script>
 </body></html>`
     const w = window.open('', '_blank', 'width=900,height=1100')
     if(!w){ toast('Pop-up blocked — allow pop-ups to print','error'); return }
