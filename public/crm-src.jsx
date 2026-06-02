@@ -2858,9 +2858,16 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
   ${res?.special_requests?`<div class="notes"><b>Special Requests · </b>${esc(res.special_requests)}</div>`:''}
 
   <div class="thanks">Thank you for choosing Hotel Fountain. We look forward to welcoming you again.</div>
-  <div class="ftr">
-    <div>Hotel Fountain · Dhaka · Lumea PMS</div>
-    <div>Computer-generated invoice — no signature required</div>
+  <div class="ftr" style="align-items:flex-end">
+    <div>
+      <div>Hotel Fountain · Dhaka · Lumea PMS</div>
+      <div style="margin-top:3px">Computer-generated invoice — no signature required</div>
+    </div>
+    <div style="text-align:center;flex-shrink:0;margin-left:16px">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="80" height="80" style="display:block;margin-bottom:3px" alt="WhatsApp QR"/>
+      <div style="font-size:7px;letter-spacing:.12em;margin-bottom:1px">SCAN TO WHATSAPP</div>
+      <div style="font-size:8px;font-weight:700;color:#1C1510;font-family:monospace;text-transform:none;letter-spacing:0">+880 1322-840799</div>
+    </div>
   </div>
 </div>
 <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),350))</script>
