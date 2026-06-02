@@ -2870,7 +2870,7 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
     </div>
   </div>
 </div>
-<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),350))</script>
+<script>window.addEventListener('load',function(){var imgs=document.querySelectorAll('img');if(!imgs.length){setTimeout(function(){window.print()},350);return;}var n=0;function tryPrint(){if(++n>=imgs.length)setTimeout(function(){window.print()},120);}imgs.forEach(function(img){if(img.complete)tryPrint();else{img.onload=tryPrint;img.onerror=tryPrint;}});})</script>
 </body></html>`
   printPDF(content)
 }
