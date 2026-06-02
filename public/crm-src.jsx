@@ -2474,88 +2474,92 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  @page{size:A4 landscape;margin:10mm 12mm}
+  @page{size:A4 landscape;margin:7mm 9mm}
   @media print{.actions{display:none}body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0}}
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{background:#FBF8F1;color:#1F1B16;font-family:'Natom Pro','Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:12.5px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
-  .page{width:100%;max-width:none;margin:0;padding:28px 40px;background:#FBF8F1;min-height:100vh}
+  html,body{background:#FBF8F1;color:#1F1B16;font-family:'Natom Pro','Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:9.5px;line-height:1.4;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  .page{width:100%;max-width:none;margin:0;padding:14px 18px;background:#FBF8F1}
   .actions{position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:99}
   .actions button{font-family:'Natom Pro','Inter',sans-serif;font-size:12px;padding:8px 14px;border:1px solid #9C7A3E;background:#9C7A3E;color:#FBF8F1;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:2px;font-weight:500}
   .actions button.ghost{background:transparent;color:#9C7A3E}
 
   /* Header */
-  .hdr{display:flex;justify-content:space-between;align-items:center;gap:24px;border-bottom:2px solid #C8A96E;padding-bottom:24px;margin-bottom:24px}
-  .brand{display:flex;align-items:center;gap:20px;flex:1;min-width:0}
-  .brand img.logo{width:76px;height:76px;object-fit:contain;flex:none;display:block}
+  .hdr{display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:2px solid #C8A96E;padding-bottom:8px;margin-bottom:8px}
+  .brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+  .brand img.logo{width:38px;height:38px;object-fit:contain;flex:none;display:block}
   .brand .txt{display:flex;flex-direction:column;min-width:0}
-  .brand h1{font-size:26px;font-weight:700;letter-spacing:.8px;color:#1F1B16;text-transform:uppercase;line-height:1.1;margin:0}
+  .brand h1{font-size:15px;font-weight:700;letter-spacing:.8px;color:#1F1B16;text-transform:uppercase;line-height:1.1;margin:0}
   .brand h1 em{font-style:normal;color:#C8A96E;font-weight:500;letter-spacing:1px}
-  .brand .tag{font-style:italic;font-size:13px;letter-spacing:1.5px;color:#C8A96E;margin-top:4px;font-weight:400}
-  .brand .contact{font-size:10.5px;color:#5A544A;line-height:1.6;margin-top:8px;letter-spacing:.2px}
+  .brand .tag{font-style:italic;font-size:8px;letter-spacing:1.5px;color:#C8A96E;margin-top:2px}
+  .brand .contact{font-size:8px;color:#5A544A;line-height:1.5;margin-top:2px;letter-spacing:.2px}
   .brand .contact span{color:#8A8276;font-weight:500}
-  .meta{text-align:right;min-width:240px}
-  .meta .doc-label{font-size:22px;font-weight:700;letter-spacing:4px;color:#1F1B16;margin-bottom:8px}
-  .meta .period{font-size:15px;color:#9C7A3E;font-weight:600;letter-spacing:.4px;margin-bottom:10px}
-  .meta .lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-top:4px}
-  .meta .v{color:#5A544A;font-size:11px}
+  .meta{text-align:right;min-width:160px}
+  .meta .doc-label{font-size:15px;font-weight:700;letter-spacing:4px;color:#1F1B16;margin-bottom:2px}
+  .meta .period{font-size:11px;color:#9C7A3E;font-weight:600;letter-spacing:.4px;margin-bottom:2px}
+  .meta .lbl{font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-top:2px}
+  .meta .v{color:#5A544A;font-size:8.5px}
 
   /* Stat cards */
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
-  .stat{border:2px solid #D9CFB8;background:#FFFDF7;padding:16px 18px;border-radius:3px;border-top:3px solid #C8A96E}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:8px}
+  .stat{border:1px solid #D9CFB8;background:#FFFDF7;padding:7px 10px;border-radius:2px;border-top:2px solid #C8A96E}
   .stat.cash{border-top-color:#4A7C59}
   .stat.bkash{border-top-color:#D02A77}
   .stat.out{border-top-color:#B14D4D}
-  .stat .lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:8px;font-weight:600}
-  .stat .val{font-size:26px;font-weight:700;color:#1F1B16;letter-spacing:.3px}
+  .stat .lbl{font-size:7.5px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276;margin-bottom:3px;font-weight:600}
+  .stat .val{font-size:16px;font-weight:700;color:#1F1B16;letter-spacing:.3px}
   .stat.cash .val{color:#4A7C59}
   .stat.bkash .val{color:#D02A77}
   .stat.out .val{color:#B14D4D}
-  .stat .sub{font-size:9.5px;color:#8A8276;margin-top:4px;font-style:italic}
+  .stat .sub{font-size:7.5px;color:#8A8276;margin-top:2px;font-style:italic}
+
+  /* Two-column layout */
+  .tables-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
 
   /* Section headers */
-  .sec-hdr{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 10px;margin-top:14px;margin-bottom:0;font-size:15px;font-weight:600;letter-spacing:.5px;color:#1F1B16;border-bottom:2px solid #C8A96E}
+  .sec-hdr{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0 4px;margin-top:0;margin-bottom:0;font-size:11px;font-weight:600;letter-spacing:.5px;color:#1F1B16;border-bottom:2px solid #C8A96E}
   .sec-hdr.due{color:#B14D4D;border-bottom-color:#B14D4D}
-  .sec-hdr .sec-meta{font-size:11px;font-weight:400;color:#8A8276;letter-spacing:.5px;text-transform:uppercase}
+  .sec-hdr .sec-meta{font-size:8.5px;font-weight:400;color:#8A8276;letter-spacing:.5px;text-transform:uppercase}
 
   /* Tables */
-  table.tbl{width:100%;border-collapse:collapse;margin-bottom:22px;border:2px solid #D9CFB8;border-top:none;background:#FFFDF7;table-layout:fixed}
-  table.tbl thead th{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276;text-align:left;padding:13px 14px;border-bottom:1px solid #D9CFB8;font-weight:600;background:#F7F2E6}
+  table.tbl{width:100%;border-collapse:collapse;border:1px solid #D9CFB8;border-top:none;background:#FFFDF7;table-layout:fixed}
+  table.tbl thead th{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:#8A8276;text-align:left;padding:4px 6px;border-bottom:1px solid #D9CFB8;font-weight:600;background:#F7F2E6}
   table.tbl thead th.num{text-align:right}
-  table.tbl tbody td{padding:10px 14px;border-bottom:1px solid #F2EEE4;font-size:12px;color:#1F1B16;vertical-align:middle;word-wrap:break-word}
+  table.tbl tbody td{padding:3px 6px;border-bottom:1px solid #F2EEE4;font-size:9px;color:#1F1B16;vertical-align:middle;word-wrap:break-word}
   table.tbl tbody tr:last-child td{border-bottom:none}
   table.tbl tbody tr:nth-child(even){background:#FBF8F1}
   table.tbl td.g{font-weight:500;color:#1F1B16}
   table.tbl td.rno{color:#9C7A3E;font-weight:600;letter-spacing:.4px}
-  table.tbl td.dt{color:#8A8276;font-size:11.5px;white-space:nowrap}
+  table.tbl td.dt{color:#8A8276;font-size:8px;white-space:nowrap}
   table.tbl td.num{text-align:right;font-weight:500}
   table.tbl td.num.pos{color:#4A7C59}
   table.tbl td.num.bal-due{color:#B14D4D;font-weight:600}
   table.tbl td.num.bal-paid{color:#8A8276}
-  table.tbl tfoot td{padding:13px 14px;background:#F7F2E6;border-top:2px solid #C8A96E;font-size:12.5px;font-weight:600;color:#1F1B16}
+  table.tbl tfoot td{padding:4px 6px;background:#F7F2E6;border-top:2px solid #C8A96E;font-size:9px;font-weight:600;color:#1F1B16}
   table.tbl tfoot td.tf-lbl{letter-spacing:.5px}
   table.tbl tfoot td.num{text-align:right}
   table.tbl tfoot td.num.bal-due{color:#B14D4D}
   .due-table thead th{background:#FBE9E9;color:#B14D4D}
 
   /* Payment method pill */
-  .pm{display:inline-block;padding:4px 10px;border-radius:2px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;background:#EAE6DD;color:#5A544A;border:1px solid #D9CFB8}
+  .pm{display:inline-block;padding:2px 5px;border-radius:2px;font-size:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;background:#EAE6DD;color:#5A544A;border:1px solid #D9CFB8}
   .pm-cash{background:#EAF3EE;color:#4A7C59;border-color:#B8D4C2}
   .pm-bkash{background:#FCE4EF;color:#D02A77;border-color:#F3B8D2}
-  .pm-advancepayment, .pm-advance{background:#F7F2E6;color:#9C7A3E;border-color:#D9CFB8}
+  .pm-advancepayment,.pm-advance{background:#F7F2E6;color:#9C7A3E;border-color:#D9CFB8}
   .pm-status{background:#FBE9E9;color:#B14D4D;border-color:#E8C5C5}
 
-  /* Closing summary */
-  .closing{margin-top:14px;border:2px solid #D9CFB8;background:#FFFDF7;padding:20px 26px;border-radius:3px;border-top:3px solid #C8A96E;max-width:600px;margin-left:auto}
-  .closing-row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;font-size:13px;color:#5A544A}
+  /* Bottom row: closing left, footer right */
+  .bottom-row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px;padding-top:6px;border-top:1px solid #EAE6DD}
+  .closing{border:1px solid #D9CFB8;background:#FFFDF7;padding:7px 14px;border-radius:2px;border-top:2px solid #C8A96E;min-width:300px}
+  .closing-row{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;font-size:10px;color:#5A544A}
   .closing-row .num{font-weight:500;color:#1F1B16}
   .closing-row.pos .num{color:#4A7C59}
-  .closing-row.token{color:#9C7A3E;font-style:italic;border-top:1px dashed #D9CFB8;padding-top:10px;margin-top:6px}
+  .closing-row.token{color:#9C7A3E;font-style:italic;border-top:1px dashed #D9CFB8;padding-top:4px;margin-top:2px}
   .closing-row.token .num{color:#9C7A3E}
-  .closing-row.final{border-top:2px solid #C8A96E;margin-top:12px;padding-top:16px;font-size:17px;font-weight:700;color:#1F1B16;letter-spacing:.3px}
-  .closing-row.final .num{font-size:22px;color:#1F1B16}
+  .closing-row.final{border-top:2px solid #C8A96E;margin-top:4px;padding-top:6px;font-size:12px;font-weight:700;color:#1F1B16}
+  .closing-row.final .num{font-size:14px;color:#1F1B16}
 
   /* Footer */
-  .ftr{margin-top:32px;padding-top:18px;border-top:1px solid #EAE6DD;display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276}
+  .ftr{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276;text-align:right}
 </style></head><body>
 <div class="actions"><button onclick="window.print()">Print</button><button class="ghost" onclick="window.close()">Close</button></div>
 <div class="page">
@@ -2603,31 +2607,37 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
     </div>
   </div>
 
-  <div class="sec-hdr"><span>Collected Transactions — ${esc(filterLabel)}</span><span class="sec-meta">${(enriched||[]).length} record${(enriched||[]).length!==1?'s':''}</span></div>
-  <table class="tbl">
-    <colgroup><col style="width:19%"/><col style="width:7%"/><col style="width:14%"/><col style="width:11%"/><col style="width:10%"/><col style="width:11%"/><col style="width:13%"/><col style="width:15%"/></colgroup>
-    <thead><tr>
-      <th>Guest</th><th>Room</th><th>Check-In → Out</th>
-      <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance Due</th>
-      <th>Payment Method</th><th class="num">Collected</th>
-    </tr></thead>
-    <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:22px;color:#8A8276">No transactions in this period</td></tr>'}</tbody>
-  </table>
-
-  ${duesBlock}
-
-  <div class="closing">
-    <div class="closing-row pos"><span>${filterLabel} Total Collection</span><span class="num">${fmt(periodTotal)}</span></div>
-    <div class="closing-row"><span>Cash Collected</span><span class="num">${fmt(cashTotal)}</span></div>
-    <div class="closing-row"><span>bKash Collected</span><span class="num">${fmt(bkashTotal)}</span></div>
-    ${otherTotal>0?`<div class="closing-row"><span>Other Payments</span><span class="num">${fmt(otherTotal)}</span></div>`:''}
-    <div class="closing-row token"><span>Token Amount (Deducted)</span><span class="num">− ${fmt(tkn)}</span></div>
-    <div class="closing-row final"><span>Closing Balance</span><span class="num">${fmt(closingBalance)}</span></div>
+  <div class="tables-grid">
+    <div>
+      <div class="sec-hdr"><span>Collected Transactions — ${esc(filterLabel)}</span><span class="sec-meta">${(enriched||[]).length} record${(enriched||[]).length!==1?'s':''}</span></div>
+      <table class="tbl">
+        <colgroup><col style="width:22%"/><col style="width:7%"/><col style="width:15%"/><col style="width:11%"/><col style="width:10%"/><col style="width:10%"/><col style="width:13%"/><col style="width:12%"/></colgroup>
+        <thead><tr>
+          <th>Guest</th><th>Room</th><th>Check-In → Out</th>
+          <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance</th>
+          <th>Method</th><th class="num">Collected</th>
+        </tr></thead>
+        <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:12px;color:#8A8276">No transactions in this period</td></tr>'}</tbody>
+      </table>
+    </div>
+    <div>
+      ${duesBlock||'<div class="sec-hdr due"><span>Pending Dues</span><span class="sec-meta">No outstanding balances</span></div>'}
+    </div>
   </div>
 
-  <div class="ftr">
-    <div>Hotel Fountain · Dhaka · Lumea PMS</div>
-    <div>Confidential · Computer-generated report</div>
+  <div class="bottom-row">
+    <div class="closing">
+      <div class="closing-row pos"><span>${filterLabel} Total Collection</span><span class="num">${fmt(periodTotal)}</span></div>
+      <div class="closing-row"><span>Cash Collected</span><span class="num">${fmt(cashTotal)}</span></div>
+      <div class="closing-row"><span>bKash Collected</span><span class="num">${fmt(bkashTotal)}</span></div>
+      ${otherTotal>0?`<div class="closing-row"><span>Other Payments</span><span class="num">${fmt(otherTotal)}</span></div>`:''}
+      <div class="closing-row token"><span>Token Amount (Deducted)</span><span class="num">− ${fmt(tkn)}</span></div>
+      <div class="closing-row final"><span>Closing Balance</span><span class="num">${fmt(closingBalance)}</span></div>
+    </div>
+    <div class="ftr">
+      <div>Hotel Fountain · Dhaka · Lumea PMS</div>
+      <div>Confidential · Computer-generated report</div>
+    </div>
   </div>
 </div>
 <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),350))</script>
@@ -2880,10 +2890,13 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [calDate,setCalDate]=useState('')
   const [hSettings,setHSettings]=useState({vat:'0',svc:'0'})
   useEffect(()=>{
+    const _today=businessDate||todayStr()
     db('hotel_settings',`?tenant_id=eq.${TENANT}&select=key,value`).then(rows=>{
       if(!Array.isArray(rows)) return
       const m={};rows.forEach(r=>{m[r.key]=r.value})
       setHSettings({vat:m.vat_rate||'0',svc:m.service_charge||'0'})
+      const tkKey=`daily_token_amount_${_today}`
+      if(m[tkKey]&&+m[tkKey]>0){setTokenAmt(String(m[tkKey]));setSavedToken(+m[tkKey]);setTokenLocked(true)}
     }).catch(()=>{})
   },[])
   const [search,setSearch]=useState('')
@@ -2896,6 +2909,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
   const [tokenAmt,setTokenAmt]=useState('')
   const [savedToken,setSavedToken]=useState(0)
   const [tokenSaving,setTokenSaving]=useState(false)
+  const [tokenLocked,setTokenLocked]=useState(false)
   const today=businessDate||todayStr(), month=today.slice(0,7)
 
   const _wallToday = todayStr()
@@ -3055,10 +3069,11 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
         method:'POST',
         headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-        body:JSON.stringify({key:'daily_token_amount',value:String(a),tenant_id:TENANT})
+        body:JSON.stringify({key:`daily_token_amount_${today}`,value:String(a),tenant_id:TENANT})
       })
       setSavedToken(a)
-      toast(`Token amount ${BDT(a)} saved`)
+      setTokenLocked(true)
+      toast(`Token ৳${a.toLocaleString()} saved for ${today} — locked`)
     }catch(e){toast(e.message,'error')}
     finally{setTokenSaving(false)}
   }
@@ -3080,7 +3095,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
         await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
           method:'POST',
           headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-          body:JSON.stringify({key:'daily_token_amount',value:String(a),tenant_id:TENANT})
+          body:JSON.stringify({key:`daily_token_amount_${today}`,value:String(a),tenant_id:TENANT})
         });
         setSavedToken(a);
       } catch {}
@@ -3382,10 +3397,10 @@ ${dueRows}
               {/* Token Amount */}
               <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(200,169,110,.06)',border:'1px solid var(--br)',padding:'4px 10px'}}>
                 <span style={{fontSize:9,letterSpacing:'.12em',color:'var(--tx3)',textTransform:'uppercase',whiteSpace:'nowrap'}}>Token</span>
-                <input type="number" className="finput" value={tokenAmt} onChange={e=>setTokenAmt(e.target.value)}
-                  placeholder="0" style={{width:90,padding:'4px 8px',fontSize:12}}/>
-                <button className="btn btn-ghost btn-sm" style={{padding:'4px 10px',fontSize:9}} disabled={tokenSaving} onClick={saveToken}>
-                  {tokenSaving?'…':'Save'}
+                <input type="number" className="finput" value={tokenAmt} onChange={e=>!tokenLocked&&setTokenAmt(e.target.value)}
+                  disabled={tokenLocked} placeholder="0" style={{width:90,padding:'4px 8px',fontSize:12,opacity:tokenLocked?.65:1,cursor:tokenLocked?'not-allowed':undefined}}/>
+                <button className="btn btn-ghost btn-sm" style={{padding:'4px 10px',fontSize:9}} disabled={tokenSaving||tokenLocked} onClick={saveToken}>
+                  {tokenLocked?'🔒':tokenSaving?'…':'Save'}
                 </button>
                 <button className="btn btn-ghost btn-sm" style={{padding:'4px 10px',fontSize:9,marginLeft:6,borderLeft:'1px solid var(--br)',paddingLeft:10}} onClick={downloadPDF} title="Download specific date report">
                   📥 Download Report
