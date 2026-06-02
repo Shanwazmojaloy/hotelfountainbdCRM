@@ -22,6 +22,8 @@
 - NEVER update `paid_amount` directly in reservations without also INSERTing a matching row in `transactions` (type='Room Payment (Cash)', fiscal_day=today, reservation_id). Skipping the TX row makes Billing & Invoices page blind to the payment.
 - `ReservationDetail.save()` now auto-creates TX when `paid_amount` increases: `payIncrease = paidNum - prevPaid; if (payIncrease>0) dbPost('transactions',{type:'Advance Payment', amount:payIncrease,...})`. PERMANENT — do not remove.
 - Billing `activeRes` seed uses `txFallbackName` for null-name reservations — looks up TX guest_name by `reservation_id` so billing rows never show `—` when reservation.guest_name is null.
+- **PAID INVARIANT (2026-06-02, post-SHAMIM ৳840 bug)**: `computeBill.paid` and the modal-prefill `_paid` MUST be computed as `SUM(transactions WHERE reservation_id = r.id AND _isRealPayment(t))`. NEVER read `r.paid_amount` for display math — that cached column drifted on 847/1163 rows from legacy manual-edit modal writes. Keep the column synced on writes for backward compatibility, but treat the transactions table as the sole source of truth on reads.
+- **TWO-TABLE PAYMENT SYMMETRY**: `transactions` and `payment_transactions` are mirrors (same row IDs, same content, `notes` mirrors `type`). Writes go to both; reads against either are equivalent; `_isRealPayment` matches both.
 - After `git filter-repo`, run `git reflog expire --expire=now --all && git gc --prune=now` before pushing
 
 ## File Organization

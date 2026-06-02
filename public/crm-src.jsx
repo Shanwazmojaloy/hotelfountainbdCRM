@@ -3064,7 +3064,12 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     // Falls back to computed sub only when canonical is zero (orphan/legacy rows).
     const rawTotal = canonical > 0 ? canonical : sub
     const total=Math.max(0,rawTotal-discount)
-    const paid=+r.paid_amount||0
+    // Canonical paid = sum of real payment txs (NEVER read r.paid_amount).
+    // r.paid_amount can drift due to legacy manual-edit modal writes.
+    // See billing_canonical_anchor.md and CLAUDE.md "PAID INVARIANT".
+    const paid=(transactions||[])
+      .filter(t=>String(t.reservation_id||'')===String(r.id) && _isRealPayment(t))
+      .reduce((s,t)=>s+(+t.amount||0),0)
     const due=Math.max(0,total-paid)
     const roomRate=perRoom[0]?.rate||0
     return {roomCharge,extras,sub,tax,svc,discount,total,paid,due,folios,nights,roomRate,vatPct,svcPct,perRoom,topFolios}
@@ -3610,9 +3615,10 @@ ${dueRows}
                               // Use computeBill total so folio extras are included in payCap.
                               // r.total_amount alone would cap paid_amount below the real bill when extras exist.
                               const grossTotal = r ? (computeBill(r)?.total || (+r.total_amount||0)) : tTotal
-                              // Use lifetime paid_amount for the modal — NOT today's tPaid (filtered txs).
-                              // tPaid resets to 0 each business day; modal must show what's actually been paid.
-                              const modalPaid = r ? (+r.paid_amount||0) : tPaid
+                              // Canonical paid for modal: sum of real payment txs via computeBill.
+                              // NEVER read r.paid_amount — legacy column drifts vs. tx sum.
+                              // See billing_canonical_anchor.md and CLAUDE.md "PAID INVARIANT".
+                              const modalPaid = r ? (computeBill(r)?.paid || 0) : tPaid
                               setBillingRes({_fromRow:true,...(r||{}),room_number:rno,guest_name:gname,_resId:r?.id||null,_total:grossTotal,_paid:modalPaid,_discount:tDiscount})
                               setShowAdd(true)
                             }}>+ Pay</button>
