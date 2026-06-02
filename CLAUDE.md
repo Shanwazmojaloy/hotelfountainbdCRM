@@ -11,8 +11,8 @@
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
 - After any bash `cat >>` append to a .tsx/.ts file, immediately verify with `tail -5` and `tsc --noEmit` — appends frequently corrupt files silently
-- After any Edit to `public/crm.html`, grep for `ReactDOM.createRoot` AND `</html>` before `git add` — truncation regression check
-- After EVERY Edit to `public/crm-src.jsx`: run `npm run build:crm` immediately. If Babel errors near line 5470+, tail is truncated — recover with Python splice anchored at `cur==='rooms'` line (see coding_conventions.md)
+- After any Edit to `public/crm.html`, grep for `crm-bundle.js` AND `</html>` before `git add` — truncation regression check (crm.html is now a 29-line loader shell, NOT the full CRM app)
+- After EVERY Edit to `public/crm-src.jsx`: ALSO update `public/crm-bundle.js` via Python string replacement (Edit tool truncates bundle at Windows mount boundary), then bump the `?v=` cache-buster in `crm.html`. If Babel errors near line 5470+, tail is truncated — recover with Python splice anchored at `cur==='rooms'` line (see coding_conventions.md)
 - All git commits MUST originate from Windows PowerShell, NOT from the bash sandbox (`.git/*.lock` files are owned by Windows UID and cannot be removed from sandbox)
 - `_isRealPayment` MUST use positive match: `/payment|settlement|advance|deposit|bkash|bank\s*transfer/i` — exclusion-only allows charges (Stay Extension, Room Service) to count as revenue
 - Billing PAID column TODAY filter: use `_isPaymentTx` positive match — NOT a blanket exclusion of BCF. Stay Extension is a CHARGE not a payment.
@@ -92,7 +92,8 @@ npm run lint
 
 - **NTFS index.lock**: `.git/*.lock` owned by Windows UID — cannot be deleted from Linux sandbox. All commits MUST originate from Windows PowerShell, not bash sandbox.
 - **Staged deletions guard**: Before every `git commit`, run `git diff --cached --name-only` and verify no critical files (`.env.local`, `facebook_post.py`, `ADD_FACEBOOK_TOKEN.bat`, `ruflo.config.json`, batch scripts) are staged for deletion. Use `git restore --staged <file>` if caught.
-- **crm.html truncation check**: After any Edit to `public/crm.html`, grep for `ReactDOM.createRoot` AND `</html>` before `git add`. Missing either = truncation regression.
+- **crm.html truncation check**: After any Edit to `public/crm.html`, grep for `crm-bundle.js` AND `</html>` before `git add`. Missing either = truncation regression. crm.html is now a 29-line loader shell — it does NOT contain ReactDOM.createRoot.
+- **PR branch ancestry**: ALWAYS create PR branches with `git checkout -b <branch> FETCH_HEAD` (after `git fetch origin main`). Branching from a local commit that doesn't exist in the remote causes "no history in common with main" and GitHub rejects the PR.
 
 ## Lumea CRM — Active Key Architecture (updated 2026-05-12)
 
@@ -319,8 +320,11 @@ npx @claude-flow/cli@latest doctor --fix
 - Statuses always UPPERCASE (enforced at DB level)
 
 ### File Locations
-- CRM: Hotel Fountain BD CRM/public/crm.html
-- Ruflo wrapper: Hotel Fountain BD CRM/ruflo-mcp.js
+- CRM loader shell: `public/crm.html` (29 lines — loads fonts, React CDN, then crm-bundle.js)
+- CRM source (edit here): `public/crm-src.jsx` (~6334 lines of JSX — the real CRM)
+- CRM production bundle (keep in sync): `public/crm-bundle.js` (minified, pre-built, committed)
+- CRM runtime config (Supabase URL/key, hotel name, etc.): `public/crm-config.js`
+- Ruflo wrapper: `ruflo-mcp.js`
 
 ### Active DB Objects
 - View: reservation_billing_summary
@@ -418,7 +422,9 @@ const activeTx = todayTxs.filter(t => {
 
 **Affects:** Dashboard `todayRev`, BillingPage `todayRevenue` (already uses `activeLedgerTx`), any future analytics aggregations.
 
-### Build Pipeline (crm-src.jsx)
+### Build Pipeline (crm-src.jsx → crm-bundle.js)
 - **Edit method:** Python string replacement ONLY — Edit tool truncates at Windows mount boundary.
-- **Rebuild:** Node at `/tmp/babel-tools` with `@babel/preset-react` + Terser → `crm-bundle.js`.
+- **Rebuild:** Node at `/tmp/babel-tools` with `@babel/preset-react` + Terser → `crm-bundle.js`. The `vercel-build` script skips this step (bundle is pre-built and committed).
+- **After every edit to crm-src.jsx:** 1) Apply same change to `crm-bundle.js` via Python replace, 2) bump `?v=YYYYMMDD<tag>` in `crm.html` `<script src="/crm-bundle.js?v=...">`.
 - **Commit:** PowerShell only — sandbox bash creates unremovable lock files.
+- **tDiscount in BillingPage:** Already fixed in crm-src.jsx as `const tDiscount = r ? (+r.discount_amount||+r.discount||0) : 0` — do not revert.
