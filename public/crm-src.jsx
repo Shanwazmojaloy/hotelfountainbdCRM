@@ -2710,8 +2710,8 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  @page{size:A4 portrait;margin:12mm 14mm}
-  @media print{.actions{display:none}body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0}}
+  @page{size:A4 portrait;margin:8mm 10mm}
+  @media print{.actions{display:none}body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0}.hdr{padding-bottom:10px;margin-bottom:12px}.brand img.logo{width:52px;height:52px}.brand h1{font-size:19px}.meta .doc-label{font-size:17px}.meta .lbl{margin-top:3px}.grid{margin-bottom:10px}.box{padding:8px 12px}.gname{font-size:14px}.stay-line,.gd{font-size:10.5px}table.charges{margin-bottom:10px}table.charges thead th,table.charges tbody td,table.charges tr.section-row td{padding:5px 10px}.ftr-grid{margin-bottom:10px}.totals{padding:8px 12px}.totals .row{padding:3px 0}.totals .row.sub{padding-top:6px;margin-top:2px}.totals .row.tot{padding-top:8px;margin-top:4px;font-size:13px}.totals .row.tot .num{font-size:14px}.totals .row.bal{padding-top:8px;margin-top:4px;font-size:13px}.totals .row.bal .num{font-size:16px}.ftr{margin-top:14px;padding-top:10px}.thanks{margin-top:6px;font-size:10px}}
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{background:#FBF8F1;color:#1F1B16;font-family:'Natom Pro','Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
   .page{max-width:820px;margin:0 auto;padding:44px 52px;background:#FBF8F1}
@@ -2864,7 +2864,7 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
       <div style="margin-top:3px">Computer-generated invoice — no signature required</div>
     </div>
     <div style="text-align:center;flex-shrink:0;margin-left:16px">
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="80" height="80" style="display:block;margin-bottom:3px" alt="WhatsApp QR"/>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=64x64&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="64" height="64" style="display:block;margin-bottom:2px" alt="WhatsApp QR"/>
       <div style="font-size:7px;letter-spacing:.12em;margin-bottom:1px">SCAN TO WHATSAPP</div>
       <div style="font-size:8px;font-weight:700;color:#1C1510;font-family:monospace;text-transform:none;letter-spacing:0">+880 1322-840799</div>
     </div>
