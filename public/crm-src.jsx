@@ -1612,9 +1612,39 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
   .actions{position:fixed;top:16px;right:16px;display:flex;gap:8px}
   .actions button{font-family:'Natom Pro','Inter',sans-serif;font-size:12px;padding:8px 14px;border:1px solid #9C7A3E;background:#9C7A3E;color:#FBF8F1;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:2px;font-weight:500}
   .actions button.ghost{background:transparent;color:#9C7A3E}
-  @media print{.actions{display:none}body{background:#fff}.page{padding:24px 32px}}
+  @page{size:A4 portrait;margin:8mm 10mm}
+  @media print{
+    .actions{display:none}
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:9px;line-height:1.3;zoom:.85}
+    .page{padding:0 !important;max-width:none !important;width:100% !important;margin:0 !important;background:#fff !important}
+    .hdr{padding-bottom:8px !important;margin-bottom:8px !important;gap:12px !important;border-bottom-width:1.5px !important}
+    .brand{gap:12px !important}
+    .brand img.logo{width:48px !important;height:48px !important}
+    .brand h1{font-size:14px !important;letter-spacing:.5px !important}
+    .brand .tag{font-size:8px !important;margin-top:1px !important}
+    .brand .contact{font-size:7.5px !important;margin-top:3px !important;line-height:1.35 !important}
+    .meta{font-size:8px !important;line-height:1.4 !important}
+    .meta .conf{font-size:9.5px !important}
+    .doc-title{font-size:14px !important;margin-bottom:2px !important}
+    .doc-sub{font-size:8px !important;margin-bottom:8px !important;letter-spacing:1.2px !important}
+    .grid{margin-bottom:6px !important;gap:8px !important}
+    .box{padding:6px 8px !important;border-width:1px !important}
+    .lbl{font-size:7px !important;margin-bottom:2px !important;letter-spacing:1.2px !important}
+    .val{font-size:10px !important}
+    .val.mono{font-size:10px !important}
+    table{margin-bottom:6px !important;border-width:1px !important}
+    thead th{padding:4px 6px !important;font-size:7px !important;letter-spacing:1.2px !important}
+    tbody td{padding:4px 6px !important;font-size:8.5px !important}
+    .totals{width:240px !important}
+    .totals .row{padding:2px 0 !important;font-size:9px !important}
+    .totals .row.bal{margin-top:3px !important;padding-top:5px !important;font-size:10px !important}
+    .stamp{padding:1px 6px !important;font-size:7.5px !important;letter-spacing:1.5px !important;border-width:1px !important}
+    .notes{margin-top:3px !important;padding:5px 8px !important;font-size:8px !important;border-left-width:2px !important}
+    .terms{margin-top:8px !important;font-size:7.5px !important;line-height:1.45 !important}
+    .terms h4{font-size:7.5px !important;margin-bottom:3px !important}
+    .ftr{margin-top:8px !important;padding-top:5px !important;font-size:7px !important;letter-spacing:.8px !important;border-top-width:.5px !important}
+  }
 </style></head><body>
-<div class="actions"><button onclick="window.print()">Print</button><button class="ghost" onclick="window.close()">Close</button></div>
 <div class="page">
   <div class="hdr">
     <div class="brand">
@@ -2710,8 +2740,7 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  @page{size:A4 portrait;margin:12mm 14mm}
-  @media print{.actions{display:none}body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0}}
+  @page{size:A4 portrait;margin:8mm 10mm}
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{background:#FBF8F1;color:#1F1B16;font-family:'Natom Pro','Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
   .page{max-width:820px;margin:0 auto;padding:44px 52px;background:#FBF8F1}
@@ -2785,8 +2814,51 @@ function printInvoice(grp, res, tTotal, tPaid, tDue, byType, bill, guest) {
   .notes b{color:#1F1B16;font-style:normal;letter-spacing:.5px}
   .ftr{margin-top:38px;padding-top:22px;border-top:1px solid #EAE6DD;display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276}
   .thanks{margin-top:14px;text-align:center;font-size:10.5px;color:#5A544A;font-style:italic;letter-spacing:.3px}
+
+  /* ── Print overrides (must come AFTER screen rules to win source-order) ── */
+  @media print{
+    .actions{display:none}
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:9px;line-height:1.3;zoom:.85}
+    .page{padding:0 !important;max-width:none !important;width:100% !important;margin:0 !important;background:#fff !important}
+    .hdr{padding-bottom:8px !important;margin-bottom:8px !important;gap:12px !important;border-bottom-width:1.5px !important}
+    .brand{gap:12px !important}
+    .brand img.logo{width:48px !important;height:48px !important}
+    .brand h1{font-size:14px !important;letter-spacing:.5px !important}
+    .brand .tag{font-size:8px !important;margin-top:1px !important;letter-spacing:1px !important}
+    .brand .contact{font-size:7.5px !important;margin-top:3px !important;line-height:1.35 !important}
+    .meta{font-size:8px !important;line-height:1.4 !important;min-width:130px !important}
+    .meta .doc-label{font-size:12px !important;margin-bottom:2px !important;letter-spacing:2px !important}
+    .meta .lbl{font-size:7px !important;margin-top:1px !important;letter-spacing:1.2px !important}
+    .meta .v{font-size:8.5px !important}
+    .meta .v.mono{font-size:9.5px !important}
+    .stamp{padding:1px 6px !important;font-size:7.5px !important;margin-top:3px !important;border-width:1px !important;letter-spacing:1.5px !important}
+    .grid{margin-bottom:6px !important;gap:8px !important;grid-template-columns:1.3fr 1fr !important}
+    .box{padding:6px 8px !important;border-width:1px !important}
+    .lbl{font-size:7px !important;margin-bottom:2px !important;letter-spacing:1.2px !important}
+    .gname{font-size:11px !important;margin-bottom:1px !important}
+    .gd{font-size:8px !important;margin-top:1px !important}
+    .stay-line{font-size:8.5px !important;margin-top:1px !important}
+    table.charges{margin-bottom:6px !important;border-width:1px !important}
+    table.charges thead th{padding:4px 6px !important;font-size:7px !important;letter-spacing:1.2px !important;border-bottom-width:1px !important}
+    table.charges tbody td{padding:4px 6px !important;font-size:8.5px !important;line-height:1.25 !important}
+    table.charges td.dt,table.charges td.rt{font-size:8px !important}
+    table.charges tr.section-row td{padding:3px 6px !important;font-size:7.5px !important;letter-spacing:1.2px !important;border-top-width:1px !important}
+    table.charges tr.sub-row td{font-size:8px !important;padding:4px 6px !important}
+    .ftr-grid{margin-bottom:6px !important;gap:10px !important}
+    .pay-box .lbl{margin-bottom:4px !important;padding-bottom:3px !important}
+    .pay-row{padding:2px 2px !important;font-size:8.5px !important}
+    .totals{padding:6px 10px !important;border-width:1px !important}
+    .totals .row{padding:1.5px 0 !important;font-size:8.5px !important}
+    .totals .row.sub{margin-top:1px !important;padding-top:4px !important;font-size:9px !important}
+    .totals .row.tot{margin-top:3px !important;padding-top:4px !important;font-size:10px !important;border-top-width:1.5px !important}
+    .totals .row.tot .num{font-size:11px !important}
+    .totals .row.bal{margin-top:3px !important;padding-top:4px !important;font-size:10px !important;border-top-width:1.5px !important}
+    .totals .row.bal .num{font-size:12px !important}
+    .notes{margin-top:2px !important;padding:4px 8px !important;font-size:8px !important;border-left-width:2px !important}
+    .thanks{margin-top:4px !important;font-size:8px !important}
+    .ftr{margin-top:6px !important;padding-top:4px !important;font-size:7px !important;letter-spacing:.8px !important;border-top-width:.5px !important}
+  }
 </style></head><body>
-<div class="actions"><button onclick="window.print()">Print</button><button class="ghost" onclick="window.close()">Close</button></div>
 <div class="page">
 
   <div class="hdr">
@@ -6293,7 +6365,6 @@ function App() {
                     )}
 
                     {/* HK urgent tasks */}
-                    {hkUrgent>0&&(
                       <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
                         🧹 {hkUrgent} high-priority housekeeping task{hkUrgent>1?'s':''}
                       </div>
