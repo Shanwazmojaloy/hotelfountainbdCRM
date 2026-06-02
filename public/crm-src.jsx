@@ -67,8 +67,8 @@ const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?
 const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
 
 const ROLES = {
-  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads','settings']},
-  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads']},
+  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads','council','settings']},
+  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads','council']},
   receptionist: {label:'Receptionist',       color:'#58A6FF', pages:['dashboard','rooms','reservations','guests','billing']},
   housekeeping: {label:'Housekeeping Staff', color:'#F0A500', pages:['dashboard','rooms','housekeeping','billing']},
   accountant:   {label:'Accountant',         color:'#3FB950', pages:['dashboard','billing','reports']},
@@ -5964,6 +5964,229 @@ function LeadPipelinePage_REMOVED() {
 
 
 
+
+/* ═══════════════════════ AI ADVISORY COUNCIL ═══════════════════════
+   Multi-agent strategic deliberation. 5 panelists in parallel + Chairman.
+   POST /api/council/deliberate
+=================================================================== */
+const COUNCIL_ROLES = [
+  {id:'devils_advocate',   label:"Devil's Advocate",    ico:'⚔',  color:'var(--rose)'},
+  {id:'first_principles',  label:'First-Principles',    ico:'△',  color:'var(--sky)'},
+  {id:'optimist',          label:'The Optimist',        ico:'☀',  color:'var(--amb)'},
+  {id:'rationalist',       label:'The Rationalist',     ico:'≡',  color:'var(--teal)'},
+  {id:'executor',          label:'The Executor',        ico:'▶',  color:'var(--grn)'},
+]
+
+function CouncilPage({reservations, currentUser, toast}) {
+  const [prompt,setPrompt]=useState('')
+  const [scopeMode,setScopeMode]=useState('hotel')
+  const [resId,setResId]=useState('')
+  const [loading,setLoading]=useState(false)
+  const [result,setResult]=useState(null)
+  const [history,setHistory]=useState([])
+  const [historyOpen,setHistoryOpen]=useState(false)
+  const [activeRole,setActiveRole]=useState('chairman')
+
+  useEffect(()=>{
+    fetch(`/api/council/deliberate?tenant_id=${TENANT}&limit=15`)
+      .then(r=>r.json()).then(j=>setHistory(j?.sessions||[])).catch(()=>{})
+  },[result])
+
+  const activeReservations = (reservations||[])
+    .filter(r=>r.status==='checked_in' || r.status==='confirmed')
+    .slice(0,50)
+
+  async function deliberate() {
+    if(!prompt.trim()) { toast?.('Question required','warn'); return }
+    setLoading(true); setResult(null)
+    try {
+      const r=await fetch('/api/council/deliberate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          prompt:prompt.trim(),
+          scope_mode:scopeMode,
+          reservation_id:scopeMode==='hotel'&&resId?resId:undefined,
+          tenant_id:TENANT,
+          user_id:currentUser?.id?String(currentUser.id):undefined,
+        }),
+      })
+      const j=await r.json()
+      if(!r.ok) throw new Error(j?.detail||j?.error||'Failed')
+      setResult(j)
+      setActiveRole('chairman')
+      toast?.(`Verdict in · ৳${j.totals.total_cost_bdt.toFixed(2)}`,'ok')
+    } catch(e) {
+      toast?.(String(e.message||e),'err')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const allPanels = result ? [...result.panelists, result.chairman] : []
+  const active = allPanels.find(p=>p.role===activeRole)
+
+  return (
+    <div style={{padding:'2rem 2.5rem',maxWidth:1400,margin:'0 auto'}}>
+      <div style={{marginBottom:'1.5rem',display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:24}}>
+        <div>
+          <div style={{fontFamily:'var(--serif)',fontSize:32,fontWeight:300,color:'var(--tx)',letterSpacing:'-0.01em'}}>
+            AI Advisory <em style={{color:'var(--gold)'}}>Council</em>
+          </div>
+          <div style={{fontFamily:'var(--sans)',fontSize:12,color:'var(--tx3)',letterSpacing:'.06em',marginTop:4}}>
+            FIVE PANELISTS · ONE CHAIRMAN · ONE HARDENED VERDICT
+          </div>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={()=>setHistoryOpen(v=>!v)}>
+          {historyOpen?'Hide':'History'} ({history.length})
+        </button>
+      </div>
+
+      {historyOpen&&(
+        <div style={{marginBottom:'1.5rem',border:'1px solid var(--br)',background:'var(--s3)',padding:'1rem',maxHeight:280,overflowY:'auto'}}>
+          {history.length===0&&<div style={{color:'var(--tx3)',fontSize:12}}>No prior sessions.</div>}
+          {history.map(h=>(
+            <div key={h.session_id}
+              style={{padding:'.6rem 0',borderBottom:'1px solid var(--br2)',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}
+              onClick={()=>{
+                const panelArr = (h.panelists||[]).map(p=>({
+                  role:p.role,
+                  label:(COUNCIL_ROLES.find(r=>r.id===p.role)?.label)||'Chairman',
+                  verdict:p.verdict, tokens_in:p.tokens_in, tokens_out:p.tokens_out,
+                  cost_bdt:Number(p.cost_bdt||0), latency_ms:p.latency_ms,
+                }))
+                const chair = panelArr.find(p=>p.role==='chairman')
+                setPrompt(h.prompt)
+                setResult({
+                  session_id:h.session_id,
+                  panelists:panelArr.filter(p=>p.role!=='chairman'),
+                  chairman:chair||{role:'chairman',label:'The Chairman',verdict:h.chairman_verdict||'',tokens_in:0,tokens_out:0,cost_bdt:0,latency_ms:0},
+                  totals:{total_tokens_in:h.total_tokens_in,total_tokens_out:h.total_tokens_out,total_cost_bdt:Number(h.total_cost_bdt||0)},
+                })
+                setActiveRole('chairman')
+                setHistoryOpen(false)
+              }}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'var(--sans)',fontSize:13,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{h.prompt}</div>
+                <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--tx3)',marginTop:2}}>
+                  {new Date(h.created_at).toLocaleString()} · ৳{Number(h.total_cost_bdt||0).toFixed(2)} · {h.status}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{border:'1px solid var(--br)',background:'var(--s3)',padding:'1.5rem',marginBottom:'2rem'}}>
+        <div style={{display:'flex',gap:12,marginBottom:'1rem',alignItems:'center',flexWrap:'wrap'}}>
+          <label style={{fontSize:11,color:'var(--tx3)',letterSpacing:'.08em',textTransform:'uppercase'}}>Mode</label>
+          {['hotel','general'].map(m=>(
+            <button key={m} className={`tab${scopeMode===m?' on':''}`}
+              onClick={()=>setScopeMode(m)} style={{padding:'4px 12px'}}>
+              {m==='hotel'?'Hotel Context':'General Strategy'}
+            </button>
+          ))}
+          {scopeMode==='hotel'&&(
+            <select value={resId} onChange={e=>setResId(e.target.value)}
+              style={{background:'var(--s1)',border:'1px solid var(--br)',color:'var(--tx)',padding:'4px 8px',fontFamily:'var(--mono)',fontSize:11,marginLeft:'auto',minWidth:240}}>
+              <option value="">— No specific reservation —</option>
+              {activeReservations.map(r=>(
+                <option key={r.id} value={r.id}>
+                  {(r.room_ids||[]).join(',')} · ৳{Number(r.total_amount||0).toLocaleString()}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <textarea
+          value={prompt}
+          onChange={e=>setPrompt(e.target.value)}
+          placeholder="e.g. Should we launch a corporate-rate program targeting Gulshan/Banani tech firms for Q3?"
+          rows={4}
+          style={{width:'100%',background:'var(--s1)',border:'1px solid var(--br)',color:'var(--tx)',padding:'12px',fontFamily:'var(--sans)',fontSize:14,resize:'vertical'}}
+        />
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'1rem'}}>
+          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--tx3)'}}>
+            {prompt.length}/6000 chars
+          </div>
+          <button className="btn btn-primary" onClick={deliberate} disabled={loading||!prompt.trim()}>
+            {loading?'⟳ Council deliberating…':'Convene Council'}
+          </button>
+        </div>
+      </div>
+
+      {(loading||result)&&(
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:12,marginBottom:'1.5rem'}}>
+          {COUNCIL_ROLES.map(role=>{
+            const panel = result?.panelists?.find(p=>p.role===role.id)
+            const done = !!panel
+            return (
+              <div key={role.id}
+                onClick={()=>panel&&setActiveRole(role.id)}
+                style={{
+                  border:`1px solid ${activeRole===role.id?role.color:'var(--br)'}`,
+                  background:activeRole===role.id?'rgba(200,169,110,.04)':'var(--s3)',
+                  padding:'1rem',cursor:panel?'pointer':'default',
+                  transition:'all .2s cubic-bezier(0.4,0,0.2,1)',
+                  opacity:done?1:.5,
+                }}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  <span style={{fontSize:16,color:role.color}}>{role.ico}</span>
+                  <span style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--tx2)',letterSpacing:'.06em',textTransform:'uppercase'}}>{role.label}</span>
+                </div>
+                <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--tx3)'}}>
+                  {done
+                    ? `${panel.tokens_out}t · ৳${Number(panel.cost_bdt||0).toFixed(2)} · ${(panel.latency_ms/1000).toFixed(1)}s`
+                    : loading?'⟳ thinking…':'—'}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {result&&(
+        <div
+          onClick={()=>setActiveRole('chairman')}
+          style={{
+            border:`2px solid ${activeRole==='chairman'?'var(--gold)':'var(--br)'}`,
+            background:'linear-gradient(180deg, rgba(200,169,110,.06) 0%, var(--s3) 100%)',
+            padding:'1.25rem',cursor:'pointer',marginBottom:'1.5rem',
+            transition:'all .2s cubic-bezier(0.4,0,0.2,1)',
+          }}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:18,color:'var(--gold)'}}>⬢</span>
+              <span style={{fontFamily:'var(--serif)',fontSize:18,fontWeight:300,color:'var(--tx)'}}>The Chairman — Final Verdict</span>
+            </div>
+            <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--tx3)'}}>
+              {result.chairman.tokens_out}t · ৳{Number(result.chairman.cost_bdt||0).toFixed(2)} · {(result.chairman.latency_ms/1000).toFixed(1)}s
+            </div>
+          </div>
+        </div>
+      )}
+
+      {active&&(
+        <div style={{border:'1px solid var(--br)',background:'var(--s1)',padding:'1.5rem',marginBottom:'1rem'}}>
+          <div style={{fontFamily:'var(--sans)',fontSize:11,color:'var(--tx3)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'1rem'}}>
+            {active.label}
+          </div>
+          <pre style={{whiteSpace:'pre-wrap',fontFamily:'var(--sans)',fontSize:14,color:'var(--tx)',lineHeight:1.65,margin:0}}>
+            {active.verdict}
+          </pre>
+        </div>
+      )}
+
+      {result&&(
+        <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--tx3)',textAlign:'right',marginTop:'1rem'}}>
+          SESSION TOTAL · {result.totals.total_tokens_in}t in · {result.totals.total_tokens_out}t out · ৳{Number(result.totals.total_cost_bdt||0).toFixed(2)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 function App() {
   const [user,setUser]=useState(null)
   const [page,setPage]=useState('dashboard')
@@ -6121,11 +6344,12 @@ function App() {
     {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
     {id:'billing',   ico:'◎', label:'Billing & Invoices'},
     {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
+    {id:'council',   ico:'⬢', label:'AI Council',       sect:'STRATEGY'},
 
     {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
   ].filter(n=>allowed.includes(n.id))
 
-  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',settings:'Settings'}
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',council:'AI Advisory Council',settings:'Settings'}
   const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
   const _p = k => bdParts.find(p=>p.type===k)?.value || ''
   const clockStr=(()=>{
@@ -6379,6 +6603,7 @@ function App() {
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
 
+            {cur==='council'      &&<CouncilPage reservations={data.reservations} currentUser={user} toast={toast}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests} onSignOut={signOut}/>}
           </div>
         </main>
