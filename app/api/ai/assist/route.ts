@@ -17,6 +17,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { logEvent } from '@/lib/audit';
 
 export const runtime  = 'nodejs';
 export const maxDuration = 30;
@@ -161,9 +162,13 @@ Respond with the smallest correct answer. If the local context lacks a field nee
 
 // ── Handler ────────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
+  const t0 = Date.now();
+  const requestId = req.headers.get('x-request-id');
+  let tenant_id_for_audit: string | null = null;
   try {
     const body = await req.json();
     const tenant_id: string = body.tenant_id || process.env.NEXT_PUBLIC_TENANT_ID!;
+    tenant_id_for_audit = tenant_id ?? null;
     const scope: Scope = body.scope ?? {};
     const user_request: string = String(body.user_request ?? '').slice(0, 4000);
 
@@ -196,10 +201,41 @@ export async function POST(req: Request) {
 
     if (!aRes.ok) {
       const txt = await aRes.text();
+      void logEvent({
+        event_type:    'llm_execution',
+        action_target: 'POST /api/ai/assist',
+        status_code:   502,
+        result:        'failure',
+        duration_ms:   Date.now() - t0,
+        tenant_id:     tenant_id_for_audit,
+        request_id:    requestId,
+        role:          'system',
+        payload_summary: { model: 'claude-sonnet-4-6', scope, user_request_len: user_request.length },
+        error:         txt.slice(0, 500),
+      });
       return NextResponse.json({ error: 'anthropic_error', detail: txt }, { status: 502 });
     }
     const j = await aRes.json();
     const answer = j?.content?.[0]?.text ?? '';
+
+    void logEvent({
+      event_type:    'llm_execution',
+      action_target: 'POST /api/ai/assist',
+      status_code:   200,
+      result:        'success',
+      duration_ms:   Date.now() - t0,
+      tenant_id:     tenant_id_for_audit,
+      request_id:    requestId,
+      role:          'system',
+      payload_summary: {
+        model: 'claude-sonnet-4-6',
+        scope,
+        user_request_len: user_request.length,
+        answer_len: answer.length,
+        input_tokens:  j?.usage?.input_tokens ?? null,
+        output_tokens: j?.usage?.output_tokens ?? null,
+      },
+    });
 
     return NextResponse.json({
       answer,
@@ -210,6 +246,17 @@ export async function POST(req: Request) {
       },
     });
   } catch (e) {
+    void logEvent({
+      event_type:    'llm_execution',
+      action_target: 'POST /api/ai/assist',
+      status_code:   500,
+      result:        'failure',
+      duration_ms:   Date.now() - t0,
+      tenant_id:     tenant_id_for_audit,
+      request_id:    requestId,
+      role:          'system',
+      error:         String(e).slice(0, 500),
+    });
     return NextResponse.json({ error: 'internal', detail: String(e) }, { status: 500 });
   }
 }
