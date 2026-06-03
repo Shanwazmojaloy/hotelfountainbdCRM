@@ -104,7 +104,6 @@ export async function logEvent(ev: AuditEvent): Promise<void> {
     timestamp: new Date().toISOString(),
     ...enriched,
   };
-  // eslint-disable-next-line no-console
   console.log(JSON.stringify(stdoutLine));
 
   // Transport 2: Supabase. Awaited but bounded — see writeToSupabase timeout.
