@@ -1563,3 +1563,33 @@ $count = (Select-String -Path public\crm-src.jsx -Pattern 'ReactDOM.createRoot' 
 **PowerShell string-quoting rule:** any string literal containing JS code with `$`, `||`, or expression-like patterns MUST use single quotes (`'...'`) or single-quoted here-strings (`@'...'@`). Double-quoted strings interpolate.
 
 This deployment chain pattern (false-alarm guard → wrong fix direction → quoting bug → restore method tweak → final ship) burned ~5 round-trips. Keep this section as a reference next time a Windows-side push script touches crm-src.jsx.
+
+
+---
+
+## 2026-06-03 — Centralized Audit & Activity Logging (Lumea)
+
+**Decision:** All user actions, record mutations, auth events, and LLM executions are now logged to `public.audit_logs` (Supabase) via a non-blocking `src/lib/audit.ts` helper. File-based log rotation was REJECTED — Vercel's serverless filesystem is ephemeral and isolated per lambda, so disk logs would not survive cold starts.
+
+**Schema (migration `20260603_audit_logs.sql` applied to `mynwfkgksqqwlqowlscj`):**
+- `audit_logs (id, ts, tenant_id→tenants.id ON DELETE CASCADE, request_id, event_type, user_id, role, action_target, status_code, result {success|failure|partial|denied}, duration_ms, ip INET, user_agent, payload_summary JSONB, error)`
+- Indexes: `(tenant_id, ts DESC)`, `(event_type, ts DESC)`, `(user_id, ts DESC) WHERE NOT NULL`, `(request_id) WHERE NOT NULL`
+- RLS: SELECT only for `authenticated` where `tenant_id::text = auth.jwt() ->> 'tenant_id'`; no INSERT/UPDATE/DELETE policy → writes require service role
+- Retention: `purge_audit_logs(p_days INT DEFAULT 30)` SECURITY INVOKER, called by `/api/agents/audit-purge` cron at `30 0 * * *` UTC
+
+**Architecture:**
+- Logger: `src/lib/audit.ts` — `logEvent()` (stdout JSON + Supabase REST insert, 4s timeout, fire-and-forget via `void`) and `withAudit(eventType, handler)` wrapper
+- Sanitizer: `src/lib/audit-sanitize.ts` — strips `password|secret|token|api_key|JWT|Slack|GH|OpenAI` patterns, clips strings >2KB, caps recursion at depth 6
+- Middleware: `x-request-id = crypto.randomUUID()` injected on every request for correlation
+- Reader: `GET /api/admin/logs` (Bearer ADMIN_SECRET) with `?since|until|event_type|user_id|tenant_id|result|limit|offset`
+- Purge: `GET /api/agents/audit-purge` (Bearer CRON_SECRET), 30-day rolling window
+
+**Routes wired with logEvent:**
+- `POST /api/admin/onboard-tenant` → `admin_onboard_tenant` (success + 401)
+- `GET /api/agents/payment-confirm` → `status_change` (one-tap activation + 401)
+- `POST /api/ai/assist` → `llm_execution` (success + 502 + 500, with token usage)
+- `POST /api/council/deliberate` → `llm_execution` (5-panelist totals + 500)
+
+**Smoke test (2026-06-03):** insert→select→purge(0)→verify-empty all green. Zero new Supabase security advisories.
+
+**Pending Shan actions:** none — migration already applied via MCP. Deploy on next push triggers the new cron and routes.

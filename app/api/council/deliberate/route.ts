@@ -19,6 +19,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { logEvent } from '@/lib/audit';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 60;
@@ -323,6 +324,26 @@ export async function POST(req: Request) {
       completed_at: new Date().toISOString(),
     });
 
+    void logEvent({
+      event_type:    'llm_execution',
+      action_target: `council_sessions:${sessionId}`,
+      status_code:   200,
+      result:        'success',
+      tenant_id,
+      request_id:    req.headers.get('x-request-id'),
+      user_id:       user_id != null ? String(user_id) : null,
+      role:          'staff',
+      payload_summary: {
+        scope_mode,
+        reservation_id: reservation_id ?? null,
+        prompt_len: prompt.length,
+        panelist_count: panelResults.length + 1,
+        total_tokens_in,
+        total_tokens_out,
+        total_cost_bdt,
+      },
+    });
+
     return NextResponse.json({
       session_id: sessionId,
       panelists: panelResults.map((p) => ({
@@ -358,6 +379,15 @@ export async function POST(req: Request) {
         completed_at: new Date().toISOString(),
       }).catch(() => {});
     }
+    void logEvent({
+      event_type:    'llm_execution',
+      action_target: sessionId ? `council_sessions:${sessionId}` : 'POST /api/council/deliberate',
+      status_code:   500,
+      result:        'failure',
+      request_id:    req.headers.get('x-request-id'),
+      role:          'system',
+      error:         String(e).slice(0, 500),
+    });
     return NextResponse.json({ error: 'internal', detail: String(e) }, { status: 500 });
   }
 }
