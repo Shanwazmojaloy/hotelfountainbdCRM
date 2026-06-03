@@ -1449,7 +1449,21 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
   const roomRate=ratesSum
   const extCharge=extNights>0?extNights*ratesSum:0
   const computedTotal=ratesSum*nights
-  const totalAmt=computedTotal>0?computedTotal:(+res.total_amount||0)
+  // Modal total math (2026-06-03 fix):
+  //   Detect if the user has modified dates/rooms since open. If UNTOUCHED,
+  //   honor reservations.total_amount (which already reflects folio resyncs
+  //   from Add Charge — e.g., ARULNAYAGAN ৳58,880 = ৳52K rooms + ৳6,880 folios).
+  //   If user edited dates/rooms, fall back to ratesSum * nights so the
+  //   live recalc reflects the edit. Save will overwrite total_amount with
+  //   whichever value is shown.
+  //   See billing_canonical_anchor v3.4 and CLAUDE.md "MODAL TOTAL MATCH LIST".
+  const _origCheckIn=res.check_in?String(res.check_in).slice(0,10):''
+  const _origCheckOut=res.check_out?String(res.check_out).slice(0,10):''
+  const _origRoomKey=[...(res.room_ids||[])].filter(Boolean).map(String).sort().join(',')
+  const _newRoomKey=[...roomArr].filter(Boolean).map(String).sort().join(',')
+  const _isUserEditing=(checkInDate!==_origCheckIn)||(checkOut!==_origCheckOut)||(_newRoomKey!==_origRoomKey)
+  const _dbTotal=+res.total_amount||0
+  const totalAmt=_isUserEditing?computedTotal:(_dbTotal>0?_dbTotal:computedTotal)
   const paidNum=+paidAmt||0
   const discountNum=+discountAmt||0
   const balance=Math.max(0,totalAmt-discountNum-paidNum)
