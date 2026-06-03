@@ -2435,10 +2435,9 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
     <td class="rno">${esc(r.room_number||'—')}</td>
     <td class="dt">${short(r.check_in)} → ${short(r.check_out)}</td>
     <td class="num">${fmt(r.bill_total)}</td>
-    <td class="num">${fmt(r.paid)}</td>
+    <td class="num pos">${fmt(r.paid)}</td>
     <td class="num bal-${(+r.balance_due>0)?'due':'paid'}">${fmt(r.balance_due)}</td>
     <td><span class="pm pm-${String(r.payment_method||'').toLowerCase().replace(/[^a-z]/g,'')}">${esc(r.payment_method||'—')}</span></td>
-    <td class="num pos">${fmt(r.collected_amount)}</td>
   </tr>`).join('')
 
   const duesBlock = (()=>{
@@ -2564,38 +2563,38 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
   /* ── Print overrides — fit single A4 portrait page ── */
   @media print{
     .actions{display:none}
-    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:9px !important;line-height:1.3 !important;text-rendering:geometricPrecision !important;font-feature-settings:'tnum' 1, 'lnum' 1 !important;color:#15110D !important}
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:8px !important;line-height:1.22 !important;text-rendering:geometricPrecision !important;font-feature-settings:'tnum' 1, 'lnum' 1 !important;color:#15110D !important}
     .page{padding:0 !important;max-width:none !important;width:100% !important;margin:0 !important;background:#fff !important;min-height:0 !important}
-    .hdr{padding-bottom:6px !important;margin-bottom:6px !important;gap:10px !important;border-bottom-width:1px !important}
+    .hdr{padding-bottom:4px !important;margin-bottom:4px !important;gap:8px !important;border-bottom-width:1px !important}
     .brand{gap:12px !important}
-    .brand img.logo{width:46px !important;height:46px !important}
-    .brand h1{font-size:17px !important;letter-spacing:.4px !important}
-    .brand .tag{font-size:10px !important;margin-top:2px !important;letter-spacing:1px !important}
-    .brand .contact{font-size:8.5px !important;margin-top:4px !important;line-height:1.35 !important}
-    .meta{min-width:150px !important}
-    .meta .doc-label{font-size:15px !important;margin-bottom:3px !important;letter-spacing:2px !important}
-    .meta .period{font-size:12px !important;margin-bottom:5px !important;font-weight:600 !important}
-    .meta .lbl{font-size:8.5px !important;margin-top:3px !important;letter-spacing:1.3px !important}
-    .meta .v{font-size:9.5px !important}
-    .stats{gap:7px !important;margin-bottom:10px !important;grid-template-columns:repeat(4,1fr) !important}
-    .stat{padding:8px 10px !important;border-width:1px !important;border-top-width:2.5px !important}
-    .stat .lbl{font-size:8.5px !important;margin-bottom:4px !important;letter-spacing:1.3px !important}
-    .stat .val{font-size:18px !important;letter-spacing:.2px !important;font-weight:700 !important}
-    .stat .sub{font-size:8px !important;margin-top:3px !important}
-    .sec-hdr{padding:7px 0 6px !important;margin-top:8px !important;font-size:12.5px !important;border-bottom-width:1.2px !important;font-weight:700 !important}
-    .sec-hdr .sec-meta{font-size:9px !important;letter-spacing:.4px !important}
-    table.tbl{margin-bottom:8px !important;border-width:1px !important}
-    table.tbl thead th{padding:6px 6px !important;font-size:9px !important;letter-spacing:1px !important;border-bottom-width:.8px !important;font-weight:700 !important;color:#15110D !important}
-    table.tbl tbody td{padding:5px 6px !important;font-size:10px !important;color:#15110D !important}
-    table.tbl td.dt{font-size:9px !important;color:#5A544A !important}
-    table.tbl tfoot td{padding:7px 6px !important;font-size:10.5px !important;border-top-width:1.5px !important;font-weight:700 !important}
-    .pm{padding:2px 7px !important;font-size:8.5px !important;letter-spacing:.5px !important;border-width:.8px !important;font-weight:600 !important}
-    .closing{margin-top:12px !important;padding:12px 16px !important;max-width:360px !important;border-width:1px !important;border-top-width:2.5px !important}
-    .closing-row{padding:5px 0 !important;font-size:11px !important;color:#3A342E !important}
-    .closing-row.token{padding-top:7px !important;margin-top:4px !important}
-    .closing-row.final{margin-top:7px !important;padding-top:10px !important;font-size:14px !important;border-top-width:1.8px !important;font-weight:700 !important;color:#15110D !important}
-    .closing-row.final .num{font-size:18px !important}
-    .ftr{margin-top:14px !important;padding-top:9px !important;font-size:8px !important;letter-spacing:1.2px !important;border-top-width:.7px !important;color:#5A544A !important}
+    .brand img.logo{width:36px !important;height:36px !important}
+    .brand h1{font-size:14px !important;letter-spacing:.3px !important}
+    .brand .tag{font-size:8.5px !important;margin-top:1px !important;letter-spacing:.8px !important}
+    .brand .contact{font-size:7.5px !important;margin-top:3px !important;line-height:1.28 !important}
+    .meta{min-width:130px !important}
+    .meta .doc-label{font-size:12px !important;margin-bottom:2px !important;letter-spacing:1.5px !important}
+    .meta .period{font-size:10px !important;margin-bottom:3px !important;font-weight:600 !important}
+    .meta .lbl{font-size:7px !important;margin-top:2px !important;letter-spacing:1.1px !important}
+    .meta .v{font-size:8px !important}
+    .stats{gap:5px !important;margin-bottom:6px !important;grid-template-columns:repeat(4,1fr) !important}
+    .stat{padding:5px 8px !important;border-width:1px !important;border-top-width:2px !important}
+    .stat .lbl{font-size:7px !important;margin-bottom:3px !important;letter-spacing:1.1px !important}
+    .stat .val{font-size:14px !important;letter-spacing:.15px !important;font-weight:700 !important}
+    .stat .sub{font-size:6.5px !important;margin-top:2px !important}
+    .sec-hdr{padding:4px 0 3px !important;margin-top:4px !important;font-size:10.5px !important;border-bottom-width:1px !important;font-weight:700 !important}
+    .sec-hdr .sec-meta{font-size:7.5px !important;letter-spacing:.3px !important}
+    table.tbl{margin-bottom:5px !important;border-width:1px !important}
+    table.tbl thead th{padding:3px 4px !important;font-size:7.5px !important;letter-spacing:.7px !important;border-bottom-width:.6px !important;font-weight:700 !important;color:#15110D !important}
+    table.tbl tbody td{padding:2.5px 4px !important;font-size:8.5px !important;color:#15110D !important}
+    table.tbl td.dt{font-size:7.5px !important;color:#5A544A !important}
+    table.tbl tfoot td{padding:4px 4px !important;font-size:9px !important;border-top-width:1px !important;font-weight:700 !important}
+    .pm{padding:1px 4px !important;font-size:7px !important;letter-spacing:.3px !important;border-width:.6px !important;font-weight:600 !important}
+    .closing{margin-top:6px !important;padding:7px 11px !important;max-width:300px !important;border-width:1px !important;border-top-width:2px !important}
+    .closing-row{padding:2px 0 !important;font-size:9px !important;color:#3A342E !important}
+    .closing-row.token{padding-top:4px !important;margin-top:2px !important}
+    .closing-row.final{margin-top:4px !important;padding-top:6px !important;font-size:11.5px !important;border-top-width:1.4px !important;font-weight:700 !important;color:#15110D !important}
+    .closing-row.final .num{font-size:14px !important}
+    .ftr{margin-top:7px !important;padding-top:5px !important;font-size:6.5px !important;letter-spacing:.8px !important;border-top-width:.5px !important;color:#5A544A !important}
     .hdr,.stats,.sec-hdr,table.tbl,.closing,.ftr{page-break-inside:avoid}
     table.tbl tr{page-break-inside:avoid}
   }
@@ -2648,13 +2647,13 @@ function downloadBillingPDF(enriched, filter, periodTotal, cashTotal, bkashTotal
 
   <div class="sec-hdr"><span>Collected Transactions — ${esc(filterLabel)}</span><span class="sec-meta">${(enriched||[]).length} record${(enriched||[]).length!==1?'s':''}</span></div>
   <table class="tbl">
-    <colgroup><col style="width:19%"/><col style="width:7%"/><col style="width:14%"/><col style="width:11%"/><col style="width:10%"/><col style="width:11%"/><col style="width:13%"/><col style="width:15%"/></colgroup>
+    <colgroup><col style="width:22%"/><col style="width:8%"/><col style="width:17%"/><col style="width:13%"/><col style="width:13%"/><col style="width:12%"/><col style="width:15%"/></colgroup>
     <thead><tr>
       <th>Guest</th><th>Room</th><th>Check-In → Out</th>
       <th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance Due</th>
-      <th>Payment Method</th><th class="num">Collected</th>
+      <th>Payment Method</th>
     </tr></thead>
-    <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:22px;color:#8A8276">No transactions in this period</td></tr>'}</tbody>
+    <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:22px;color:#8A8276">No transactions in this period</td></tr>'}</tbody>
   </table>
 
   ${duesBlock}
