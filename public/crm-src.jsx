@@ -1690,12 +1690,40 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
     Standard check-in 2:00 PM · check-out 12:00 PM. Early check-in / late check-out subject to availability. Balance due payable at check-in. Cancellation policy applies as per booking agreement. This document is a booking confirmation and does not constitute a VAT invoice; a tax invoice will be issued at check-out.
   </div>
 
-  <div class="ftr">
-    <div>${esc(HF_PHONE)} &nbsp;·&nbsp; ${esc(HF_EMAIL)}</div>
-    <div>${esc(HF_SITE)}</div>
+  <div class="ftr" style="align-items:flex-end">
+    <div>
+      <div>${esc(HF_PHONE)} &nbsp;·&nbsp; ${esc(HF_EMAIL)}</div>
+      <div style="margin-top:3px">${esc(HF_SITE)}</div>
+    </div>
+    <div style="text-align:center;flex-shrink:0;margin-left:16px">
+      <img id="wa-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="80" height="80" style="display:block;margin-bottom:3px" alt="WhatsApp QR"/>
+      <div style="font-size:7px;letter-spacing:.12em;margin-bottom:1px">SCAN TO WHATSAPP</div>
+      <div style="font-size:8px;font-weight:700;color:#1C1510;font-family:monospace;text-transform:none;letter-spacing:0">+880 1322-840799</div>
+    </div>
   </div>
 </div>
-<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),350))</script>
+<script>
+  // Image-load-aware print trigger: wait for all <img> (including the QR fetched
+  // from api.qrserver.com) to settle before calling window.print(). The previous
+  // fixed 350ms timeout sometimes fired before the QR finished loading, leaving
+  // a blank box in the printout.
+  (function(){
+    const imgs = document.getElementsByTagName('img')
+    let pending = 0
+    const trigger = () => setTimeout(() => window.print(), 120)
+    if (imgs.length === 0) { trigger(); return }
+    for (const im of imgs) {
+      if (im.complete && im.naturalWidth > 0) continue
+      pending++
+      im.addEventListener('load',  () => { if (--pending <= 0) trigger() })
+      im.addEventListener('error', () => { if (--pending <= 0) trigger() })
+    }
+    if (pending === 0) trigger()
+    // Hard cap: print after 2.5s even if an image never settles, so the user
+    // is never stuck staring at a blank window.
+    setTimeout(trigger, 2500)
+  })()
+</script>
 </body></html>`
     const w = window.open('', '_blank', 'width=900,height=1100')
     if(!w){ toast('Pop-up blocked — allow pop-ups to print','error'); return }
