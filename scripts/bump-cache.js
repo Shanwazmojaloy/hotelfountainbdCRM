@@ -14,7 +14,7 @@ const pad = n => String(n).padStart(2,'0')
 const ver = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
 
 // Only match digits in the version string — never overshoot past the quote
-const updated = html.replace(/crm-bundle\.js\?v=\d+/, `crm-bundle.js?v=${ver}`)
+const updated = html.replace(/crm-bundle\.js\?v=[\w-]+/, `crm-bundle.js?v=${ver}`)
 if (updated === html) { console.error('bump-cache: pattern not found in crm.html'); process.exit(1) }
 
 fs.writeFileSync(htmlPath, updated, 'utf8')
