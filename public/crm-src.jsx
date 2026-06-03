@@ -1612,12 +1612,44 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
   .actions{position:fixed;top:16px;right:16px;display:flex;gap:8px}
   .actions button{font-family:'Natom Pro','Inter',sans-serif;font-size:12px;padding:8px 14px;border:1px solid #9C7A3E;background:#9C7A3E;color:#FBF8F1;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:2px;font-weight:500}
   .actions button.ghost{background:transparent;color:#9C7A3E}
-  @page{size:A4 portrait;margin:8mm 10mm}
+  @page{size:A4 portrait;margin:6mm 8mm}
   @media print{
     .actions{display:none}
-    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .page{padding:0 !important;max-width:none !important;width:100% !important;margin:0 !important;background:#fff !important}
-    .ftr,.totals,table tr,.terms{page-break-inside:avoid}
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:11px !important;line-height:1.35 !important;text-rendering:geometricPrecision !important;font-feature-settings:'tnum' 1, 'lnum' 1 !important}
+    .page{padding:0 !important;max-width:none !important;width:100% !important;margin:0 !important;background:#fff !important;min-height:0 !important}
+    /* Header — compact, but still bold */
+    .hdr{padding-bottom:10px !important;margin-bottom:14px !important;gap:14px !important}
+    .brand img.logo{width:46px !important;height:46px !important}
+    .brand h1{font-size:18px !important;letter-spacing:.4px !important}
+    .brand .tag{font-size:10px !important;margin-top:2px !important;letter-spacing:1px !important}
+    .brand .contact{font-size:9px !important;margin-top:4px !important;line-height:1.35 !important}
+    .meta{font-size:10px !important;line-height:1.4 !important}
+    .meta .conf{font-size:11px !important}
+    /* Doc title */
+    .doc-title{font-size:16px !important;margin-bottom:3px !important;letter-spacing:.3px !important}
+    .doc-sub{font-size:9px !important;letter-spacing:1.4px !important;margin-bottom:14px !important}
+    /* Guest/Confirmation/Date boxes */
+    .grid{gap:12px !important;margin-bottom:14px !important}
+    .box{padding:9px 12px !important;border-width:1px !important;border-radius:2px !important}
+    .lbl{font-size:8px !important;letter-spacing:1.4px !important;margin-bottom:3px !important}
+    .val{font-size:12px !important}
+    .val.mono{font-size:11.5px !important}
+    /* Room table */
+    table{margin-bottom:12px !important;border-width:1px !important}
+    thead th{padding:7px 9px !important;font-size:8.5px !important;letter-spacing:1.4px !important}
+    tbody td{padding:7px 9px !important;font-size:10.5px !important}
+    /* Totals box */
+    .totals{width:260px !important}
+    .totals .row{padding:4px 0 !important;font-size:11px !important}
+    .totals .row.bal{margin-top:3px !important;padding-top:7px !important;font-size:12.5px !important;font-weight:700 !important}
+    /* Terms (small print) */
+    .terms{margin-top:12px !important;font-size:8.5px !important;line-height:1.45 !important}
+    .terms h4{font-size:9px !important;margin-bottom:4px !important;letter-spacing:1.4px !important}
+    /* Footer w/ WhatsApp QR — tight margin so it stays on page 1 */
+    .ftr{margin-top:14px !important;padding-top:8px !important;font-size:9px !important;letter-spacing:1px !important;border-top-width:.7px !important;color:#5A544A !important}
+    .ftr img{width:64px !important;height:64px !important}
+    /* Page-break controls */
+    .ftr,.totals,table tr,.terms,.hdr,.grid{page-break-inside:avoid}
   }
 </style></head><body>
 <div class="page">
@@ -1696,7 +1728,7 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
       <div style="margin-top:3px">${esc(HF_SITE)}</div>
     </div>
     <div style="text-align:center;flex-shrink:0;margin-left:16px">
-      <img id="wa-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="80" height="80" style="display:block;margin-bottom:3px" alt="WhatsApp QR"/>
+      <img id="wa-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="64" height="64" style="display:block;margin-bottom:3px" alt="WhatsApp QR"/>
       <div style="font-size:7px;letter-spacing:.12em;margin-bottom:1px">SCAN TO WHATSAPP</div>
       <div style="font-size:8px;font-weight:700;color:#1C1510;font-family:monospace;text-transform:none;letter-spacing:0">+880 1322-840799</div>
     </div>
