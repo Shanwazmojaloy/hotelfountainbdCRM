@@ -3344,21 +3344,43 @@ ${dueRows}
         tx.fiscal_day <= (r.check_out||'9999-12-31').slice(0,10)
       )
     }
-    const enriched = realList.map(tx => {
+    // Group txs by reservation_id (or guest+room fallback for orphans), then sum.
+    // Without this, a single reservation that received TWO partial payments today
+    // (e.g. SADIA ৳3,999 + ৳1 = ৳4,000) becomes 2 rows in the PDF — confusing
+    // owners reading the report. Web BillingPage already groups this way.
+    const enrichedGroups = new Map()
+    for (const tx of realList) {
       const res = findRes(tx)
+      const key = res ? `res:${res.id}` : `nores:${tx.guest_name||''}|${tx.room_number||''}`
+      if (!enrichedGroups.has(key)) {
+        enrichedGroups.set(key, {
+          res, txs: [],
+          first_guest: tx.guest_name || (res ? getGN(res) : '—'),
+          first_room:  tx.room_number || (res ? (res.room_ids||[res.room_number]).filter(Boolean).join(',') : '—'),
+        })
+      }
+      enrichedGroups.get(key).txs.push(tx)
+    }
+    const enriched = Array.from(enrichedGroups.values()).map(g => {
+      const { res, txs, first_guest, first_room } = g
       const bill = res ? computeBill(res) : null
+      const sumPaid = txs.reduce((s, t) => s + (+t.amount || 0), 0)
+      // Aggregate payment methods — unique, comma-separated (Cash + bKash etc.)
+      const methods = [...new Set(txs.map(parsePM).filter(Boolean))]
+      const payment_method = methods.length === 1 ? methods[0] : methods.join(' + ')
       return {
-        guest_name: tx.guest_name || (res ? getGN(res) : '—'),
-        room_number: tx.room_number || (res ? (res.room_ids||[res.room_number]).filter(Boolean).join(',') : '—'),
+        guest_name: first_guest,
+        room_number: first_room,
         check_in: res?.check_in || '',
         check_out: res?.check_out || '',
-        bill_total: bill ? bill.total : 0, // NET (matches Billing & Invoices web view); was gross before
+        bill_total: bill ? bill.total : 0, // NET (matches web)
         discount: bill ? bill.discount : (res ? (+res.discount_amount||+res.discount||0) : 0),
-        paid: +tx.amount||0,  // today's collected (matches web PAID when filter=TODAY)
+        paid: sumPaid,  // SUM of today's payments for this reservation (matches web)
         balance_due: bill ? bill.due : (res ? Math.max(0,(+res.total_amount||0)-(+res.discount_amount||+res.discount||0)-(+res.paid_amount||0)) : 0),
-        payment_method: parsePM(tx),
-        collected_amount: +tx.amount||0,
-        fiscal_day: tx.fiscal_day
+        payment_method,
+        collected_amount: sumPaid,  // same as paid in the TODAY context
+        fiscal_day: txs[0]?.fiscal_day,
+        _tx_count: txs.length,  // for debugging / footer hints
       }
     })
     const duesList = (dueRes||[]).map(r => {
