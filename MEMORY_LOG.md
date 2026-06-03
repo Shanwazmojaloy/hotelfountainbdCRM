@@ -1593,3 +1593,116 @@ This deployment chain pattern (false-alarm guard → wrong fix direction → quo
 **Smoke test (2026-06-03):** insert→select→purge(0)→verify-empty all green. Zero new Supabase security advisories.
 
 **Pending Shan actions:** none — migration already applied via MCP. Deploy on next push triggers the new cron and routes.
+servation_id, ts DESC) WHERE NOT NULL`
+- RLS: tenant-scoped reads via `auth.jwt() ->> 'tenant_id'`, service-role inserts only
+- Reader: `GET /api/admin/logs` (gated by `ADMIN_SECRET`)
+- Cron: nightly purge at `30 0 * * *` UTC, default 90-day retention
+- Wired into: `/api/admin/onboard-tenant`, `/api/agents/payment-confirm`, `/api/ai/assist`, `/api/council/deliberate`
+
+
+---
+
+## 2026-06-03 — Mega-Session: Council + Billing Hardening + Print Polish
+
+A single 6h working session that shipped 8 distinct fixes and 1 new module across `main`. All commits already on `origin/main` and READY on Vercel production. Listed in chronological order.
+
+### 1) AI Advisory Council module (commit `263beab`)
+
+New strategic-deliberation feature: a single prompt fans out to 5 specialized panelists (Devil's Advocate, First-Principles, Optimist, Rationalist, Executor) in parallel, then a Chairman synthesizes the verdict.
+
+- DB: `council_sessions`, `council_panelists`, view `v_council_sessions_with_panel` (SECURITY INVOKER). RLS by `tenant_id = jwt.claims->>'tenant_id'`. Migration `council_sessions_20260602` applied to `mynwfkgksqqwlqowlscj`.
+- API: `app/api/council/deliberate/route.ts` (POST = deliberate, GET = history). Lighthouse context + optional `reservation_id` scope injection mirrors `/api/ai/assist`.
+- UI: new `<CouncilPage />` component in `public/crm-src.jsx`. Sidebar NAV_ITEMS gets a `STRATEGY` section with **AI Council** tab. Owner + manager roles granted.
+- Live smoke test on 2026-06-02 19:50 UTC: session `22f68f27-105b-4bdb-9ecf-4572cef900ad` returned all 5 panelists + Chairman in **41.24 seconds** for **BDT 7.49** total. Verdict: KILL (rooftop bar) — panelists cited live ৳233K open AR and 0% occupancy from the Lighthouse anchor, confirming context injection works.
+- Cost rule-of-thumb: ~৳8 (~$0.07) per deliberation; $10 credit ≈ 130 sessions.
+- One bug fixed during shipping: `staff.id` is `integer`, not `uuid`. First migration attempt failed; re-applied with `user_id integer references public.staff(id)`.
+- Required Anthropic key rotation: previous key was exhausted/invalid. After rotation + credit top-up, the route returned full 5-panelist verdicts.
+
+### 2) SHAMIM SIR ৳840 ghost-due bug (commit `1421570`, then REVERTED)
+
+User reported: Billing modal showed Balance Due ৳840 on SI SHAMIM (SHAMIM SIR) row 510 2026-05-16→19, despite having paid the full balance.
+
+**Investigation:**
+- Reservation `2fccaace-9d12-4fee-b206-60e2135a4f4c`: `total_amount=12,000`, `discount_amount=2,000`, `paid_amount=9,160`.
+- Sum of real-payment txs for this `reservation_id`: only ৳8,000 (৳2K at check-in May 16, ৳6K paid that day). So the cached `paid_amount=9,160` was ~৳1,160 higher than the canonical truth.
+- **Audit revealed 847 of 1,163 reservations (73%) drift** between cached `paid_amount` and `SUM(transactions WHERE _isRealPayment)`. Net overstatement: ~৳2.99M BDT.
+- Root cause: `ReservationDetail` edit modal lets users type any value into "Amount Paid" — that writes directly to `paid_amount` with no matching transaction row.
+
+**Proposed fix** (commit `1421570`): make `computeBill.paid` and the +Pay modal use `SUM(real payment txs)` as source of truth instead of `r.paid_amount`. Backfilled SHAMIM SIR row to canonical ৳8,000.
+
+**Owner explicitly REJECTED** the canonical-sum fix on 2026-06-02 — reason: the manual `paid_amount` input is intentionally used to record offline-collected payments (cash, mobile-pay, bank deposits) without inserting transactions. Switching to canonical sum would invalidate ~৳3M of "previously hidden" balances the owner considers already-settled.
+
+**Resolution:**
+- Reverted `computeBill` and modal-prefill to read `r.paid_amount` (legacy behavior preserved).
+- Manually overrode SHAMIM SIR row: `UPDATE reservations SET paid_amount = 10,000 WHERE id = '2fccaace…'` → due = ৳0.
+- Documented the decision permanently in `CLAUDE.md` as `PAID-AMOUNT POLICY` and in memory file `billing_canonical_anchor.md` v3.6.
+- **Anti-pattern blacklisted**: do NOT replace `+r.paid_amount||0` reads with canonical sums without explicit owner re-approval.
+- The 847-row drift remains invisible; the manual edit modal continues as the override surface.
+
+### 3) Smart fiscal_day removed (commit `19c9bc7`)
+
+`RecordPayModal._smartFiscalDay` used to default `fiscal_day` to the reservation's `check_out` date for CHECKED_OUT stays — so today's collected payments on past stays filed to historical biz days and never appeared in today's BIZ DAY total.
+
+**Change:** `_smartFiscalDay = r => (businessDate||todayStr())` — always today, regardless of status. User can still manually back-date in the modal's DATE field.
+
+Also fixed the SHAMIM SIR ৳6,000 payment's fiscal_day directly in the DB (`2026-05-19` → `2026-06-02`) so it appeared in that day's BIZ DAY collection sum.
+
+### 4) Billing Report A4 portrait + readable (commits `878810b`, `a40c560`, then `b8e1bbb` for single-page)
+
+Owner-requested progression:
+1. Switched from A4 landscape to A4 portrait (`@page{size:A4 portrait;margin:5mm 7mm}`).
+2. Bumped fonts +30–50% for readability: body 9px, h1 17px, stat val 18px/700w, table th 9px/700w, td 10px, closing total 18px. Added `text-rendering:geometricPrecision` and `font-feature-settings:'tnum' 1, 'lnum' 1`.
+3. Compressed back ~15% to fit single A4 portrait page after content grew: body 8px, h1 14px, stat val 14px, table th 7.5px / td 8.5px, closing 11.5px / 14px ৳ value. **Dropped the "Collected" column** because group-by-reservation made it duplicate of "Paid". Table is now 7 columns instead of 8.
+
+### 5) PDF↔Web parity for Bill Total + Paid (commit `fbf9a47`)
+
+User noticed Download Report's "Bill Total" for SI SHAMIM showed ৳12,000 while the web Billing list showed ৳10,000.
+
+Root cause: PDF's `bill_total` was set to raw `res.total_amount` (gross), while web's used `computeBill.total` (NET = gross − discount). Same bug in Pending Dues section: MEEPE MAHANAYAKA showed ৳112,500 PDF vs ৳95,000 web.
+
+**Fix:**
+- `bill_total: bill ? bill.total : 0` in BOTH enriched (Collected Transactions) and duesList (Pending Dues) blocks.
+- `paid` in Collected Transactions changed from lifetime `bill.paid` to `+tx.amount||0` (today's collected, mirrors web's filter=TODAY behavior).
+- Pending Dues `paid` kept as lifetime `bill.paid` (more useful for partial-paid outstanding balances; web's filter=TODAY 0 was a UX bug not worth propagating).
+
+### 6) PDF group-by-reservation (commit later same session)
+
+User showed SADIA AHMED SUCHANA appearing as two PDF rows: ৳1 and ৳3,999. DB confirmed two adjacent `Advance Payment` txs (14:42:15 and 14:42:21 — user split the ৳4,000 in two), both tagged to the same `reservation_id`.
+
+**Fix:** PDF `enriched` rebuilt by grouping `realList` (today's txs) by `reservation_id` (or `guest|room` fallback for orphans) and summing tx amounts into one PDF row per stay. Payment methods aggregated as a unique-set `Cash + bKash`-style string when mixed.
+
+The per-tx `realList.map(tx => …)` pattern is now blacklisted in `CLAUDE.md`.
+
+### 7) Cache-buster `whatsapp` suffix scrub (commit `a590b9e`)
+
+User's network panel showed `crm-bundle.js?v=20260602234728whatsapp` — leftover from an old commit (`8e866be1` "WhatsApp QR code") had concatenated a literal `whatsapp` token. The `bump-cache.js` regex was `/v=\d+/` which only matched digits and left any trailing word chars in place.
+
+**Fix:** regex changed to `/v=[\w-]+/` so the full token is replaced on every bump. Manually scrubbed the current `crm.html` to clean state.
+
+### 8) Booking Confirmation print — WhatsApp QR + full-page flex layout
+
+Added the same WhatsApp QR pattern from the invoice (`api.qrserver.com` → `wa.me/8801322840799`) to `printConfirmation()`. Footer is two-column `align-items:center` — left side: phone/email/web; right side: 68×68 QR (fetched at 160×160 for crisp 300+ DPI print) + "SCAN TO WHATSAPP" label + monospace phone number.
+
+The initial compression collapsed everything to the top half of the sheet. Final layout uses `display:flex; flex-direction:column; min-height:calc(297mm - 16mm)` on `.page` with `.ftr{margin-top:auto}` to push the footer to the bottom of the A4 sheet so the layout fills the page elegantly.
+
+Print trigger switched from fixed `setTimeout(print, 350)` to image-load-aware: counts `<img>` `load`/`error` events, fires `window.print()` 120ms after all images settle, with a 2.5s hard cap. The old timeout sometimes fired before api.qrserver.com finished serving the QR, leaving a blank box.
+
+### 9) Reservation modal `totalAmt` matches list (commit `02060306`)
+
+User: ARULNAYAGAN YASOTHAR list shows Total ৳58,880 / Balance ৳26,080, modal shows Total ৳52,000 / Balance ৳19,200.
+
+DB: `total_amount=58,880` (canonical, including ৳6,880 of folio resyncs) and 2 folios totalling ৳13,760. Modal was always computing `ratesSum*nights = 52,000` and only falling back to DB if that was zero.
+
+**Fix:** detect `_isUserEditing` by comparing current `checkInDate`/`checkOut`/sorted `roomArr` against original `res.check_in`/`res.check_out`/sorted `res.room_ids`. If unchanged → honor DB `total_amount`. If editing → recompute live so the preview reflects the user's edit. Save writes whichever value is shown.
+
+Anti-pattern blacklisted: `computedTotal > 0 ? computedTotal : dbTotal` (always loses folios).
+
+---
+
+**Cumulative deploys this session:** `dpl_9rCwbs7Ya` (Council) → `dpl_CFGCFs5` (SHAMIM canonical, later overridden manually) → `dpl_A2RbZcjQ` (smart fiscal day) → `dpl_871sEdUF` (A4 portrait) → `dpl_6wFNSf6X` (readability) → `dpl_4TZv4VRZ` (PDF parity) → `dpl_3qhsxVJQ` (cache scrub) + further deploys for group-by-reservation, confirmation QR/layout, and modal total fix.
+
+**Files touched:** `public/crm-src.jsx`, `public/crm-bundle.js`, `public/crm.html`, `CLAUDE.md`, `scripts/bump-cache.js`, `scripts/sql/2026_06_02_council_sessions.sql`, `app/api/council/deliberate/route.ts`, `.githooks/pre-commit`, `scripts/guard-onedrive-truncation.sh`.
+
+**Open follow-ups for owner:**
+- 847-row `paid_amount` vs canonical-sum drift remains. Mass backfill SQL is in `memory/billing_canonical_anchor.md` v3.6 — run only after deciding how to reconcile offline payments not in the transactions table.
+- ARULNAYAGAN row was untouched in the DB (modal fix is read-side only). If owner wants the modal to surface discrepancies on save, add a confirm dialog when `totalAmt` differs from existing `total_amount`.
