@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Lumea — Hotel Fountain CRM</title>
+  <meta name="theme-color" content="#1C1510"/>
+  <link rel="manifest" href="/manifest.webmanifest"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Lumea"/>
+  <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
   <link rel="icon" href="/favicon.ico" sizes="any"/>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>" type="image/svg+xml"/>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
@@ -25,5 +32,24 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="/crm-config.js"></script>
   <script src="/crm-bundle.js?v=20260603065146"></script>
+  <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
+  <script>
+    (function(){
+      if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
+      var deferred = null;
+      window.addEventListener('beforeinstallprompt', function(e){
+        e.preventDefault(); deferred = e;
+        var b = document.createElement('button');
+        b.textContent = 'Install Lumea App';
+        b.setAttribute('aria-label','Install Lumea as an app');
+        b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99999;padding:12px 20px;background:#C8A96E;color:#1C1510;border:none;border-radius:10px;font:600 12px/1 "DM Sans",system-ui,sans-serif;letter-spacing:.04em;box-shadow:0 8px 28px rgba(0,0,0,.45);cursor:pointer;transition:transform .2s';
+        b.onmouseover=function(){b.style.transform='translateY(-2px)'};
+        b.onmouseout=function(){b.style.transform='none'};
+        b.onclick=function(){ if(!deferred) return; deferred.prompt(); deferred.userChoice.finally(function(){ deferred=null; b.remove(); }); };
+        document.body.appendChild(b);
+      });
+      window.addEventListener('appinstalled', function(){ deferred=null; });
+    })();
+  </script>
 </body>
 </html>

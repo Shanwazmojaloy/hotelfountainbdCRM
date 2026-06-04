@@ -1,0 +1,25 @@
+{
+  "name": "Lumea — Hotel Fountain CRM",
+  "short_name": "Lumea",
+  "description": "Hotel Fountain BD property management — reservations, room matrix, guest ledger, billing.",
+  "id": "/crm.html",
+  "start_url": "/crm.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1C1510",
+  "theme_color": "#1C1510",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Room Matrix", "short_name": "Rooms", "url": "/crm.html#rooms", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Reservations", "short_name": "Reservations", "url": "/crm.html#reservations", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Guest Ledger", "short_name": "Ledger", "url": "/crm.html#ledger", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
