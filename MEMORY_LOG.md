@@ -1706,3 +1706,19 @@ Anti-pattern blacklisted: `computedTotal > 0 ? computedTotal : dbTotal` (always 
 **Open follow-ups for owner:**
 - 847-row `paid_amount` vs canonical-sum drift remains. Mass backfill SQL is in `memory/billing_canonical_anchor.md` v3.6 — run only after deciding how to reconcile offline payments not in the transactions table.
 - ARULNAYAGAN row was untouched in the DB (modal fix is read-side only). If owner wants the modal to surface discrepancies on save, add a confirm dialog when `totalAmt` differs from existing `total_amount`.
+
+
+### 2026-06-03 (continued) — In-CRM Audit Page
+
+**Added:** `/admin/audit` browser page (`app/admin/audit/page.tsx`) for non-Cowork users (manager logging in from a regular browser).
+
+**UX:**
+1. First visit → "Sign in" form. Paste `ADMIN_SECRET` once → validated against `/api/admin/logs?limit=1` → stored in `sessionStorage` (auto-clears on tab close).
+2. Subsequent loads → dashboard renders immediately, identical to the Cowork artifact: 5 KPI cards, filter bar (window/event/result/search), table with sticky header, click-row drawer with full payload + error + IP + user agent.
+3. Sign out button wipes sessionStorage.
+
+**Auth:** Reuses existing `/api/admin/logs` endpoint — no new routes, no new env vars. Same Bearer ADMIN_SECRET as PowerShell flow. Secret never written to localStorage or cookies.
+
+**Styling:** Same Gilded Threshold pattern as the artifact (Libre Baskerville / DM Sans / IBM Plex Mono, ivory + #EAE6DD borders, gold #C8A96E focus, 160ms cubic-bezier transitions).
+
+**Access:** Reachable at `https://fountainbd.com/admin/audit` and on every tenant subdomain (`https://<slug>.lumea.app/admin/audit`) since the route lives under `app/` and the middleware doesn't gate it.
