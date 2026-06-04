@@ -79,6 +79,10 @@ export default function AdminAuditPage() {
   const [resSel, setResSel]   = useState<string>('');
   const [search, setSearch]   = useState<string>('');
 
+  // Live mode: poll every 3s, flash newly-arrived rows
+  const [liveMode, setLiveMode] = useState<boolean>(false);
+  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+
   // Hydrate from sessionStorage / localStorage on mount
   useEffect(() => {
     const s = sessionStorage.getItem(SECRET_KEY);
@@ -125,8 +129,18 @@ export default function AdminAuditPage() {
         return;
       }
       const j = await r.json();
-      setRows(j.rows ?? []);
-      setFetchMeta(`Refreshed ${new Date().toLocaleTimeString()} · ${j.rows?.length ?? 0} rows · ${Date.now() - t0}ms`);
+      const newRows: AuditRow[] = j.rows ?? [];
+      // Flash rows whose id wasn't in the previous fetch
+      setRows(prev => {
+        const prevIds = new Set(prev.map(p => p.id));
+        const arrived = newRows.filter(n => !prevIds.has(n.id)).map(n => n.id);
+        if (arrived.length && prev.length > 0) {
+          setFlashIds(new Set(arrived));
+          setTimeout(() => setFlashIds(new Set()), 1800);
+        }
+        return newRows;
+      });
+      setFetchMeta(`Refreshed ${new Date().toLocaleTimeString()} · ${newRows.length} rows · ${Date.now() - t0}ms`);
     } catch (e) {
       setErr(`Network error: ${(e as Error).message}`);
     } finally {
@@ -137,6 +151,13 @@ export default function AdminAuditPage() {
   useEffect(() => {
     if (authed) void fetchRows();
   }, [authed, winSel, fetchRows]);
+
+  // Live polling — every 3s while liveMode is on
+  useEffect(() => {
+    if (!authed || !liveMode) return;
+    const handle = setInterval(() => { void fetchRows(); }, 3000);
+    return () => clearInterval(handle);
+  }, [authed, liveMode, fetchRows]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,6 +264,13 @@ export default function AdminAuditPage() {
           </div>
           <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: 'var(--muted)' }}>{fetchMeta}</span>
+            <button
+              className={`btn live-toggle ${liveMode ? 'live-on' : 'secondary'}`}
+              onClick={() => setLiveMode(v => !v)}
+              title="Auto-refresh every 3 seconds"
+            >
+              {liveMode ? (<><span className="live-dot" />LIVE</>) : 'Go live'}
+            </button>
             <button className="btn secondary" onClick={() => fetchRows()}>Reload</button>
             <button className="btn secondary" onClick={handleSignOut}>Sign out</button>
           </div>
@@ -325,7 +353,7 @@ export default function AdminAuditPage() {
               </thead>
               <tbody>
                 {filtered.map(r => (
-                  <tr key={r.id} className="row-clickable" onClick={() => setSelected(r)}>
+                  <tr key={r.id} className={`row-clickable${flashIds.has(r.id) ? ' row-flash' : ''}`} onClick={() => setSelected(r)}>
                     <td className="ts" title={fmtFullTs(r.ts)}>{fmtTs(r.ts)}</td>
                     <td>{r.event_type}</td>
                     <td><span className={`badge ${r.result}`}>{r.result}</span></td>
@@ -470,4 +498,17 @@ pre { background: var(--ivory-2); border: 1px solid var(--border); padding: 14px
 .login input:focus { outline: none; border-color: var(--gold); }
 .login .btn { width: 100%; }
 .login .note { font-size: 11px; color: var(--muted); margin: 16px 0 0; line-height: 1.6; }
+.live-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.live-on { background: var(--green) !important; border-color: var(--green) !important; color: #fff !important; letter-spacing: .14em; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 0 rgba(255,255,255,0.7); animation: live-pulse 1.4s infinite cubic-bezier(0.4, 0, 0.2, 1); }
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(255,255,255,0.85); }
+  70%  { box-shadow: 0 0 0 9px rgba(255,255,255,0);    }
+  100% { box-shadow: 0 0 0 0   rgba(255,255,255,0);    }
+}
+@keyframes row-flash-anim {
+  0%   { background: rgba(200,169,110,0.32); }
+  100% { background: transparent; }
+}
+tr.row-flash td { animation: row-flash-anim 1.8s cubic-bezier(0.4, 0, 0.2, 1); }
 `;
