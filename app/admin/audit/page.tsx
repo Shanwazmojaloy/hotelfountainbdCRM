@@ -83,6 +83,10 @@ export default function AdminAuditPage() {
   const [liveMode, setLiveMode] = useState<boolean>(false);
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
 
+  // Hide noise (dashboard polling itself, scheduled crons) by default.
+  // Toggle in filter bar to bring them back.
+  const [showInternal, setShowInternal] = useState<boolean>(false);
+
   // Hydrate from sessionStorage / localStorage on mount
   useEffect(() => {
     const s = sessionStorage.getItem(SECRET_KEY);
@@ -93,15 +97,16 @@ export default function AdminAuditPage() {
       if (f.event)  setEvtSel(f.event);
       if (f.result) setResSel(f.result);
       if (f.search) setSearch(f.search);
+      if (typeof f.showInternal === 'boolean') setShowInternal(f.showInternal);
     } catch {}
   }, []);
 
   // Persist filters
   useEffect(() => {
     localStorage.setItem(FILTERS_KEY, JSON.stringify({
-      window: winSel, event: evtSel, result: resSel, search,
+      window: winSel, event: evtSel, result: resSel, search, showInternal,
     }));
-  }, [winSel, evtSel, resSel, search]);
+  }, [winSel, evtSel, resSel, search, showInternal]);
 
   const fetchRows = useCallback(async (override?: { secret?: string; window?: WindowKey; silent?: boolean }) => {
     const s   = override?.secret ?? secret;
@@ -195,9 +200,11 @@ export default function AdminAuditPage() {
   );
 
   // Client-side filter pass
+  const INTERNAL_EVENTS = new Set(['admin_logs_read', 'cron_audit_purge']);
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return rows.filter(r => {
+      if (!showInternal && INTERNAL_EVENTS.has(r.event_type)) return false;
       if (evtSel && r.event_type !== evtSel) return false;
       if (resSel && r.result !== resSel)     return false;
       if (q) {
@@ -209,7 +216,7 @@ export default function AdminAuditPage() {
       }
       return true;
     });
-  }, [rows, evtSel, resSel, search]);
+  }, [rows, evtSel, resSel, search, showInternal]);
 
   const kpis = useMemo(() => {
     const c = { total: filtered.length, success: 0, failure: 0, denied: 0, partial: 0 };
@@ -334,6 +341,19 @@ export default function AdminAuditPage() {
               className="btn secondary"
               onClick={() => { setWinSel('24h'); setEvtSel(''); setResSel(''); setSearch(''); }}
             >Reset</button>
+          </div>
+          <div style={{ gridColumn: '1 / -1', marginTop: 2 }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showInternal}
+                onChange={e => setShowInternal(e.target.checked)}
+                style={{ width: 14, height: 14, accentColor: 'var(--gold)' }}
+              />
+              <span style={{ fontSize: 11, letterSpacing: '.10em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                Show internal events (admin_logs_read, cron_audit_purge)
+              </span>
+            </label>
           </div>
         </div>
 
