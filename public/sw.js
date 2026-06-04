@@ -6,7 +6,7 @@
        served directly by the browser so auth stays live and the site CSP is respected.
      - Non-GET: never touched.
    Bump CACHE_VERSION to force clients to refresh the precache. */
-const CACHE_VERSION = 'lumea-v1';
+const CACHE_VERSION = 'lumea-v2';
 const PRECACHE = [
   '/crm.html',
   '/crm-config.js',
