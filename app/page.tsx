@@ -14,7 +14,7 @@ const ROOMS = [
     desc: 'Elegant room for two with premium air conditioning and round-the-clock front office support.',
     rate: 4000,
     amenities: ['Air Condition', 'High-Speed Wi-Fi', '24/7 Room Service', 'Front Office'],
-    img: '/fountain-deluxe.jpeg', supabaseType: 'Fountain Deluxe',
+    img: '/fountain-deluxe.webp', supabaseType: 'Fountain Deluxe',
     gradient: 'linear-gradient(135deg,#0d1117 0%,#1a2435 100%)',
   },
   {
@@ -23,7 +23,7 @@ const ROOMS = [
     desc: 'Refined comfort for two with complimentary breakfast and curated room amenities.',
     rate: 4500,
     amenities: ['Complimentary Breakfast', 'TV', 'High-Speed Wi-Fi', 'Room Amenities', '24/7 Room Service', 'Front Office'],
-    img: '/premium-deluxe.jpg', supabaseType: 'Premium Deluxe',
+    img: '/premium-deluxe.webp', supabaseType: 'Premium Deluxe',
     gradient: 'linear-gradient(135deg,#131b26 0%,#1f2d40 100%)',
   },
   {
@@ -32,7 +32,7 @@ const ROOMS = [
     desc: 'Superior appointments for two guests, featuring complimentary breakfast and premium connectivity.',
     rate: 5000,
     amenities: ['Complimentary Breakfast', 'TV', 'High-Speed Wi-Fi', '24/7 Room Service', 'Front Office'],
-    img: '/superior-deluxe.jpeg', supabaseType: 'Superior Deluxe',
+    img: '/superior-deluxe.webp', supabaseType: 'Superior Deluxe',
     gradient: 'linear-gradient(135deg,#131b26 0%,#202e3a 100%)',
   },
   {
@@ -41,7 +41,7 @@ const ROOMS = [
     desc: 'Spacious twin-bed suite for four, ideal for families or colleague groups travelling together.',
     rate: 6000,
     amenities: ['Complimentary Breakfast', 'TV', 'High-Speed Wi-Fi', '24/7 Room Service', 'Front Office'],
-    img: '/twin-deluxe.jpg', supabaseType: 'Twin Deluxe',
+    img: '/twin-deluxe.webp', supabaseType: 'Twin Deluxe',
     gradient: 'linear-gradient(135deg,#1a1508 0%,#2a2010 100%)',
   },
   {
@@ -50,7 +50,7 @@ const ROOMS = [
     desc: 'Our crown jewel — an expansive suite for six with panoramic views and bespoke service.',
     rate: 9000,
     amenities: ['Complimentary Breakfast', 'TV', 'High-Speed Wi-Fi', '24/7 Room Service', 'Front Office'],
-    img: '/royal-suite.jpeg', supabaseType: 'Royal Suite',
+    img: '/royal-suite.webp', supabaseType: 'Royal Suite',
     gradient: 'linear-gradient(135deg,#1a1000 0%,#3a2800 100%)',
   },
 ];
@@ -66,7 +66,6 @@ const AVAIL_ROOMS = [
 const fmt = (d: Date) => d.toISOString().split('T')[0];
 
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist:wght@200;300;400;500&display=swap');
   :root { --gold:#C8A96E; --gold2:#E0C585; --dark:#07090E; --dark2:#0D1117; --dark3:#131B26; --tx:#EEE9E2; --tx2:#C8BFB0; --tx3:#9A907C; --br:rgba(200,169,110,.15); }
   html { scroll-behavior:smooth; }
   body { background:var(--dark); color:var(--tx); overflow-x:hidden; }
@@ -209,7 +208,7 @@ export default function HotelFountainLanding() {
       <nav className="gs" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 60px', background: navScrolled ? 'rgba(7,9,14,.97)' : 'linear-gradient(180deg,rgba(7,9,14,.95) 0%,transparent 100%)', borderBottom: `1px solid ${navScrolled ? 'rgba(200,169,110,.15)' : 'rgba(200,169,110,.06)'}`, transition: 'all .4s' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Hotel Fountain Logo" style={{ height: 36, width: 'auto', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+          <img src="/logo.webp" alt="Hotel Fountain Logo" width={36} height={36} decoding="async" style={{ height: 36, width: 'auto', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <div className="cg" style={{ fontSize: 20, color: 'var(--tx)', fontWeight: 400, letterSpacing: '.04em' }}>Hotel <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Fountain</em></div>
         </div>
         <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
@@ -257,7 +256,7 @@ export default function HotelFountainLanding() {
         </div>
         <div className="hero-right-panel" style={{ position: 'relative', overflow: 'hidden' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/front-view.jpg" alt="Hotel Fountain Front View" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+          <img src="/front-view.webp" alt="Hotel Fountain Front View" width={1600} height={1143} fetchPriority="high" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,var(--dark) 0%,rgba(7,9,14,.25) 30%,transparent 60%)', zIndex: 1, pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 60% 50%,rgba(200,169,110,.06) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 2 }} />
         </div>
@@ -288,7 +287,7 @@ export default function HotelFountainLanding() {
             <div key={room.id} className="rc" style={{ background: 'var(--dark2)', overflow: 'hidden' }}>
               <div style={{ height: 220, position: 'relative', overflow: 'hidden', background: room.gradient }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={room.img} alt={room.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                <img src={room.img} alt={room.name} width={800} height={447} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,transparent 40%,rgba(7,9,14,.85) 100%)' }} />
                 <div style={{ position: 'absolute', top: 16, left: 16, fontSize: 8, letterSpacing: '.2em', textTransform: 'uppercase', background: 'rgba(200,169,110,.15)', border: '1px solid rgba(200,169,110,.3)', color: 'var(--gold)', padding: '5px 10px', fontFamily: 'Geist,sans-serif' }}>{room.category}</div>
                 <div style={{ position: 'absolute', bottom: 12, right: 14, fontSize: 10, letterSpacing: '.1em', color: 'rgba(200,169,110,.7)', fontFamily: 'Geist,sans-serif' }}>Up to {room.maxGuests} guests</div>
@@ -493,7 +492,7 @@ export default function HotelFountainLanding() {
       <footer className="gs" style={{ background: 'var(--dark)', borderTop: '1px solid var(--br)', padding: '32px 60px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Logo" style={{ height: 28, width: 'auto', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+          <img src="/logo.webp" alt="Logo" width={28} height={28} loading="lazy" decoding="async" style={{ height: 28, width: 'auto', objectFit: 'contain' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <div className="cg" style={{ fontSize: 17, color: 'var(--tx)', fontWeight: 400 }}>Hotel <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Fountain</em></div>
         </div>
         <div style={{ fontSize: 10, color: 'var(--tx3)', letterSpacing: '.12em' }}>© 2026 Hotel Fountain · Dhaka, Bangladesh · All Rights Reserved</div>
