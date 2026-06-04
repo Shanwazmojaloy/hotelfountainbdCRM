@@ -1722,3 +1722,23 @@ Anti-pattern blacklisted: `computedTotal > 0 ? computedTotal : dbTotal` (always 
 **Styling:** Same Gilded Threshold pattern as the artifact (Libre Baskerville / DM Sans / IBM Plex Mono, ivory + #EAE6DD borders, gold #C8A96E focus, 160ms cubic-bezier transitions).
 
 **Access:** Reachable at `https://fountainbd.com/admin/audit` and on every tenant subdomain (`https://<slug>.lumea.app/admin/audit`) since the route lives under `app/` and the middleware doesn't gate it.
+
+---
+
+## 2026-06-04 — Landing perf fix + full-parity PWA
+
+**Perf (RES 89 → target Great):** `/` route LCP/FCP 2.86s caused by hero `<img src="/front-view.jpg">` = 4.49MB raw JPEG + render-blocking Google Fonts `@import` inside injected `<style>`.
+- Generated resized WebP for all public room/hero/logo images (Python PIL; sharp native binding unavailable in sandbox). Hero 4.49MB→92KB; total page image payload ~30MB→~215KB. Originals (.jpg/.jpeg) retained in /public.
+- `app/page.tsx`: img src → `.webp`; hero gets `fetchPriority="high"` + width/height + `decoding="async"`; below-fold room/footer imgs `loading="lazy"`. Removed `@import` line from CSS string.
+- `app/layout.tsx`: fonts now loaded via `<head>` preconnect + `<link>` (Cormorant Garamond only; Geist stays self-hosted via next/font). Added `display:"swap"`.
+
+**PWA (decision: full-parity, no logic duplication):** the existing CRM (`/crm.html` + crm-bundle.js) is now installable + offline-capable.
+- New: `public/manifest.webmanifest` (start_url `/crm.html`, scope `/`, standalone, theme #1C1510, icons 192/512/maskable, shortcuts Rooms/Reservations/Ledger), `public/sw.js`, `public/icons/*`.
+- SW strategy: network-first navigations (offline fallback → cached /crm.html); cache-first SAME-ORIGIN assets only; never intercepts Supabase/`/api/`/cross-origin (CDN libs load directly so site CSP + live auth untouched). Cache key `lumea-v1` — bump to force refresh.
+- `app/layout.tsx` registers `/sw.js` + manifest/appleWebApp metadata + viewport themeColor. `public/crm.html` (bypasses layout) got its own manifest/apple meta + SW registration + vanilla `beforeinstallprompt` "Install Lumea App" button.
+
+**OneDrive truncation:** crm.html, page.tsx, layout.tsx each truncated mid-write by OneDrive sync; rewrote all atomically via shell heredoc + verified line counts/closing tags. Build guard `grep -c ReactDOM.createRoot` = 1 (intact).
+
+**Deploy:** committed locally blocked in agent sandbox (no GH creds + cannot clear .git/*.lock — Operation not permitted). Created `PUSH_PWA.bat` (clears locks, stages, runs createRoot guard, commit+push). User must run on Windows.
+
+**Deploy UPDATE (2026-06-05):** Shipped — commit `8f180ec` is on `origin/main` and production deploy `dpl_6hLuKoEP89nrmYdTikh2FL4mDfnS` is READY (Vercel sin1). Landing webp + non-blocking fonts + full-parity PWA all live. RES still shows 89 on the 7-day rolling RUM panel; it will recover as fresh post-deploy samples accumulate.
