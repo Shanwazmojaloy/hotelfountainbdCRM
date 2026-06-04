@@ -61,6 +61,114 @@ function statusClass(code: number | null) {
   return '';
 }
 
+
+// ── Humanize event for the Stream view ────────────────────────────────────────
+function humanize(r: AuditRow): { icon: string; headline: string; subline: string; tone: 'success' | 'failure' | 'denied' | 'partial' | 'info' | 'money' } {
+  const p: Record<string, unknown> = (r.payload_summary ?? {}) as Record<string, unknown>;
+  const fmtMoney = (v: unknown) => typeof v === 'number' ? '৳' + v.toLocaleString('en-IN') : String(v ?? '');
+  const tone: 'success' | 'failure' | 'denied' | 'partial' | 'info' | 'money' =
+    r.result === 'failure' ? 'failure'
+    : r.result === 'denied' ? 'denied'
+    : r.result === 'partial' ? 'partial' : 'info';
+
+  // db_<table>_<op>
+  if (r.event_type.startsWith('db_')) {
+    const m = r.event_type.match(/^db_(.+)_(insert|update|delete)$/);
+    const table = m?.[1] ?? '';
+    const op    = m?.[2] ?? '';
+    const changed = (p.changed ?? {}) as Record<string, { from?: unknown; to?: unknown }>;
+    const newRow  = (p.new     ?? {}) as Record<string, unknown>;
+    const target  = (r.action_target ?? '').split(':').slice(1).join(':');
+
+    if (table === 'reservations') {
+      if (op === 'insert') return { icon: '🛌', headline: 'New reservation created', subline: `${newRow.guest_name ?? 'Guest'} · Room ${newRow.room_number ?? '?'}`, tone: 'info' };
+      if (op === 'update') {
+        const keys = Object.keys(changed);
+        if (keys.includes('status')) {
+          return { icon: '🔄', headline: `Reservation status → ${changed.status.to}`, subline: `was ${changed.status.from} · ${target.slice(0,8)}`, tone: 'info' };
+        }
+        if (keys.includes('paid_amount')) {
+          return { icon: '💰', headline: `Payment recorded: ${fmtMoney(changed.paid_amount.to)}`, subline: `was ${fmtMoney(changed.paid_amount.from)} · reservation ${target.slice(0,8)}`, tone: 'money' };
+        }
+        if (keys.includes('total_amount')) {
+          return { icon: '📝', headline: `Reservation total updated: ${fmtMoney(changed.total_amount.to)}`, subline: `was ${fmtMoney(changed.total_amount.from)}`, tone: 'info' };
+        }
+        return { icon: '✏️', headline: 'Reservation edited', subline: `Changed: ${keys.join(', ')}`, tone: 'info' };
+      }
+      if (op === 'delete') return { icon: '🗑️', headline: 'Reservation deleted', subline: target, tone: 'failure' };
+    }
+
+    if (table === 'rooms' && op === 'update' && changed.status) {
+      const to = String(changed.status.to);
+      const icon = to === 'OCCUPIED' ? '🛏️' : to === 'AVAILABLE' ? '✨' : to === 'CHECKOUT_CLEAN' ? '🧹' : '🔄';
+      return { icon, headline: `Room → ${to}`, subline: `was ${changed.status.from}`, tone: 'info' };
+    }
+
+    if (table === 'payment_transactions' && op === 'insert') {
+      return { icon: '💵', headline: `${newRow.notes ?? 'Payment'}: ${fmtMoney(newRow.amount)}`, subline: `${newRow.method ?? ''} · ${target.slice(0,8)}`, tone: 'money' };
+    }
+    if (table === 'transactions' && op === 'insert') {
+      return { icon: '💵', headline: `${newRow.type ?? 'Transaction'}: ${fmtMoney(newRow.amount)}`, subline: `${newRow.method ?? ''}`, tone: 'money' };
+    }
+
+    if (table === 'folios' && op === 'insert') {
+      return { icon: '📃', headline: `Folio added: ${fmtMoney(newRow.amount)}`, subline: `${newRow.category ?? ''} · ${newRow.description ?? ''}`, tone: 'money' };
+    }
+    if (table === 'guest_ledger' && op === 'insert') {
+      return { icon: '📒', headline: 'Guest ledger entry', subline: `${newRow.description ?? ''}`, tone: 'info' };
+    }
+    if (table === 'guests' && op === 'insert') {
+      return { icon: '👤', headline: `Guest added: ${newRow.guest_name ?? newRow.name ?? 'New guest'}`, subline: String(newRow.phone ?? newRow.email ?? ''), tone: 'info' };
+    }
+    if (table === 'guests' && op === 'update') {
+      const keys = Object.keys(changed);
+      return { icon: '✏️', headline: 'Guest profile updated', subline: `Changed: ${keys.join(', ')}`, tone: 'info' };
+    }
+
+    if (table === 'staff') {
+      if (op === 'insert') return { icon: '👥', headline: `Staff added: ${newRow.name ?? newRow.email}`, subline: String(newRow.role ?? ''), tone: 'info' };
+      if (op === 'update' && changed.session_v) return { icon: '🔑', headline: 'Staff login (new session)', subline: target, tone: 'info' };
+    }
+
+    if (table === 'housekeeping_tasks' && op === 'update' && changed.status) {
+      return { icon: '🧹', headline: `Housekeeping → ${changed.status.to}`, subline: `was ${changed.status.from}`, tone: 'info' };
+    }
+
+    if (table === 'b2b_bookings' && op === 'insert') return { icon: '🏢', headline: 'B2B booking created', subline: String(newRow.partner_id ?? ''), tone: 'info' };
+    if (table === 'leads' && op === 'insert')        return { icon: '📩', headline: 'New lead', subline: String(newRow.email ?? newRow.name ?? ''), tone: 'info' };
+    if (table === 'council_sessions' && op === 'insert') return { icon: '🧠', headline: 'AI Council deliberation started', subline: String((newRow.prompt ?? '')).slice(0, 80), tone: 'info' };
+
+    // Fallback for any unmapped db_* event
+    return {
+      icon: op === 'insert' ? '➕' : op === 'delete' ? '🗑️' : '✏️',
+      headline: `${table} ${op}`,
+      subline: target ? `id: ${target.slice(0, 12)}…` : '',
+      tone: 'info',
+    };
+  }
+
+  // App-level events
+  if (r.event_type === 'llm_execution') {
+    const tokens = (p.input_tokens as number | undefined ?? 0) + (p.output_tokens as number | undefined ?? 0);
+    return { icon: '🤖', headline: 'AI assistant called', subline: tokens ? `${tokens} tokens · ${r.duration_ms}ms` : `${r.duration_ms ?? '?'}ms`, tone };
+  }
+  if (r.event_type === 'admin_onboard_tenant') {
+    return { icon: '🏨', headline: 'New tenant onboarded', subline: `${p.hotel_name ?? ''} (${p.plan_tier ?? ''})`, tone };
+  }
+  if (r.event_type === 'status_change') {
+    return { icon: '✅', headline: 'Tenant activated', subline: String(p.hotel_name ?? p.slug ?? ''), tone };
+  }
+  if (r.event_type === 'admin_logs_read') {
+    return { icon: '👁️', headline: 'Audit log read', subline: `${r.role} · ${r.status_code}`, tone };
+  }
+  if (r.event_type === 'cron_audit_purge') {
+    return { icon: '🧹', headline: 'Audit purge cron', subline: `Deleted ${p.rows_deleted ?? 0} expired rows`, tone };
+  }
+
+  return { icon: 'ℹ️', headline: r.event_type, subline: r.action_target ?? '', tone };
+}
+
+
 export default function AdminAuditPage() {
   const [secret, setSecret]       = useState<string>('');
   const [authed, setAuthed]       = useState<boolean>(false);
@@ -86,6 +194,9 @@ export default function AdminAuditPage() {
   // Hide noise (dashboard polling itself, scheduled crons) by default.
   // Toggle in filter bar to bring them back.
   const [showInternal, setShowInternal] = useState<boolean>(false);
+
+  // View mode — stream is default (visual cards), table for power use
+  const [viewMode, setViewMode] = useState<'stream' | 'table'>('stream');
 
   // Hydrate from sessionStorage / localStorage on mount
   useEffect(() => {
@@ -273,6 +384,18 @@ export default function AdminAuditPage() {
           </div>
           <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: 'var(--muted)' }}>{fetchMeta}</span>
+            <div className="view-tabs">
+              <button
+                className={`view-tab ${viewMode === 'stream' ? 'active' : ''}`}
+                onClick={() => { setViewMode('stream'); setLiveMode(true); }}
+                title="Live visual feed"
+              >Stream</button>
+              <button
+                className={`view-tab ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => setViewMode('table')}
+                title="Detailed table view"
+              >Table</button>
+            </div>
             <button
               className={`btn live-toggle ${liveMode ? 'live-on' : 'secondary'}`}
               onClick={() => setLiveMode(v => !v)}
@@ -363,6 +486,29 @@ export default function AdminAuditPage() {
           <div className="loading">Loading audit events…</div>
         ) : filtered.length === 0 ? (
           <div className="tbl-wrap"><div className="empty">No events match the current filters.</div></div>
+        ) : viewMode === 'stream' ? (
+          <div className="stream">
+            {filtered.map(r => {
+              const h = humanize(r);
+              return (
+                <div
+                  key={r.id}
+                  className={`stream-card tone-${h.tone}${flashIds.has(r.id) ? ' card-flash' : ''}`}
+                  onClick={() => setSelected(r)}
+                >
+                  <div className="stream-icon">{h.icon}</div>
+                  <div className="stream-body">
+                    <div className="stream-headline">{h.headline}</div>
+                    <div className="stream-subline">{h.subline}</div>
+                  </div>
+                  <div className="stream-meta">
+                    <div className="stream-time" title={fmtFullTs(r.ts)}>{fmtTs(r.ts)}</div>
+                    <div className="stream-tag mono">{r.role ?? '—'}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div className="tbl-wrap">
             <table>
@@ -533,4 +679,38 @@ pre { background: var(--ivory-2); border: 1px solid var(--border); padding: 14px
   100% { background: transparent; }
 }
 tr.row-flash td { animation: row-flash-anim 1.8s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* View-mode tabs */
+.view-tabs { display: inline-flex; border: 1px solid var(--border); background: #fff; }
+.view-tab { background: transparent; border: none; padding: 7px 14px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); cursor: pointer; transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1); font-family: inherit; }
+.view-tab:hover { color: var(--ink); }
+.view-tab.active { background: var(--ink); color: #fff; }
+
+/* Stream view */
+.stream { display: flex; flex-direction: column; gap: 10px; }
+.stream-card { display: grid; grid-template-columns: 56px 1fr 130px; gap: 16px; align-items: center; background: #fff; border: 1px solid var(--border); padding: 16px 18px; cursor: pointer; transition: transform 160ms cubic-bezier(0.4, 0, 0.2, 1), border-color 160ms cubic-bezier(0.4, 0, 0.2, 1); animation: card-slide-in 360ms cubic-bezier(0.4, 0, 0.2, 1); }
+.stream-card:hover { transform: translateY(-1px); border-color: var(--gold); }
+.stream-icon { font-size: 28px; line-height: 1; text-align: center; }
+.stream-body { min-width: 0; }
+.stream-headline { font-family: 'Libre Baskerville', Georgia, serif; font-size: 16px; color: var(--ink); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stream-subline { font-size: 12px; color: var(--muted-2); font-family: 'IBM Plex Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stream-meta { text-align: right; }
+.stream-time { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink); }
+.stream-tag { font-size: 10px; color: var(--muted); letter-spacing: .08em; margin-top: 4px; }
+
+.tone-money   { border-left: 3px solid var(--green); }
+.tone-failure { border-left: 3px solid var(--red);   }
+.tone-denied  { border-left: 3px solid var(--amber); }
+.tone-partial { border-left: 3px solid var(--amber); }
+.tone-info    { border-left: 3px solid var(--gold);  }
+
+@keyframes card-slide-in {
+  from { transform: translateY(-12px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+@keyframes card-flash-anim {
+  0%   { box-shadow: inset 0 0 0 9999px rgba(200,169,110,0.28); border-color: var(--gold); }
+  100% { box-shadow: inset 0 0 0 9999px transparent;             border-color: var(--border); }
+}
+.stream-card.card-flash { animation: card-slide-in 360ms cubic-bezier(0.4, 0, 0.2, 1), card-flash-anim 1.8s cubic-bezier(0.4, 0, 0.2, 1); }
 `;
