@@ -20,7 +20,6 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { logEvent } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,23 +28,12 @@ const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export async function GET(req: NextRequest) {
-  const t0 = Date.now();
   const adminSecret = process.env.ADMIN_SECRET;
-  const requestId = req.headers.get('x-request-id');
 
   if (!adminSecret) {
     return NextResponse.json({ error: 'ADMIN_SECRET not configured' }, { status: 500 });
   }
   if (req.headers.get('authorization') !== `Bearer ${adminSecret}`) {
-    void logEvent({
-      event_type:    'admin_logs_read',
-      action_target: 'GET /api/admin/logs',
-      status_code:   401,
-      result:        'denied',
-      request_id:    requestId,
-      role:          'anon',
-      payload_summary: { reason: 'bad_admin_secret' },
-    });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!SB_URL || !SB_KEY) {
@@ -82,7 +70,6 @@ export async function GET(req: NextRequest) {
   const reqUrl = `${SB_URL}/rest/v1/audit_logs?${params.join('&')}`;
 
   let rows: unknown[] = [];
-  let upstreamStatus = 200;
   try {
     const r = await fetch(reqUrl, {
       headers: {
@@ -92,36 +79,14 @@ export async function GET(req: NextRequest) {
       },
       signal: AbortSignal.timeout(10_000),
     });
-    upstreamStatus = r.status;
     if (!r.ok) {
       const text = await r.text();
-      void logEvent({
-        event_type:    'admin_logs_read',
-        action_target: 'GET /api/admin/logs',
-        status_code:   502,
-        result:        'failure',
-        request_id:    requestId,
-        role:          'admin',
-        duration_ms:   Date.now() - t0,
-        error:         text.slice(0, 500),
-      });
       return NextResponse.json({ error: 'upstream_error', detail: text }, { status: 502 });
     }
     rows = await r.json();
   } catch (err) {
     return NextResponse.json({ error: 'internal', detail: String(err) }, { status: 500 });
   }
-
-  void logEvent({
-    event_type:    'admin_logs_read',
-    action_target: 'GET /api/admin/logs',
-    status_code:   200,
-    result:        'success',
-    duration_ms:   Date.now() - t0,
-    request_id:    requestId,
-    role:          'admin',
-    payload_summary: { since, until, event_type: eventType || null, user_id: userId || null, tenant_id: tenantId || null, limit, offset, returned: rows.length, upstream: upstreamStatus },
-  });
 
   return NextResponse.json({
     ok:    true,
