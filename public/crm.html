@@ -25,20 +25,27 @@
     /* ── Mobile responsive shell (lives here so it is always fresh, no-cache) ── */
     .lm-scrim{display:none}
     @media(max-width:768px){
-      .sidebar{position:fixed!important;top:0;left:0;bottom:0;z-index:1200!important;width:266px!important;max-width:86vw;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:6px 0 44px rgba(0,0,0,.6)}
+      .sidebar{position:fixed!important;top:0;left:0;bottom:0;z-index:1200!important;width:266px!important;max-width:86vw;padding-top:env(safe-area-inset-top);transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:6px 0 44px rgba(0,0,0,.6)}
       body.nav-open .sidebar{transform:translateX(0)!important}
       .lm-scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100;opacity:0;pointer-events:none;transition:opacity .28s}
       body.nav-open .lm-scrim{opacity:1;pointer-events:auto}
       .main{width:100%!important;min-width:0}
-      .topbar{height:52px!important;padding:0 12px 0 56px!important;gap:8px!important}
+      .topbar{height:auto!important;min-height:calc(54px + env(safe-area-inset-top))!important;padding:calc(env(safe-area-inset-top) + 4px) 12px 4px 56px!important;gap:8px!important;align-items:center!important}
       .tb-title{font-size:15px!important;line-height:1.1!important}
       .tb-meta{display:none!important}
-      .content{padding:14px 12px!important}
+      .content{padding:14px 12px calc(14px + env(safe-area-inset-bottom))!important}
       .stats,.stats-row{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
       .grid{grid-template-columns:1fr!important;gap:14px!important}
       .rooms-grid{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
       .tbl-wrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
       .tbl{min-width:640px}
+      #lmBurger{top:calc(env(safe-area-inset-top) + 8px)!important}
+      .actions{top:calc(env(safe-area-inset-top) + 12px)!important}
+      .modal-bg{padding:10px!important;align-items:flex-start!important;overflow-y:auto!important}
+      .modal-w{max-width:100%!important;width:100%!important}
+      .modal-body{padding:14px!important}
+      .card-hd{padding:12px 14px!important}
+      .sec-hdr{font-size:13px!important}
     }
   </style>
 </head>
