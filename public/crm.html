@@ -31,7 +31,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="/crm-config.js"></script>
-  <script src="/crm-bundle.js?v=20260604215553"></script>
+  <script src="/crm-bundle.js?v=20260604222502"></script>
   <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
   <script>
     (function(){
@@ -49,6 +49,23 @@
         document.body.appendChild(b);
       });
       window.addEventListener('appinstalled', function(){ deferred=null; });
+    })();
+  </script>
+  <script>
+    /* Mobile nav: off-canvas drawer toggle (vanilla, outside React) */
+    (function(){
+      function init(){
+        if(document.getElementById('lmBurger')) return;
+        var scrim=document.createElement('div'); scrim.className='lm-scrim';
+        var b=document.createElement('button'); b.id='lmBurger'; b.className='lm-burger';
+        b.setAttribute('aria-label','Open menu'); b.innerHTML='\u2630';
+        b.style.cssText='position:fixed;top:8px;left:10px;z-index:1300;width:36px;height:36px;border:1px solid rgba(200,169,110,.32);background:rgba(20,17,13,.92);color:#C8A96E;font-size:18px;line-height:1;border-radius:7px;cursor:pointer;padding:0;box-shadow:0 4px 14px rgba(0,0,0,.4)';
+        document.body.appendChild(scrim); document.body.appendChild(b);
+        b.addEventListener('click',function(){ document.body.classList.toggle('nav-open'); });
+        scrim.addEventListener('click',function(){ document.body.classList.remove('nav-open'); });
+        document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.closest('.nav-item'); if(t) document.body.classList.remove('nav-open'); });
+      }
+      if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded',init);
     })();
   </script>
 </body>
