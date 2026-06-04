@@ -69,7 +69,7 @@ const CSS = `
   :root { --gold:#C8A96E; --gold2:#E0C585; --dark:#07090E; --dark2:#0D1117; --dark3:#131B26; --tx:#EEE9E2; --tx2:#C8BFB0; --tx3:#9A907C; --br:rgba(200,169,110,.15); }
   html { scroll-behavior:smooth; }
   body { background:var(--dark); color:var(--tx); overflow-x:hidden; }
-  .cg { font-family:'Cormorant Garamond',Georgia,serif; }
+  .cg { font-family:var(--font-cormorant),'Cormorant Garamond',Georgia,serif; }
   .gs { font-family:'Geist',var(--font-geist-sans),system-ui,sans-serif; }
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
   @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}

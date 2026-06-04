@@ -169,6 +169,9 @@ function humanize(r: AuditRow): { icon: string; headline: string; subline: strin
 }
 
 
+// Internal/system event types hidden from the default audit view.
+const INTERNAL_EVENTS = new Set(['admin_logs_read', 'cron_audit_purge']);
+
 export default function AdminAuditPage() {
   const [secret, setSecret]       = useState<string>('');
   const [authed, setAuthed]       = useState<boolean>(false);
@@ -311,7 +314,6 @@ export default function AdminAuditPage() {
   );
 
   // Client-side filter pass
-  const INTERNAL_EVENTS = new Set(['admin_logs_read', 'cron_audit_purge']);
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return rows.filter(r => {
