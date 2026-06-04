@@ -103,11 +103,13 @@ export default function AdminAuditPage() {
     }));
   }, [winSel, evtSel, resSel, search]);
 
-  const fetchRows = useCallback(async (override?: { secret?: string; window?: WindowKey }) => {
+  const fetchRows = useCallback(async (override?: { secret?: string; window?: WindowKey; silent?: boolean }) => {
     const s   = override?.secret ?? secret;
     const win = override?.window ?? winSel;
+    const silent = override?.silent === true;
     if (!s) return;
-    setLoading(true); setErr('');
+    if (!silent) setLoading(true);
+    setErr('');
     const since = windowToSince(win);
     const params = new URLSearchParams();
     params.set('limit', '500');
@@ -144,7 +146,7 @@ export default function AdminAuditPage() {
     } catch (e) {
       setErr(`Network error: ${(e as Error).message}`);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [secret, winSel]);
 
@@ -155,7 +157,7 @@ export default function AdminAuditPage() {
   // Live polling — every 3s while liveMode is on
   useEffect(() => {
     if (!authed || !liveMode) return;
-    const handle = setInterval(() => { void fetchRows(); }, 3000);
+    const handle = setInterval(() => { void fetchRows({ silent: true }); }, 3000);
     return () => clearInterval(handle);
   }, [authed, liveMode, fetchRows]);
 
