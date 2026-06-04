@@ -15,13 +15,31 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>" type="image/svg+xml"/>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
   <style>
-        html,body,#root{height:100%;background:#1C1510;overflow:hidden;margin:0}
+    html,body,#root{height:100%;background:#1C1510;overflow:hidden;margin:0}
     #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#1C1510;flex-direction:column;gap:16px;z-index:9999}
     #loading h1{font-family:'Libre Baskerville',Georgia,serif;font-size:36px;color:#C8A96E;font-weight:700;letter-spacing:.02em}
     #loading h1 em{font-style:italic;font-weight:400}
     #loading p{color:rgba(200,169,110,.45);font-size:9px;letter-spacing:.22em;text-transform:uppercase;font-family:'DM Sans',system-ui,sans-serif}
     .spin{width:20px;height:20px;border:2px solid rgba(200,169,110,.2);border-top-color:#C8A96E;border-radius:50%;animation:spin .8s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
+    /* ── Mobile responsive shell (lives here so it is always fresh, no-cache) ── */
+    .lm-scrim{display:none}
+    @media(max-width:768px){
+      .sidebar{position:fixed!important;top:0;left:0;bottom:0;z-index:1200!important;width:266px!important;max-width:86vw;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:6px 0 44px rgba(0,0,0,.6)}
+      body.nav-open .sidebar{transform:translateX(0)!important}
+      .lm-scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100;opacity:0;pointer-events:none;transition:opacity .28s}
+      body.nav-open .lm-scrim{opacity:1;pointer-events:auto}
+      .main{width:100%!important;min-width:0}
+      .topbar{height:52px!important;padding:0 12px 0 56px!important;gap:8px!important}
+      .tb-title{font-size:15px!important;line-height:1.1!important}
+      .tb-meta{display:none!important}
+      .content{padding:14px 12px!important}
+      .stats,.stats-row{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+      .grid{grid-template-columns:1fr!important;gap:14px!important}
+      .rooms-grid{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+      .tbl-wrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+      .tbl{min-width:640px}
+    }
   </style>
 </head>
 <body>
@@ -34,6 +52,7 @@
   <script src="/crm-bundle.js?v=20260604222502"></script>
   <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
   <script>
+    /* PWA install button (Android/Chrome only; iOS uses Share > Add to Home Screen) */
     (function(){
       if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
       var deferred = null;
@@ -42,9 +61,7 @@
         var b = document.createElement('button');
         b.textContent = 'Install Lumea App';
         b.setAttribute('aria-label','Install Lumea as an app');
-        b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99999;padding:12px 20px;background:#C8A96E;color:#1C1510;border:none;border-radius:10px;font:600 12px/1 "DM Sans",system-ui,sans-serif;letter-spacing:.04em;box-shadow:0 8px 28px rgba(0,0,0,.45);cursor:pointer;transition:transform .2s';
-        b.onmouseover=function(){b.style.transform='translateY(-2px)'};
-        b.onmouseout=function(){b.style.transform='none'};
+        b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99999;padding:12px 20px;background:#C8A96E;color:#1C1510;border:none;border-radius:10px;font:600 12px/1 "DM Sans",system-ui,sans-serif;letter-spacing:.04em;box-shadow:0 8px 28px rgba(0,0,0,.45);cursor:pointer';
         b.onclick=function(){ if(!deferred) return; deferred.prompt(); deferred.userChoice.finally(function(){ deferred=null; b.remove(); }); };
         document.body.appendChild(b);
       });
@@ -52,20 +69,35 @@
     })();
   </script>
   <script>
-    /* Mobile nav: off-canvas drawer toggle (vanilla, outside React) */
+    /* Mobile nav drawer: burger shows ONLY when the app sidebar exists AND screen is narrow */
     (function(){
-      function init(){
-        if(document.getElementById('lmBurger')) return;
-        var scrim=document.createElement('div'); scrim.className='lm-scrim';
-        var b=document.createElement('button'); b.id='lmBurger'; b.className='lm-burger';
-        b.setAttribute('aria-label','Open menu'); b.innerHTML='\u2630';
-        b.style.cssText='position:fixed;top:8px;left:10px;z-index:1300;width:36px;height:36px;border:1px solid rgba(200,169,110,.32);background:rgba(20,17,13,.92);color:#C8A96E;font-size:18px;line-height:1;border-radius:7px;cursor:pointer;padding:0;box-shadow:0 4px 14px rgba(0,0,0,.4)';
-        document.body.appendChild(scrim); document.body.appendChild(b);
-        b.addEventListener('click',function(){ document.body.classList.toggle('nav-open'); });
+      var burger, scrim;
+      function ensure(){
+        if(burger) return;
+        scrim=document.createElement('div'); scrim.className='lm-scrim';
+        burger=document.createElement('button'); burger.id='lmBurger';
+        burger.setAttribute('aria-label','Menu'); burger.innerHTML='☰';
+        burger.style.cssText='position:fixed;top:8px;left:10px;z-index:1300;width:36px;height:36px;border:1px solid rgba(200,169,110,.32);background:rgba(20,17,13,.92);color:#C8A96E;font-size:18px;line-height:1;border-radius:7px;cursor:pointer;padding:0;box-shadow:0 4px 14px rgba(0,0,0,.4);display:none;align-items:center;justify-content:center';
+        document.body.appendChild(scrim); document.body.appendChild(burger);
+        burger.addEventListener('click',function(){ document.body.classList.toggle('nav-open'); });
         scrim.addEventListener('click',function(){ document.body.classList.remove('nav-open'); });
         document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.closest('.nav-item'); if(t) document.body.classList.remove('nav-open'); });
       }
-      if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded',init);
+      function update(){
+        ensure();
+        var show = !!document.querySelector('.sidebar') && window.innerWidth<=768;
+        burger.style.display = show ? 'flex' : 'none';
+        if(!show) document.body.classList.remove('nav-open');
+      }
+      function start(){
+        update();
+        window.addEventListener('resize',update);
+        window.addEventListener('orientationchange',update);
+        var root=document.getElementById('root');
+        if(root && window.MutationObserver){ new MutationObserver(update).observe(root,{childList:true,subtree:true}); }
+        else { setInterval(update,1200); }
+      }
+      if(document.readyState!=='loading') start(); else document.addEventListener('DOMContentLoaded',start);
     })();
   </script>
 </body>
