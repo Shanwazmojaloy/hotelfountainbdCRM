@@ -53,13 +53,46 @@
 <body>
   <div id="loading"><h1><em>Lumea</em></h1><div class="spin"></div><p>Hotel Fountain CRM</p></div>
   <div id="root" style="height:100%"></div>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="/vendor/react.production.min.js"></script>
+  <script src="/vendor/react-dom.production.min.js"></script>
+  <script src="/vendor/gsap.min.js"></script>
   <script src="/crm-config.js"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="/crm-bundle.js?v=20260605012018"></script>
+  <script src="/vendor/supabase.js"></script>
+  <script src="/crm-bundle.js?v=20260605080329"></script>
   <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
+  <script>
+    /* Lightweight client-error reporter -> /api/client-error -> audit_logs (no third party).
+       Best-effort: deduped, capped, never throws, never blocks the page. */
+    (function(){
+      var sent = {}, count = 0, MAX = 12;
+      function report(kind, message, source, stack){
+        try{
+          if(count >= MAX) return;
+          var key = kind + '|' + (message||'') + '|' + (source||'');
+          if(sent[key]) return; sent[key] = 1; count++;
+          var body = JSON.stringify({
+            kind: kind, message: String(message||'').slice(0,4000),
+            stack: stack ? String(stack).slice(0,4000) : null,
+            source: source ? String(source).slice(0,512) : null,
+            url: location.href, appVersion: (window.__CRM_VERSION__||null),
+            ts_client: new Date().toISOString()
+          });
+          if(navigator.sendBeacon){
+            navigator.sendBeacon('/api/client-error', new Blob([body],{type:'application/json'}));
+          } else {
+            fetch('/api/client-error',{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}).catch(function(){});
+          }
+        }catch(_){/* telemetry must never break the app */}
+      }
+      window.addEventListener('error', function(e){
+        report('error', e && e.message, (e && e.filename ? e.filename+':'+e.lineno+':'+e.colno : null), e && e.error && e.error.stack);
+      });
+      window.addEventListener('unhandledrejection', function(e){
+        var r = e && e.reason;
+        report('unhandledrejection', (r && r.message) || r, null, r && r.stack);
+      });
+    })();
+  </script>
   <script>
     /* PWA install button (Android/Chrome only; iOS uses Share > Add to Home Screen) */
     (function(){
