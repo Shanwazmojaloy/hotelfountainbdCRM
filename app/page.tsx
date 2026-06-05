@@ -185,14 +185,19 @@ export default function HotelFountainLanding() {
           .select('id').single();
         guestId = (!guestError && guestData?.id) ? guestData.id : null;
       }
-      await supabase.from('reservations').insert([{
+      const { error: _resErr } = await supabase.from('reservations').insert([{
         guest_name: bookForm.name, email: bookForm.email, phone: bookForm.phone,
         room_type: bookingModal.room?.supabaseType, check_in: checkIn, check_out: checkOut,
-        guests: parseInt(guests) || 2, status: 'PENDING', source: 'Direct Web',
+        guests: parseInt(guests) || 2, status: 'PENDING', source: 'WEBSITE',
         created_at: new Date().toISOString(), room_ids: [],
         guest_ids: guestId ? [guestId] : [], tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8',
       }]);
-    } catch {}
+      if (_resErr) throw _resErr;
+    } catch (e) {
+      console.error('Booking submit failed', e);
+      setBookStatus('idle');
+      return;
+    }
     setBookStatus('success');
   }
 

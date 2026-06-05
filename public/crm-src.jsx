@@ -6435,13 +6435,13 @@ function App() {
     const phoneMatch=sr.match(/Phone:\s*([^|]+)/)
     const emailMatch=sr.match(/Email:\s*([^|]+)/)
     return {
-      name: g?.name || res.on_duty_officer || 'Walk-in Guest',
-      phone: g?.phone || (phoneMatch?phoneMatch[1].trim():'—'),
-      email: g?.email || (emailMatch?emailMatch[1].trim():'—'),
-      roomType: (roomMatch?roomMatch[1].trim():null) || (res.room_ids||[]).join(', ') || 'Not assigned',
+      name: g?.name || res.guest_name || res.on_duty_officer || 'Walk-in Guest',
+      phone: g?.phone || res.phone || (phoneMatch?phoneMatch[1].trim():'—'),
+      email: g?.email || res.email || (emailMatch?emailMatch[1].trim():'—'),
+      roomType: res.room_type || (roomMatch?roomMatch[1].trim():null) || (res.room_ids||[]).join(', ') || 'Not assigned',
       checkIn: res.check_in,
       checkOut: res.check_out,
-      isOnline: sr.includes('ONLINE BOOKING'),
+      isOnline: sr.includes('ONLINE BOOKING') || res.source==='WEBSITE' || res.source==='Direct Web',
       id: res.id
     }
   }
