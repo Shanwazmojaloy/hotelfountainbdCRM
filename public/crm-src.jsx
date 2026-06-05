@@ -6373,7 +6373,18 @@ function App() {
       } catch(e) {}
     },90000)
     const interval=setInterval(loadAll,90000)
-    return()=>{ clearInterval(interval); clearInterval(sessionCheck) }
+    // ── Realtime: instant refresh on reservation/room changes (graceful fallback to polling) ──
+    let _rtClient=null,_rtChan=null
+    try{
+      if(window.supabase&&window.supabase.createClient){
+        _rtClient=window.supabase.createClient(SB_URL,SB_KEY,{realtime:{params:{eventsPerSecond:5}}})
+        _rtChan=_rtClient.channel('lumea-rt-'+TENANT)
+          .on('postgres_changes',{event:'*',schema:'public',table:'reservations',filter:`tenant_id=eq.${TENANT}`},()=>loadAll())
+          .on('postgres_changes',{event:'*',schema:'public',table:'rooms',filter:`tenant_id=eq.${TENANT}`},()=>loadAll())
+          .subscribe()
+      }
+    }catch(e){ console.warn('Realtime unavailable — polling only',e) }
+    return()=>{ clearInterval(interval); clearInterval(sessionCheck); try{ if(_rtChan&&_rtClient) _rtClient.removeChannel(_rtChan) }catch(e){} }
   },[user]) // intentionally omit loadAll to avoid re-running on every render
 
   function signOut() {
@@ -6516,7 +6527,7 @@ function App() {
                 style={{position:'relative',padding:'5px 10px',fontSize:15}}
                 onClick={e=>{ e.stopPropagation(); setNotifOpen(p=>!p) }}
               >
-                🔔
+                <span style={{display:'inline-block',transformOrigin:'50% 0',animation:pendRes>0?'bellRing 1.8s ease-in-out infinite':'none'}}>🔔</span>
                 {totalNotifs>0&&(
                   <span style={{position:'absolute',top:4,right:4,width:7,height:7,borderRadius:'50%',background:'var(--rose)',boxShadow:'0 0 5px var(--rose)',animation:'pulse 2s infinite'}}/>
                 )}
@@ -6614,14 +6625,12 @@ function App() {
                                             const fresh=await db('rooms',`?tenant_id=eq.${TENANT}&room_number=eq.${selRoom}&status=eq.AVAILABLE&select=id,room_number`)
                                             if(!fresh||fresh.length===0){toast('Room no longer available — pick another','error');setConfirmingIds(p=>{const s=new Set(p);s.delete(res.id);return s});loadAll();return}
                                             const roomRec=data.rooms.find(r=>String(r.room_number)===String(selRoom))
-                                            (()=>{
-                                              const ciDate=new Date((res.check_in||'').replace(' ','T').split('+')[0])
-                                              const coDate=new Date((res.check_out||'').replace(' ','T').split('+')[0])
-                                              const nights=(!isNaN(ciDate)&&!isNaN(coDate))?Math.max(1,Math.round((coDate-ciDate)/86400000)):1
-                                              const roomPrice=+(roomRec?.price||0)
-                                              const computedTotal=roomPrice*nights||(+(res.total_amount||0))
-                                              return dbPatch('reservations',res.id,{status:'RESERVED',room_ids:[String(selRoom)],room_id:roomRec.id,room_type:roomRec.category||info.roomType||'',total_amount:computedTotal})
-                                            })()
+                                            const ciDate=new Date((res.check_in||'').replace(' ','T').split('+')[0])
+                                            const coDate=new Date((res.check_out||'').replace(' ','T').split('+')[0])
+                                            const nights=(!isNaN(ciDate)&&!isNaN(coDate))?Math.max(1,Math.round((coDate-ciDate)/86400000)):1
+                                            const roomPrice=+(roomRec?.price||0)
+                                            const computedTotal=roomPrice*nights||(+(res.total_amount||0))
+                                            await dbPatch('reservations',res.id,{status:'RESERVED',room_ids:[String(selRoom)],room_id:roomRec.id,room_type:roomRec.category||info.roomType||'',total_amount:computedTotal})
                                             await dbPatch('rooms',roomRec.id,{status:'RESERVED'})
                                             try{
                                               await fetch(`${SB_URL}/functions/v1/send-booking-email`,{
@@ -6629,9 +6638,9 @@ function App() {
                                                 headers:{'Content-Type':'application/json','Authorization':`Bearer ${SB_KEY}`},
                                                 body:JSON.stringify({
                                                   to:info.email,guestName:info.name,
-                                                  roomNo:selRoom,roomType:info.roomType,
+                                                  roomNo:selRoom,roomType:roomRec.category||info.roomType,
                                                   checkIn:info.checkIn,checkOut:info.checkOut,
-                                                  total:res.total_amount||0,phone:info.phone
+                                                  rate:roomPrice,nights:nights,total:computedTotal,bookingId:res.id,phone:info.phone
                                                 })
                                               })
                                             }catch(emailErr){console.warn('Email send failed:',emailErr)}
