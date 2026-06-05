@@ -6454,10 +6454,11 @@ function App() {
     {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
     {id:'billing',   ico:'◎', label:'Billing & Invoices'},
     {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
+    {id:'churn',     ico:'⚠', label:'Churn Risk',       url:'/churn'},
     {id:'council',   ico:'⬢', label:'AI Council',       sect:'STRATEGY'},
 
     {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
-  ].filter(n=>allowed.includes(n.id))
+  ].filter(n=>n.url ? ['owner','manager'].includes(user.role) : allowed.includes(n.id))
 
   const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',council:'AI Advisory Council',settings:'Settings'}
   const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
@@ -6485,7 +6486,7 @@ function App() {
             {NAV_ITEMS.map(item=>(
               <div key={item.id}>
                 {item.sect&&<div className="s-sect">{item.sect}</div>}
-                <div className={`nav-item${cur===item.id?' on':''}`} onClick={()=>setPage(item.id)}>
+                <div className={`nav-item${cur===item.id?' on':''}`} onClick={()=>item.url?(window.location.href=item.url):setPage(item.id)}>
                   <span className="ico">{item.ico}</span>
                   <span>{item.label}</span>
                   {item.badge>0&&<span className="n-badge">{item.badge}</span>}
