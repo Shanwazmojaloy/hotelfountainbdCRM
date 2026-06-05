@@ -170,29 +170,17 @@ export default function HotelFountainLanding() {
     if (!bookForm.name || !bookForm.email) return;
     setBookStatus('sending');
     try {
-      let guestId: string | null = null;
-      const { data: existing } = await supabase
-        .from('guests').select('id')
-        .eq('email', bookForm.email.trim().toLowerCase())
-        .eq('tenant_id', '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8')
-        .maybeSingle();
-      if (existing?.id) {
-        guestId = existing.id;
-      } else {
-        const { data: guestData, error: guestError } = await supabase
-          .from('guests')
-          .insert([{ name: bookForm.name, email: bookForm.email.trim().toLowerCase(), phone: bookForm.phone, address: bookForm.address || null, tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8', total_stays: 0, total_spent: 0, loyalty_points: 0, outstanding_balance: 0, vip: false }])
-          .select('id').single();
-        guestId = (!guestError && guestData?.id) ? guestData.id : null;
-      }
-      const { error: _resErr } = await supabase.from('reservations').insert([{
-        guest_name: bookForm.name, email: bookForm.email, phone: bookForm.phone,
-        room_type: bookingModal.room?.supabaseType, check_in: checkIn, check_out: checkOut,
-        guests: parseInt(guests) || 2, status: 'PENDING', source: 'WEBSITE',
-        created_at: new Date().toISOString(), room_ids: [],
-        guest_ids: guestId ? [guestId] : [], tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8',
-      }]);
-      if (_resErr) throw _resErr;
+      const res = await fetch('/api/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: bookForm.name, email: bookForm.email, phone: bookForm.phone, address: bookForm.address,
+          room_type: bookingModal.room?.supabaseType, check_in: checkIn, check_out: checkOut,
+          guests: parseInt(guests) || 2,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) throw new Error(data.error || 'Booking failed');
     } catch (e) {
       console.error('Booking submit failed', e);
       setBookStatus('idle');

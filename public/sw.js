@@ -6,7 +6,7 @@
      - Cross-origin (Supabase, CDN, fonts) and /api/*: never intercepted.
      - Non-GET: never touched.
    Bump CACHE_VERSION to force a reinstall + purge of every old cache. */
-const CACHE_VERSION = 'lumea-v3';
+const CACHE_VERSION = 'lumea-v4';
 const PRECACHE = [
   '/manifest.webmanifest',
   '/icons/icon-192.png',
@@ -55,4 +55,31 @@ self.addEventListener('fetch', (event) => {
       }).catch(() => cached);
     })
   );
+});
+
+
+// ── Web Push: show notification on push, focus/open CRM on click ──
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (_e) { data = { body: event.data ? event.data.text() : '' }; }
+  const title = data.title || 'Hotel Fountain';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || 'You have a new notification.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: 'lumea-booking',
+    renotify: true,
+    vibrate: [80, 40, 80],
+    data: { url: data.url || '/crm.html' },
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || '/crm.html';
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) { if (c.url.includes('/crm.html') && 'focus' in c) return c.focus(); }
+    if (self.clients.openWindow) return self.clients.openWindow(target);
+  })());
 });

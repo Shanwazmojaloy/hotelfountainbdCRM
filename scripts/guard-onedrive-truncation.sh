@@ -79,6 +79,21 @@ if [ -n "$SIDE" ]; then
   echo "$SIDE" | head -5 | sed 's/^/   /'
 fi
 
+# ── 5. crm-bundle.js — built artifact must parse, have createRoot, stay in sync ──
+BUN="public/crm-bundle.js"
+if [ -f "$BUN" ]; then
+  if command -v node >/dev/null 2>&1; then
+    if node --check "$BUN" 2>/dev/null; then pass "$BUN: parses ok"; else fail "$BUN: does not parse — broken build, run 'npm run build:crm'"; fi
+  fi
+  NB=$(grep -c "createRoot" "$BUN" || true)
+  [ "$NB" -lt 1 ] && fail "$BUN: missing createRoot (empty/truncated build)"
+  if git diff --cached --name-only 2>/dev/null | grep -q "^public/crm-src.jsx$"; then
+    if ! git diff --cached --name-only 2>/dev/null | grep -q "^public/crm-bundle.js$"; then
+      fail "crm-src.jsx staged WITHOUT crm-bundle.js — run 'npm run build:crm' and stage the rebuilt bundle"
+    fi
+  fi
+fi
+
 if [ "$FAIL" = "1" ]; then
   echo ""
   echo "${RED}╔════════════════════════════════════════════════════════════╗${OFF}"
