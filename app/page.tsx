@@ -170,17 +170,24 @@ export default function HotelFountainLanding() {
     if (!bookForm.name || !bookForm.email) return;
     setBookStatus('sending');
     try {
+      // Server-side route inserts with the service role, enforces source='WEBSITE',
+      // and returns real errors — so a failed booking can never show false success.
       const res = await fetch('/api/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: bookForm.name, email: bookForm.email, phone: bookForm.phone, address: bookForm.address,
-          room_type: bookingModal.room?.supabaseType, check_in: checkIn, check_out: checkOut,
+          name: bookForm.name,
+          email: bookForm.email,
+          phone: bookForm.phone,
+          address: bookForm.address,
+          roomType: bookingModal.room?.supabaseType,
+          checkIn,
+          checkOut,
           guests: parseInt(guests) || 2,
         }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.error) throw new Error(data.error || 'Booking failed');
+      const out = await res.json().catch(() => ({ ok: false }));
+      if (!res.ok || !out.ok) throw new Error(out.error || `Booking failed (${res.status})`);
     } catch (e) {
       console.error('Booking submit failed', e);
       setBookStatus('idle');

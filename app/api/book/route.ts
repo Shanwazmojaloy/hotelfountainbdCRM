@@ -1,80 +1,124 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Lumea — POST /api/book
-// Server-side website booking. Validates input, enforces source='WEBSITE',
-// inserts with the service role, and returns real errors (no silent failures).
-// The DB trigger trg_notify_new_booking fires the staff push on insert.
-// ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+
+// Server-side public booking endpoint.
+// Replaces the old client-side direct-Supabase insert that could fail silently
+// (the ৳13,600-class "swallowed catch" bug). This route inserts with the SERVICE
+// ROLE, enforces source='WEBSITE', validates input, and returns REAL errors so the
+// landing page can never show a false "success" again.
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
-const SB_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-const SR      = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TENANT  = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const ROOM_TYPES = ['Fountain Deluxe', 'Premium Deluxe', 'Superior Deluxe', 'Twin Deluxe', 'Royal Suite'];
+const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1`;
 
-function sb(path: string, init?: RequestInit) {
-  return fetch(`${SB_URL}/rest/v1/${path}`, {
-    ...init,
-    headers: { apikey: SR, Authorization: `Bearer ${SR}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
-  });
+function svcHeaders(extra: Record<string, string> = {}) {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    'Content-Type': 'application/json',
+    ...extra,
+  };
 }
 
-export async function POST(req: NextRequest) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+type BookBody = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  roomType?: string;
+  checkIn?: string;
+  checkOut?: string;
+  guests?: number | string;
+};
+
+function bad(error: string, status = 400) {
+  return NextResponse.json({ ok: false, error }, { status });
+}
+
+export async function POST(req: Request) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return bad('Server is not configured for bookings. Please call the hotel directly.', 500);
+  }
+
+  let body: BookBody;
   try {
-    if (!SR) return NextResponse.json({ error: 'Booking service not configured.' }, { status: 500 });
+    body = await req.json();
+  } catch {
+    return bad('Invalid request body.');
+  }
 
-    const b = await req.json().catch(() => ({} as Record<string, unknown>));
-    const name     = String(b.name || '').trim();
-    const email    = String(b.email || '').trim().toLowerCase();
-    const phone    = String(b.phone || '').trim();
-    const address  = String(b.address || '').trim();
-    const roomType = String(b.room_type || '').trim();
-    const checkIn  = String(b.check_in || '').slice(0, 10);
-    const checkOut = String(b.check_out || '').slice(0, 10);
-    const guests   = Math.max(1, Math.min(12, parseInt(String(b.guests ?? '2'), 10) || 2));
+  const name = (body.name || '').trim();
+  const email = (body.email || '').trim().toLowerCase();
+  const phone = (body.phone || '').trim();
+  const address = (body.address || '').trim();
+  const roomType = (body.roomType || '').trim();
+  const checkIn = (body.checkIn || '').trim();
+  const checkOut = (body.checkOut || '').trim();
+  const guests = parseInt(String(body.guests ?? '2'), 10) || 2;
 
-    if (name.length < 2) return NextResponse.json({ error: 'Please enter your full name.' }, { status: 400 });
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
-    if (roomType && !ROOM_TYPES.includes(roomType)) return NextResponse.json({ error: 'Unknown room type.' }, { status: 400 });
-    if (!checkIn || !checkOut) return NextResponse.json({ error: 'Please select check-in and check-out dates.' }, { status: 400 });
-    if (new Date(checkOut) <= new Date(checkIn)) return NextResponse.json({ error: 'Check-out must be after check-in.' }, { status: 400 });
+  // ---- validation (mirror of the landing form's own gating, enforced server-side) ----
+  if (!name) return bad('Guest name is required.');
+  if (!EMAIL_RE.test(email)) return bad('A valid email address is required.');
+  if (!DATE_RE.test(checkIn) || !DATE_RE.test(checkOut)) return bad('Valid check-in and check-out dates are required.');
+  if (new Date(checkOut) <= new Date(checkIn)) return bad('Check-out must be after check-in.');
+  if (guests < 1 || guests > 20) return bad('Guest count is out of range.');
 
-    // Find or create the guest record.
+  try {
+    // ---- 1. find or create the guest record (service role; RLS-exempt) ----
     let guestId: string | null = null;
-    const gq = await sb(`guests?email=eq.${encodeURIComponent(email)}&tenant_id=eq.${TENANT}&select=id&limit=1`);
-    const gex = await gq.json().catch(() => []);
-    if (Array.isArray(gex) && gex[0]?.id) {
-      guestId = gex[0].id;
+
+    const lookup = await fetch(
+      `${BASE}/guests?select=id&email=eq.${encodeURIComponent(email)}&tenant_id=eq.${TENANT}&limit=1`,
+      { headers: svcHeaders() },
+    );
+    if (!lookup.ok) throw new Error(`guest lookup failed: ${lookup.status} ${await lookup.text()}`);
+    const found = (await lookup.json()) as Array<{ id: string }>;
+
+    if (found[0]?.id) {
+      guestId = found[0].id;
     } else {
-      const gi = await sb('guests', {
-        method: 'POST', headers: { Prefer: 'return=representation' },
-        body: JSON.stringify([{ name, email, phone, address: address || null, tenant_id: TENANT, total_stays: 0, total_spent: 0, loyalty_points: 0, outstanding_balance: 0, vip: false }]),
+      const create = await fetch(`${BASE}/guests`, {
+        method: 'POST',
+        headers: svcHeaders({ Prefer: 'return=representation' }),
+        body: JSON.stringify([{
+          name, email, phone: phone || null, address: address || null,
+          tenant_id: TENANT, total_stays: 0, total_spent: 0,
+          loyalty_points: 0, outstanding_balance: 0, vip: false,
+        }]),
       });
-      if (gi.ok) { const gr = await gi.json().catch(() => []); guestId = gr?.[0]?.id || null; }
+      if (!create.ok) throw new Error(`guest insert failed: ${create.status} ${await create.text()}`);
+      const created = (await create.json()) as Array<{ id: string }>;
+      guestId = created[0]?.id ?? null;
     }
 
-    // Insert the reservation (PENDING / WEBSITE).
-    const ri = await sb('reservations', {
-      method: 'POST', headers: { Prefer: 'return=representation' },
+    // ---- 2. insert the reservation (source MUST be 'WEBSITE' to satisfy the CHECK
+    //         constraint and to make the CRM bell pick it up as an online booking) ----
+    const resInsert = await fetch(`${BASE}/reservations`, {
+      method: 'POST',
+      headers: svcHeaders({ Prefer: 'return=representation' }),
       body: JSON.stringify([{
-        guest_name: name, email, phone, room_type: roomType || null,
-        check_in: checkIn, check_out: checkOut, guests,
-        status: 'PENDING', source: 'WEBSITE', room_ids: [], guest_ids: guestId ? [guestId] : [],
-        tenant_id: TENANT,
+        guest_name: name, email, phone: phone || null,
+        room_type: roomType || null, check_in: checkIn, check_out: checkOut,
+        guests, status: 'PENDING', source: 'WEBSITE',
+        created_at: new Date().toISOString(), room_ids: [],
+        guest_ids: guestId ? [guestId] : [], tenant_id: TENANT,
       }]),
     });
-    if (!ri.ok) {
-      const detail = await ri.text().catch(() => '');
-      console.error('Booking insert failed', ri.status, detail);
-      return NextResponse.json({ error: 'Sorry, we could not submit your booking. Please call +880 1322-840799.' }, { status: 502 });
+    if (!resInsert.ok) {
+      throw new Error(`reservation insert failed: ${resInsert.status} ${await resInsert.text()}`);
     }
-    const rr = await ri.json().catch(() => []);
-    return NextResponse.json({ ok: true, id: rr?.[0]?.id || null });
+    const rows = (await resInsert.json()) as Array<{ id: string }>;
+    const reservationId = rows[0]?.id ?? null;
+
+    return NextResponse.json({ ok: true, reservationId });
   } catch (e) {
-    console.error('Booking route error', e);
-    return NextResponse.json({ error: 'Unexpected error. Please try again.' }, { status: 500 });
+    // Real error, surfaced to the client AND the server logs — never swallowed.
+    console.error('[/api/book] booking failed:', e);
+    return bad('We could not complete your booking. Please try again or call the hotel.', 502);
   }
 }
