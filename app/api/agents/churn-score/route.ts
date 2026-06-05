@@ -128,8 +128,8 @@ async function assess(summary: string, apiKey: string): Promise<Assessment | nul
     signal: AbortSignal.timeout(25_000),
   });
   if (!res.ok) return null;
-  const data = await res.json();
-  const block = (data.content ?? []).find((b: any) => b.type === 'tool_use');
+  const data: { content?: Array<{ type: string; input?: Assessment }> } = await res.json();
+  const block = (data.content ?? []).find((b) => b.type === 'tool_use');
   return block?.input ?? null;
 }
 
@@ -215,7 +215,8 @@ export async function GET(req: NextRequest) {
       payload_summary: summary,
     });
     return NextResponse.json({ ok: true, ...summary });
-  } catch (err: any) {
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
     void logEvent({
       event_type: 'cron_churn_score',
       action_target: 'GET /api/agents/churn-score',
@@ -224,8 +225,8 @@ export async function GET(req: NextRequest) {
       duration_ms: Date.now() - t0,
       request_id: requestId,
       role: 'cron',
-      error: String(err?.message ?? err).slice(0, 500),
+      error: detail.slice(0, 500),
     });
-    return NextResponse.json({ error: 'churn_score_failed', detail: String(err?.message ?? err) }, { status: 500 });
+    return NextResponse.json({ error: 'churn_score_failed', detail }, { status: 500 });
   }
 }
