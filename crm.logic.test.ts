@@ -421,6 +421,3 @@ describe('isChargeFolio — folio admin-row filter', () => {
     expect(isChargeFolio({ category: 'Telecom', description: 'IDD call surcharge' })).toBe(true)
   })
 })
-escription: 'IDD call surcharge' })).toBe(true)
-  })
-})
