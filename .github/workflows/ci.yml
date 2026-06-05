@@ -1,0 +1,42 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://mynwfkgksqqwlqowlscj.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_v2XOonwuDa2gi-Z4-o40Og_1ig4AKec
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Build CRM bundle
+        run: npm run build:crm
+
+      - name: Guard — bundle integrity
+        run: |
+          node --check public/crm-bundle.js
+          test "$(grep -c ReactDOM.createRoot public/crm-src.jsx)" = "1" \
+            || (echo "::error::crm-src.jsx createRoot count != 1" && exit 1)
+          tail -1 public/crm-src.jsx | grep -q "React.createElement(App, null))" \
+            || (echo "::error::crm-src.jsx tail truncated" && exit 1)
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Next build
+        run: npm run vercel-build

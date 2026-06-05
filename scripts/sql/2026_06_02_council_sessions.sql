@@ -117,4 +117,4 @@ comment on table public.council_sessions  is
 comment on table public.council_panelists is
   'Individual panelist verdicts produced during a council session.';
 comment on view  public.v_council_sessions_with_panel is
-  'Joined session + panelist array for UI consum
+  'Joined session + panelist array for UI consumption. SECURITY INVOKER.';

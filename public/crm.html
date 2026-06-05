@@ -53,11 +53,11 @@
 <body>
   <div id="loading"><h1><em>Lumea</em></h1><div class="spin"></div><p>Hotel Fountain CRM</p></div>
   <div id="root" style="height:100%"></div>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="/vendor/react.production.min.js"></script>
+  <script src="/vendor/react-dom.production.min.js"></script>
+  <script src="/vendor/gsap.min.js"></script>
   <script src="/crm-config.js"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="/vendor/supabase.js"></script>
   <script src="/crm-bundle.js?v=20260605012018"></script>
   <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
   <script>
@@ -107,6 +107,33 @@
         else { setInterval(update,1200); }
       }
       if(document.readyState!=='loading') start(); else document.addEventListener('DOMContentLoaded',start);
+    })();
+  </script>
+  <script>
+    /* Web Push subscribe — vanilla, outside React. Shows "Enable alerts" until subscribed.
+       iOS: push works only in the INSTALLED home-screen app (iOS 16.4+), not Safari. */
+    (function(){
+      var VAPID='BIinmJB12EnBAAtnJTtD-tV_Se9npLJen9YuBlVJoGJTu5Zfs2llHWCtIwO4n4Z_Autv--6asHK-s2wk75dDzi4';
+      var SB='https://mynwfkgksqqwlqowlscj.supabase.co';
+      var KEY='sb_publishable_v2XOonwuDa2gi-Z4-o40Og_1ig4AKec';
+      var TENANT='46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+      function b64(s){var p='='.repeat((4-s.length%4)%4);var b=(s+p).replace(/-/g,'+').replace(/_/g,'/');var raw=atob(b);var a=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i);return a;}
+      function email(){try{return (JSON.parse(localStorage.getItem('lumea_session')||'{}').email)||null;}catch(e){return null;}}
+      async function save(sub){var j=sub.toJSON();await fetch(SB+'/rest/v1/push_subscriptions',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},body:JSON.stringify({tenant_id:TENANT,staff_email:email(),endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,user_agent:navigator.userAgent})});}
+      async function subscribe(){try{var reg=await navigator.serviceWorker.ready;var perm=await Notification.requestPermission();if(perm!=='granted')return false;var sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(VAPID)});await save(sub);return true;}catch(e){console.warn('push subscribe failed',e);return false;}}
+      function chip(){if(document.getElementById('lmPush'))return;var b=document.createElement('button');b.id='lmPush';b.textContent='\uD83D\uDD14 Enable alerts';b.style.cssText='position:fixed;left:12px;bottom:12px;z-index:99998;padding:9px 14px;background:#1C1510;color:#C8A96E;border:1px solid rgba(200,169,110,.35);border-radius:8px;font:600 11px/1 \'DM Sans\',system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)';b.onclick=async function(){b.textContent='\u2026';var ok=await subscribe();b.textContent=ok?'\u2713 Alerts on':'Enable alerts';if(ok)setTimeout(function(){b.remove();},1500);};document.body.appendChild(b);}
+      function init(){
+        if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))return;
+        var tries=0;
+        var iv=setInterval(async function(){
+          tries++; if(tries>40){clearInterval(iv);return;}
+          if(!(document.querySelector('.sidebar')&&email()))return;
+          clearInterval(iv);
+          if(Notification.permission==='granted'){try{var reg=await navigator.serviceWorker.ready;var sub=await reg.pushManager.getSubscription();if(sub){await save(sub);return;}}catch(e){}}
+          if(Notification.permission!=='denied')chip();
+        },1000);
+      }
+      if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
     })();
   </script>
 </body>
