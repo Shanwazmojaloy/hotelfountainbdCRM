@@ -28,36 +28,84 @@ Fountain (`46bbc3ff…`). Also already applied earlier: cross-tenant RLS isolati
 on 18 tables (`tenant_isolation` policy = `reservations` pattern), function
 search_path hardening, FK indexes.
 
-## ⛔ Remaining cutover (do on a Supabase branch, test, then merge)
+### ✅ Step 1 — DONE (applied to prod 2026-06-06, migration `multitenant_cutover_step1_map_hotelfountain_users`)
+The 3 Hotel Fountain auth users are now mapped into `tenant_users` so they
+resolve by **real membership**, not the fallback:
 
-These touch live, message-sending systems — **do NOT run blind on prod**.
+| user_id | email | role |
+|---|---|---|
+| c953d9cd… | ahmedshanwaz5@gmail.com | owner (is_owner=true) |
+| cfe519e0… | fo.hotelfountain799@gmail.com | receptionist |
+| 0dbe2eff… | hotelfountain.hk@gmail.com | housekeeping |
 
-### 1. Map the existing Hotel Fountain users into `tenant_users`
-So they resolve by membership (not just the fallback). **Verify the `role`
-values against how `crm-src.jsx` resolves CRM permissions first** — wrong roles
-change what a user can see/do.
+Verified: each user + an unmapped user + anon **all still resolve to `46bbc3ff…`**
+(membership for the 3, fallback for the rest) → zero behavior change. Roles match
+the CRM's own vocabulary in `crm-src.jsx` (`ROLES`: owner/manager/receptionist/
+housekeeping); note the app reads role from its **staff table**, NOT from
+`tenant_users.role`, so these values are for tenant-resolution + future use only.
+Reversible: `delete from public.tenant_users where tenant_id='46bbc3ff…';`
 
-```sql
-insert into public.tenant_users (tenant_id, user_id, role, is_owner, email) values
-  ('46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8','c953d9cd-f1f1-446b-aa1a-025e2367dbc8','owner',true,'ahmedshanwaz5@gmail.com'),
-  ('46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8','cfe519e0-aea3-414a-8845-3233156b4779','receptionist',false,'fo.hotelfountain799@gmail.com'),
-  ('46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8','0dbe2eff-71b0-49cb-b33a-8e26ca3a5962','housekeeping',false,'hotelfountain.hk@gmail.com')
-on conflict do nothing;
-```
+## ⛔ Remaining cutover (do when onboarding hotel #2, with that tenant's real creds to test against)
 
-### 2. De-hardcode the agent cron routes (~15 files in `app/api/agents/*`)
-Each has `const TENANT = '46bbc3ff…'` and queries `tenant_id=eq.${TENANT}`.
-Wrap each route body in a per-tenant loop:
+These touch live, message-sending systems — **do NOT run blind on prod**, and
+they provide **zero benefit until a second active tenant exists**.
+
+> A Supabase **dev branch is the wrong tool for most of this**: branches start
+> schema-only (no prod data, no `auth.users`), so they can't exercise a
+> `tenant_users` mapping or the agent message-senders. Test step 2 via a **Vercel
+> preview deployment** off a git branch, pointed at a 2-tenant dataset.
+
+### 2. De-hardcode the agent cron routes (10 files in `app/api/agents/*`) — ⚠ SECRET-AWARE
+The routes already read `process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff…'`, but
+the bigger problem is **they also pull GLOBAL secrets from env** (Hotel Fountain's
+Facebook page, WhatsApp number, Brevo key, Anthropic key). A per-tenant loop that
+only swaps the `tenant_id` filter would make **tenant #2's guests get messaged
+from Hotel Fountain's accounts.** Each route must load the *acting tenant's own*
+secrets from the `tenants` row. Required env→column mapping:
+
+| Global env var (today) | Per-tenant column (`tenants`) | Notes |
+|---|---|---|
+| `FACEBOOK_PAGE_ID` | `facebook_page_id` | marketer |
+| `FACEBOOK_PAGE_TOKEN` | `facebook_page_token` | marketer |
+| `HOTEL_WHATSAPP` | `hotel_whatsapp` | marketer/follow-up |
+| `HOTEL_NAME` / `HOTEL_CITY` / `HOTEL_ROOM_COUNT` | `hotel_name` / `hotel_city` / `hotel_room_count` | |
+| `BREVO_API_KEY` | `brevo_api_key` | email senders |
+| `ANTHROPIC_API_KEY` | `anthropic_api_key` | ceo-auditor / reply-intake |
+| Gmail user/pass | `gmail_user` / `gmail_app_password` | reply-intake-poll |
+| `CRON_SECRET` | **stays global** | platform cron caller auth |
+| `SUPABASE_SERVICE_ROLE_KEY` / `NEXT_PUBLIC_SUPABASE_URL` | **stay global** | service role spans tenants |
+
+Centralize with one helper, then change each route's body to loop and read
+`t.<secret>` instead of `process.env.<X>`:
 
 ```ts
-const tenants = await fetchJson(`${SB_URL}/rest/v1/tenants?select=id&is_active=eq.true`, { headers: svc });
-for (const { id: TENANT } of tenants) {
-  // ... existing per-tenant logic, unchanged ...
+// app/api/agents/_tenants.ts
+export async function activeTenants(base: string, svc: HeadersInit) {
+  const cols = 'id,hotel_name,hotel_city,hotel_room_count,hotel_whatsapp,'
+    + 'facebook_page_id,facebook_page_token,brevo_api_key,anthropic_api_key,'
+    + 'gmail_user,gmail_app_password';
+  const r = await fetch(`${base}/tenants?select=${cols}&is_active=eq.true`, { headers: svc });
+  if (!r.ok) throw new Error(`tenants: ${await r.text()}`);
+  return r.json() as Promise<Array<Record<string, any>>>;
 }
 ```
-With 1 tenant this is behaviorally identical; with N tenants every hotel gets
-serviced. Test each agent against a 2-tenant branch before merging — these send
-real WhatsApp/email, so a bug spams customers.
+```ts
+for (const t of await activeTenants(BASE, headers())) {
+  const TENANT = t.id;
+  const fbToken = t.facebook_page_token, waNumber = (t.hotel_whatsapp||'').replace(/\D/g,'');
+  // ... existing body, but every process.env.<secret> → t.<column> ...
+}
+```
+With 1 tenant this is behaviorally identical (Hotel Fountain's row carries the
+same values currently in env). With N tenants each hotel is serviced from its own
+accounts. **Test each of the 10 agents against a 2-tenant Vercel preview before
+merging — a bug here spams real customers or cross-posts to the wrong brand.**
+The 10 files: `daily-ops`, `weekly-retention`, `payment-send`, `payment-confirm`,
+`reply-intake`, `reply-intake-poll`, `reply-digest`, `follow-up-bot`,
+`deal-alert`, `ceo-auditor`.
+
+Prereq: populate Hotel Fountain's `tenants` row secret columns (currently the live
+values live only in Vercel env) before flipping any route to read from the table.
 
 ### 3. Establish per-session tenant context in the web tier (optional)
 The web CRM relies on `current_tenant_id()` resolving via membership (step 1).
