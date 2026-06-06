@@ -55,57 +55,35 @@ they provide **zero benefit until a second active tenant exists**.
 > `tenant_users` mapping or the agent message-senders. Test step 2 via a **Vercel
 > preview deployment** off a git branch, pointed at a 2-tenant dataset.
 
-### 2. De-hardcode the agent cron routes (10 files in `app/api/agents/*`) — ⚠ SECRET-AWARE
-The routes already read `process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff…'`, but
-the bigger problem is **they also pull GLOBAL secrets from env** (Hotel Fountain's
-Facebook page, WhatsApp number, Brevo key, Anthropic key). A per-tenant loop that
-only swaps the `tenant_id` filter would make **tenant #2's guests get messaged
-from Hotel Fountain's accounts.** Each route must load the *acting tenant's own*
-secrets from the `tenants` row. Required env→column mapping:
+### 2. Agent routes — ✅ DONE (2026-06-06), but the split matters
+**Critical classification (the earlier "de-hardcode all 10" was wrong).** The 10
+`app/api/agents/*` routes are TWO different things:
 
-| Global env var (today) | Per-tenant column (`tenants`) | Notes |
-|---|---|---|
-| `FACEBOOK_PAGE_ID` | `facebook_page_id` | marketer |
-| `FACEBOOK_PAGE_TOKEN` | `facebook_page_token` | marketer |
-| `HOTEL_WHATSAPP` | `hotel_whatsapp` | marketer/follow-up |
-| `HOTEL_NAME` / `HOTEL_CITY` / `HOTEL_ROOM_COUNT` | `hotel_name` / `hotel_city` / `hotel_room_count` | |
-| `BREVO_API_KEY` | `brevo_api_key` | email senders |
-| `ANTHROPIC_API_KEY` | `anthropic_api_key` | ceo-auditor / reply-intake |
-| Gmail user/pass | `gmail_user` / `gmail_app_password` | reply-intake-poll |
-| `CRON_SECRET` | **stays global** | platform cron caller auth |
-| `SUPABASE_SERVICE_ROLE_KEY` / `NEXT_PUBLIC_SUPABASE_URL` | **stay global** | service role spans tenants |
+- **Lumea B2B SALES funnel (8) — the SELLER's pipeline. Stay single-tenant.**
+  `payment-send`, `payment-confirm`, `deal-alert`, `reply-intake`,
+  `reply-intake-poll`, `reply-digest`, `ceo-auditor`, `follow-up-bot`. These act on
+  `corporate_leads` / `outreach_log`, email Shan or prospects from Shan's own
+  Brevo/bKash/Gmail, and `payment-confirm` is literally what *creates* tenant #2.
+  Looping these per customer-hotel would make every customer blast Shan's sales
+  emails — **do NOT loop them.** Their `const TENANT = '46bbc3ff'` (a log tag for
+  the seller's home tenant) is correct as-is.
 
-Centralize with one helper, then change each route's body to loop and read
-`t.<secret>` instead of `process.env.<X>`:
+- **Per-hotel OPERATIONS (2) — loop per active tenant.** `daily-ops` (revenue
+  manager + automated FB marketer) and `weekly-retention` (guest retention drafts).
+  These were refactored: a shared `app/api/agents/_tenants.ts#activeOpsTenants()`
+  returns all `is_active` tenants; each route loops and reads the tenant's own
+  settings with **env fallback** (`t.facebook_page_token ?? process.env.FACEBOOK_PAGE_TOKEN`,
+  `t.hotel_whatsapp ?? …`, `t.hotel_name ?? …`, `t.hotel_room_count ?? …`).
+  Safety net: if the `tenants` fetch fails/empties, it returns a single synthetic
+  tenant with null columns → byte-identical to pre-multitenant behavior. With the
+  one live tenant (null secret columns) it runs exactly as before; `daily-ops` also
+  now **skips** the FB post if a tenant has no FB creds instead of erroring.
+  Typecheck clean (Windows `tsc --noEmit` EXIT=0). Merged to main.
 
-```ts
-// app/api/agents/_tenants.ts
-export async function activeTenants(base: string, svc: HeadersInit) {
-  const cols = 'id,hotel_name,hotel_city,hotel_room_count,hotel_whatsapp,'
-    + 'facebook_page_id,facebook_page_token,brevo_api_key,anthropic_api_key,'
-    + 'gmail_user,gmail_app_password';
-  const r = await fetch(`${base}/tenants?select=${cols}&is_active=eq.true`, { headers: svc });
-  if (!r.ok) throw new Error(`tenants: ${await r.text()}`);
-  return r.json() as Promise<Array<Record<string, any>>>;
-}
-```
-```ts
-for (const t of await activeTenants(BASE, headers())) {
-  const TENANT = t.id;
-  const fbToken = t.facebook_page_token, waNumber = (t.hotel_whatsapp||'').replace(/\D/g,'');
-  // ... existing body, but every process.env.<secret> → t.<column> ...
-}
-```
-With 1 tenant this is behaviorally identical (Hotel Fountain's row carries the
-same values currently in env). With N tenants each hotel is serviced from its own
-accounts. **Test each of the 10 agents against a 2-tenant Vercel preview before
-merging — a bug here spams real customers or cross-posts to the wrong brand.**
-The 10 files: `daily-ops`, `weekly-retention`, `payment-send`, `payment-confirm`,
-`reply-intake`, `reply-intake-poll`, `reply-digest`, `follow-up-bot`,
-`deal-alert`, `ceo-auditor`.
-
-Prereq: populate Hotel Fountain's `tenants` row secret columns (currently the live
-values live only in Vercel env) before flipping any route to read from the table.
+When onboarding hotel #2: populate that tenant's `tenants` row secret columns
+(`facebook_page_token`, `facebook_page_id`, `hotel_whatsapp`, `hotel_name`,
+`hotel_city`, `hotel_room_count`). No code change needed — the two ops routes pick
+it up automatically. Still smoke-test on a 2-tenant Vercel preview first.
 
 ### 3. Establish per-session tenant context in the web tier (optional)
 The web CRM relies on `current_tenant_id()` resolving via membership (step 1).
@@ -118,12 +96,31 @@ a custom JWT claim and read it in `current_tenant_id()`.
 Add a signup screen that calls it, seeds rooms (`db/01_setup_and_rooms.sql` with
 the new `tenant_id`), and inserts the first `tenant_users` row (owner).
 
-### 5. Only after 1–4 are tested: remove the fallback
-Drop the `'46bbc3ff…'::uuid` default from `current_tenant_id()` so an unresolved
-session gets **no** tenant (deny-all) instead of leaking to Hotel Fountain. This
-is the final hard cutover — do it last, on a branch, with every login path tested.
+### 5. ⛔ BLOCKED on the public booking site — remove the fallback LAST
+Dropping the `'46bbc3ff…'::uuid` default from `current_tenant_id()` makes an
+unresolved session resolve to **NULL** (deny-all) instead of Hotel Fountain.
+
+**Hard evidence it breaks prod today (verified 2026-06-06):** the public booking
+site `fountainbd.com` reads rooms/availability as the **anon** role. `rooms` RLS =
+`((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))`. Hotel Fountain's 28
+rooms have `tenant_id = 46bbc3ff` (not null), so anon sees them **only** because
+the fallback resolves `current_tenant_id() = 46bbc3ff`. Remove the fallback →
+anon → NULL → `46bbc3ff = NULL` is not true, `tenant_id IS NULL` is false →
+**0 rooms visible → the availability widget and booking funnel go dark.** (Staff
+logins survive — they resolve via `tenant_users` membership, step 1 — and agent
+crons survive — they use the service role, which bypasses RLS. The casualty is the
+anonymous public booking path specifically.)
+
+Prerequisite before step 5 is even possible: give the **anon/public** path an
+explicit tenant context that doesn't depend on the fallback — e.g. resolve tenant
+by request host (`fountainbd.com` / `<slug>.fountainbd.com` → tenant) and
+`set_config('app.current_tenant_id', …)` for the public read, or a per-domain
+anon policy. That's multi-domain hosting work that only becomes meaningful at
+tenant #2. **While single-tenant, removing the fallback has zero security benefit
+(one tenant's data) and guaranteed breakage — so it stays.**
 
 ## Why staged
-`current_tenant_id()`'s fallback is the only thing keeping the live site working.
-Removing it (step 5) before steps 1–4 are done and tested would blank the CRM for
-all 3 live staff logins and break every agent cron. Sequence matters.
+`current_tenant_id()`'s fallback is the only thing keeping the anonymous public
+booking site working. Removing it (step 5) before the public path is domain-routed
+would dark the `fountainbd.com` availability/booking funnel for all visitors.
+Sequence matters: it is correctly the LAST step, gated on real multi-domain setup.
