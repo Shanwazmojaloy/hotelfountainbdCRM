@@ -1788,3 +1788,70 @@ Deleted all one-off dev/deploy scaffolding (all were `verify_jwt:false` = public
 **OneDrive truncation struck TWICE this session (recurring critical):** the Edit tool truncated `public/crm.html` (cut at `burger.set`) and `app/layout.tsx` (cut mid-`<script>`); separately the mount briefly served a STALE pre-HEAD crm.html. Recovery pattern that worked: rebuild from `git show HEAD:<file>` (or full known content) in the writable outputs dir, re-apply changes with sed/awk, `cp` to the mount, then RE-READ + md5-compare to confirm it stuck. `/tmp` in the sandbox also threw "Operation not permitted" — use the outputs mount, not /tmp. Strongly reinforces moving the repo OFF OneDrive (`migrate.ps1` → C:\dev). Stray `public/crm.html.bak` (couldn't delete from sandbox) is now covered by `*.bak` in `.gitignore`.
 
 **Still owner's:** (a) Resend DNS records + click Verify → then I flip the email From-address to reservations@fountainbd.com (one command). (b) Run `migrate.ps1` to leave OneDrive. (c) Push everything: `git add -A; git commit; git push` from PowerShell (sandbox can't clear `.git/index.lock`). New/changed files: `app/api/book/route.ts`, `app/api/client-error/route.ts`, `app/components/ClientErrorReporter.tsx`, `app/layout.tsx`, `app/page.tsx`, `public/crm.html`, `public/vendor/*`, `docs/CRM_MIGRATION_PLAN.md`, `scripts/delete-scaffolding-functions.ps1`, `.gitignore`.
+
+## 2026-06-07 — Step 5 DONE: current_tenant_id() fallback removed (host-routed)
+Removed the hardcoded `46bbc3ff` fallback from `current_tenant_id()`. Anon tenant now
+resolved from `x-tenant-host` header → PostgREST `db_pre_request=public.lumea_pre_request`
+→ tx-local GUC `app.current_tenant_id`. Both public booking AND staff CRM run on the anon
+key (custom auth, no auth.uid), so both forward the request host.
+- App commit 049fb29 (deployed dpl_7EKP4jw): x-tenant-host on app/page.tsx, invoice page,
+  checkout server action, public/crm-src.jsx (REST H/H2 + login + hotel_settings + realtime;
+  rebuilt crm-bundle.js v=20260607002942), src/lib/supabase/client.ts, src/services/supabase.ts,
+  NotificationBell. Agent crons unaffected (service_role).
+- DB (mynwfkgksqqwlqowlscj): migrations host_tenant_routing_additive + step5_drop_tenant_fallback;
+  tenant_domains seeded 7 hosts → 46bbc3ff.
+- Verified live: fountainbd.com rooms 28 w/header, 0 w/o, 0 evil.com; 8 available; CRM dashboard OK.
+- ROLLBACK (instant): re-add '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid as 4th coalesce arg.
+- FOLLOW-UP: staff table is anon-readable without tenant context (holds otp_hash/pwh) — tighten.
+
+## 2026-06-07 — Security: dropped 15 redundant tenant_access RLS policies
+Found 15 tables with a 2nd permissive policy `tenant_access` (FOR ALL TO anon,authenticated,
+hardcoded tenant_id=46bbc3ff) that OR-overrode tenant_isolation — leaving them anon-readable
+regardless of x-tenant-host (incl. staff w/ otp_hash+pwh, leads(843 rows), b2b_invoices,
+daily_closing). Migration `drop_redundant_tenant_access_policies` removed all 15; each keeps
+tenant_isolation (ALL, USING+CHECK on current_tenant_id()). Verified: staff 6->0, leads 843->0
+without header; intact with header; CRM dashboard fully loads (housekeeping badge, txns, etc.).
+Rollback: recreate "tenant_access" FOR ALL TO anon,authenticated USING/WITH CHECK (tenant_id=46bbc3ff).
+Tables: staff, leads, b2b_partners, b2b_bookings, b2b_invoices, b2b_outreach_log, daily_closing,
+housekeeping_tasks, notifications_log, marketing_content, review_queue, swarm_leads, upsell_offers,
+workflow_runs, manus_config.
+
+## 2026-06-07 — Applied 02_security_p0_p1 (profiles, crm-assets, RPC revokes)
+Migrations: security_p0_p1_profiles_crmassets_revokes + security_revokes_from_public_keep_service_role.
+- profiles: dropped allow_read(true) + "Enable all access for authenticated users"; only block_anon_* remain.
+  profiles has NO password/pin cols (id,name,email,role) and is unused by frontend. Verified anon reads 0 rows (was full).
+- storage crm-assets: dropped "anon insert"/"anon update"; kept "public read". Frontend does no anon uploads.
+- REVOKE: ~30 privileged SECURITY DEFINER RPCs (vault_secret, create_user_secure, ceo_*, intake_*, outreach_*,
+  poll_*, deal_*, workflow_*lock/should_run, set_tenant_context, etc.) revoked FROM PUBLIC,anon,authenticated;
+  GRANTed to service_role. GOTCHA: first pass revoked only anon/authenticated but PUBLIC grant kept them callable —
+  must revoke FROM PUBLIC. Verified: revoked RPCs anon=false/svc=true and return 404 to anon; KEPT for frontend:
+  check_user_login, current_tenant_id, lumea_pre_request, resolve_tenant_by_host, post_extra_charge,
+  generate_invoice_number, void_ledger_entry, expand_nightly_charges. All agent RPC call sites are in
+  app/api/agents/* (service_role) only. CRM dashboard + login verified healthy.
+Residual backlog (advisor): ~remaining SECURITY DEFINER funcs not in the curated list, 2 function_search_path_mutable,
+extension_in_public, leaked_password_protection OFF, 28 rls_enabled_no_policy (INFO). Lower priority.
+
+## 2026-06-07 — Residual advisor items
+- FIXED: function_search_path_mutable on bgqs_raw.pull_url(text) & pull_chunk(text,int,int)
+  -> ALTER FUNCTION ... SET search_path = extensions, pg_temp (both reference only extensions.* qualified; safe).
+  Migration: pin_search_path_bgqs_raw_funcs.
+- NOT DONE (deliberate): extension `vector` in public. Actively used (email_chunks.embedding vector(1024) + HNSW).
+  Role search_path is `public, auth` (NO `extensions`), so ALTER EXTENSION vector SET SCHEMA extensions would
+  break similarity operators (<=>, <->). Cosmetic lint, not a vuln. Leave unless done in a maintenance window
+  WITH adding `extensions` to role search_path + testing embedding queries.
+- NOT DONE: leaked_password_protection (Supabase Auth/GoTrue). Not settable via SQL/MCP — Dashboard toggle
+  (Authentication > Sign In/Providers). Moot today: auth.users=3 but ever_signed_in=0 (login is custom on staff table).
+- FLAG: bgqs_raw.pull_url/pull_chunk embed a hardcoded service_role JWT for FOREIGN project
+  bgqsorvxbytttrvbjder.supabase.co (one-off import helpers). Consider dropping these funcs or rotating that key.
+
+## 2026-06-07 — Residual items final dispositions
+- DONE: Leaked-password protection ENABLED (Supabase Dashboard > Auth > Attack Protection > "Prevent use
+  of leaked passwords" -> via Email provider toggle -> Save). Note: low practical impact (login is custom
+  on staff table; auth.users=3, 0 sign-ins) but clears the advisor and is good hygiene if Supabase Auth used.
+- LEFT AS-IS (assessed, intentional): 28 rls_enabled_no_policy tables are all correct deny-all surfaces —
+  ~12 _backup_/_dedup_/_deleted_ snapshots (retain until 2026-06-25), agent/cron internals (agent_*, content_*,
+  *_log, social_content_queue, competitor_rates, dynamic_pricing_log, flash_sale_log, referral_queue),
+  tenant_domains (by design), user_credentials (correctly locked). Adding policies would LOOSEN, not harden.
+- LEFT AS-IS (risk > benefit): `vector` extension in public. No <=> usage in app SQL; only ingest.py ::vector
+  cast. Move would need `extensions` added to a role search_path (currently public,auth) -> do in a
+  maintenance window only.
