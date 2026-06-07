@@ -28,7 +28,9 @@ export function getSupabaseClient() {
     }
   }
   if (!_client) {
-    _client = createBrowserClient(supabaseUrl, supabaseKey);
+    _client = createBrowserClient(supabaseUrl, supabaseKey, {
+      global: { headers: { 'x-tenant-host': typeof window !== 'undefined' ? window.location.host : '' } },
+    });
   }
   return _client;
 }

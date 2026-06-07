@@ -1,8 +1,9 @@
 "use server";
 
 import { createClient } from '@supabase/supabase-js';
+import { headers } from 'next/headers';
 
-function createServerSupabaseClient() {
+async function createServerSupabaseClient() {
   const url = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY;
 
@@ -10,16 +11,18 @@ function createServerSupabaseClient() {
     throw new Error('Supabase credentials are not configured.');
   }
 
+  const host = (await headers()).get('host') ?? '';   // host→tenant routing (Step 5 prerequisite)
   return createClient(url, anonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
+    global: { headers: { 'x-tenant-host': host } },
   });
 }
 
 export async function processCheckOut(roomId: string, invoiceId: string, totalDue: number) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   // 1. Release the room immediately (Operational priority)
   const { error: roomError } = await supabase

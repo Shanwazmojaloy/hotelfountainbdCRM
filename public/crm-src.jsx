@@ -45,8 +45,9 @@ const avColor = n => AVC[n ? n.charCodeAt(0)%AVC.length : 0]
 const initials = n => n ? n.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '?'
 const sleep = ms => new Promise(r=>setTimeout(r,ms))
 
-const H  = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' }
-const H2 = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json' }
+const XTH = (typeof location!=='undefined' && location.host) ? location.host : ''   // host→tenant routing (Step 5 prerequisite)
+const H  = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation', 'x-tenant-host':XTH }
+const H2 = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', 'x-tenant-host':XTH }
 const db = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,{headers:H}); if(!r.ok) throw new Error(await r.text()); return r.json() }
 const dbAll = async (t,q='',pageSize=1000) => {
   const out=[]; let from=0
@@ -631,7 +632,7 @@ function LoginPage({onLogin, staffList}) {
       const SB_KEY='sb_publishable_v2XOonwuDa2gi-Z4-o40Og_1ig4AKec'
       const TENANT_ID='46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
       const r=await fetch(`${SB_URL}/rest/v1/staff?tenant_id=eq.${TENANT_ID}&email=eq.${encodeURIComponent(actEmail.trim())}&select=id,otp_hash,otp_expires,activated`,{
-        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'x-tenant-host':XTH}
       })
       const rows=await r.json()
       if(!Array.isArray(rows)||rows.length===0) throw new Error('Account not found.')
@@ -643,7 +644,7 @@ function LoginPage({onLogin, staffList}) {
       // Activate: set pwh, phone, activated=true, clear otp fields
       const upd=await fetch(`${SB_URL}/rest/v1/staff?id=eq.${s.id}`,{
         method:'PATCH',
-        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation','x-tenant-host':XTH},
         body:JSON.stringify({pwh:pwHash,activated:true,otp_hash:null,otp_expires:null})
       })
       if(!upd.ok){const e=await upd.json();throw new Error(e.message||'Activation failed')}
@@ -3179,7 +3180,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
     try{
       await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
         method:'POST',
-        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates','x-tenant-host':XTH},
         body:JSON.stringify({key:'daily_token_amount',value:String(a),tenant_id:TENANT})
       })
       setSavedToken(a)
@@ -3204,7 +3205,7 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       try {
         await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
           method:'POST',
-          headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+          headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates','x-tenant-host':XTH},
           body:JSON.stringify({key:'daily_token_amount',value:String(a),tenant_id:TENANT})
         });
         setSavedToken(a);
@@ -3365,7 +3366,7 @@ ${dueRows}
       }
       await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
         method:'POST',
-        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates','x-tenant-host':XTH},
         body:JSON.stringify({key:'active_fiscal_day',value:nextDay,tenant_id:TENANT})
       })
       toast(`✓ Day Closed: Report backed up to ${_FNAME}`,'info')
@@ -4153,7 +4154,7 @@ function SettingsPage({currentUser,toast,staffList,setStaffList,reservations,roo
       for(const [key,value] of entries){
         await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
           method:'POST',
-          headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+          headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates','x-tenant-host':XTH},
           body:JSON.stringify({key,value:String(value),tenant_id:TENANT})
         })
       }
@@ -4497,7 +4498,7 @@ function AIAgentsPanel({toast}) {
     toast(`✅ Discount approved: ${analystRes?.suggested_discount}`)
     await fetch(`${SB_URL}/rest/v1/hotel_settings`,{
       method:'POST',
-      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates','x-tenant-host':XTH},
       body:JSON.stringify({key:'approved_discount',value:analystRes?.suggested_discount,tenant_id:TENANT})
     }).catch(()=>{})
   }
@@ -6377,7 +6378,7 @@ function App() {
     let _rtClient=null,_rtChan=null
     try{
       if(window.supabase&&window.supabase.createClient){
-        _rtClient=window.supabase.createClient(SB_URL,SB_KEY,{realtime:{params:{eventsPerSecond:5}}})
+        _rtClient=window.supabase.createClient(SB_URL,SB_KEY,{realtime:{params:{eventsPerSecond:5}},global:{headers:{'x-tenant-host':XTH}}})
         _rtChan=_rtClient.channel('lumea-rt-'+TENANT)
           .on('postgres_changes',{event:'*',schema:'public',table:'reservations',filter:`tenant_id=eq.${TENANT}`},()=>loadAll())
           .on('postgres_changes',{event:'*',schema:'public',table:'rooms',filter:`tenant_id=eq.${TENANT}`},()=>loadAll())
