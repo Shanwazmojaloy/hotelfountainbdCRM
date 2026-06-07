@@ -11,7 +11,12 @@ function getClient(): SupabaseClient {
   if (!url || !key) {
     throw new Error("[supabase] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
   }
-  _client = createClient(url, key);
+  // Server-only callers (leads page, orchestrate webhook) always operate on the
+  // home tenant. Send a canonical x-tenant-host so RLS resolves without the
+  // removed current_tenant_id() fallback. TODO(multi-tenant): derive per-request.
+  _client = createClient(url, key, {
+    global: { headers: { 'x-tenant-host': process.env.NEXT_PUBLIC_TENANT_HOST || 'hotelfountainbd.com' } },
+  });
   return _client;
 }
 

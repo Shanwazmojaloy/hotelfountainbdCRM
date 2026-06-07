@@ -5,7 +5,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_v2XOonwuDa2gi-Z4-o40Og_1ig4AKec';
-const supabase = createClient(SB_URL, SB_KEY);
+const supabase = createClient(SB_URL, SB_KEY, {
+  global: { headers: { 'x-tenant-host': typeof window !== 'undefined' ? window.location.host : '' } },
+});
 
 const ROOMS = [
   {
