@@ -2,55 +2,26 @@
   "version": 2,
   "framework": "nextjs",
   "outputDirectory": ".next",
-  "regions": [
-    "sin1"
-  ],
+  "regions": ["sin1"],
   "rewrites": [
-    {
-      "source": "/crm.html",
-      "destination": "/crm.html"
-    },
-    {
-      "source": "/landing",
-      "destination": "/index.html"
-    }
+    { "source": "/crm.html", "destination": "/crm.html" },
+    { "source": "/landing", "destination": "/index.html" }
   ],
   "crons": [
-    {
-      "path": "/api/agents/reply-intake-poll",
-      "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/agents/reply-digest",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/agents/outreach-bot",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/agents/follow-up-bot",
-      "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/agents/daily-ops",
-      "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/agents/fb-token-check",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/agents/lighthouse-tick",
-      "schedule": "0 19 * * *"
-    },
-    {
-      "path": "/api/agents/audit-purge",
-      "schedule": "30 0 * * *"
-    },
-    {
-      "path": "/api/agents/churn-score",
-      "schedule": "0 18 * * *"
-    }
+    { "path": "/api/agents/reply-intake-poll", "schedule": "0 1 * * *" },
+    { "path": "/api/agents/reply-digest", "schedule": "0 2 * * *" },
+    { "path": "/api/agents/outreach-bot", "schedule": "0 3 * * *" },
+    { "path": "/api/agents/follow-up-bot", "schedule": "0 4 * * *" },
+    { "path": "/api/agents/daily-ops", "schedule": "0 5 * * *" },
+    { "path": "/api/agents/fb-token-check", "schedule": "0 6 * * *" },
+    { "path": "/api/agents/lighthouse-tick", "schedule": "0 19 * * *" },
+    { "path": "/api/agents/audit-purge", "schedule": "30 0 * * *" },
+    { "path": "/api/agents/churn-score", "schedule": "0 18 * * *" },
+    { "path": "/api/agents/morning-briefing", "schedule": "0 7 * * *" },
+    { "path": "/api/agents/checkout-reminder", "schedule": "30 10 * * *" },
+    { "path": "/api/agents/overdue-alert", "schedule": "30 12 * * *" },
+    { "path": "/api/agents/weekly-summary", "schedule": "0 8 * * 1" },
+    { "path": "/api/agents/competitor-monitor", "schedule": "0 6 * * *" },
+    { "path": "/api/agents/backup-verification", "schedule": "0 23 * * 0" }
   ]
 }
