@@ -5,6 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import Layout from "@/components/Layout";
 import BillingCard from "@/components/BillingCard";
 import ProgressRing from "@/components/ProgressRing";
+import QueryProvider from "@/providers/QueryProvider";
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
@@ -19,7 +20,7 @@ function computeBill(invoice) {
   return { total, paid, balance: total - paid };
 }
 
-export default function BillingPage() {
+function BillingPageInner() {
   const [billingData, setBillingData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("TODAY");
@@ -224,5 +225,14 @@ export default function BillingPage() {
         )}
       </div>
     </Layout>
+  );
+}
+
+// BillingCard uses React Query (useCheckout); provide the client here.
+export default function BillingPage() {
+  return (
+    <QueryProvider>
+      <BillingPageInner />
+    </QueryProvider>
   );
 }
