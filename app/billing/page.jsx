@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import Layout from "@/components/Layout";
 import BillingCard from "@/components/BillingCard";
 import ProgressRing from "@/components/ProgressRing";
+
+const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
@@ -129,7 +132,7 @@ export default function BillingPage() {
             })
             .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-          return { ...grp, collectionToday, balanceDue, paidInReportPeriod: collectionToday, status: invoice?.status };
+          return { ...grp, billTotal, collectionToday, balanceDue, paidInReportPeriod: collectionToday, status: invoice?.status };
         })
         .filter(grp => {
           return grp.status === 'CHECKED_IN' || grp.collectionToday > 0 || grp.balanceDue > 0;
@@ -151,50 +154,50 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-teal-400 text-lg">Loading billing ledger...</div>
-      </div>
+      <Layout>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="iv-stat__sub">Loading billing ledger…</div>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div>
+    <Layout>
+      <h1 className="text-3xl mb-8 pb-6 iv-divider">Billing &amp; Invoices</h1>
+
       {/* Header Stats */}
-      <div className="stats-scroll mb-8">
-        <div className="glass-card min-w-64 flex flex-col items-center p-6 snap-center shrink-0">
-          <div className="text-teal-400 text-xs uppercase tracking-wider mb-2">Today Revenue</div>
-          <ProgressRing 
-            progress={75} 
-            size={72} 
-            className="text-neon-cyan mb-2" 
-          />
-          <div className="text-2xl font-bold text-neon-cyan">৳{stats.revenue.toLocaleString()}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
+        <div className="iv-card iv-card--hover">
+          <div className="iv-stat__lbl">Today Revenue</div>
+          <div className="iv-stat__val">{bdt(stats.revenue)}</div>
+          <div className="iv-stat__sub">Collected · {filter.toLowerCase()}</div>
         </div>
-        <div className="glass-card min-w-64 flex flex-col items-center p-6 snap-center shrink-0">
-          <div className="text-teal-400 text-xs uppercase tracking-wider mb-2">Occupancy Rate</div>
-          <ProgressRing 
-            progress={stats.occupancy} 
-            size={72} 
-            className="text-emerald-400 mb-2" 
-          />
-          <div className="text-2xl font-bold text-emerald-400">{stats.occupancy}%</div>
+        <div className="iv-card iv-card--hover flex items-center gap-5">
+          <ProgressRing progress={stats.occupancy} size={64} color="#8B6914" />
+          <div>
+            <div className="iv-stat__lbl">Occupancy Rate</div>
+            <div className="iv-stat__val">{stats.occupancy}%</div>
+          </div>
         </div>
-        <div className="glass-card min-w-64 flex flex-col items-center p-6 snap-center shrink-0">
-          <div className="text-teal-400 text-xs uppercase tracking-wider mb-2">Active Folios</div>
-          <div className="text-3xl font-bold text-yellow-400">{billingData.length}</div>
+        <div className="iv-card iv-card--hover">
+          <div className="iv-stat__lbl">Active Folios</div>
+          <div className="iv-stat__val">{billingData.length}</div>
+          <div className="iv-stat__sub">In selected period</div>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex bg-teal-900/50 rounded-xl p-1 mb-8 glass">
+      <div className="flex gap-1 p-1 mb-8" style={{ background: '#EDE8DF', borderRadius: 2, width: 'fit-content' }}>
         {["TODAY", "WEEK", "MONTH"].map((tab) => (
           <button
             key={tab}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
+            className="px-6 py-2 text-xs font-semibold tracking-wider uppercase transition-all"
+            style={
               filter === tab
-                ? "bg-neon-cyan text-black neon-glow shadow-lg"
-                : "text-teal-300 hover:text-neon-cyan"
-            }`}
+                ? { background: '#8B6914', color: '#fff', borderRadius: 2 }
+                : { background: 'transparent', color: '#5C5347', borderRadius: 2 }
+            }
             onClick={() => setFilter(tab)}
           >
             {tab}
@@ -210,21 +213,21 @@ export default function BillingPage() {
             onCheckoutSuccess={fetchBillingData}
             key={index}
             guestName={item.res?.guest_name || "Guest"}
-            room={item.res?.room_ids || item.res?.room_number || "N/A"}
+            room={Array.isArray(item.res?.room_ids) ? item.res.room_ids.join(', ') : (item.res?.room_number || "N/A")}
             status={item.status}
             stayDates={`${item.res?.check_in || ""} → ${item.res?.check_out || ""}`}
-            folioDues={item.comp?.total?.toLocaleString() || 0}
-            todayPaid={item.paidInReportPeriod?.toLocaleString() || 0}
-            balanceDue={item.balanceDue?.toLocaleString() || 0}
+            folioDues={item.billTotal || 0}
+            todayPaid={item.paidInReportPeriod || 0}
+            balanceDue={item.balanceDue || 0}
             detailData={item}
           />
         ))}
         {billingData.length === 0 && (
-          <div className="glass-card text-center py-16 text-teal-400">
+          <div className="iv-card text-center py-16 iv-stat__sub">
             No active folios for selected period
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 }

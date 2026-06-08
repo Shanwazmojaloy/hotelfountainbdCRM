@@ -1,36 +1,27 @@
 'use client';
 
-import { useState } from 'react';
 import Header from "./Header";
 import BottomNav from "./BottomNav";
 import Sidebar from "./Sidebar";
 
 export default function Layout({ children }) {
-  const [activePage, setActivePage] = useState("dashboard");
-
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-slate-900 via-teal-950 to-black">
-      {/* Mobile Bottom Nav */}
-      <BottomNav activePage={activePage} setActivePage={setActivePage} />
-      
-      {/* Sidebar - Desktop Only */}
-      <div className="hidden md:block glass w-64 border-r border-teal-800/30 flex-shrink-0">
-        <Sidebar activePage={activePage} setActivePage={setActivePage} />
-      </div>
-      
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden md:ml-0 md:pl-4 md:pb-0">
-        {/* Header */}
-        <Header />
+    <div className="crm-root flex flex-col md:flex-row">
+      {/* Sidebar — desktop only */}
+      <Sidebar />
 
-        
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
           <div className="max-w-7xl mx-auto">
+            <Header />
             {children}
           </div>
         </main>
       </div>
+
+      {/* Mobile bottom nav */}
+      <BottomNav />
     </div>
   );
 }
