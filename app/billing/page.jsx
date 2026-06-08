@@ -1,19 +1,16 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import Layout from "@/components/Layout";
 import BillingCard from "@/components/BillingCard";
 import ProgressRing from "@/components/ProgressRing";
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
-);
-
-const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || '';
+// Host-routed singleton (sends x-tenant-host) — RLS scopes rows to the tenant,
+// same path /churn uses. Replaces the old createClient + NEXT_PUBLIC_TENANT_ID
+// path, which resolved no tenant under host-routed RLS (showed all zeros).
 
 function computeBill(invoice) {
   // Extracted from original App.jsx logic
@@ -36,21 +33,19 @@ export default function BillingPage() {
     setBillingData([]); // immediate cleanup before network round-trip
     setLoading(true);
     try {
+      const supabase = getSupabaseClient();
       const { data: reservations } = await supabase
         .from("reservations")
         .select("*")
-        .eq("tenant_id", TENANT_ID)
         .order("check_in", { ascending: false });
 
       const { data: transactions } = await supabase
         .from("transactions")
-        .select("*")
-        .eq("tenant_id", TENANT_ID);
+        .select("*");
 
       const { data: rooms } = await supabase
         .from("rooms")
-        .select("id, room_number, status")
-        .eq("tenant_id", TENANT_ID);
+        .select("id, room_number, status");
 
       // Group by reservation UUID — prevents key collisions when guest_name is null
       const unifiedGroups = {};
