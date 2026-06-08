@@ -4,11 +4,11 @@
 // Reads churn profiles written by the churn predictor pipeline.
 //
 // Usage:
-//   import ChurnRiskPanel from "./ChurnRiskPanel";
-//   <ChurnRiskPanel supabase={supabase} />
+// import ChurnRiskPanel from "./ChurnRiskPanel";
+// <ChurnRiskPanel supabase={supabase} />
 //
-// - With a Supabase client, it queries public.account_churn_profile embedding
-//   b2b_partners(agency_name,email,status). RLS keeps it tenant-scoped.
+// - With a Supabase client, it queries public.account_churn_profile using
+//   display_name (pre-denormalized). Works for both b2b_partners and corporate_lead rows.
 // - Without one, it renders representative mock data so you can preview styling.
 
 import { useEffect, useMemo, useState } from "react";
@@ -29,26 +29,38 @@ const FONT_HEAD = '"Libre Baskerville", Georgia, serif';
 const FONT_BODY = '"DM Sans", system-ui, sans-serif';
 const FONT_MONO = '"IBM Plex Mono", ui-monospace, monospace';
 
+const SOURCE_LABEL = {
+  b2b_partner:    "B2B Partner",
+  corporate_lead: "Corporate Lead",
+};
+
 const MOCK = [
-  { account_id: "96afbf50", agency_name: "Saudia Travels BD", email: "ops@saudiatravels.bd",
+  { account_id: "96afbf50", display_name: "Saudia Travels BD", source_type: "b2b_partner",
     risk_status: "High", churn_score: 0.82, sentiment_slope: -0.41,
     recommended_action: "Exec-sponsor save play; QBR within 7 days",
     reasons: [
       { factor: "Competitor Evaluation", severity: "high", evidence: "evaluating a competitor next quarter" },
       { factor: "Pricing Dissatisfaction", severity: "medium", evidence: "renewal quote is hard to justify" },
     ], last_scored_at: new Date().toISOString() },
-  { account_id: "35de1501", agency_name: "Umrah Express Dhaka", email: "book@umrahexpress.bd",
+  { account_id: "35de1501", display_name: "Umrah Express Dhaka", source_type: "b2b_partner",
     risk_status: "Medium", churn_score: 0.51, sentiment_slope: -0.12,
     recommended_action: "CSM check-in; resolve open support ticket",
     reasons: [{ factor: "Unresolved Bug", severity: "medium", evidence: "ticket still open" }],
     last_scored_at: new Date().toISOString() },
+  { account_id: "aabb1234", display_name: "Riseup Labs", source_type: "corporate_lead",
+    risk_status: "High", churn_score: 0.87, sentiment_slope: -0.8,
+    recommended_action: "Critical: prospect has gone cold — re-engage with personalised offer",
+    reasons: [
+      { factor: "Last Contact", severity: "high", evidence: "23 days ago" },
+      { factor: "ICP Score", severity: "medium", evidence: "good" },
+    ], last_scored_at: new Date().toISOString() },
 ];
 
 function pct(x) { return Math.round((Number(x) || 0) * 100) + "%"; }
 function slopeLabel(s) {
   const v = Number(s) || 0;
   if (v < -0.05) return "worsening";
-  if (v > 0.05) return "improving";
+  if (v > 0.05)  return "improving";
   return "stable";
 }
 function timeAgo(iso) {
@@ -58,6 +70,38 @@ function timeAgo(iso) {
   if (d < 2) return "yesterday";
   return Math.floor(d) + "d ago";
 }
+
+/** Normalize reasons to [{factor, severity, evidence}] regardless of source */
+function normalizeReasons(reasons, sourceType) {
+  if (Array.isArray(reasons)) return reasons;
+  if (reasons && typeof reasons === "object" && sourceType === "corporate_lead") {
+    const items = [];
+    const days = reasons.days_since_contact;
+    if (days != null) {
+      items.push({
+        factor: "Last Contact",
+        severity: days > 21 ? "high" : days > 14 ? "medium" : "low",
+        evidence: `${days} day${days !== 1 ? "s" : ""} ago`,
+      });
+    }
+    if (reasons.lead_status === "pending") {
+      items.push({ factor: "Not Yet Contacted", severity: "high", evidence: "first contact pending" });
+    }
+    if (reasons.icp_score) {
+      items.push({ factor: "ICP Score", severity: reasons.icp_score === "strong" ? "low" : "medium", evidence: reasons.icp_score });
+    }
+    if (reasons.industry) {
+      items.push({ factor: "Industry", severity: "low", evidence: reasons.industry });
+    }
+    if (reasons.priority) {
+      items.push({ factor: "Priority", severity: reasons.priority === "high" ? "low" : "medium", evidence: reasons.priority });
+    }
+    return items;
+  }
+  return [];
+}
+
+function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
 
 function Badge({ status }) {
   const r = RISK[status] || RISK.Low;
@@ -69,6 +113,21 @@ function Badge({ status }) {
       padding: "3px 10px", boxShadow: "0 0 0 3px " + r.glow,
       transition: "all 220ms " + EASE,
     }}>{status}</span>
+  );
+}
+
+function SourceChip({ sourceType }) {
+  const label = SOURCE_LABEL[sourceType] || sourceType || "Account";
+  const isLead = sourceType === "corporate_lead";
+  return (
+    <span style={{
+      fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.07em",
+      textTransform: "uppercase",
+      color: isLead ? "#5A3D8A" : "#2B5C8A",
+      background: isLead ? "#F0EBF8" : "#E8F2FB",
+      border: "1px solid " + (isLead ? "#C4AEE2" : "#AECDE8"),
+      borderRadius: 999, padding: "2px 8px",
+    }}>{label}</span>
   );
 }
 
@@ -86,6 +145,7 @@ function ScoreBar({ score, status }) {
 
 function Card({ row }) {
   const r = RISK[row.risk_status] || RISK.Low;
+  const normalizedReasons = normalizeReasons(row.reasons, row.source_type);
   return (
     <article style={{
       background: CARD, border: "1px solid " + BORDER, borderRadius: 14,
@@ -95,8 +155,12 @@ function Card({ row }) {
       onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
-          <h3 style={{ fontFamily: FONT_HEAD, fontSize: 19, color: INK, margin: 0 }}>{row.agency_name || row.account_id}</h3>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: "#8A847A", marginTop: 4 }}>{row.email || row.account_id}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <SourceChip sourceType={row.source_type} />
+          </div>
+          <h3 style={{ fontFamily: FONT_HEAD, fontSize: 19, color: INK, margin: 0 }}>
+            {row.display_name || row.account_id}
+          </h3>
         </div>
         <Badge status={row.risk_status} />
       </div>
@@ -109,9 +173,9 @@ function Card({ row }) {
       </div>
       <div style={{ marginTop: 10 }}><ScoreBar score={row.churn_score} status={row.risk_status} /></div>
 
-      {Array.isArray(row.reasons) && row.reasons.length > 0 && (
+      {normalizedReasons.length > 0 && (
         <ul style={{ listStyle: "none", padding: 0, margin: "1.25rem 0 0" }}>
-          {row.reasons.slice(0, 4).map((rs, i) => (
+          {normalizedReasons.slice(0, 4).map((rs, i) => (
             <li key={i} style={{ display: "flex", gap: 8, padding: "6px 0", borderTop: i ? "1px solid " + BORDER : "none" }}>
               <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: (RISK[cap(rs.severity)] || RISK.Low).fg, minWidth: 64 }}>
                 {String(rs.severity || "").toUpperCase()}
@@ -142,8 +206,6 @@ function Card({ row }) {
   );
 }
 
-function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
-
 export default function ChurnRiskPanel({ supabase = null, defaultFilter = "All" }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState(null);
@@ -153,18 +215,15 @@ export default function ChurnRiskPanel({ supabase = null, defaultFilter = "All" 
     let alive = true;
     async function load() {
       if (!supabase) { setRows(MOCK); return; }
+      // Use display_name (pre-denormalized) — works for both b2b_partners and corporate leads
       const { data, error } = await supabase
         .from("account_churn_profile")
-        .select("account_id, risk_status, churn_score, sentiment_slope, reasons, recommended_action, last_scored_at, b2b_partners(agency_name, email, status)")
+        .select("account_id, display_name, source_type, risk_status, churn_score, sentiment_slope, reasons, recommended_action, last_scored_at")
         .order("sentiment_slope", { ascending: true })
         .order("churn_score", { ascending: false });
       if (!alive) return;
       if (error) { setError(error.message); setRows([]); return; }
-      setRows((data || []).map((d) => ({
-        ...d,
-        agency_name: d.b2b_partners?.agency_name,
-        email: d.b2b_partners?.email,
-      })));
+      setRows(data || []);
     }
     load();
     return () => { alive = false; };
@@ -187,7 +246,7 @@ export default function ChurnRiskPanel({ supabase = null, defaultFilter = "All" 
         <div>
           <h2 style={{ fontFamily: FONT_HEAD, fontSize: 26, color: INK, margin: 0 }}>Churn Risk</h2>
           <p style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#8A847A", margin: "6px 0 0" }}>
-            Partner accounts ranked by cancellation risk and sentiment trend.
+            Partner accounts and corporate leads ranked by cancellation risk and sentiment trend.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -215,7 +274,7 @@ export default function ChurnRiskPanel({ supabase = null, defaultFilter = "All" 
 
       {filtered && filtered.length === 0 && (
         <div style={{ fontFamily: FONT_BODY, color: "#8A847A", padding: "2rem", textAlign: "center", background: CARD, border: "1px dashed " + BORDER, borderRadius: 12 }}>
-          No accounts at <strong>{filter}</strong> risk. That's a good sign.
+          No accounts at <strong>{filter}</strong> risk. That&apos;s a good sign.
         </div>
       )}
 
