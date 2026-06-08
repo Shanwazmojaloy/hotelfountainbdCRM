@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist:wght@200;300;400;500&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist:wght@200;300;400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 
@@ -95,3 +95,80 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   to   { opacity: 1; transform: translateY(0); }
 }
 .bell-drop-item:hover { background: rgba(200, 169, 110, .04) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LUMEA CRM — Warm Ivory Editorial (Concept 2)
+   Scoped under .crm-root so it never affects the public site or /churn.
+   Headings: Libre Baskerville · Body: DM Sans · Data: IBM Plex Mono
+   ═══════════════════════════════════════════════════════════════════════════ */
+.crm-root {
+  --iv-bg:#F5F0E8; --iv-card:#FFFFFF; --iv-border:#EAE6DD;
+  --iv-ink:#2B2722; --iv-ink2:#5C5347; --iv-ink3:#8A847A;
+  --iv-gold:#8B6914; --iv-gold-light:#C8A96E;
+  --iv-side:#1C1510;
+  --iv-in-fg:#3F6A4B;  --iv-in-bg:#ECF4ED;  --iv-in-gl:rgba(63,106,75,.16);
+  --iv-due-fg:#8A6A1E; --iv-due-bg:#FBF4E2; --iv-due-gl:rgba(138,106,30,.18);
+  --iv-rose-fg:#8C2F1D; --iv-rose-bg:#FBEDE9; --iv-rose-gl:rgba(140,47,29,.18);
+  --iv-ease:cubic-bezier(0.4,0,0.2,1);
+  --iv-head:'Libre Baskerville', Georgia, serif;
+  --iv-body:'DM Sans', system-ui, sans-serif;
+  --iv-mono:'IBM Plex Mono', ui-monospace, monospace;
+  min-height:100vh; background:var(--iv-bg); color:var(--iv-ink);
+  font-family:var(--iv-body); font-weight:400; -webkit-font-smoothing:antialiased;
+}
+.crm-root h1,.crm-root h2,.crm-root h3,.crm-root h4 { font-family:var(--iv-head); font-weight:700; letter-spacing:.005em; color:var(--iv-ink); }
+.crm-root .iv-mono { font-family:var(--iv-mono); font-variant-numeric:tabular-nums; }
+.crm-root .iv-eyebrow { font-family:var(--iv-body); font-size:10px; font-weight:500; letter-spacing:.18em; text-transform:uppercase; color:var(--iv-ink3); }
+
+/* Cards */
+.crm-root .iv-card { background:var(--iv-card); border:1px solid var(--iv-border); border-radius:2px; padding:2rem; transition:border-color .25s var(--iv-ease), box-shadow .25s var(--iv-ease); }
+.crm-root .iv-card--hover:hover { border-color:var(--iv-gold-light); box-shadow:0 8px 30px rgba(43,39,34,.06); }
+
+/* Stat block */
+.crm-root .iv-stat__lbl { font-size:10px; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--iv-ink3); margin-bottom:10px; }
+.crm-root .iv-stat__val { font-family:var(--iv-mono); font-size:26px; font-weight:600; color:var(--iv-ink); font-variant-numeric:tabular-nums; line-height:1.1; }
+.crm-root .iv-stat__sub { font-size:12px; color:var(--iv-ink2); margin-top:6px; }
+.crm-root .iv-pos { color:var(--iv-in-fg); }
+.crm-root .iv-due { color:var(--iv-due-fg); }
+
+/* Status badges — subtle glow */
+.crm-root .iv-badge { display:inline-flex; align-items:center; gap:6px; font-family:var(--iv-body); font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; border:1px solid transparent; }
+.crm-root .iv-badge--in   { color:var(--iv-in-fg);   background:var(--iv-in-bg);   border-color:rgba(63,106,75,.22);  box-shadow:0 0 0 3px var(--iv-in-gl); }
+.crm-root .iv-badge--due  { color:var(--iv-due-fg);  background:var(--iv-due-bg);  border-color:rgba(138,106,30,.24); box-shadow:0 0 0 3px var(--iv-due-gl); }
+.crm-root .iv-badge--paid { color:var(--iv-in-fg);   background:var(--iv-in-bg);   border-color:rgba(63,106,75,.22); }
+.crm-root .iv-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.crm-root .iv-dot--in { background:var(--iv-in-fg); box-shadow:0 0 0 3px var(--iv-in-gl); }
+.crm-root .iv-dot--due { background:var(--iv-due-fg); box-shadow:0 0 0 3px var(--iv-due-gl); }
+.crm-root .iv-dot--paid { background:var(--iv-ink3); }
+
+/* Buttons */
+.crm-root .iv-btn { font-family:var(--iv-body); font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; padding:12px 24px; border:none; border-radius:2px; cursor:pointer; background:var(--iv-gold); color:#fff; transition:background .25s var(--iv-ease), transform .25s var(--iv-ease); }
+.crm-root .iv-btn:hover { background:var(--iv-gold-light); transform:translateY(-1px); }
+.crm-root .iv-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.crm-root .iv-btn--ghost { background:transparent; color:var(--iv-ink); border:1px solid var(--iv-border); }
+.crm-root .iv-btn--ghost:hover { border-color:var(--iv-gold); color:var(--iv-gold); background:transparent; }
+.crm-root .iv-btn--danger { background:var(--iv-rose-fg); color:#fff; }
+.crm-root .iv-btn--danger:hover { background:#a3401f; }
+
+/* Activity rows */
+.crm-root .iv-row { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border:1px solid var(--iv-border); border-radius:2px; background:var(--iv-card); }
+.crm-root .iv-row--in  { border-left:3px solid var(--iv-in-fg); }
+.crm-root .iv-row--due { border-left:3px solid var(--iv-due-fg); background:var(--iv-due-bg); }
+
+/* Sidebar (dark ink) */
+.crm-root .iv-sidebar { background:var(--iv-side); display:flex; flex-direction:column; }
+.crm-root .iv-brand { font-family:var(--iv-head); font-size:20px; font-weight:700; color:var(--iv-gold-light); letter-spacing:.02em; line-height:1.1; }
+.crm-root .iv-brand em { font-style:italic; font-weight:400; color:#E0C585; }
+.crm-root .iv-side-tag { font-family:var(--iv-body); font-size:8px; color:rgba(200,169,110,.4); letter-spacing:.2em; text-transform:uppercase; margin-top:5px; }
+.crm-root .iv-nav-item { display:flex; align-items:center; gap:11px; padding:11px 14px; cursor:pointer; font-family:var(--iv-body); font-size:13px; font-weight:400; color:rgba(238,228,210,.55); border-left:3px solid transparent; text-decoration:none; transition:all .15s var(--iv-ease); letter-spacing:.01em; }
+.crm-root .iv-nav-item:hover { background:rgba(200,169,110,.07); color:rgba(238,228,210,.9); border-left-color:rgba(200,169,110,.25); }
+.crm-root .iv-nav-item.on { background:rgba(200,169,110,.12); color:var(--iv-gold-light); border-left-color:var(--iv-gold-light); font-weight:500; }
+
+/* Topbar */
+.crm-root .iv-topbar { background:var(--iv-card); border:1px solid var(--iv-border); border-radius:2px; }
+.crm-root .iv-divider { border-bottom:1px solid var(--iv-border); }
+
+/* Mobile bottom nav */
+.crm-root .iv-bottom-nav { position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; background:var(--iv-side); border-top:1px solid rgba(200,169,110,.18); }
+.crm-root .iv-bottom-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:10px 4px; color:rgba(238,228,210,.55); text-decoration:none; font-size:10px; font-weight:500; }
+.crm-root .iv-bottom-item.on { color:var(--iv-gold-light); }

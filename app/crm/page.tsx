@@ -1,7 +1,12 @@
 
+import Layout from '@/components/Layout';
 import Dashboard from '@/components/Dashboard';
 
 export default function CrmPage() {
-  return <Dashboard />;
+  return (
+    <Layout>
+      <Dashboard />
+    </Layout>
+  );
 }
 

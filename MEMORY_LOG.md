@@ -1855,3 +1855,49 @@ extension_in_public, leaked_password_protection OFF, 28 rls_enabled_no_policy (I
 - LEFT AS-IS (risk > benefit): `vector` extension in public. No <=> usage in app SQL; only ingest.py ::vector
   cast. Move would need `extensions` added to a role search_path (currently public,auth) -> do in a
   maintenance window only.
+
+## 2026-06-08 — Billing v3.7: derive total = rooms + billable folios (kill incremental ghost-bleed)
+Trigger: SALAM ALASSAF (res 69bce398) modal showed Total ৳15,000 / Balance ৳7,000. Correct = room 501 ×2nt
+৳8,000 + Airport Transfer folio ৳3,500 = ৳11,500 / Balance ৳3,500.
+
+ROOT CAUSE: AddChargeModal.save did `total_amount = curTotal + a` (INCREMENTAL). The 3,500 airport charge was
+added onto an already-room-inclusive base → 11,500 + 3,500 = 15,000 double-count. Classic ৳13,600-rule ghost-bleed.
+
+DB FIX (LIVE, applied via MCP): UPDATE reservations SET total_amount=11500 WHERE id=69bce398 (was 15000).
+Balance now 3,500. No transaction/invoice rows existed for this res, nothing else to resync.
+
+CODE FIX (built + verified, staged in C:\dev\hotelfountainbd, NOT yet pushed — run PUSH_BILLINGFIX.bat):
+- NEW module fn `recalcResTotal(resId)`: total_amount = Σ(room.price×nights) + Σ(billable folios). ALWAYS
+  recompute, NEVER incremental. Wired into AddCharge save, folio delete, ReservationDetail.save (post-dbPatch).
+- Modal `computedTotal` = `ratesSum*nights + resFolioExtras` (loads this res's folios via useEffect) so editing
+  dates/rooms no longer silently drops charges.
+- `computeBill.allFolios` gained MARKER_FOLIO_RE filter so breakdown + sub-fallback match recalc.
+- UNCHANGED: `rawTotal = canonical>0?canonical:sub` (v3.4 read-anchor preserved). Only the WRITE path became
+  correct/idempotent. paid_amount policy (v3.6) untouched.
+- Files: public/crm-src.jsx (+53/-9), public/crm-bundle.js (rebuilt), public/crm.html (cache-buster v=20260608010739).
+
+BILLABLE RULE: excludes MARKER_FOLIO_RE = /receivable|payment|settlement|advance|refund/i. Owner chose "every
+folio" twice, but live data: folios table holds 93 Receivable (৳203k) + 31 Payment (−৳48k) marker rows. Every-folio
+rule would change 117 reservations, push 17 negative, +৳270,707 inflation → implemented billable-only (identical
+৳11,500 for SALAM) and FLAGGED for owner final call. One-line flip if literal every-folio is insisted.
+
+RESIDUAL (awaiting owner go): 117 drifted / 17 negative legacy rows are NOT auto-fixed by deploy — they self-heal
+on next edit/charge. One-time backup-first SQL backfill offered, not yet run. Ties to negative-invoices-2026-06-06.
+
+TRUNCATION GOTCHA: Edit/Write tool on public/crm-src.jsx (755KB) truncated the tail mid-edit (createRoot 1→0,
+file capped at original 755540 bytes) even at C:\dev. Recovery: `git show HEAD:public/crm-src.jsx` + re-apply
+edits in sandbox + `cp` into place (held at 758302 bytes). RULE: edit this file via reconstruct-and-cp, never the
+Edit tool. PUSH_BILLINGFIX.bat has a pre-push guard aborting if createRoot count != 1.
+
+CRM Warm Ivory Re-skin + /crm dark-render fix (v3.7 — 2026-06-09):
+- SYMPTOM: /crm rendered as broken green-on-black; /churn rendered correctly (Ivory). Looked like a missing-CSS / 404 / hydration bug.
+- TRUE ROOT CAUSE (Tailwind v3→v4 migration break): project runs tailwindcss@^4 with `@import "tailwindcss"` in app/globals.css, but ALL custom tokens (neon-cyan, glass-bg, glass-border, neon-glow) live in a v3-style tailwind.config.js. In v4 the JS config is NOT auto-loaded — it only applies if globals.css declares `@config`, which it didn't. So every `text-neon-cyan`/`bg-glass-bg`/`neon-glow` util compiled to nothing. Worse, the composite classes `glass-card`, `glass`, `btn-glass`, `btn-neon`, `progress-ring`, `stats-scroll`, `status-checked-in/due/paid` were defined NOWHERE (not config, not CSS) — the whole CRM UI was unstyled. Core Tailwind utils (text-teal-400, grid, p-6) still worked → that's the green text + vertical stack on the marketing site's dark `body{background:#07090E}`. Confirmed via live runtime: CRM css 200/154 rules, zero custom selectors. Pre-existing TODO-tailwind-v4-custom-theme-fix.md flagged this.
+- SECONDARY: app/crm/page.tsx rendered `<Dashboard/>` bare (no `<Layout/>`) → no sidebar/header. Sidebar/BottomNav nav only set dead local state (never routed). /churn was immune because it inline-styles its own `<main style={{background:'#FBF9F4'}}>` canvas (ChurnRiskPanel hardcodes Ivory constants) — doesn't depend on the missing classes.
+- DECISION (owner, 2026-06-09): re-skin /crm + /billing to Warm Ivory Editorial (CLAUDE.md standard, matches /churn) rather than revive the teal/neon glass theme. Wire Dashboard to live Supabase data.
+- FIX (presentational + read-only; no schema/migrations):
+  - app/globals.css: added Libre Baskerville / DM Sans / IBM Plex Mono to font import; appended a `.crm-root`-scoped Ivory design system (tokens, .iv-card, .iv-stat, .iv-badge/.iv-dot, .iv-btn, .iv-row, .iv-sidebar, .iv-nav-item, .iv-topbar, .iv-bottom-nav). Scoped so public site + /churn untouched.
+  - Shell: crm/page.tsx wraps `<Layout><Dashboard/></Layout>`; Layout/Sidebar/BottomNav/Header/ProgressRing re-skinned Ivory; nav now routes via next/link + usePathname to /crm /billing /churn /leads /suppliers (no /rooms or /guests routes exist).
+  - Dashboard.jsx: wired to Supabase mirroring BillingPage EXACTLY — createClient + NEXT_PUBLIC_TENANT_ID; revenue = today's collections excl. "Balance Carried Forward" (Asia/Dhaka anchor); occupancy = OCCUPIED/total rooms; check-ins = reservations with check_in==today; outstanding = Σ max(0, total_amount − discount − paid_amount). Group txs by reservation_id first, room+date overlap fallback. Display fixes: removed misleading ↓ arrow on check-ins, ৳ in IBM Plex Mono w/ thousands separators, due in amber.
+  - billing/page.jsx + BillingCard.jsx: Ivory + Layout shell. Fixed two latent bugs: (1) Folio Total always rendered 0 (`item.comp` undefined → now net `billTotal = total_amount − discount`); (2) status dot mis-evaluated because balanceDue was passed as a comma-string (`"2,500" > 0` → false) → now numeric props formatted inside the card. BillingCard detail modal tx list fixed (`detailData.txs`, was `.transactions`).
+- VERIFIED: host file integrity via Read (sandbox bash mount showed phantom NULs — stale mount artifact, host files clean). NOT yet build/browser-verified — run `npm run build` + `npm run dev` on Windows, then commit from PowerShell (sandbox cannot push).
+- RESIDUAL CLEANUP (separate): tailwind.config.js is now dead (v4 ignores it; bypassed via scoped CSS — alternative was adding `@config`). Stray app/billing/page.jsx.wrapped. TODO-tailwind-v4-custom-theme-fix.md can be closed.

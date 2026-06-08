@@ -37,21 +37,19 @@ export default function Header() {
   }, []);
 
   return (
-    <div className="glass px-6 py-4 rounded-2xl flex items-center justify-between mb-8">
+    <div className="iv-topbar px-6 py-4 flex items-center justify-between mb-8">
       <div>
-        <div className="text-teal-400 text-sm uppercase tracking-wider mb-1">
-          Dhaka Time
-        </div>
-        <div className="text-2xl font-mono font-bold text-neon-cyan">
+        <div className="iv-eyebrow mb-1">Dhaka Time</div>
+        <div className="iv-mono" style={{ fontSize: 22, fontWeight: 600, color: '#2B2722' }}>
           {currentDate} | {clockStr}
         </div>
       </div>
-      
+
       <div className="flex items-center gap-4">
-        <div className="text-sm text-teal-300">
-          Night Audit: <span className="status-checked-in" /> Ready
+        <div className="text-sm flex items-center gap-2" style={{ color: '#5C5347' }}>
+          Night Audit: <span className="iv-dot iv-dot--in" /> Ready
         </div>
-        <button className="btn-glass px-4 py-2">
+        <button className="iv-btn iv-btn--ghost" style={{ padding: '10px 18px' }}>
           New Folio
         </button>
       </div>
