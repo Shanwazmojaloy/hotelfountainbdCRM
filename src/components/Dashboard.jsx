@@ -1,16 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabase/client';
 import ProgressRing from './ProgressRing';
 
-// Mirror BillingPage's data path exactly so Dashboard & Billing never disagree.
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
-);
-const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || '';
-
+// Host-routed singleton (sends x-tenant-host) — RLS scopes rows to the tenant,
+// same path /churn uses. Mirrors BillingPage's canonical billing math.
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
 const getDhakaDate = () =>
@@ -28,10 +23,11 @@ export default function Dashboard() {
   async function fetchDashboard() {
     setLoading(true);
     try {
+      const supabase = getSupabaseClient();
       const [{ data: reservations }, { data: transactions }, { data: rooms }] = await Promise.all([
-        supabase.from('reservations').select('*').eq('tenant_id', TENANT_ID).order('check_in', { ascending: false }),
-        supabase.from('transactions').select('*').eq('tenant_id', TENANT_ID),
-        supabase.from('rooms').select('id, room_number, status').eq('tenant_id', TENANT_ID),
+        supabase.from('reservations').select('*').order('check_in', { ascending: false }),
+        supabase.from('transactions').select('*'),
+        supabase.from('rooms').select('id, room_number, status'),
       ]);
 
       const res = reservations || [];
