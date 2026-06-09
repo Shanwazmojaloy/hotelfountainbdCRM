@@ -12,12 +12,13 @@ import RoomFolioModal from './RoomFolioModal';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
+// Design-system status hues (RoomTile).
 const STATUS = {
-  AVAILABLE:    { c: '#4A7C59', label: 'Available' },
-  OCCUPIED:     { c: '#3884B4', label: 'Occupied' },
-  DIRTY:        { c: '#D9A441', label: 'Dirty' },
-  OUT_OF_ORDER: { c: '#C0566A', label: 'Out of Order' },
-  RESERVED:     { c: '#8B6FB0', label: 'Reserved' },
+  AVAILABLE:    { c: '#15803D', label: 'Available' },
+  OCCUPIED:     { c: '#1D4ED8', label: 'Occupied' },
+  DIRTY:        { c: '#B45309', label: 'Dirty' },
+  OUT_OF_ORDER: { c: '#B91C1C', label: 'Out of Order' },
+  RESERVED:     { c: '#6D28D9', label: 'Reserved' },
 };
 
 export default function Rooms() {
@@ -55,67 +56,78 @@ export default function Rooms() {
   const filtered = filter === 'ALL' ? rooms : rooms.filter((r) => r.status === filter);
   const tabs = ['ALL', 'AVAILABLE', 'OCCUPIED', 'DIRTY', 'OUT_OF_ORDER', 'RESERVED'];
 
+  const statCards = [
+    { label: 'Available', k: 'AVAILABLE', c: '#15803D' },
+    { label: 'Occupied', k: 'OCCUPIED', c: '#1D4ED8' },
+    { label: 'Needs Cleaning', k: 'DIRTY', c: '#B45309' },
+    { label: 'Out of Order', k: 'OUT_OF_ORDER', c: '#B91C1C' },
+  ];
+
   return (
     <div>
-      <h1 className="text-3xl mb-8 pb-6 iv-divider">Room Matrix</h1>
-
-      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-        <div className="flex gap-2 flex-wrap">
-          {tabs.map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={filter === s ? 'iv-btn' : 'iv-btn iv-btn--ghost'}
-              style={{ padding: '6px 14px', fontSize: 13 }}
-            >
-              {s === 'ALL' ? `All (${rooms.length})` : `${s.replace('_', ' ')} (${counts[s] || 0})`}
-            </button>
-          ))}
-        </div>
-        <button className="iv-btn" onClick={() => setShowAddRoom(true)}>+ Add Room</button>
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 mb-6 flex-wrap text-xs" style={{ color: '#8A7F6E' }}>
-        {Object.entries(STATUS).map(([k, v]) => (
-          <span key={k} className="inline-flex items-center gap-1.5">
-            <span style={{ width: 9, height: 9, borderRadius: 99, background: v.c, display: 'inline-block' }} />
-            {v.label}
-          </span>
+      {/* Status stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }} className="iv-stat-grid">
+        {statCards.map((s) => (
+          <div key={s.k} style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${s.c}`, padding: '14px 18px 16px' }}>
+            <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', fontWeight: 600 }}>{s.label}</div>
+            <div style={{ fontFamily: 'var(--iv-mono)', fontSize: 26, fontWeight: 600, color: 'var(--iv-ink)', lineHeight: 1.1, marginTop: 8 }}>{loading ? '—' : (counts[s.k] || 0)}</div>
+          </div>
         ))}
-        <span style={{ marginLeft: 2 }}>· Click an occupied room to open its folio</span>
       </div>
 
-      {loading && <div className="iv-stat__sub">Loading rooms…</div>}
-      {!loading && filtered.length === 0 && <div className="iv-stat__sub">No rooms in this status.</div>}
+      {/* Floor plan card */}
+      <section style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: '3px solid var(--iv-side)', overflow: 'hidden' }}>
+        <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexWrap: 'wrap' }}>
+          <h3 style={{ margin: 0, fontFamily: 'var(--iv-head)', fontSize: 16, fontWeight: 700, color: 'var(--iv-ink)' }}>Floor <em style={{ fontStyle: 'italic', color: 'var(--iv-gold)', fontWeight: 400 }}>Plan</em></h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ display: 'inline-flex', fontFamily: 'var(--iv-body)', fontSize: 9, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 9px', borderRadius: 2, color: '#8B6914', background: 'rgba(139,105,20,.08)', border: '1px solid rgba(139,105,20,.24)' }}>{filtered.length} rooms</span>
+            <button className="iv-btn" onClick={() => setShowAddRoom(true)} style={{ fontSize: 9.5, padding: '5px 12px' }}>+ Add Room</button>
+          </div>
+        </header>
+        <div style={{ padding: '16px 18px' }}>
+          {/* underline filter tabs */}
+          <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--iv-side)', marginBottom: 16, overflowX: 'auto' }}>
+            {tabs.map((s) => {
+              const on = filter === s;
+              const label = s === 'ALL' ? `All (${rooms.length})` : `${s.replace('_', ' ')} (${counts[s] || 0})`;
+              return (
+                <button key={s} onClick={() => setFilter(s)} style={{ padding: '9px 16px', fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: on ? 700 : 500, color: on ? 'var(--iv-ink)' : 'var(--iv-ink3)', letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'pointer', background: on ? '#fff' : 'transparent', border: 'none', borderBottom: `2px solid ${on ? 'var(--iv-side)' : 'transparent'}`, marginBottom: -2, whiteSpace: 'nowrap' }}>{label}</button>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--iv-ink3)', marginBottom: 10, letterSpacing: '.02em' }}>
+            Tip — click any room to open its folio (occupied) or change its status.
+          </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {filtered.map((room) => {
-          const st = STATUS[room.status] || { c: '#8A7F6E', label: room.status };
-          return (
-            <button
-              key={room.id}
-              onClick={() => {
-                if (room.status === 'OCCUPIED') { setFolioRoom(room); }
-                else { setStatusRoom(room); }
-              }}
-              className="iv-card iv-card--hover text-left relative"
-              style={{ borderTop: `3px solid ${st.c}`, padding: '14px 16px' }}
-            >
-              {room.status === 'OCCUPIED' && (
-                <span className="absolute" style={{ top: 8, right: 8, fontSize: 8, background: 'rgba(56,132,180,0.15)', color: '#2E6A8E', borderRadius: 3, padding: '1px 6px' }}>FOLIO</span>
-              )}
-              <div className="iv-mono" style={{ fontSize: 22, fontWeight: 700, color: 'var(--iv-ink)' }}>{room.room_number}</div>
-              <div className="inline-flex items-center gap-1.5 mt-1 mb-1">
-                <span style={{ width: 8, height: 8, borderRadius: 99, background: st.c, display: 'inline-block' }} />
-                <span className="text-xs" style={{ color: st.c }}>{st.label}</span>
-              </div>
-              <div className="text-xs" style={{ color: '#8A7F6E' }}>{room.category || 'Standard'}</div>
-              <div className="text-sm iv-mono mt-1" style={{ color: '#8B6914' }}>{bdt(room.price)}/night</div>
-            </button>
-          );
-        })}
-      </div>
+          {loading && <div className="iv-stat__sub">Loading rooms…</div>}
+          {!loading && filtered.length === 0 && <div className="iv-stat__sub">No rooms in this status.</div>}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 8 }}>
+            {filtered.map((room) => {
+              const st = STATUS[room.status] || { c: '#9A8070', label: room.status };
+              return (
+                <div
+                  key={room.id}
+                  onClick={() => { if (room.status === 'OCCUPIED') setFolioRoom(room); else setStatusRoom(room); }}
+                  style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${st.c}`, padding: 12, cursor: 'pointer', transition: 'box-shadow .15s var(--iv-ease)' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.boxShadow = 'var(--iv-shadow-stat)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <span className="iv-mono" style={{ fontSize: 17, fontWeight: 500, color: 'var(--iv-ink)' }}>{room.room_number}</span>
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: st.c, marginTop: 5 }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--iv-ink3)', marginTop: 6 }}>{room.category || 'Standard'}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8 }}>
+                    <span style={{ fontSize: 8, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 600, color: st.c }}>{st.label}</span>
+                    <span className="iv-mono" style={{ fontSize: 11, color: 'var(--iv-gold)' }}>{bdt(room.price)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       {statusRoom && (
         <RoomStatusModal room={statusRoom} onClose={() => setStatusRoom(null)} onSaved={fetchRooms} />
