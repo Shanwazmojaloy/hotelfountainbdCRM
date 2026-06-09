@@ -5,6 +5,7 @@
 // stay on the legacy modal for now (linked). No billing/money writes.
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import TaskFormModal from './TaskFormModal';
 
 const STATUS_STYLE = {
   pending:       { bg: 'rgba(217,164,65,0.15)',  fg: '#8A6A1E', label: 'Pending' },
@@ -24,6 +25,7 @@ export default function Housekeeping() {
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -96,7 +98,7 @@ export default function Housekeeping() {
             </button>
           ))}
         </div>
-        <button className="iv-btn" onClick={() => { window.location.href = '/crm.html'; }}>+ Add Task</button>
+        <button className="iv-btn" onClick={() => setShowAdd(true)}>+ Add Task</button>
       </div>
 
       <div className="iv-card">
@@ -148,6 +150,10 @@ export default function Housekeeping() {
           </table>
         </div>
       </div>
+
+      {showAdd && (
+        <TaskFormModal rooms={rooms} onClose={() => setShowAdd(false)} onSaved={fetchData} />
+      )}
     </div>
   );
 }
