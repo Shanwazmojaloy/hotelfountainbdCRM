@@ -102,14 +102,17 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
    Headings: Libre Baskerville · Body: DM Sans · Data: IBM Plex Mono
    ═══════════════════════════════════════════════════════════════════════════ */
 .crm-root {
-  /* Dark "Secure Staff Portal" theme (matches the login). */
-  --iv-bg:#15110D; --iv-card:#1C1813; --iv-border:#332C22;
-  --iv-ink:#E8E0D2; --iv-ink2:#B7AC99; --iv-ink3:#9C8C72;
-  --iv-gold:#C5A059; --iv-gold-light:#D9C08A;
-  --iv-side:#100D0A;
-  --iv-in-fg:#6FB585;  --iv-in-bg:rgba(111,181,133,.12);  --iv-in-gl:rgba(111,181,133,.18);
-  --iv-due-fg:#D9A441; --iv-due-bg:rgba(217,164,65,.12); --iv-due-gl:rgba(217,164,65,.18);
-  --iv-rose-fg:#E58092; --iv-rose-bg:rgba(229,128,146,.12); --iv-rose-gl:rgba(229,128,146,.18);
+  /* Hotel Fountain Design System — Warm Ivory Editorial tokens (handoff). */
+  --iv-bg:#F5F0E8; --iv-card:#FFFFFF; --iv-border:#D4C9B5;
+  --iv-border2:#E8E0D0; --iv-sunken:#F9F6F1; --iv-hover:#EDE8DF;
+  --iv-ink:#1C1510; --iv-ink2:#5C4A2A; --iv-ink3:#9A8070;
+  --iv-gold:#8B6914; --iv-gold2:#6B4E0A; --iv-gold-light:#C8A96E;
+  --iv-side:#1C1510;
+  --iv-bar:3px; /* signature walnut top-border */
+  --iv-shadow-stat:0 4px 16px rgba(28,21,16,.08);
+  --iv-in-fg:#15803D;  --iv-in-bg:rgba(21,128,61,.08);  --iv-in-gl:rgba(21,128,61,.16);
+  --iv-due-fg:#B45309; --iv-due-bg:rgba(180,83,9,.08); --iv-due-gl:rgba(180,83,9,.16);
+  --iv-rose-fg:#B91C1C; --iv-rose-bg:rgba(185,28,28,.07); --iv-rose-gl:rgba(185,28,28,.16);
   --iv-ease:cubic-bezier(0.4,0,0.2,1);
   --iv-head:'Libre Baskerville', Georgia, serif;
   --iv-body:'DM Sans', system-ui, sans-serif;
@@ -122,8 +125,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-eyebrow { font-family:var(--iv-body); font-size:10px; font-weight:500; letter-spacing:.18em; text-transform:uppercase; color:var(--iv-ink3); }
 
 /* Cards */
-.crm-root .iv-card { background:var(--iv-card); border:1px solid var(--iv-border); border-radius:2px; padding:2rem; transition:border-color .25s var(--iv-ease), box-shadow .25s var(--iv-ease); }
-.crm-root .iv-card--hover:hover { border-color:var(--iv-gold-light); box-shadow:0 8px 30px rgba(43,39,34,.06); }
+.crm-root .iv-card { background:var(--iv-card); border:1px solid var(--iv-border); border-top:var(--iv-bar) solid var(--iv-side); border-radius:0; padding:2rem; transition:box-shadow .2s var(--iv-ease); }
+.crm-root .iv-card--hover:hover { box-shadow:var(--iv-shadow-stat); }
 
 /* Stat block */
 .crm-root .iv-stat__lbl { font-size:10px; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--iv-ink3); margin-bottom:10px; }
@@ -143,16 +146,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-dot--paid { background:var(--iv-ink3); }
 
 /* Buttons */
-.crm-root .iv-btn { font-family:var(--iv-body); font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; padding:12px 24px; border:none; border-radius:2px; cursor:pointer; background:var(--iv-gold); color:#fff; transition:background .25s var(--iv-ease), transform .25s var(--iv-ease); }
-.crm-root .iv-btn:hover { background:var(--iv-gold-light); transform:translateY(-1px); }
-.crm-root .iv-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
-.crm-root .iv-btn--ghost { background:transparent; color:var(--iv-ink); border:1px solid var(--iv-border); }
-.crm-root .iv-btn--ghost:hover { border-color:var(--iv-gold); color:var(--iv-gold); background:transparent; }
-.crm-root .iv-btn--danger { background:var(--iv-rose-fg); color:#fff; }
-.crm-root .iv-btn--danger:hover { background:#a3401f; }
+.crm-root .iv-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; font-family:var(--iv-body); font-size:11px; font-weight:600; letter-spacing:.10em; text-transform:uppercase; padding:11px 22px; border-radius:0; cursor:pointer; background:var(--iv-side); color:var(--iv-gold-light); border:2px solid var(--iv-side); transition:background .15s var(--iv-ease), border-color .15s var(--iv-ease), color .15s var(--iv-ease); }
+.crm-root .iv-btn:hover { background:var(--iv-gold2); border-color:var(--iv-gold2); color:var(--iv-gold-light); }
+.crm-root .iv-btn:disabled { opacity:.35; cursor:not-allowed; }
+.crm-root .iv-btn--ghost { background:transparent; color:var(--iv-ink2); border:1px solid var(--iv-border); }
+.crm-root .iv-btn--ghost:hover { background:var(--iv-hover); color:var(--iv-ink); border-color:var(--iv-border); }
+.crm-root .iv-btn--danger { background:var(--iv-rose-bg); color:var(--iv-rose-fg); border:1px solid rgba(185,28,28,.22); }
+.crm-root .iv-btn--danger:hover { background:rgba(185,28,28,.14); border-color:rgba(185,28,28,.22); color:var(--iv-rose-fg); }
 
 /* Activity rows */
-.crm-root .iv-row { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border:1px solid var(--iv-border); border-radius:2px; background:var(--iv-card); }
+.crm-root .iv-row { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border:1px solid var(--iv-border); border-radius:0; background:var(--iv-card); }
 .crm-root .iv-row--in  { border-left:3px solid var(--iv-in-fg); }
 .crm-root .iv-row--due { border-left:3px solid var(--iv-due-fg); background:var(--iv-due-bg); }
 
@@ -166,7 +169,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-nav-item.on { background:rgba(200,169,110,.12); color:var(--iv-gold-light); border-left-color:var(--iv-gold-light); font-weight:500; }
 
 /* Topbar */
-.crm-root .iv-topbar { background:var(--iv-card); border:1px solid var(--iv-border); border-radius:2px; }
+.crm-root .iv-topbar { background:var(--iv-card); border-bottom:2px solid var(--iv-side); }
 .crm-root .iv-divider { border-bottom:1px solid var(--iv-border); }
 
 /* Mobile bottom nav */
@@ -175,8 +178,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-bottom-item.on { color:var(--iv-gold-light); }
 
 /* Form inputs / labels */
-.crm-root .iv-input { width:100%; background:var(--iv-card); border:1px solid var(--iv-border); border-radius:2px; padding:10px 12px; font-size:13px; color:var(--iv-ink); font-family:var(--iv-body); outline:none; transition:border-color .2s var(--iv-ease); }
-.crm-root .iv-input:focus { border-color:var(--iv-gold); }
+.crm-root .iv-input { width:100%; background:var(--iv-card); border:1px solid var(--iv-border); border-radius:0; padding:10px 12px; font-size:13px; color:var(--iv-ink); font-family:var(--iv-body); outline:none; transition:border-color .15s var(--iv-ease); }
+.crm-root .iv-input:focus { border-color:var(--iv-side); }
 .crm-root .iv-input::placeholder { color:var(--iv-ink3); }
 .crm-root .iv-label { display:block; font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--iv-ink3); margin-bottom:6px; }
 
@@ -190,11 +193,5 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-table tbody tr:last-child td { border-bottom:none; }
 .crm-root .iv-table tbody tr:hover { background:rgba(197,160,89,.04); }
 
-/* Dark-theme: force all form controls dark regardless of inline ivory styles. */
-.crm-root input, .crm-root select, .crm-root textarea { background:var(--iv-card) !important; color:var(--iv-ink) !important; border-color:var(--iv-border) !important; }
-.crm-root input::placeholder, .crm-root textarea::placeholder { color:var(--iv-ink3) !important; }
-.crm-root select option { background:var(--iv-side); color:var(--iv-ink); }
-.crm-root input[type="date"]::-webkit-calendar-picker-indicator,
-.crm-root input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(.7) sepia(1) saturate(1.5) hue-rotate(5deg); }
-/* Soften the bright "FOLIO"/badge chips and light inline backgrounds on dark */
-.crm-root .iv-btn--ghost { color:var(--iv-ink); }
+/* Editorial form controls — sharp corners, walnut focus, on warm-ivory surfaces. */
+.crm-root .iv-input, .crm-root .iv-select, .crm-root .iv-textarea { border-radius:0; }
