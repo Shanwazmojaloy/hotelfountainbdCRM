@@ -5,20 +5,19 @@ import BottomNav from "./BottomNav";
 import Sidebar from "./Sidebar";
 import AuthGate from "./AuthGate";
 
+// App shell — Hotel Fountain Design System: walnut sidebar | (topbar + scrolling content).
 export default function Layout({ children }) {
   return (
     <AuthGate>
-      <div className="crm-root flex flex-col md:flex-row">
+      <div className="crm-root flex flex-col md:flex-row" style={{ height: '100vh', overflow: 'hidden' }}>
         {/* Sidebar — desktop only */}
         <Sidebar />
 
-        {/* Main content */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
-            <div className="max-w-7xl mx-auto">
-              <Header />
-              {children}
-            </div>
+        {/* Main column: fixed topbar + scrolling content */}
+        <div className="flex-1 flex flex-col min-w-0" style={{ height: '100vh' }}>
+          <Header />
+          <main className="flex-1 overflow-y-auto pb-24 md:pb-6" style={{ padding: '20px 24px', background: 'var(--iv-bg)' }}>
+            {children}
           </main>
         </div>
 
