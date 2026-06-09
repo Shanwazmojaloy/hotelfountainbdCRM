@@ -67,6 +67,33 @@ const dbPost = async (t,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{me
 const dbPatch = async (t,id,b) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:H2,body:JSON.stringify(b)}); if(!r.ok){ const txt=await r.text(); throw new Error(`PATCH ${t} ${r.status}: ${txt}`) } }
 const dbDelete = async (t,id) => { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H2}); if(!r.ok) throw new Error(await r.text()) }
 
+// ── Canonical reservation total = rooms×nights + Σ(billable folios) ───────────
+// Single source of truth for total_amount. ALWAYS recomputes from line items —
+// NEVER incremental — to prevent ghost-bleed double-counts (see CLAUDE.md ৳13,600 rule).
+// Billable excludes accounting markers (receivable/payment/settlement/advance/refund).
+const MARKER_FOLIO_RE = /receivable|payment|settlement|advance|refund/i
+async function recalcResTotal(resId){
+  if(!resId) return
+  const rows=await db('reservations',`?id=eq.${resId}&select=room_ids,check_in,check_out`)
+  const r=rows&&rows[0]; if(!r) return
+  const nights=nightsCount(r.check_in,r.check_out)||1
+  const roomList=Array.isArray(r.room_ids)?r.room_ids.filter(Boolean):[]
+  let roomCharge=0
+  if(roomList.length){
+    const inList=roomList.map(x=>`"${String(x).replace(/"/g,'')}"`).join(',')
+    const roomsData=await db('rooms',`?room_number=in.(${inList})&select=room_number,price`)
+    const arr=Array.isArray(roomsData)?roomsData:[]
+    roomCharge=roomList.reduce((a,rn)=>a+(+(arr.find(rm=>String(rm.room_number)===String(rn))?.price)||0)*nights,0)
+  }
+  const fol=await db('folios',`?reservation_id=eq.${resId}&select=amount,category,description`)
+  const extras=(Array.isArray(fol)?fol:[])
+    .filter(f=>!MARKER_FOLIO_RE.test(String(f.category||'')+' '+String(f.description||'')))
+    .reduce((a,f)=>a+(+f.amount||0),0)
+  const total=roomCharge+extras
+  await dbPatch('reservations',resId,{total_amount:total})
+  return total
+}
+
 const ROLES = {
   owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads','council','settings']},
   manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads','council']},
@@ -1166,7 +1193,7 @@ function RoomModal({room,guests,reservations,rooms,canEdit,canHKStatus,isSA,toas
                 <div><span>{f.description}</span><span className="badge bgold" style={{marginLeft:6,fontSize:8}}>{f.category}</span></div>
                 <div className="flex fac gap2">
                   <span className="xs gold">{BDT(f.amount)}</span>
-                  {isSA&&<button style={{background:'none',border:'none',cursor:'pointer',color:'var(--rose)',fontSize:13,padding:'0 2px',lineHeight:1}} title="Delete charge" onClick={async()=>{if(!window.confirm('Delete folio charge?'))return;try{await dbDelete('folios',f.id);setFolios(p=>p.filter(x=>x.id!==f.id));toast('Charge removed')}catch(e){toast(e.message,'error')}}}>×</button>}
+                  {isSA&&<button style={{background:'none',border:'none',cursor:'pointer',color:'var(--rose)',fontSize:13,padding:'0 2px',lineHeight:1}} title="Delete charge" onClick={async()=>{if(!window.confirm('Delete folio charge?'))return;try{await dbDelete('folios',f.id);setFolios(p=>p.filter(x=>x.id!==f.id));if(activeRes?.id)await recalcResTotal(activeRes.id);toast('Charge removed');reload&&reload()}catch(e){toast(e.message,'error')}}}>×</button>}
                 </div>
               </div>
             ))}
@@ -1286,12 +1313,9 @@ function AddChargeModal({roomNo,resId,toast,onClose,onDone}) {
     setSaving(true)
     try {
       const [f]=await dbPost('folios',{room_number:roomNo,reservation_id:resId,description:desc||cat,category:cat,amount:a,tenant_id:TENANT})
-      // Keep total_amount in sync so _resDue stays accurate across the whole app
-      if(resId) {
-        const resData=await db('reservations',`?id=eq.${resId}&select=total_amount`)
-        const curTotal=+(resData?.[0]?.total_amount||0)
-        await dbPatch('reservations',resId,{total_amount:curTotal+a})
-      }
+      // Recompute canonical total = rooms×nights + Σ(billable folios). NEVER incremental
+      // (curTotal+a double-counted — the ৳15,000 ghost-bleed). Single source of truth.
+      if(resId) await recalcResTotal(resId)
       onDone(f)
     } catch(e){ toast(e.message,'error'); setSaving(false) }
   }
@@ -1443,13 +1467,27 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
   const [roomArr,setRoomArr]=useState((res.room_ids||[]).length?res.room_ids:[''])
   const roomNos=roomArr.filter(Boolean).join(', ')
   const gn=guests.find(g=>String(g.id)===String((res.guest_ids||[])[0]||''))?.name||'Unknown'
+  // Billable folio extras for THIS reservation — so editing dates/rooms never silently
+  // drops charges (e.g. Airport Transfer). Markers (receivable/payment/…) excluded.
+  const [resFolioExtras,setResFolioExtras]=useState(0)
+  useEffect(()=>{
+    let cancelled=false
+    if(!res?.id){ setResFolioExtras(0); return }
+    db('folios',`?reservation_id=eq.${res.id}&select=amount,category,description`)
+      .then(d=>{ if(cancelled) return
+        const list=Array.isArray(d)?d:[]
+        const ex=list.filter(f=>!/receivable|payment|settlement|advance|refund/i.test(String(f.category||'')+' '+String(f.description||''))).reduce((a,f)=>a+(+f.amount||0),0)
+        setResFolioExtras(ex)
+      }).catch(()=>{})
+    return ()=>{ cancelled=true }
+  },[res?.id])
   const nights=nightsCount(checkInDate||res.check_in,checkOut||res.check_out)
   const origNights=nightsCount(res.check_in,res.check_out)
   const extNights=Math.max(0,nights-origNights)
   const ratesSum=roomArr.filter(Boolean).reduce((a,rn)=>a+(+rooms.find(r=>String(r.room_number)===String(rn))?.price||0),0)
   const roomRate=ratesSum
   const extCharge=extNights>0?extNights*ratesSum:0
-  const computedTotal=ratesSum*nights
+  const computedTotal=ratesSum*nights+resFolioExtras
   // Modal total math (2026-06-03 fix):
   //   Detect if the user has modified dates/rooms since open. If UNTOUCHED,
   //   honor reservations.total_amount (which already reflects folio resyncs
@@ -1517,7 +1555,7 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
       const updates={status,paid_amount:paidNum,discount_amount:discountNum,notes,check_in:checkInDate,check_out:checkOut,room_ids:newRoomNos,total_amount:totalAmt,guest_name:_resGuestName}
       if(checkOut&&checkOut!==String(res.check_out||'').slice(0,10)){
         updates.check_out=checkOut
-        if(nights>0) updates.total_amount=nights*ratesSum
+        if(nights>0) updates.total_amount=nights*ratesSum+resFolioExtras
         if(extCharge>0){
           await dbPost('transactions',{
             room_number:newRoomNos[0]||'?',
@@ -1543,6 +1581,9 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
         })
       }
       await dbPatch('reservations',res.id,updates)
+      // Authoritative recompute: total_amount = rooms×nights + Σ(billable folios).
+      // Guarantees consistency with computeBill/tabs/invoice regardless of edit path.
+      await recalcResTotal(res.id)
       toast(extCharge>0?`Reservation updated · Extension ৳${extCharge.toLocaleString()} charged ✓`:'Reservation updated ✓')
       reload()
     } catch(e){ toast(e.message,'error'); setSaving(false) }
@@ -3117,6 +3158,9 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       ...(foliosMap[r.id]||[]),
       ...roomNos.flatMap(rn=>(foliosMap[rn]||[]).filter(f=>!f.reservation_id||f.reservation_id===r.id))
     ].filter((f,i,arr)=>arr.findIndex(x=>x.id===f.id)===i)
+     // Exclude accounting markers (receivable/payment/…) — billable charges only, so the
+     // breakdown + canonical-fallback match recalcResTotal everywhere.
+     .filter(f=>!MARKER_FOLIO_RE.test(String(f.category||'')+' '+String(f.description||'')))
     const perRoom=roomNos.map(rn=>{
       const room=rooms?.find(rm=>String(rm.room_number)===String(rn))
       const rate=+room?.price||+r.rate_per_night||0
@@ -3879,6 +3923,11 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
   const [type,setType]=useState('Room Payment (Cash)')
   const [fiscal_day,setFiscalDay]=useState(_initFiscalDay)
   const [saving,setSaving]=useState(false)
+  // One idempotency key per modal mount: a retry/double-submit reuses it so the DB rejects
+  // the duplicate (uq_transactions_idempotency). A genuinely separate payment opens a new
+  // modal -> new key -> allowed. inFlight guards a 2nd click before re-render.
+  const idemKeyRef=useRef(crypto.randomUUID())
+  const inFlight=useRef(false)
 
   function pickRes(r){
     setSelRes(r)
@@ -3891,9 +3940,11 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
   function clearRes(){ setSelRes(null); setResSearch(''); setAmount(''); setShowResDrop(true); setFiscalDay(businessDate||todayStr()) }
 
   async function save(){
+    if(inFlight.current) return
     const a=+amount
     if(!a||a<=0) return toast('Enter valid amount','error')
     if(!fromRow&&!selRes&&!resSearch) return toast('Select a guest / room','error')
+    inFlight.current=true
     setSaving(true)
     const room_number = fromRow?lockedRoom:(selRes?.room_number||resSearch)
     const guest_name  = fromRow?lockedGuest:(selRes?.guest_name||resSearch)
@@ -3906,7 +3957,7 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
     const _billTotal   = (!fromRow && selRes && typeof computeBill==='function') ? (computeBill(selRes)?.total||0) : 0
     const payCap       = fromRow ? _resTotalRaw : Math.max(0, _billTotal>0 ? _billTotal : (_resTotalRaw - resDiscount))
     try{
-      await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,reservation_id:resId||null,tenant_id:TENANT})
+      await dbPost('transactions',{room_number,guest_name,type,amount:a,fiscal_day,reservation_id:resId||null,tenant_id:TENANT,idempotency_key:idemKeyRef.current})
       if(resId){
         // Fetch live paid_amount — avoids stale snapshot overwriting concurrent updates
         const freshRows = await db('reservations',`?id=eq.${resId}&select=paid_amount&limit=1`)
@@ -3914,7 +3965,14 @@ function RecordPayModal({toast,onClose,reload,prefill,reservations,guests,busine
         await dbPatch('reservations',resId,{paid_amount:Math.min(payCap,freshPaid+a)})
       }
       toast(`Payment ${BDT(a)} recorded`); reload(); onClose()
-    }catch(e){ toast(e.message,'error'); setSaving(false) }
+    }catch(e){
+      // 23505 / unique-violation = this exact payment already landed (double-submit or retry).
+      // Treat as success and DO NOT re-increment paid_amount — that double-count is the ghost-bleed.
+      if(/23505|duplicate key|uq_transactions_idempotency|uq_payment_tx_idempotency/i.test(e.message||'')){
+        toast('Payment already recorded — no duplicate created.'); reload(); onClose(); return
+      }
+      inFlight.current=false; toast(e.message,'error'); setSaving(false)
+    }
   }
 
   return (
