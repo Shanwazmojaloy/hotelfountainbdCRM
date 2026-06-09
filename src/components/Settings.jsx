@@ -30,6 +30,20 @@ export default function Settings() {
     } catch (e) { console.error('[Settings] staff reload:', e); }
   }
 
+  const [secBusy, setSecBusy] = useState(false);
+  const [secMsg, setSecMsg] = useState('');
+  async function logoutAllDevices() {
+    if (!window.confirm('Sign out ALL staff on every device? They will be logged out on next sync (≤90s).')) return;
+    setSecBusy(true); setSecMsg('');
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.from('staff').update({ session_v: 2 }).eq('tenant_id', TENANT).neq('role', 'owner');
+      if (error) throw error;
+      setSecMsg('All sessions invalidated — staff will be signed out shortly.');
+      reloadStaff();
+    } catch (e) { setSecMsg('Failed: ' + (e.message || String(e))); } finally { setSecBusy(false); }
+  }
+
   useEffect(() => {
     (async () => {
       try {
@@ -66,7 +80,7 @@ export default function Settings() {
 
   const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
   const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
-  const TABS = [['hotel', 'Hotel Info'], ['users', 'Staff'], ['system', 'System']];
+  const TABS = [['hotel', 'Hotel Info'], ['users', 'Staff'], ['security', 'Security'], ['system', 'System']];
 
   return (
     <div style={{ maxWidth: 760 }}>
@@ -128,6 +142,16 @@ export default function Settings() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === 'security' && (
+        <div className="iv-card">
+          <h3 className="text-lg mb-4 pb-3 iv-divider">Security</h3>
+          <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 4 }}>Logout All Devices</div>
+          <div className="iv-stat__sub mb-3">Immediately invalidates all active staff sessions. Everyone (except the owner) is signed out on next sync (≤90s).</div>
+          {secMsg && <div className="mb-3 text-sm" style={{ color: secMsg.startsWith('Failed') ? '#C0566A' : '#3C6B4A' }}>{secMsg}</div>}
+          <button className="iv-btn" style={{ background: '#A23B4E' }} onClick={logoutAllDevices} disabled={secBusy}>{secBusy ? 'Working…' : '⏻ Logout All Devices'}</button>
         </div>
       )}
 
