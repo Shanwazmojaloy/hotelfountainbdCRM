@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { signSession, sessionCookieHeader } from '@/lib/session';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -63,11 +64,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Account not activated yet — activate via the staff portal first.' }, { status: 403 });
     }
 
-    // Minimal session — NO pwh / otp fields.
-    return NextResponse.json({
-      ok: true,
-      session: { id: u.id, name: u.name, role: u.role, session_v: u.session_v || 1 },
-    });
+    // Minimal session — NO pwh / otp fields. Also mint the signed HttpOnly cookie
+    // that Phase 3 write routes (requireSession) verify before any service-role write.
+    const sess = { id: u.id, role: u.role, session_v: u.session_v || 1 };
+    const res = NextResponse.json({ ok: true, session: { ...sess, name: u.name } });
+    res.headers.set('Set-Cookie', sessionCookieHeader(signSession(sess)));
+    return res;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
     console.error('[crm/login]', msg);
