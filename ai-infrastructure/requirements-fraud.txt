@@ -1,0 +1,11 @@
+# Fraud detection scoring service / ingestion worker
+# Core files (fraud_ingestion_worker.py, kinesis_consumer.py, triton_client.py)
+# run on the stdlib alone. These deps light up the production paths.
+
+redis==5.2.1                     # redis.asyncio feature store (ElastiCache)
+tritonclient[grpc]==2.51.0       # NVIDIA Triton inference gRPC client
+numpy==2.1.3                     # feature vector marshalling for Triton
+boto3==1.35.71                   # Kinesis / DynamoDB / Firehose / Secrets Manager
+prometheus-client==0.21.1        # latency histograms / SLO metrics
+uvloop==0.21.0 ; sys_platform != "win32"   # faster asyncio event loop
+orjson==3.10.12                  # fast JSON for hot path

@@ -131,7 +131,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
           <div style={{ fontSize: 11, color: C.ink3, marginTop: 4 }}>Locked snapshot. The figures below show only activity recorded <strong>after</strong> the close — the fresh daily report.</div>
         </Card>
 
-        <div className="iv-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+        <div className="iv-stat-grid iv-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
           <StatCard label="Closed Collection" value={bdt(closeRow.total_collections)} accent={C.walnut} sub="locked at close" />
           <StatCard label="New Collection" value={bdt(newCollected)} accent={C.gold} sub="recorded after close" />
           <StatCard label="New Movements" value={newMoves.length} accent={C.sky} sub="check-ins / outs after close" />
@@ -203,7 +203,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       </div>
       {err && <div style={{ color: C.rose, fontSize: 12, marginBottom: 10 }}>{err}</div>}
 
-      <div className="iv-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+      <div className="iv-stat-grid iv-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
         <StatCard label="Movements" value={loading ? '—' : moves.length} accent={C.walnut} sub={fmtLong(date)} />
         <StatCard label="Total Collection" value={loading ? '—' : bdt(collected)} accent={C.gold} />
         <StatCard label="Closing Balance" value={loading ? '—' : bdt(closing)} accent={C.grn} sub="collection − token" />

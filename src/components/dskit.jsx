@@ -82,9 +82,7 @@ export function Avatar({ name = '', size = 32, tone }) {
 
 export function StatCard({ icon, label, value, sub, accent = C.walnut }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${accent}`, padding: '14px 18px 16px', transition: 'box-shadow .2s var(--iv-ease)' }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = 'var(--iv-shadow-stat)')}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}>
+    <div className="iv-card--hover" style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${accent}`, padding: '14px 18px 16px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 20 }}>
         <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
         {icon != null && <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: accent }}>{icon}</div>}
@@ -113,18 +111,33 @@ export function Card({ title, titleAccent, accent = 'var(--iv-side)', action, bo
   );
 }
 
-// Underline tab bar (walnut active border). tabs: [{id,label,count?,color?}]
+// Underline tab bar with a sliding gilded indicator. tabs: [{id,label,count?,color?}]
 export function Tabs({ tabs, value, onChange, style }) {
+  const barRef = useRef(null);
+  const [ind, setInd] = useState({ left: 0, width: 0 });
+  useEffect(() => {
+    const bar = barRef.current; if (!bar) return;
+    const measure = () => {
+      const el = bar.querySelector('button[data-on="1"]');
+      if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [value, tabs]);
   return (
-    <div className="iv-tabbar" style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--iv-side)', marginBottom: 16, overflowX: 'auto', ...style }}>
+    <div ref={barRef} className="iv-tabbar" style={{ position: 'relative', display: 'flex', gap: 0, borderBottom: '2px solid var(--iv-side)', marginBottom: 16, overflowX: 'auto', ...style }}>
       {tabs.map((t) => {
         const on = value === t.id;
         return (
-          <button key={t.id} onClick={() => onChange(t.id)} style={{ padding: '9px 16px', fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: on ? 700 : 500, color: on ? 'var(--iv-ink)' : (t.color || 'var(--iv-ink3)'), letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'pointer', background: on ? '#fff' : 'transparent', border: 'none', borderBottom: `2px solid ${on ? 'var(--iv-side)' : 'transparent'}`, marginBottom: -2, whiteSpace: 'nowrap' }}>
+          <button key={t.id} data-on={on ? '1' : '0'} onClick={() => onChange(t.id)} style={{ padding: '9px 16px', fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: on ? 700 : 500, color: on ? 'var(--iv-ink)' : (t.color || 'var(--iv-ink3)'), letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'pointer', background: on ? '#fff' : 'transparent', border: 'none', marginBottom: -2, whiteSpace: 'nowrap' }}>
             {t.label}{t.count != null ? <span style={{ fontVariantNumeric: 'tabular-nums' }}> (<CountUp value={t.count} animateMount duration={520} />)</span> : ''}
           </button>
         );
       })}
+      {ind.width > 0 && (
+        <span aria-hidden style={{ position: 'absolute', bottom: 0, left: ind.left, width: ind.width, height: 2, background: 'linear-gradient(90deg, var(--iv-gold), var(--iv-gold-light))', transition: 'left .3s var(--iv-ease), width .3s var(--iv-ease)', pointerEvents: 'none' }} />
+      )}
     </div>
   );
 }
@@ -138,7 +151,7 @@ export function Table({ head, children }) {
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead><tr>{head.map((h, i) => <th key={i} style={TH}>{h}</th>)}</tr></thead>
-        <tbody>{children}</tbody>
+        <tbody className="iv-tbody">{children}</tbody>
       </table>
     </div>
   );
@@ -146,7 +159,7 @@ export function Table({ head, children }) {
 
 export function HoverRow({ children, onClick }) {
   return (
-    <tr onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}
+    <tr onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default', transition: 'background .18s var(--iv-ease)' }}
       onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(197,160,89,.04)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
       {children}

@@ -41,7 +41,7 @@ export default function AddChargeModal({ roomNo, resId, onClose, onDone }) {
   const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.55)', zIndex: 110,
+    <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.55)', zIndex: 110,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 420, maxHeight: '92vh', overflowY: 'auto' }}>
         <h3 className="text-xl mb-5 pb-4 iv-divider">Add Charge — Room {roomNo || '—'}</h3>

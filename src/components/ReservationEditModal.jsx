@@ -146,7 +146,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
   const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.5)', zIndex: 90,
+    <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.5)', zIndex: 90,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 600, maxHeight: '92vh', overflowY: 'auto' }}>
         <div className="flex items-start justify-between mb-4 pb-4 iv-divider">

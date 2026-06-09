@@ -1,0 +1,3 @@
+===== TYPECHECK ===== 
+EXIT=0 
+===== DONE ===== 

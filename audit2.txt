@@ -1,0 +1,22 @@
+===== RUNNING TESTS ===== 
+
+> hotel-fountain-crm@1.0.0 test
+> vitest run
+
+
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90mC:/dev/hotelfountainbd[39m
+
+ [32m✓[39m crm.logic.test.ts [2m ([22m[2m51 tests[22m[2m)[22m[90m 38[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m51 passed[39m[22m[90m (51)[39m
+[2m   Start at [22m 03:29:23
+[2m   Duration [22m 601ms[2m (transform 75ms, setup 1ms, collect 74ms, tests 38ms, environment 0ms, prepare 129ms)[22m
+
+ 
+===== COMMIT + PUSH ===== 
+[main 3f9243d] Fix corrupted crm.logic.test.ts (trailing NUL bytes broke typecheck/CI)
+ 1 file changed, 3 deletions(-)
+To https://github.com/Shanwazmojaloy/hotelfountainbdCRM.git
+   8702626..3f9243d  main -> main
+===== DONE ===== 

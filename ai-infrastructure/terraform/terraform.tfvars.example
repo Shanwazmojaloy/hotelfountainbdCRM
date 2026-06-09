@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars and fill in.
+aws_region  = "ap-south-1"
+project     = "hotelfountain"
+alert_email = "ahmedshanwaz5@gmail.com"   # confirm the SNS subscription email AWS sends
+tenant_id   = "46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8"
+
+# Set after you deploy the worker Lambda (Phase 6 Option A); leave empty to skip
+# the schedule for now.
+worker_lambda_name = ""
+# schedule_expression = "cron(0 19 * * ? *)"   # 19:00 UTC daily (default)

@@ -82,7 +82,7 @@ export default function Pipeline() {
         <div className="iv-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr style={th}>{['Name', 'Company', 'Type', 'Intent', 'Status', 'Contact', 'Added'].map((h) => <th key={h} className="text-left py-2 font-normal whitespace-nowrap">{h}</th>)}</tr></thead>
-            <tbody>
+            <tbody className="iv-tbody">
               {loading && <tr><td colSpan={7} className="py-3 iv-stat__sub">Loading…</td></tr>}
               {!loading && leads.length === 0 && <tr><td colSpan={7} className="py-3 iv-stat__sub">No leads yet — run the Lead-Gen Swarm scout on the AI Agents page.</td></tr>}
               {leads.map((l) => (
@@ -105,7 +105,7 @@ export default function Pipeline() {
         <div className="iv-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr style={th}>{['Guest', 'Room', 'Offer', 'Price', 'Status', 'Sent', ''].map((h) => <th key={h} className="text-left py-2 font-normal whitespace-nowrap">{h}</th>)}</tr></thead>
-            <tbody>
+            <tbody className="iv-tbody">
               {loading && <tr><td colSpan={7} className="py-3 iv-stat__sub">Loading…</td></tr>}
               {!loading && offers.length === 0 && <tr><td colSpan={7} className="py-3 iv-stat__sub">No upsell offers yet — run Plan-G on the AI Agents page.</td></tr>}
               {offers.map((o) => {

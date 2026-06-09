@@ -60,9 +60,8 @@ function Avatar({ name, size = 26 }) {
 function StatCard({ icon, label, value, sub, accent }) {
   return (
     <div
-      style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${accent}`, padding: '14px 18px 16px', transition: 'box-shadow .2s var(--iv-ease)' }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = 'var(--iv-shadow-stat)')}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
+      className="iv-card--hover"
+      style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${accent}`, padding: '14px 18px 16px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease)' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 20 }}>
         <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
@@ -205,7 +204,7 @@ export default function Dashboard() {
   return (
     <div>
       {/* Stat cards — colored walnut top-borders + icons */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }} className="iv-stat-grid">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }} className="iv-stat-grid iv-stagger">
         <StatCard icon="🏨" label="Occupied Rooms" accent={GRN} value={loading ? '—' : stats.occupied} sub={loading ? '' : `of ${stats.totalRooms} · ${stats.occupancy}% occupancy`} />
         <StatCard icon="৳" label="Today's Revenue" accent={GOLD} value={loading ? '—' : bdt(stats.revenue)} sub="Collected today · Asia/Dhaka" />
         <StatCard icon="✈" label="Arrivals Today" accent={SKY} value={loading ? '—' : stats.checkins} sub="Scheduled check-ins" />

@@ -213,3 +213,103 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   .crm-root .iv-stat-grid { grid-template-columns:repeat(2,1fr) !important; }
   .crm-root .iv-chart-grid { grid-template-columns:1fr !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOTION LAYER — Ivory × Gilded Threshold hybrid (2026-06-10)
+   Pure-CSS micro-interactions; zero logic. All durations ≤ 400ms, all easing
+   on --iv-ease. Gold glow = the Gilded accent over the Warm Ivory base.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.crm-root {
+  --iv-glow:rgba(200,169,110,.28);            /* gilded focus/hover ring */
+  --iv-shadow-lift:0 10px 30px rgba(28,21,16,.10), 0 2px 8px rgba(139,105,20,.06);
+  --iv-shadow-modal:0 24px 70px rgba(28,21,16,.28), 0 0 0 1px rgba(200,169,110,.18);
+}
+
+/* Route fade — slightly richer arrival (kept fast; shell never animates) */
+@keyframes ivFadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.iv-fade { animation: ivFadeUp .34s var(--iv-ease, cubic-bezier(.4,0,.2,1)) both; }
+
+/* Staggered entrances — wrap any grid/list in .iv-stagger; children cascade in */
+.crm-root .iv-stagger > * { animation: ivFadeUp .38s var(--iv-ease) both; }
+.crm-root .iv-stagger > *:nth-child(1) { animation-delay:.03s; }
+.crm-root .iv-stagger > *:nth-child(2) { animation-delay:.07s; }
+.crm-root .iv-stagger > *:nth-child(3) { animation-delay:.11s; }
+.crm-root .iv-stagger > *:nth-child(4) { animation-delay:.15s; }
+.crm-root .iv-stagger > *:nth-child(5) { animation-delay:.19s; }
+.crm-root .iv-stagger > *:nth-child(6) { animation-delay:.23s; }
+.crm-root .iv-stagger > *:nth-child(7) { animation-delay:.27s; }
+.crm-root .iv-stagger > *:nth-child(8) { animation-delay:.31s; }
+.crm-root .iv-stagger > *:nth-child(n+9) { animation-delay:.35s; }
+
+/* Table rows cascade subtly on mount + smooth hover (.iv-tbody = dskit Table) */
+@keyframes ivRowIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+.crm-root .iv-table tbody tr, .crm-root .iv-tbody tr { transition:background .18s var(--iv-ease); animation:ivRowIn .3s var(--iv-ease) both; }
+.crm-root .iv-table tbody tr:nth-child(1), .crm-root .iv-tbody tr:nth-child(1) { animation-delay:.02s; }
+.crm-root .iv-table tbody tr:nth-child(2), .crm-root .iv-tbody tr:nth-child(2) { animation-delay:.05s; }
+.crm-root .iv-table tbody tr:nth-child(3), .crm-root .iv-tbody tr:nth-child(3) { animation-delay:.08s; }
+.crm-root .iv-table tbody tr:nth-child(4), .crm-root .iv-tbody tr:nth-child(4) { animation-delay:.11s; }
+.crm-root .iv-table tbody tr:nth-child(5), .crm-root .iv-tbody tr:nth-child(5) { animation-delay:.14s; }
+.crm-root .iv-table tbody tr:nth-child(n+6), .crm-root .iv-tbody tr:nth-child(n+6) { animation-delay:.17s; }
+.crm-root .iv-table tbody tr:hover { background:rgba(200,169,110,.07); }
+
+/* Modals — backdrop fades, panel scales/slides in (overlay gets .iv-modal-ov) */
+@keyframes ivOvIn { from { opacity:0; } to { opacity:1; } }
+@keyframes ivModalIn { from { opacity:0; transform:translateY(14px) scale(.965); } to { opacity:1; transform:none; } }
+.crm-root .iv-modal-ov, .iv-modal-ov { animation:ivOvIn .22s ease both; backdrop-filter:blur(3px); }
+.iv-modal-ov > * { animation:ivModalIn .3s cubic-bezier(.34,1.2,.4,1) both; box-shadow:var(--iv-shadow-modal, 0 24px 70px rgba(28,21,16,.28)); }
+
+/* Cards — gentle lift with gilded shadow */
+.crm-root .iv-card { transition:box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease), border-color .25s var(--iv-ease); }
+.crm-root .iv-card--hover:hover { box-shadow:var(--iv-shadow-lift); transform:translateY(-2px); border-top-color:var(--iv-gold); }
+
+/* Buttons — press feedback + gold bloom */
+.crm-root .iv-btn { transition:background .2s var(--iv-ease), border-color .2s var(--iv-ease), color .2s var(--iv-ease), transform .15s var(--iv-ease), box-shadow .2s var(--iv-ease); }
+.crm-root .iv-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 4px 14px var(--iv-glow); }
+.crm-root .iv-btn:active:not(:disabled) { transform:translateY(0) scale(.97); box-shadow:none; }
+.crm-root .iv-btn:focus-visible { outline:none; box-shadow:0 0 0 3px var(--iv-glow); }
+
+/* Inputs — gilded focus ring (replaces bare border swap) */
+.crm-root .iv-input, .crm-root .iv-select, .crm-root .iv-textarea,
+.crm-root select, .crm-root input:not([type=checkbox]):not([type=radio]), .crm-root textarea {
+  transition:border-color .2s var(--iv-ease), box-shadow .2s var(--iv-ease);
+}
+.crm-root .iv-input:focus, .crm-root .iv-select:focus, .crm-root .iv-textarea:focus,
+.crm-root select:focus, .crm-root input:focus:not([type=checkbox]):not([type=radio]), .crm-root textarea:focus {
+  border-color:var(--iv-gold-light); box-shadow:0 0 0 3px var(--iv-glow); outline:none;
+}
+
+/* Sidebar nav — icon nudge, gold glow on active rail */
+.crm-root .iv-nav-item { transition:background .2s var(--iv-ease), color .2s var(--iv-ease), border-left-color .2s var(--iv-ease), padding-left .2s var(--iv-ease); }
+.crm-root .iv-nav-item:hover { padding-left:17px; }
+.crm-root .iv-nav-item.on { box-shadow:inset 3px 0 12px -6px var(--iv-gold-light); }
+.crm-root .iv-nav-item .iv-nav-ic { transition:transform .2s var(--iv-ease); }
+.crm-root .iv-nav-item:hover .iv-nav-ic { transform:scale(1.18); }
+
+/* Bottom nav (mobile) — tap feedback + active gold dot */
+.crm-root .iv-bottom-item { transition:color .2s var(--iv-ease), transform .12s var(--iv-ease); position:relative; }
+.crm-root .iv-bottom-item:active { transform:scale(.9); }
+.crm-root .iv-bottom-item.on::after { content:''; position:absolute; top:4px; width:4px; height:4px; border-radius:50%; background:var(--iv-gold-light); box-shadow:0 0 6px var(--iv-gold-light); }
+
+/* Tabs — smooth color shift (sliding indicator handled in dskit) */
+.crm-root .iv-tabbar button { transition:color .2s var(--iv-ease), background .2s var(--iv-ease), border-color .2s var(--iv-ease); }
+
+/* Badges & chips breathe on hover */
+.crm-root .iv-badge, .crm-root .iv-chip { transition:box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease); }
+
+/* Activity rows slide on hover */
+.crm-root .iv-row { transition:transform .2s var(--iv-ease), box-shadow .2s var(--iv-ease), border-color .2s var(--iv-ease); }
+.crm-root .iv-row:hover { transform:translateX(3px); border-color:var(--iv-gold-light); }
+
+/* Ivory-scoped scrollbar (overrides the global dark one inside the CRM) */
+.crm-root ::-webkit-scrollbar { width:8px; height:8px; }
+.crm-root ::-webkit-scrollbar-track { background:var(--iv-sunken); }
+.crm-root ::-webkit-scrollbar-thumb { background:var(--iv-border); border-radius:4px; }
+.crm-root ::-webkit-scrollbar-thumb:hover { background:var(--iv-gold-light); }
+
+/* Accessibility — kill all motion for users who ask for it */
+@media (prefers-reduced-motion: reduce) {
+  .crm-root *, .crm-root *::before, .crm-root *::after,
+  .iv-fade, .iv-modal-ov, .iv-modal-ov > * {
+    animation-duration:.01ms !important; animation-delay:0ms !important; transition-duration:.01ms !important;
+  }
+}
