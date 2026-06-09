@@ -18,11 +18,15 @@ export default function RoomFormModal({ existingRooms = [], onClose, onSaved }) 
     if (existingRooms.some((r) => String(r.room_number) === String(f.room_number))) return setErr(`Room ${f.room_number} already exists.`);
     setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from('rooms').insert({
-        room_number: f.room_number, category: f.category, price: +f.price || 0, status: f.status, tenant_id: TENANT,
+      const r = await fetch('/api/crm/room', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', room_number: f.room_number, category: f.category, price: +f.price || 0 }),
       });
-      if (error) throw error;
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.from('rooms').insert({ room_number: f.room_number, category: f.category, price: +f.price || 0, status: f.status, tenant_id: TENANT });
+        if (error) throw error;
+      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not add room.'); }
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }

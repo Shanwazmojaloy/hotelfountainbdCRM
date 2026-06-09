@@ -38,25 +38,30 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
     if (!a || a <= 0) return setErr('Enter a valid amount.');
     inFlight.current = true; setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      const { error: txErr } = await supabase.from('transactions').insert({
-        room_number: room, guest_name: r.guest_name, type, amount: a,
-        fiscal_day: fiscalDay, reservation_id: r.id, tenant_id: TENANT,
-        idempotency_key: idemKey.current,
+      // Phase 3 money route (service role). idempotency_key carries through to the dual-write guard.
+      const resp = await fetch('/api/crm/payment', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservation_id: r.id, amount: a, type, fiscal_day: fiscalDay, idempotency_key: idemKey.current }),
       });
-      if (txErr) {
-        // 23505 -> this exact payment already landed; treat as success, skip the paid_amount bump.
-        if (/23505|duplicate key|uq_transactions_idempotency|uq_payment_tx_idempotency/i.test(txErr.message || '')) {
-          onSaved?.(); onClose?.(); return;
+      if (resp.status === 401) {
+        // Transition fallback: session predates the cookie — direct write (allowed until revoke).
+        const supabase = getSupabaseClient();
+        const { error: txErr } = await supabase.from('transactions').insert({
+          room_number: room, guest_name: r.guest_name, type, amount: a,
+          fiscal_day: fiscalDay, reservation_id: r.id, tenant_id: TENANT, idempotency_key: idemKey.current,
+        });
+        if (txErr) {
+          if (/23505|duplicate key|uq_transactions_idempotency|uq_payment_tx_idempotency/i.test(txErr.message || '')) { onSaved?.(); onClose?.(); return; }
+          throw txErr;
         }
-        throw txErr;
+        const { data: fresh } = await supabase.from('reservations').select('paid_amount').eq('id', r.id).single();
+        const newPaid = Math.min(net, (+(fresh?.paid_amount || 0)) + a);
+        const { error: upErr } = await supabase.from('reservations').update({ paid_amount: newPaid }).eq('id', r.id);
+        if (upErr) throw upErr;
+      } else {
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok || j.error) throw new Error(j.error || 'Could not record payment.');
       }
-      // fresh paid_amount (avoid stale snapshot), bump, floored at net bill so balance can't go negative
-      const { data: fresh } = await supabase.from('reservations').select('paid_amount').eq('id', r.id).single();
-      const freshPaid = +(fresh?.paid_amount || 0);
-      const newPaid = Math.min(net, freshPaid + a);
-      const { error: upErr } = await supabase.from('reservations').update({ paid_amount: newPaid }).eq('id', r.id);
-      if (upErr) throw upErr;
       onSaved?.(); onClose?.();
     } catch (e) {
       inFlight.current = false; setErr(e.message || String(e)); setSaving(false);
