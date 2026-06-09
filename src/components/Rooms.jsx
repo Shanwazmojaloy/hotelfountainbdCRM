@@ -21,6 +21,12 @@ const STATUS = {
   RESERVED:     { c: '#6D28D9', label: 'Reserved' },
 };
 
+// hex (#RRGGBB) → rgba(...) for the status-tinted glass tiles
+const tint = (hex, a) => {
+  const n = parseInt(String(hex).replace('#', ''), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+};
+
 export default function Rooms() {
   const [rooms, setRooms] = useState([]);
   const [filter, setFilter] = useState('ALL');
@@ -109,13 +115,24 @@ export default function Rooms() {
                 <div
                   key={room.id}
                   onClick={() => { if (room.status === 'OCCUPIED') setFolioRoom(room); else setStatusRoom(room); }}
-                  style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${st.c}`, padding: 12, cursor: 'pointer', transition: 'box-shadow .15s var(--iv-ease)' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.boxShadow = 'var(--iv-shadow-stat)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
+                  style={{
+                    background: `linear-gradient(135deg, ${tint(st.c, 0.13)}, ${tint(st.c, 0.04)}), #ffffff`,
+                    border: `1px solid ${tint(st.c, 0.28)}`,
+                    borderTop: `3px solid ${st.c}`,
+                    borderRadius: 8,
+                    padding: 12,
+                    cursor: 'pointer',
+                    backdropFilter: 'blur(6px)',
+                    WebkitBackdropFilter: 'blur(6px)',
+                    boxShadow: `inset 0 1px 0 rgba(255,255,255,.55), 0 3px 12px ${tint(st.c, 0.12)}`,
+                    transition: 'box-shadow .15s var(--iv-ease), transform .15s var(--iv-ease)',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,.6), 0 10px 24px ${tint(st.c, 0.30)}`; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,.55), 0 3px 12px ${tint(st.c, 0.12)}`; e.currentTarget.style.transform = 'none'; }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span className="iv-mono" style={{ fontSize: 17, fontWeight: 500, color: 'var(--iv-ink)' }}>{room.room_number}</span>
-                    <span style={{ width: 8, height: 8, borderRadius: 999, background: st.c, marginTop: 5 }} />
+                    <span className="iv-mono" style={{ fontSize: 17, fontWeight: 700, color: 'var(--iv-ink)' }}>{room.room_number}</span>
+                    <span style={{ width: 9, height: 9, borderRadius: 999, background: st.c, marginTop: 5, boxShadow: `0 0 0 3px ${tint(st.c, 0.18)}` }} />
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--iv-ink3)', marginTop: 6 }}>{room.category || 'Standard'}</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8 }}>
