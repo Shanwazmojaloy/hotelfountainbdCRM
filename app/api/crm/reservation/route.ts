@@ -17,8 +17,8 @@ const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ec
 const nights = (ci: string, co: string) => { if (!ci || !co) return 0; const n = Math.round((+new Date(co) - +new Date(ci)) / 86400000); return n > 0 ? n : 0; };
 const todayDhaka = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
-type SB = ReturnType<typeof createClient>;
-async function ratesSumOf(supabase: SB, roomNos: string[]): Promise<number> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function ratesSumOf(supabase: any, roomNos: string[]): Promise<number> {
   if (!roomNos.length) return 0;
   const { data } = await supabase.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
   const arr = (data || []) as Array<{ room_number: string | number; price: number }>;
@@ -27,7 +27,8 @@ async function ratesSumOf(supabase: SB, roomNos: string[]): Promise<number> {
 
 export async function POST(req: NextRequest) {
   if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  const supabase = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase: any = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
