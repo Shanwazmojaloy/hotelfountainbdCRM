@@ -25,7 +25,6 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
     if (!isEdit && !f.phone.trim()) return setErr('Contact number is required.');
     setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
       const payload = {
         name: f.name.trim(),
         phone: f.phone?.trim() || null,
@@ -36,12 +35,19 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
         city: f.city?.trim() || null,
         address: f.address?.trim() || null,
       };
-      if (isEdit) {
-        const { error } = await supabase.from('guests').update(payload).eq('id', guest.id);
-        if (error) throw error;
+      // Phase 3: write through the session-gated server route (service role).
+      const r = await fetch('/api/crm/guest', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: isEdit ? 'update' : 'create', id: guest?.id, ...payload }),
+      });
+      if (r.status === 401) {
+        // Transition: session predates the cookie — fall back to direct write (allowed until anon revoke).
+        const supabase = getSupabaseClient();
+        if (isEdit) { const { error } = await supabase.from('guests').update(payload).eq('id', guest.id); if (error) throw error; }
+        else { const { error } = await supabase.from('guests').insert({ ...payload, tenant_id: TENANT }); if (error) throw error; }
       } else {
-        const { error } = await supabase.from('guests').insert({ ...payload, tenant_id: TENANT });
-        if (error) throw error;
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.error) throw new Error(j.error || 'Could not save guest.');
       }
       onSaved?.();
       onClose?.();
@@ -56,13 +62,20 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
     if (!window.confirm(`Delete guest "${guest.name}"? This cannot be undone.`)) return;
     setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from('guests').delete().eq('id', guest.id);
-      if (error) {
-        if (/23503|foreign key|violates/i.test(error.message || '')) {
-          throw new Error('Cannot delete — this guest has billing, ledger or payment history. Remove or reassign those first.');
+      const r = await fetch('/api/crm/guest', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: guest.id }),
+      });
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.from('guests').delete().eq('id', guest.id);
+        if (error) {
+          if (/23503|foreign key|violates/i.test(error.message || '')) throw new Error('Cannot delete — this guest has billing, ledger or payment history. Remove or reassign those first.');
+          throw error;
         }
-        throw error;
+      } else {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.error) throw new Error(j.error || 'Could not delete guest.');
       }
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
