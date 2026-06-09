@@ -79,8 +79,10 @@ fi
 while IFS= read -r F; do
   [ -z "$F" ] && continue
   LAST=$(tail -1 "$F" | tr -d '[:space:]')
-  if [ "$LAST" != "}" ] && [ "$LAST" != ");" ]; then
-    fail "$F: last non-whitespace char '$LAST' — possible truncation"
+  LC=${LAST: -1}
+  # valid TS file endings: } (block), ; (statement e.g. `export const POST = run;`), ) (call)
+  if [ "$LC" != "}" ] && [ "$LC" != ";" ] && [ "$LC" != ")" ]; then
+    fail "$F: last non-whitespace char '$LC' — possible truncation"
   fi
   # Quick syntactic sanity — balanced braces ±3
   OB=$(grep -o "{" "$F" | wc -l)
