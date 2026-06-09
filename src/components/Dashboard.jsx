@@ -6,6 +6,8 @@
 // collections excl. Balance Carried Forward, Asia/Dhaka anchor).
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { CountUp, Skeleton } from './dskit';
+import { getSnap, setSnap } from '@/lib/snap';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const getDhakaDate = () =>
@@ -66,7 +68,7 @@ function StatCard({ icon, label, value, sub, accent }) {
         <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
         <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: accent }}>{icon}</div>
       </div>
-      <div style={{ fontFamily: 'var(--iv-mono)', fontSize: 29, fontWeight: 700, color: 'var(--iv-ink)', lineHeight: 1.1, marginTop: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.01em' }}>{value}</div>
+      <div style={{ fontFamily: 'var(--iv-mono)', fontSize: 29, fontWeight: 700, color: 'var(--iv-ink)', lineHeight: 1.1, marginTop: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.01em' }}>{(value == null || value === '—' || value === '') ? <Skeleton w={84} h={30} /> : <CountUp value={value} />}</div>
       <div style={{ fontSize: 11, color: 'var(--iv-ink2)', marginTop: 6 }}>{sub}</div>
     </div>
   );
@@ -98,18 +100,19 @@ function Bar({ h, lbl, peak }) {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({ revenue: 0, occupancy: 0, occupied: 0, totalRooms: 0, checkins: 0, outstanding: 0, dueCount: 0 });
-  const [rev14, setRev14] = useState([]);
-  const [total14, setTotal14] = useState(0);
-  const [catOcc, setCatOcc] = useState([]);
-  const [guests, setGuests] = useState([]);
-  const [peakInfo, setPeakInfo] = useState({ date: '', val: 0, adr: 0, occupancy: 0 });
-  const [loading, setLoading] = useState(true);
+  const _cached = getSnap('dashboard');
+  const [stats, setStats] = useState(_cached?.stats || { revenue: 0, occupancy: 0, occupied: 0, totalRooms: 0, checkins: 0, outstanding: 0, dueCount: 0 });
+  const [rev14, setRev14] = useState(_cached?.rev14 || []);
+  const [total14, setTotal14] = useState(_cached?.total14 || 0);
+  const [catOcc, setCatOcc] = useState(_cached?.catOcc || []);
+  const [guests, setGuests] = useState(_cached?.guests || []);
+  const [peakInfo, setPeakInfo] = useState(_cached?.peakInfo || { date: '', val: 0, adr: 0, occupancy: 0 });
+  const [loading, setLoading] = useState(!_cached);
 
   useEffect(() => { fetchDashboard(); }, []);
 
   async function fetchDashboard() {
-    setLoading(true);
+    if (!getSnap('dashboard')) setLoading(true); // first visit shows skeletons; revisits refresh silently
     try {
       const supabase = getSupabaseClient();
       const [{ data: reservations }, { data: transactions }, { data: rooms }] = await Promise.all([
@@ -183,10 +186,13 @@ export default function Dashboard() {
           return { name: r.guest_name || 'Guest', room: roomArr.join(', ') || '—', cat: roomByNum[String(roomArr[0])]?.category || '—', ci: (r.check_in || '').slice(0, 10) || '—', co: (r.check_out || '').slice(0, 10) || '—', total: bdt(net), status: r.status || '—' };
         });
 
-      setStats({ revenue, occupancy, occupied, totalRooms: rms.length, checkins: checkinRes.length, outstanding, dueCount });
+      const statsObj = { revenue, occupancy, occupied, totalRooms: rms.length, checkins: checkinRes.length, outstanding, dueCount };
+      const peakObj = { date: peak.ds, val: peak.v, adr: rms.length ? Math.round(rms.reduce((a, r) => a + (Number(r.price) || 0), 0) / rms.length) : 0, occupancy };
+      setStats(statsObj);
       setRev14(bars); setTotal14(sum14);
       setCatOcc(cats); setGuests(todays);
-      setPeakInfo({ date: peak.ds, val: peak.v, adr: rms.length ? Math.round(rms.reduce((a, r) => a + (Number(r.price) || 0), 0) / rms.length) : 0, occupancy });
+      setPeakInfo(peakObj);
+      setSnap('dashboard', { stats: statsObj, rev14: bars, total14: sum14, catOcc: cats, guests: todays, peakInfo: peakObj });
     } catch (e) {
       console.error('[Dashboard] fetch error:', e);
     } finally {

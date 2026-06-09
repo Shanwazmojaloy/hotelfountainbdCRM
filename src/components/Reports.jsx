@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { Tabs, Card, StatCard, Table, Badge, TD, MONO, C, bdt } from './dskit';
+import { getSnap, setSnap } from '@/lib/snap';
 
 const dhakaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const addDays = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(t); };
@@ -28,12 +29,13 @@ function FRow({ label, value, color }) {
 }
 
 export default function Reports() {
-  const [data, setData] = useState({ txs: [], rooms: [], res: [], closes: [] });
-  const [loading, setLoading] = useState(true);
+  const _cached = getSnap('reports');
+  const [data, setData] = useState(_cached || { txs: [], rooms: [], res: [], closes: [] });
+  const [loading, setLoading] = useState(!_cached);
   const [period, setPeriod] = useState('daily');
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    if (!getSnap('reports')) setLoading(true); // revisits refresh silently behind cached data
     try {
       const supabase = getSupabaseClient();
       const [{ data: txs }, { data: rooms }, { data: res }, { data: closes }] = await Promise.all([
@@ -42,7 +44,8 @@ export default function Reports() {
         supabase.from('reservations').select('id, guest_name, room_ids, room_number, check_in, check_out, total_amount, discount_amount, discount, paid_amount, status'),
         supabase.from('night_audit_log').select('audit_date, closed_at, closed_by, total_checkins, total_checkouts, total_collections, carried_over_dues').order('closed_at', { ascending: false }),
       ]);
-      setData({ txs: txs || [], rooms: rooms || [], res: res || [], closes: closes || [] });
+      const next = { txs: txs || [], rooms: rooms || [], res: res || [], closes: closes || [] };
+      setData(next); setSnap('reports', next);
     } catch (e) { console.error('[Reports] fetch error:', e); } finally { setLoading(false); }
   }, []);
 
