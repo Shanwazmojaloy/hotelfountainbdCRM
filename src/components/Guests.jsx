@@ -1,16 +1,13 @@
 'use client';
 
-// Guests — ported from legacy crm-src.jsx GuestsPage (display).
-// Searchable, paginated guest list with per-guest outstanding balance.
-// View / Add guest open the legacy app for now (those modals port later). No writes.
+// Guests & CRM — Hotel Fountain Design System table (avatar + contact + outstanding balance).
+// Searchable, paginated. Add/Edit via GuestFormModal. Live data.
 import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import GuestFormModal from './GuestFormModal';
+import { Card, Table, Badge, Avatar, TD, MONO, C, bdt } from './dskit';
 
 const PAGE_SIZE = 50;
-const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
-const initials = (name) =>
-  String(name || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase() || '?';
 
 export default function Guests() {
   const [guests, setGuests] = useState([]);
@@ -40,7 +37,6 @@ export default function Guests() {
     }
   }
 
-  // outstanding balance per guest (by id, name fallback) — mirrors legacy
   const bal = useMemo(() => {
     const byId = {}, byName = {};
     const due = (r) => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
@@ -63,98 +59,60 @@ export default function Guests() {
   let filtered = guests;
   if (search) {
     const q = search.toLowerCase();
-    filtered = filtered.filter((g) =>
-      g.name?.toLowerCase().includes(q) || g.phone?.includes(q) || g.email?.toLowerCase().includes(q));
+    filtered = filtered.filter((g) => g.name?.toLowerCase().includes(q) || g.phone?.includes(q) || g.email?.toLowerCase().includes(q));
   }
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageList = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div>
-      <h1 className="text-3xl mb-8 pb-6 iv-divider">Guests &amp; CRM</h1>
-
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <input
-          className="iv-input"
-          placeholder="Search name, phone, email…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: '8px 14px', minWidth: 280, border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8' }}
-        />
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <input className="iv-input" placeholder="Search name, phone, email…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '8px 12px', minWidth: 280, maxWidth: 340 }} />
         <div className="flex items-center gap-3">
-          <span className="iv-badge">{filtered.length}{search ? ' found' : ` of ${guests.length}`}</span>
-          <button className="iv-btn" onClick={() => setModalGuest(null)}>+ Add Guest</button>
+          <Badge tone="gold">{filtered.length}{search ? ' found' : ` of ${guests.length}`}</Badge>
+          <button className="iv-btn" onClick={() => setModalGuest(null)} style={{ fontSize: 9.5, padding: '8px 14px' }}>+ Add Guest</button>
         </div>
       </div>
 
-      <div className="iv-card">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ color: '#8A7F6E', borderBottom: '1px solid #EAE3D6' }}>
-                <th className="text-left py-2 font-normal">Name</th>
-                <th className="text-left py-2 font-normal">Phone</th>
-                <th className="text-left py-2 font-normal">Email</th>
-                <th className="text-left py-2 font-normal">ID</th>
-                <th className="text-left py-2 font-normal">City</th>
-                <th className="text-left py-2 font-normal">Balance</th>
-                <th className="text-left py-2 font-normal">VIP</th>
-                <th></th>
+      <Card bodyStyle={{ padding: 0 }}>
+        <Table head={['Name', 'Phone', 'Email', 'ID', 'City', 'Balance', 'VIP', '']}>
+          {loading && <tr><td colSpan={8} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>Loading guests…</td></tr>}
+          {!loading && pageList.length === 0 && <tr><td colSpan={8} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No guests found.</td></tr>}
+          {pageList.map((g) => {
+            const b = guestBal(g);
+            return (
+              <tr key={g.id} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+                <td style={{ ...TD, whiteSpace: 'nowrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Avatar name={g.name} size={26} tone={g.vip ? 'gold' : undefined} />{g.name}</div>
+                </td>
+                <td style={{ ...TD, ...MONO, color: C.ink3 }}>{g.phone || '—'}</td>
+                <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>{g.email || '—'}</td>
+                <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>{g.id_type ? `${g.id_type}: ${g.id_number || ''}` : (g.id_card || '—')}</td>
+                <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>{g.city || '—'}</td>
+                <td style={{ ...TD, ...MONO, color: b > 0 ? C.rose : C.grn }}>{b > 0 ? bdt(b) : '—'}</td>
+                <td style={TD}>{g.vip ? <Badge tone="gold">VIP</Badge> : null}</td>
+                <td style={TD}><button className="iv-btn iv-btn--ghost" style={{ fontSize: 9.5, padding: '4px 11px' }} onClick={() => setModalGuest(g)}>Edit</button></td>
               </tr>
-            </thead>
-            <tbody>
-              {loading && <tr><td colSpan={8} className="py-3 iv-stat__sub">Loading guests…</td></tr>}
-              {!loading && pageList.length === 0 && <tr><td colSpan={8} className="py-3 iv-stat__sub">No guests found.</td></tr>}
-              {pageList.map((g) => {
-                const b = guestBal(g);
-                return (
-                  <tr key={g.id} style={{ borderBottom: '1px solid #F0EBE0' }}>
-                    <td className="py-2">
-                      <span className="inline-flex items-center gap-2">
-                        <span className="inline-flex items-center justify-center" style={{ width: 26, height: 26, borderRadius: 99,
-                          background: 'rgba(139,105,20,0.12)', color: '#8B6914', fontSize: 11, fontWeight: 700 }}>{initials(g.name)}</span>
-                        <span style={{ color: 'var(--iv-ink)' }}>{g.name}</span>
-                      </span>
-                    </td>
-                    <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{g.phone || '—'}</td>
-                    <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{g.email || '—'}</td>
-                    <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{g.id_type ? `${g.id_type}: ${g.id_number || ''}` : (g.id_card || '—')}</td>
-                    <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{g.city || '—'}</td>
-                    <td className="py-2 text-xs iv-mono" style={{ color: b > 0 ? '#C0566A' : '#3C6B4A' }}>{bdt(b)}</td>
-                    <td className="py-2">{g.vip ? <span className="iv-badge">VIP</span> : null}</td>
-                    <td className="py-2">
-                      <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 12px', fontSize: 12 }}
-                        onClick={() => setModalGuest(g)}>Edit</button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            );
+          })}
+        </Table>
+      </Card>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between flex-wrap gap-3 mt-4">
-          <div className="text-xs" style={{ color: '#8A7F6E' }}>
+          <div style={{ fontSize: 11, color: C.ink3 }}>
             Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} guests
           </div>
           <div className="flex items-center gap-2">
-            <button className="iv-btn iv-btn--ghost" disabled={page === 1} style={{ padding: '4px 12px', opacity: page === 1 ? 0.4 : 1 }}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
-            <span className="text-xs iv-mono" style={{ color: '#5C5347' }}>Page {page} / {totalPages}</span>
-            <button className="iv-btn iv-btn--ghost" disabled={page === totalPages} style={{ padding: '4px 12px', opacity: page === totalPages ? 0.4 : 1 }}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
+            <button className="iv-btn iv-btn--ghost" disabled={page === 1} style={{ fontSize: 9.5, padding: '5px 12px', opacity: page === 1 ? 0.4 : 1 }} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+            <span className="iv-mono" style={{ fontSize: 11, color: C.ink2 }}>Page {page} / {totalPages}</span>
+            <button className="iv-btn iv-btn--ghost" disabled={page === totalPages} style={{ fontSize: 9.5, padding: '5px 12px', opacity: page === totalPages ? 0.4 : 1 }} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
           </div>
         </div>
       )}
 
       {modalGuest !== undefined && (
-        <GuestFormModal
-          guest={modalGuest}
-          onClose={() => setModalGuest(undefined)}
-          onSaved={fetchData}
-        />
+        <GuestFormModal guest={modalGuest} onClose={() => setModalGuest(undefined)} onSaved={fetchData} />
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import StaffFormModal from './StaffFormModal';
 import WorkflowMonitor from './WorkflowMonitor';
+import { Tabs } from './dskit';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
@@ -83,19 +84,13 @@ export default function Settings() {
     } catch (e) { setMsg('Save failed: ' + (e.message || String(e))); } finally { setSaving(false); }
   }
 
-  const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
-  const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
-  const TABS = [['hotel', 'Hotel Info'], ['users', 'Staff'], ['security', 'Security'], ['system', 'System']];
+  const field = { padding: '9px 12px', border: '1px solid var(--iv-border)', borderRadius: 0, background: '#fff', width: '100%', fontSize: 13, color: 'var(--iv-ink)' };
+  const lbl = { fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--iv-ink3)', fontWeight: 600, marginBottom: 5, display: 'block' };
+  const TABS = [{ id: 'hotel', label: 'Hotel Info' }, { id: 'users', label: 'Staff' }, { id: 'security', label: 'Security' }, { id: 'system', label: 'System' }];
 
   return (
-    <div style={{ maxWidth: 760 }}>
-      <h1 className="text-3xl mb-8 pb-6 iv-divider">Settings</h1>
-
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {TABS.map(([v, l]) => (
-          <button key={v} onClick={() => setTab(v)} className={tab === v ? 'iv-btn' : 'iv-btn iv-btn--ghost'} style={{ padding: '6px 14px', fontSize: 13 }}>{l}</button>
-        ))}
-      </div>
+    <div style={{ maxWidth: 820 }}>
+      <Tabs tabs={TABS} value={tab} onChange={setTab} />
 
       {tab === 'hotel' && (
         <div className="iv-card">
