@@ -7,6 +7,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import RecordPaymentModal from './RecordPaymentModal';
+import { printDayReport } from '@/lib/printDocs';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const initials = (name) =>
@@ -63,7 +64,11 @@ export default function Billing() {
 
   return (
     <div>
-      <h1 className="text-3xl mb-8 pb-6 iv-divider">Billing &amp; Invoices</h1>
+      <div className="flex items-center justify-between mb-8 pb-6 iv-divider">
+        <h1 className="text-3xl">Billing &amp; Invoices</h1>
+        <button className="iv-btn iv-btn--ghost" disabled={loading}
+          onClick={() => printDayReport({ dateLabel: today, collected, dues, reservations })}>📥 Download Report</button>
+      </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
