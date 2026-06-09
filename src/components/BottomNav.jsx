@@ -14,15 +14,17 @@ function Icon({ name }) {
     dollar: <><line x1="12" y1="2.5" x2="12" y2="21.5" /><path d="M16.5 6.5C16 5 14.5 4 12.5 4h-1C9 4 7.5 5.3 7.5 7s1.5 3 4 3h1c2.5 0 4 1.3 4 3s-1.5 3-4 3h-1c-2 0-3.5-1-4-2.5" /></>,
     trend: <><path d="M3 7l6 6 4-4 8 8" /><path d="M21 17v-4h-4" /></>,
     users: <><circle cx="9" cy="8" r="3.2" /><path d="M3.5 20c0-3.2 2.7-5 5.5-5s5.5 1.8 5.5 5" /><path d="M16 5.2a3.2 3.2 0 0 1 0 6" /><path d="M17 15c2.2.4 3.5 2 3.5 4" /></>,
+    calendar: <><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9h18M8 2.5v4M16 2.5v4" /></>,
+    bed: <><path d="M3 7v11M3 13h18v5M21 18v-4a3 3 0 0 0-3-3h-6v6" /><circle cx="7" cy="10.5" r="1.6" /></>,
   };
   return <svg {...p} aria-hidden="true">{paths[name]}</svg>;
 }
 
 const navItems = [
   { href: '/crm', icon: 'home', label: 'Dashboard' },
-  { href: '/billing', icon: 'dollar', label: 'Billing' },
-  { href: '/churn', icon: 'trend', label: 'Follow-up' },
-  { href: '/leads', icon: 'users', label: 'Leads' },
+  { href: '/crm/reservations', icon: 'calendar', label: 'Bookings' },
+  { href: '/crm/rooms', icon: 'bed', label: 'Rooms' },
+  { href: '/crm/billing', icon: 'dollar', label: 'Billing' },
 ];
 
 export default function BottomNav() {

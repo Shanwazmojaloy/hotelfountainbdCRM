@@ -1,0 +1,144 @@
+'use client';
+
+// RoomFolioModal — ported from legacy RoomModal. For an OCCUPIED room: shows the active
+// reservation, the full folio breakdown (room charge + extras, prorated discount/paid for
+// multi-room stays), and hosts Add Charge / Collect Payment (idempotent) / Check Out.
+// Reuses the money-grade RecordPaymentModal + CheckActionModal + AddChargeModal.
+import { useState, useEffect } from 'react';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { recalcResTotal } from '@/lib/recalcResTotal';
+import AddChargeModal from './AddChargeModal';
+import RecordPaymentModal from './RecordPaymentModal';
+import CheckActionModal from './CheckActionModal';
+
+const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
+const ADMIN_RE = /receivable|payment|settlement|advance|refund/i;
+const nightsCount = (ci, co) => { if (!ci || !co) return 0; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : 0; };
+const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch { return String(d).slice(0, 10); } };
+
+export default function RoomFolioModal({ room, reservations, rooms, guests, onClose, onSaved }) {
+  const [folios, setFolios] = useState([]);
+  const [fLoad, setFLoad] = useState(true);
+  const [showCharge, setShowCharge] = useState(false);
+  const [showPay, setShowPay] = useState(false);
+  const [showCO, setShowCO] = useState(false);
+
+  const activeRes = (reservations || []).find((r) => (r.room_ids || []).includes(room.room_number) && r.status === 'CHECKED_IN');
+  const guest = activeRes ? (guests || []).find((g) => String(g.id) === String((activeRes.guest_ids || [])[0] || '')) : null;
+  const guestName = guest?.name || activeRes?.guest_name || 'Guest';
+
+  useEffect(() => {
+    setFolios([]); setFLoad(true);
+    if (!activeRes?.id) { setFLoad(false); return; }
+    let cancelled = false;
+    const supabase = getSupabaseClient();
+    supabase.from('folios').select('*').eq('reservation_id', activeRes.id).order('created_at')
+      .then(({ data }) => { if (!cancelled) { setFolios((data || []).filter((x) => String(x.reservation_id) === String(activeRes.id))); setFLoad(false); } });
+    return () => { cancelled = true; };
+  }, [activeRes?.id]);
+
+  const roomRate = +room.price || 0;
+  const nights = activeRes ? nightsCount(activeRes.check_in, activeRes.check_out) : 0;
+  const roomCharge = roomRate * nights;
+  const chargeFolios = folios.filter((f) => !ADMIN_RE.test(String(f.category || '') + ' ' + String(f.description || '')));
+  const extras = chargeFolios.reduce((a, f) => a + (+f.amount || 0), 0);
+  const sub = roomCharge + extras;
+  const totalDiscount = +(activeRes?.discount_amount || activeRes?.discount || 0);
+  const resRoomIds = (activeRes?.room_ids || []).filter(Boolean);
+  const isMulti = resRoomIds.length > 1;
+  const resRatesSum = isMulti ? resRoomIds.reduce((a, rn) => a + (+(rooms || []).find((r) => String(r.room_number) === String(rn))?.price || 0), 0) : roomRate;
+  const discount = isMulti && resRatesSum > 0 ? Math.round(totalDiscount * (roomRate / resRatesSum)) : totalDiscount;
+  const total = Math.max(0, sub - discount);
+  const totalPaid = +(activeRes?.paid_amount || 0);
+  const paid = isMulti && resRatesSum > 0 ? Math.round(totalPaid * (roomRate / resRatesSum)) : totalPaid;
+  const due = Math.max(0, total - paid);
+
+  async function deleteCharge(f) {
+    if (!window.confirm('Delete folio charge?')) return;
+    try {
+      const supabase = getSupabaseClient();
+      await supabase.from('folios').delete().eq('id', f.id);
+      setFolios((p) => p.filter((x) => x.id !== f.id));
+      if (activeRes?.id) await recalcResTotal(activeRes.id);
+      onSaved?.();
+    } catch (e) { alert(e.message || String(e)); }
+  }
+
+  const lblS = { fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A7F6E' };
+  const row = { display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #F0EBE0', fontSize: 13 };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.5)', zIndex: 90,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="flex items-start justify-between mb-4 pb-4 iv-divider">
+          <div>
+            <h3 className="text-xl">Room {room.room_number} <span style={{ color: '#8A7F6E', fontWeight: 400 }}>· {room.category || 'Standard'}</span></h3>
+            <div style={lblS} className="mt-1">{bdt(roomRate)}/night · {room.status}</div>
+          </div>
+          {activeRes && <div style={{ textAlign: 'right' }}><div style={lblS}>Balance Due</div>
+            <div className="iv-mono" style={{ fontSize: 22, fontWeight: 700, color: due > 0 ? '#C0566A' : '#3C6B4A' }}>{bdt(due)}</div></div>}
+        </div>
+
+        {!activeRes && <div className="iv-stat__sub" style={{ padding: '12px 0' }}>No active (checked-in) reservation for this room.</div>}
+
+        {activeRes && (
+          <>
+            <div style={{ background: 'rgba(139,105,20,0.05)', border: '1px solid #EAE3D6', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>{guestName}</div>
+              <div style={lblS} className="mt-1">{fmtDate(activeRes.check_in)} → {fmtDate(activeRes.check_out)} · {nights} night{nights !== 1 ? 's' : ''}</div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={lblS} className="mb-2">Folio Charges</div>
+              {fLoad && <div className="iv-stat__sub">Loading folio…</div>}
+              {!fLoad && nights > 0 && (
+                <div style={row}><span>Room charge <span className="iv-badge" style={{ marginLeft: 6 }}>{nights}×{bdt(roomRate)}</span></span>
+                  <span className="iv-mono" style={{ color: '#8B6914' }}>{bdt(roomCharge)}</span></div>
+              )}
+              {chargeFolios.map((f) => (
+                <div key={f.id} style={row}>
+                  <span>{f.description} <span className="iv-badge" style={{ marginLeft: 6 }}>{f.category}</span></span>
+                  <span className="flex items-center gap-2"><span className="iv-mono" style={{ color: '#8B6914' }}>{bdt(f.amount)}</span>
+                    <button title="Delete charge" onClick={() => deleteCharge(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C0566A', fontSize: 15, lineHeight: 1 }}>×</button></span>
+                </div>
+              ))}
+              {!fLoad && chargeFolios.length === 0 && nights === 0 && <div className="iv-stat__sub">No charges.</div>}
+            </div>
+
+            <div style={{ background: 'rgba(139,105,20,0.04)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+              <div className="flex justify-between text-sm" style={{ color: '#8A7F6E', marginBottom: 3 }}><span>Subtotal</span><span className="iv-mono">{bdt(sub)}</span></div>
+              {discount > 0 && <div className="flex justify-between text-sm" style={{ color: '#3C6B4A', marginBottom: 3 }}><span>Discount{isMulti ? ' (prorated)' : ''}</span><span className="iv-mono">− {bdt(discount)}</span></div>}
+              <div className="flex justify-between text-sm" style={{ fontWeight: 600, marginBottom: 3 }}><span>Total</span><span className="iv-mono">{bdt(total)}</span></div>
+              <div className="flex justify-between text-sm" style={{ color: '#3C6B4A', marginBottom: 3 }}><span>Paid{isMulti ? ' (prorated)' : ''}</span><span className="iv-mono">− {bdt(paid)}</span></div>
+              <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 14, color: due > 0 ? '#C0566A' : '#3C6B4A', borderTop: '1px solid #EAE3D6', paddingTop: 6, marginTop: 3 }}><span>Balance Due</span><span className="iv-mono">{bdt(due)}</span></div>
+            </div>
+
+            <div className="flex gap-2 flex-wrap justify-end">
+              <button className="iv-btn iv-btn--ghost" onClick={() => setShowCharge(true)}>+ Add Charge</button>
+              <button className="iv-btn iv-btn--ghost" onClick={() => setShowPay(true)} disabled={due <= 0}>Collect Payment</button>
+              <button className="iv-btn" style={{ background: '#A23B4E' }} onClick={() => setShowCO(true)}>Check Out</button>
+            </div>
+          </>
+        )}
+
+        <div className="flex justify-end mt-4 pt-4 iv-divider">
+          <button className="iv-btn iv-btn--ghost" onClick={onClose}>Close</button>
+        </div>
+      </div>
+
+      {showCharge && activeRes && (
+        <AddChargeModal roomNo={room.room_number} resId={activeRes.id}
+          onClose={() => setShowCharge(false)} onDone={() => { onSaved?.(); }} />
+      )}
+      {showPay && activeRes && (
+        <RecordPaymentModal reservation={{ ...activeRes, total_amount: total + (isMulti ? 0 : 0), guest_name: guestName }}
+          onClose={() => setShowPay(false)} onSaved={() => { setShowPay(false); onSaved?.(); }} />
+      )}
+      {showCO && activeRes && (
+        <CheckActionModal reservation={{ ...activeRes, guest_name: guestName }} action="checkout"
+          onClose={() => setShowCO(false)} onSaved={() => { setShowCO(false); onSaved?.(); }} />
+      )}
+    </div>
+  );
+}

@@ -1,13 +1,14 @@
 'use client';
 
-// Rooms (Room Matrix) — ported from legacy crm-src.jsx RoomsPage (display).
-// Filters + status legend + room-card grid reading live `rooms`. Clicking a room
-// opens the folio in the legacy app for now (the RoomModal/billing flow ports later).
-// Add Room links to legacy too. No writes here.
+// Rooms (Room Matrix) — ported from legacy crm-src.jsx RoomsPage.
+// Filters + status legend + room-card grid reading live `rooms`. Clicking an OCCUPIED
+// room opens its folio (RoomFolioModal); other rooms open the status changer. Add Room
+// opens RoomFormModal. All writes go through the modal components.
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import RoomStatusModal from './RoomStatusModal';
 import RoomFormModal from './RoomFormModal';
+import RoomFolioModal from './RoomFolioModal';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
@@ -24,7 +25,10 @@ export default function Rooms() {
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [statusRoom, setStatusRoom] = useState(null);
+  const [folioRoom, setFolioRoom] = useState(null);
   const [showAddRoom, setShowAddRoom] = useState(false);
+  const [reservations, setReservations] = useState([]);
+  const [guests, setGuests] = useState([]);
 
   useEffect(() => { fetchRooms(); }, []);
 
@@ -32,11 +36,14 @@ export default function Rooms() {
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
-      const { data } = await supabase
-        .from('rooms')
-        .select('id, room_number, status, category, price')
-        .order('room_number', { ascending: true });
-      setRooms(data || []);
+      const [{ data: rm }, { data: res }, { data: g }] = await Promise.all([
+        supabase.from('rooms').select('id, room_number, status, category, price').order('room_number', { ascending: true }),
+        supabase.from('reservations').select('*').in('status', ['CHECKED_IN', 'RESERVED']).limit(5000),
+        supabase.from('guests').select('id, name').limit(5000),
+      ]);
+      setRooms(rm || []);
+      setReservations(res || []);
+      setGuests(g || []);
     } catch (e) {
       console.error('[Rooms] fetch error:', e);
     } finally {
@@ -76,7 +83,7 @@ export default function Rooms() {
             {v.label}
           </span>
         ))}
-        <span style={{ marginLeft: 2 }}>· Click a room to open its folio</span>
+        <span style={{ marginLeft: 2 }}>· Click an occupied room to open its folio</span>
       </div>
 
       {loading && <div className="iv-stat__sub">Loading rooms…</div>}
@@ -89,15 +96,14 @@ export default function Rooms() {
             <button
               key={room.id}
               onClick={() => {
-                if (room.status === 'OCCUPIED' || room.status === 'RESERVED') { window.location.href = '/crm.html'; }
+                if (room.status === 'OCCUPIED') { setFolioRoom(room); }
                 else { setStatusRoom(room); }
               }}
               className="iv-card iv-card--hover text-left relative"
               style={{ borderTop: `3px solid ${st.c}`, padding: '14px 16px' }}
             >
               {room.status === 'OCCUPIED' && (
-                <span className="absolute" style={{ top: 8, right: 8, fontSize: 8, background: 'rgba(56,132,180,0.15)',
-                  color: '#2E6A8E', borderRadius: 3, padding: '1px 6px' }}>FOLIO</span>
+                <span className="absolute" style={{ top: 8, right: 8, fontSize: 8, background: 'rgba(56,132,180,0.15)', color: '#2E6A8E', borderRadius: 3, padding: '1px 6px' }}>FOLIO</span>
               )}
               <div className="iv-mono" style={{ fontSize: 22, fontWeight: 700, color: '#2B2722' }}>{room.room_number}</div>
               <div className="inline-flex items-center gap-1.5 mt-1 mb-1">
@@ -113,6 +119,10 @@ export default function Rooms() {
 
       {statusRoom && (
         <RoomStatusModal room={statusRoom} onClose={() => setStatusRoom(null)} onSaved={fetchRooms} />
+      )}
+      {folioRoom && (
+        <RoomFolioModal room={folioRoom} reservations={reservations} rooms={rooms} guests={guests}
+          onClose={() => setFolioRoom(null)} onSaved={fetchRooms} />
       )}
       {showAddRoom && (
         <RoomFormModal existingRooms={rooms} onClose={() => setShowAddRoom(false)} onSaved={fetchRooms} />

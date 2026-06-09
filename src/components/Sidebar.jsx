@@ -14,16 +14,26 @@ function Icon({ name }) {
     trend: <><path d="M3 7l6 6 4-4 8 8" /><path d="M21 17v-4h-4" /></>,
     users: <><circle cx="9" cy="8" r="3.2" /><path d="M3.5 20c0-3.2 2.7-5 5.5-5s5.5 1.8 5.5 5" /><path d="M16 5.2a3.2 3.2 0 0 1 0 6" /><path d="M17 15c2.2.4 3.5 2 3.5 4" /></>,
     building: <><path d="M4 21V4h9v17" /><path d="M13 9h6v12" /><path d="M7.5 8h1M11 8h0.5M7.5 12h1M11 12h0.5M7.5 16h1M11 16h0.5" /></>,
+    calendar: <><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9h18M8 2.5v4M16 2.5v4" /></>,
+    bed: <><path d="M3 7v11M3 13h18v5M21 18v-4a3 3 0 0 0-3-3h-6v6" /><circle cx="7" cy="10.5" r="1.6" /></>,
+    sparkle: <><path d="M12 3l1.7 4.8L18.5 9.5l-4.8 1.7L12 16l-1.7-4.8L5.5 9.5l4.8-1.7z" /></>,
+    gear: <><circle cx="12" cy="12" r="3.2" /><path d="M19.4 13a7.7 7.7 0 0 0 0-2l1.9-1.4-1.9-3.3-2.2 1a7.7 7.7 0 0 0-1.7-1l-.3-2.4H9.8L9.5 3.3a7.7 7.7 0 0 0-1.7 1l-2.2-1L3.7 6.6 5.6 8a7.7 7.7 0 0 0 0 2l-1.9 1.4 1.9 3.3 2.2-1a7.7 7.7 0 0 0 1.7 1l.3 2.4h4.4l.3-2.4a7.7 7.7 0 0 0 1.7-1l2.2 1 1.9-3.3z" /></>,
   };
   return <svg {...p} aria-hidden="true">{paths[name]}</svg>;
 }
 
 const navItems = [
   { href: '/crm', icon: 'home', label: 'Dashboard' },
-  { href: '/billing', icon: 'dollar', label: 'Billing' },
-  { href: '/churn', icon: 'trend', label: 'Follow-up' },
+  { href: '/crm/reservations', icon: 'calendar', label: 'Reservations' },
+  { href: '/crm/rooms', icon: 'bed', label: 'Rooms' },
+  { href: '/crm/guests', icon: 'users', label: 'Guests' },
+  { href: '/crm/housekeeping', icon: 'sparkle', label: 'Housekeeping' },
+  { href: '/crm/billing', icon: 'dollar', label: 'Billing' },
+  { href: '/crm/reports', icon: 'trend', label: 'Reports' },
+  { href: '/crm/settings', icon: 'gear', label: 'Settings' },
   { href: '/leads', icon: 'users', label: 'Leads' },
   { href: '/suppliers', icon: 'building', label: 'Suppliers' },
+  { href: '/churn', icon: 'trend', label: 'Follow-up' },
 ];
 
 export default function Sidebar() {
