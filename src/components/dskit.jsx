@@ -11,14 +11,14 @@ export function Skeleton({ w = 88, h = 30, style }) {
 
 // CountUp — animates a numeric value (preserving ৳ / %, thousands separators) so KPIs
 // "tick up" like a professional dashboard. Non-numeric values (e.g. text) render as-is.
-export function CountUp({ value, duration = 650 }) {
+export function CountUp({ value, duration = 650, animateMount = false }) {
   const str = String(value ?? '');
   const target = typeof value === 'number' ? value : parseFloat(str.replace(/[^0-9.-]/g, ''));
   const finite = Number.isFinite(target);
   const prefix = finite ? (str.match(/^[^\d-]*/)?.[0] || '') : '';
   const suffix = finite ? (str.match(/[^\d.,-]*$/)?.[0] || '') : '';
-  const [disp, setDisp] = useState(finite ? target : value);
-  const prev = useRef(finite ? target : 0);
+  const [disp, setDisp] = useState(finite ? (animateMount ? 0 : target) : value);
+  const prev = useRef(animateMount ? 0 : (finite ? target : 0));
   useEffect(() => {
     if (!finite) { setDisp(value); return; }
     let raf; const from = Number.isFinite(prev.current) ? prev.current : 0; const start = performance.now();
@@ -116,12 +116,12 @@ export function Card({ title, titleAccent, accent = 'var(--iv-side)', action, bo
 // Underline tab bar (walnut active border). tabs: [{id,label,count?,color?}]
 export function Tabs({ tabs, value, onChange, style }) {
   return (
-    <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--iv-side)', marginBottom: 16, overflowX: 'auto', ...style }}>
+    <div className="iv-tabbar" style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--iv-side)', marginBottom: 16, overflowX: 'auto', ...style }}>
       {tabs.map((t) => {
         const on = value === t.id;
         return (
           <button key={t.id} onClick={() => onChange(t.id)} style={{ padding: '9px 16px', fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: on ? 700 : 500, color: on ? 'var(--iv-ink)' : (t.color || 'var(--iv-ink3)'), letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'pointer', background: on ? '#fff' : 'transparent', border: 'none', borderBottom: `2px solid ${on ? 'var(--iv-side)' : 'transparent'}`, marginBottom: -2, whiteSpace: 'nowrap' }}>
-            {t.label}{t.count != null ? ` (${t.count})` : ''}
+            {t.label}{t.count != null ? <span style={{ fontVariantNumeric: 'tabular-nums' }}> (<CountUp value={t.count} animateMount duration={520} />)</span> : ''}
           </button>
         );
       })}

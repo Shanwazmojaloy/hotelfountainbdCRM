@@ -8,7 +8,8 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 import NewReservationModal from './NewReservationModal';
 import CheckActionModal from './CheckActionModal';
 import ReservationEditModal from './ReservationEditModal';
-import { Tabs, Card, Table, Badge, Avatar, TD, MONO, HoverRow, C, bdt } from './dskit';
+import { Tabs, Card, Table, Badge, Avatar, Skeleton, TD, MONO, HoverRow, C, bdt } from './dskit';
+import { getSnap, setSnap } from '@/lib/snap';
 
 const fmtDate = (d) => {
   if (!d) return '—';
@@ -27,21 +28,22 @@ const ST_TONE = {
 const resBalance = (r) => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
 
 export default function Reservations() {
-  const [reservations, setReservations] = useState([]);
-  const [guestMap, setGuestMap] = useState({});
+  const _cached = getSnap('reservations');
+  const [reservations, setReservations] = useState(_cached?.reservations || []);
+  const [guestMap, setGuestMap] = useState(_cached?.guestMap || {});
   const [filter, setFilter] = useState('ALL');
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!_cached);
   const [showNew, setShowNew] = useState(false);
   const [checkAction, setCheckAction] = useState(null);
-  const [allRooms, setAllRooms] = useState([]);
-  const [allGuests, setAllGuests] = useState([]);
+  const [allRooms, setAllRooms] = useState(_cached?.allRooms || []);
+  const [allGuests, setAllGuests] = useState(_cached?.allGuests || []);
   const [editRes, setEditRes] = useState(null);
 
   useEffect(() => { fetchData(); }, []);
 
   async function fetchData() {
-    setLoading(true);
+    if (!getSnap('reservations')) setLoading(true); // revisits refresh silently behind cached rows
     try {
       const supabase = getSupabaseClient();
       const [{ data: r }, { data: g }, { data: rm }] = await Promise.all([
@@ -49,11 +51,12 @@ export default function Reservations() {
         supabase.from('guests').select('id, name').limit(5000),
         supabase.from('rooms').select('id, room_number, status, category, price').order('room_number'),
       ]);
+      const m = {}; (g || []).forEach((x) => { m[String(x.id)] = x.name; });
       setReservations(r || []);
       setAllRooms(rm || []);
       setAllGuests(g || []);
-      const m = {}; (g || []).forEach((x) => { m[String(x.id)] = x.name; });
       setGuestMap(m);
+      setSnap('reservations', { reservations: r || [], allRooms: rm || [], allGuests: g || [], guestMap: m });
     } catch (e) {
       console.error('[Reservations] fetch error:', e);
     } finally {
@@ -77,14 +80,17 @@ export default function Reservations() {
     return res;
   }, [reservations, guestMap, filter, search]);
 
+  // While loading we pass null (renders no count) instead of a misleading "(0)";
+  // once data lands the counts roll up from 0 via the Tabs CountUp.
+  const c = (n) => (loading ? null : n);
   const tabs = [
-    { id: 'ALL', label: 'All', count: reservations.length },
-    { id: 'CHECKED_IN', label: 'Checked In', count: counts.CHECKED_IN || 0 },
-    { id: 'RESERVED', label: 'Reserved', count: counts.RESERVED || 0 },
-    { id: 'PENDING', label: 'Pending', count: counts.PENDING || 0, color: C.amb },
-    { id: 'CHECKED_OUT', label: 'Checked Out', count: counts.CHECKED_OUT || 0 },
-    { id: 'DUE', label: 'Due', count: dueCount, color: C.rose },
-    { id: 'CANCELLED', label: 'Cancelled', count: counts.CANCELLED || 0 },
+    { id: 'ALL', label: 'All', count: c(reservations.length) },
+    { id: 'CHECKED_IN', label: 'Checked In', count: c(counts.CHECKED_IN || 0) },
+    { id: 'RESERVED', label: 'Reserved', count: c(counts.RESERVED || 0) },
+    { id: 'PENDING', label: 'Pending', count: c(counts.PENDING || 0), color: C.amb },
+    { id: 'CHECKED_OUT', label: 'Checked Out', count: c(counts.CHECKED_OUT || 0) },
+    { id: 'DUE', label: 'Due', count: c(dueCount), color: C.rose },
+    { id: 'CANCELLED', label: 'Cancelled', count: c(counts.CANCELLED || 0) },
   ];
 
   return (
@@ -101,7 +107,13 @@ export default function Reservations() {
 
       <Card bodyStyle={{ padding: 0 }}>
         <Table head={['Guest', 'Room', 'Check-In', 'Check-Out', 'Nights', 'Total', 'Paid', 'Balance', 'Status', '']}>
-          {loading && <tr><td colSpan={10} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>Loading reservations…</td></tr>}
+          {loading && Array.from({ length: 6 }).map((_, i) => (
+            <tr key={'sk' + i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+              {Array.from({ length: 10 }).map((_, j) => (
+                <td key={j} style={TD}><Skeleton w={j === 0 ? 130 : j === 9 ? 64 : 68} h={14} /></td>
+              ))}
+            </tr>
+          ))}
           {!loading && list.length === 0 && <tr><td colSpan={10} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No reservations for this filter.</td></tr>}
           {list.slice(0, 100).map((r) => {
             const gn = getGN(r);
