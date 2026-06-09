@@ -87,7 +87,7 @@ export default function Pipeline() {
               {!loading && leads.length === 0 && <tr><td colSpan={7} className="py-3 iv-stat__sub">No leads yet — run the Lead-Gen Swarm scout on the AI Agents page.</td></tr>}
               {leads.map((l) => (
                 <tr key={l.id} style={td}>
-                  <td className="py-2"><div style={{ color: '#2B2722', fontWeight: 500 }}>{l.full_name || '—'}</div><div className="iv-stat__sub">{l.title || ''}</div></td>
+                  <td className="py-2"><div style={{ color: 'var(--iv-ink)', fontWeight: 500 }}>{l.full_name || '—'}</div><div className="iv-stat__sub">{l.title || ''}</div></td>
                   <td className="py-2">{l.company_name || '—'}<div className="iv-stat__sub">{l.area || ''}</div></td>
                   <td className="py-2"><span className="iv-badge">{l.lead_type || '—'}</span></td>
                   <td className="py-2 iv-mono" style={{ color: (l.intent_score || 0) >= 80 ? '#3C6B4A' : '#8B6914' }}>{l.intent_score ?? '—'}</td>

@@ -102,13 +102,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
    Headings: Libre Baskerville · Body: DM Sans · Data: IBM Plex Mono
    ═══════════════════════════════════════════════════════════════════════════ */
 .crm-root {
-  --iv-bg:#F5F0E8; --iv-card:#FFFFFF; --iv-border:#EAE6DD;
-  --iv-ink:#2B2722; --iv-ink2:#5C5347; --iv-ink3:#8A847A;
-  --iv-gold:#8B6914; --iv-gold-light:#C8A96E;
-  --iv-side:#1C1510;
-  --iv-in-fg:#3F6A4B;  --iv-in-bg:#ECF4ED;  --iv-in-gl:rgba(63,106,75,.16);
-  --iv-due-fg:#8A6A1E; --iv-due-bg:#FBF4E2; --iv-due-gl:rgba(138,106,30,.18);
-  --iv-rose-fg:#8C2F1D; --iv-rose-bg:#FBEDE9; --iv-rose-gl:rgba(140,47,29,.18);
+  /* Dark "Secure Staff Portal" theme (matches the login). */
+  --iv-bg:#15110D; --iv-card:#1C1813; --iv-border:#332C22;
+  --iv-ink:#E8E0D2; --iv-ink2:#B7AC99; --iv-ink3:#9C8C72;
+  --iv-gold:#C5A059; --iv-gold-light:#D9C08A;
+  --iv-side:#100D0A;
+  --iv-in-fg:#6FB585;  --iv-in-bg:rgba(111,181,133,.12);  --iv-in-gl:rgba(111,181,133,.18);
+  --iv-due-fg:#D9A441; --iv-due-bg:rgba(217,164,65,.12); --iv-due-gl:rgba(217,164,65,.18);
+  --iv-rose-fg:#E58092; --iv-rose-bg:rgba(229,128,146,.12); --iv-rose-gl:rgba(229,128,146,.18);
   --iv-ease:cubic-bezier(0.4,0,0.2,1);
   --iv-head:'Libre Baskerville', Georgia, serif;
   --iv-body:'DM Sans', system-ui, sans-serif;
@@ -180,11 +181,20 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-label { display:block; font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--iv-ink3); margin-bottom:6px; }
 
 /* Chip */
-.crm-root .iv-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; background:#F5F0E8; color:var(--iv-ink2); border:1px solid var(--iv-border); }
+.crm-root .iv-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; background:rgba(197,160,89,.08); color:var(--iv-ink2); border:1px solid var(--iv-border); }
 
 /* Table */
 .crm-root .iv-table { width:100%; border-collapse:collapse; }
-.crm-root .iv-table thead th { font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--iv-ink3); text-align:left; padding:14px 20px; background:#F5F0E8; border-bottom:1px solid var(--iv-border); }
+.crm-root .iv-table thead th { font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--iv-ink3); text-align:left; padding:14px 20px; background:rgba(197,160,89,.05); border-bottom:1px solid var(--iv-border); }
 .crm-root .iv-table tbody td { padding:14px 20px; font-size:13px; color:var(--iv-ink); border-bottom:1px solid var(--iv-border); }
 .crm-root .iv-table tbody tr:last-child td { border-bottom:none; }
-.crm-root .iv-table tbody tr:hover { background:#FBF9F4; }
+.crm-root .iv-table tbody tr:hover { background:rgba(197,160,89,.04); }
+
+/* Dark-theme: force all form controls dark regardless of inline ivory styles. */
+.crm-root input, .crm-root select, .crm-root textarea { background:var(--iv-card) !important; color:var(--iv-ink) !important; border-color:var(--iv-border) !important; }
+.crm-root input::placeholder, .crm-root textarea::placeholder { color:var(--iv-ink3) !important; }
+.crm-root select option { background:var(--iv-side); color:var(--iv-ink); }
+.crm-root input[type="date"]::-webkit-calendar-picker-indicator,
+.crm-root input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(.7) sepia(1) saturate(1.5) hue-rotate(5deg); }
+/* Soften the bright "FOLIO"/badge chips and light inline backgrounds on dark */
+.crm-root .iv-btn--ghost { color:var(--iv-ink); }

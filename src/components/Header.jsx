@@ -40,7 +40,7 @@ export default function Header() {
     <div className="iv-topbar px-6 py-4 flex items-center justify-between mb-8">
       <div>
         <div className="iv-eyebrow mb-1">Dhaka Time</div>
-        <div className="iv-mono" style={{ fontSize: 22, fontWeight: 600, color: '#2B2722' }}>
+        <div className="iv-mono" style={{ fontSize: 22, fontWeight: 600, color: 'var(--iv-ink)' }}>
           {currentDate} | {clockStr}
         </div>
       </div>

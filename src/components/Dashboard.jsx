@@ -138,7 +138,7 @@ export default function Dashboard() {
             {activity.map((a, i) => (
               <div key={i} className={`iv-row ${a.kind === 'due' ? 'iv-row--due' : 'iv-row--in'}`}>
                 <div>
-                  <div className="iv-mono text-sm" style={{ color: '#2B2722' }}>{a.name}</div>
+                  <div className="iv-mono text-sm" style={{ color: 'var(--iv-ink)' }}>{a.name}</div>
                   <div className="text-xs mt-0.5" style={{ color: a.kind === 'due' ? '#8A6A1E' : '#5C5347' }}>{a.sub}</div>
                 </div>
                 <span className={`iv-badge ${a.kind === 'due' ? 'iv-badge--due' : 'iv-badge--in'}`}>

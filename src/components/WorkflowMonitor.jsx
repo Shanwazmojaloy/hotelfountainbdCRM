@@ -61,7 +61,7 @@ export default function WorkflowMonitor() {
           <div key={wf.id} className="flex items-center gap-3" style={{ padding: '8px 0', borderBottom: '1px solid #F0EBE0' }}>
             <span style={{ width: 8, height: 8, borderRadius: 99, flexShrink: 0, background: last ? (ok ? '#3C6B4A' : '#C0566A') : '#C9BFA8' }} />
             <div className="flex-1 min-w-0">
-              <div className="text-sm" style={{ color: '#2B2722' }}>{wf.label}</div>
+              <div className="text-sm" style={{ color: 'var(--iv-ink)' }}>{wf.label}</div>
               <div className="iv-stat__sub" style={{ display: 'flex', gap: 10 }}>
                 <span>🕐 {wf.time}</span>
                 {last && <span style={{ color: ok ? '#3C6B4A' : '#C0566A' }}>Last: {fmtTime(last.ran_at)}</span>}

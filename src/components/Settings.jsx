@@ -166,7 +166,7 @@ export default function Settings() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[['Database', 'mynwfkgksqqwlqowlscj'], ['Region', 'us-east-1 (N. Virginia)'], ['Tenant', TENANT.slice(0, 18) + '…'], ['Plan', 'Founder — Unlimited']].map(([l, v]) => (
               <div key={l} style={{ border: '1px solid #EAE3D6', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={lbl}>{l}</div><div className="iv-mono" style={{ fontSize: 12, color: '#2B2722' }}>{v}</div>
+                <div style={lbl}>{l}</div><div className="iv-mono" style={{ fontSize: 12, color: 'var(--iv-ink)' }}>{v}</div>
               </div>
             ))}
           </div>

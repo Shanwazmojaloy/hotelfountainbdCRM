@@ -135,7 +135,7 @@ export default function Reservations() {
                         <span className="inline-flex items-center justify-center" style={{ width: 24, height: 24, borderRadius: 99,
                           background: 'rgba(139,105,20,0.12)', color: '#8B6914', fontSize: 10, fontWeight: 700 }}>{initials(gn)}</span>
                         <button onClick={() => setEditRes(r)} title="Edit reservation"
-                          style={{ color: '#2B2722', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left',
+                          style={{ color: 'var(--iv-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left',
                             textDecoration: 'underline', textDecorationColor: '#E0D8C8', textUnderlineOffset: 2 }}>{gn}</button>
                       </span>
                     </td>

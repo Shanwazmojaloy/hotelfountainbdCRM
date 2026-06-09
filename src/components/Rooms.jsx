@@ -105,7 +105,7 @@ export default function Rooms() {
               {room.status === 'OCCUPIED' && (
                 <span className="absolute" style={{ top: 8, right: 8, fontSize: 8, background: 'rgba(56,132,180,0.15)', color: '#2E6A8E', borderRadius: 3, padding: '1px 6px' }}>FOLIO</span>
               )}
-              <div className="iv-mono" style={{ fontSize: 22, fontWeight: 700, color: '#2B2722' }}>{room.room_number}</div>
+              <div className="iv-mono" style={{ fontSize: 22, fontWeight: 700, color: 'var(--iv-ink)' }}>{room.room_number}</div>
               <div className="inline-flex items-center gap-1.5 mt-1 mb-1">
                 <span style={{ width: 8, height: 8, borderRadius: 99, background: st.c, display: 'inline-block' }} />
                 <span className="text-xs" style={{ color: st.c }}>{st.label}</span>

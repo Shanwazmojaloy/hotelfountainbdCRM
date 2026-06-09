@@ -107,7 +107,7 @@ export default function AIAgents() {
                 {Object.entries(analystRes.day_averages || {}).sort(([, a], [, b]) => b - a).map(([day, avg]) => (
                   <div key={day} style={{ border: '1px solid #EAE3D6', borderRadius: 8, padding: '8px 10px' }}>
                     <div style={lbl}>{day}</div>
-                    <div className="iv-mono" style={{ color: day === analystRes.lowest_day ? '#C0566A' : day === analystRes.highest_day ? '#3C6B4A' : '#2B2722' }}>{bdt(avg)}</div>
+                    <div className="iv-mono" style={{ color: day === analystRes.lowest_day ? '#C0566A' : day === analystRes.highest_day ? '#3C6B4A' : 'var(--iv-ink)' }}>{bdt(avg)}</div>
                   </div>
                 ))}
               </div>

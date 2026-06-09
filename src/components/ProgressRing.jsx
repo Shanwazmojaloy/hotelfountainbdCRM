@@ -47,7 +47,7 @@ export default function ProgressRing({
         style={{
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
           fontSize: size * 0.26,
-          color: '#2B2722',
+          color: 'var(--iv-ink)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >
