@@ -60,7 +60,7 @@ export default function Billing() {
   const outstanding = dues.reduce((a, r) => a + due(r), 0);
 
   const roomOf = (r) => (Array.isArray(r.room_ids) ? r.room_ids.join(', ') : (r.room_number || '—'));
-  const goPay = () => { window.location.href = '/crm.html'; };
+  const goPay = () => { window.location.href = '/crm/reservations'; };
 
   return (
     <div>

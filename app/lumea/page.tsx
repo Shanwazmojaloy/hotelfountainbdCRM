@@ -504,7 +504,7 @@ export default function LumeaLandingPage() {
         </div>
         <div className="footer-col">
           <a href="https://fountainbd.com" className="footer-link">Hotel Fountain ↗</a>
-          <a href="/crm.html" className="footer-link">Staff Portal</a>
+          <a href="/crm" className="footer-link">Staff Portal</a>
           <a href={WHATSAPP_URL} className="footer-link" target="_blank" rel="noopener noreferrer">WhatsApp</a>
         </div>
         <div className="footer-copy">
