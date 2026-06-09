@@ -5,6 +5,7 @@
 // View / Add guest open the legacy app for now (those modals port later). No writes.
 import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import GuestFormModal from './GuestFormModal';
 
 const PAGE_SIZE = 50;
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
@@ -17,6 +18,7 @@ export default function Guests() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [modalGuest, setModalGuest] = useState(undefined); // undefined=closed · null=add · object=edit
 
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { setPage(1); }, [search]);
@@ -81,7 +83,7 @@ export default function Guests() {
         />
         <div className="flex items-center gap-3">
           <span className="iv-badge">{filtered.length}{search ? ' found' : ` of ${guests.length}`}</span>
-          <button className="iv-btn" onClick={() => { window.location.href = '/crm.html'; }}>+ Add Guest</button>
+          <button className="iv-btn" onClick={() => setModalGuest(null)}>+ Add Guest</button>
         </div>
       </div>
 
@@ -122,7 +124,7 @@ export default function Guests() {
                     <td className="py-2">{g.vip ? <span className="iv-badge">VIP</span> : null}</td>
                     <td className="py-2">
                       <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 12px', fontSize: 12 }}
-                        onClick={() => { window.location.href = '/crm.html'; }}>View</button>
+                        onClick={() => setModalGuest(g)}>Edit</button>
                     </td>
                   </tr>
                 );
@@ -145,6 +147,14 @@ export default function Guests() {
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
           </div>
         </div>
+      )}
+
+      {modalGuest !== undefined && (
+        <GuestFormModal
+          guest={modalGuest}
+          onClose={() => setModalGuest(undefined)}
+          onSaved={fetchData}
+        />
       )}
     </div>
   );
