@@ -37,7 +37,7 @@ export default function RoomFormModal({ existingRooms = [], onClose, onSaved }) 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.45)', zIndex: 100,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 460 }}>
+      <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 460, maxHeight: '92vh', overflowY: 'auto' }}>
         <h3 className="text-xl mb-5 pb-4 iv-divider">Add New Room</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div><label style={lbl}>Room Number *</label><input style={field} value={f.room_number} onChange={set('room_number')} placeholder="e.g. 601" autoFocus /></div>
