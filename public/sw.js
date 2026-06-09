@@ -6,7 +6,10 @@
      - Cross-origin (Supabase, CDN, fonts) and /api/*: never intercepted.
      - Non-GET: never touched.
    Bump CACHE_VERSION to force a reinstall + purge of every old cache. */
-const CACHE_VERSION = 'lumea-v4';
+const CACHE_VERSION = 'lumea-v5';
+// respondWith must always resolve to a Response — never undefined (caused
+// "Failed to convert value to 'Response'" when an uncached fetch rejected).
+const swOffline = () => new Response('', { status: 504, statusText: 'Offline' });
 const PRECACHE = [
   '/manifest.webmanifest',
   '/icons/icon-192.png',
@@ -38,7 +41,7 @@ self.addEventListener('fetch', (event) => {
 
   // Document navigations → network-ONLY (always fresh shell). Offline: last-resort cache.
   if (req.mode === 'navigate' || req.destination === 'document') {
-    event.respondWith(fetch(req).catch(() => caches.match(req).then((m) => m || caches.match('/crm.html'))));
+    event.respondWith(fetch(req).catch(() => caches.match(req).then((m) => m || caches.match('/crm.html'))).then((res) => res || swOffline()));
     return;
   }
 
@@ -52,7 +55,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_VERSION).then((c) => c.put(req, copy)).catch(() => {});
         }
         return res;
-      }).catch(() => cached);
+      }).catch(() => cached || swOffline());
     })
   );
 });
