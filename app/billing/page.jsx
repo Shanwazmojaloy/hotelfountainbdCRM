@@ -6,6 +6,7 @@ import Layout from "@/components/Layout";
 import BillingCard from "@/components/BillingCard";
 import ProgressRing from "@/components/ProgressRing";
 import QueryProvider from "@/providers/QueryProvider";
+import { Tabs, C } from "@/components/dskit";
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
@@ -160,23 +161,21 @@ function BillingPageInner() {
 
   return (
     <Layout>
-      <h1 className="text-3xl mb-8 pb-6 iv-divider">Billing &amp; Invoices</h1>
-
       {/* Header Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-        <div className="iv-card iv-card--hover">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        <div className="iv-card iv-card--hover" style={{ borderTopColor: C.gold }}>
           <div className="iv-stat__lbl">Today Revenue</div>
           <div className="iv-stat__val">{bdt(stats.revenue)}</div>
           <div className="iv-stat__sub">Collected · {filter.toLowerCase()}</div>
         </div>
-        <div className="iv-card iv-card--hover flex items-center gap-5">
+        <div className="iv-card iv-card--hover flex items-center gap-5" style={{ borderTopColor: C.grn }}>
           <ProgressRing progress={stats.occupancy} size={64} color="#8B6914" />
           <div>
             <div className="iv-stat__lbl">Occupancy Rate</div>
             <div className="iv-stat__val">{stats.occupancy}%</div>
           </div>
         </div>
-        <div className="iv-card iv-card--hover">
+        <div className="iv-card iv-card--hover" style={{ borderTopColor: C.sky }}>
           <div className="iv-stat__lbl">Active Folios</div>
           <div className="iv-stat__val">{billingData.length}</div>
           <div className="iv-stat__sub">In selected period</div>
@@ -184,22 +183,8 @@ function BillingPageInner() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-1 p-1 mb-8" style={{ background: '#EDE8DF', borderRadius: 2, width: 'fit-content' }}>
-        {["TODAY", "WEEK", "MONTH"].map((tab) => (
-          <button
-            key={tab}
-            className="px-6 py-2 text-xs font-semibold tracking-wider uppercase transition-all"
-            style={
-              filter === tab
-                ? { background: '#8B6914', color: '#fff', borderRadius: 2 }
-                : { background: 'transparent', color: '#5C5347', borderRadius: 2 }
-            }
-            onClick={() => setFilter(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <Tabs value={filter} onChange={setFilter} tabs={[{ id: 'TODAY', label: 'Today' }, { id: 'WEEK', label: 'Week' }, { id: 'MONTH', label: 'Month' }]} />
+
 
       {/* Billing Cards / Table */}
       <div className="space-y-4">

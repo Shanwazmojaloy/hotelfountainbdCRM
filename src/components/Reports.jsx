@@ -64,8 +64,6 @@ export default function Reports() {
 
   return (
     <div>
-      <h1 className="text-3xl mb-8 pb-6 iv-divider">Reports & Analytics</h1>
-
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <div className="iv-card iv-card--hover">
@@ -98,7 +96,7 @@ export default function Reports() {
             {last14.map((d, i) => (
               <div key={i} className="flex-1 flex flex-col items-center justify-end" title={`${d.ds} · ${bdt(d.v)}`}>
                 <div style={{ width: '100%', height: `${Math.round((d.v / max14) * 110)}px`, minHeight: 2,
-                  background: 'rgba(139,105,20,0.45)', borderRadius: '3px 3px 0 0' }} />
+                  background: i === last14.length - 1 ? 'var(--iv-gold)' : 'var(--iv-side)' }} />
                 <div className="text-xs mt-1" style={{ color: '#8A7F6E' }}>{d.ds.slice(8)}</div>
               </div>
             ))}
@@ -118,7 +116,7 @@ export default function Reports() {
                 <span className="text-sm" style={{ color: 'var(--iv-ink)' }}>{cat}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs iv-mono" style={{ color: '#8B6914' }}>{bdt(rev)}</span>
-                  <div style={{ height: 5, width: Math.round((rev / topCatMax) * 70), background: 'rgba(139,105,20,0.4)', borderRadius: 3 }} />
+                  <div style={{ height: 5, width: Math.round((rev / topCatMax) * 70), background: 'var(--iv-side)' }} />
                 </div>
               </div>
             ))}
