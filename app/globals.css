@@ -172,3 +172,19 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-bottom-nav { position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; background:var(--iv-side); border-top:1px solid rgba(200,169,110,.18); }
 .crm-root .iv-bottom-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:10px 4px; color:rgba(238,228,210,.55); text-decoration:none; font-size:10px; font-weight:500; }
 .crm-root .iv-bottom-item.on { color:var(--iv-gold-light); }
+
+/* Form inputs / labels */
+.crm-root .iv-input { width:100%; background:var(--iv-card); border:1px solid var(--iv-border); border-radius:2px; padding:10px 12px; font-size:13px; color:var(--iv-ink); font-family:var(--iv-body); outline:none; transition:border-color .2s var(--iv-ease); }
+.crm-root .iv-input:focus { border-color:var(--iv-gold); }
+.crm-root .iv-input::placeholder { color:var(--iv-ink3); }
+.crm-root .iv-label { display:block; font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--iv-ink3); margin-bottom:6px; }
+
+/* Chip */
+.crm-root .iv-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; background:#F5F0E8; color:var(--iv-ink2); border:1px solid var(--iv-border); }
+
+/* Table */
+.crm-root .iv-table { width:100%; border-collapse:collapse; }
+.crm-root .iv-table thead th { font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--iv-ink3); text-align:left; padding:14px 20px; background:#F5F0E8; border-bottom:1px solid var(--iv-border); }
+.crm-root .iv-table tbody td { padding:14px 20px; font-size:13px; color:var(--iv-ink); border-bottom:1px solid var(--iv-border); }
+.crm-root .iv-table tbody tr:last-child td { border-bottom:none; }
+.crm-root .iv-table tbody tr:hover { background:#FBF9F4; }
