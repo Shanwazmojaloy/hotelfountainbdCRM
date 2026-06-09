@@ -80,6 +80,16 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
     }
     setErr(''); setSaving(true);
     try {
+      const _r = await fetch('/api/crm/reservation', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', id: res.id, status, paid_amount: paidNum, discount_amount: discountNum, notes, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), guest_name: gn }),
+      });
+      if (_r.status !== 401) {
+        const j = await _r.json().catch(() => ({}));
+        if (!_r.ok || j.error) throw new Error(j.error || 'Could not save reservation.');
+        onSaved?.(); onClose?.(); return;
+      }
+      // 401 transition fallback — direct multi-table write below (allowed until anon revoke).
       const supabase = getSupabaseClient();
       const newRoomNos = roomArr.filter(Boolean);
       const oldRoomNos = res.room_ids || [];

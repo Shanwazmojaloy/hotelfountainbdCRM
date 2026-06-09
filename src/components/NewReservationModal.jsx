@@ -81,9 +81,19 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
     if (blocked.length) { const c = conflicts[String(blocked[0])]; return setErr(`Room ${blocked.join(', ')} already booked ${shortDate(c.check_in)}→${shortDate(c.check_out)}.`); }
     setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
       const isCheckIn = f.stayType === 'CHECK_IN';
       const totalAmt = +f.total || autoTotal;
+      const _r = await fetch('/api/crm/reservation', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', guest_ids: [f.guestId], room_ids: sel, guest_name: f.guestName || null, check_in: f.checkIn, check_out: f.checkOut, status: isCheckIn ? 'CHECKED_IN' : 'RESERVED', total_amount: totalAmt, paid_amount: +f.paid || 0, discount_amount: +f.discount || 0, payment_method: f.method, special_requests: f.notes || null, on_duty_officer: f.officer || null, stay_type: f.stayType, fiscal_day: todayStr(), idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null) }),
+      });
+      if (_r.status !== 401) {
+        const j = await _r.json().catch(() => ({}));
+        if (!_r.ok || j.error) throw new Error(j.error || 'Could not create reservation.');
+        onSaved?.(); onClose?.(); return;
+      }
+      // 401 transition fallback — direct write below (allowed until anon revoke).
+      const supabase = getSupabaseClient();
       const { data: newRes, error: resErr } = await supabase.from('reservations').insert({
         guest_ids: [f.guestId], room_ids: sel, guest_name: f.guestName || null,
         check_in: f.checkIn, check_out: f.checkOut, status: isCheckIn ? 'CHECKED_IN' : 'RESERVED',

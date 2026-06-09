@@ -57,10 +57,16 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
   async function deleteCharge(f) {
     if (!window.confirm('Delete folio charge?')) return;
     try {
-      const supabase = getSupabaseClient();
-      await supabase.from('folios').delete().eq('id', f.id);
+      const r = await fetch('/api/crm/folio', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: f.id, reservation_id: activeRes?.id }),
+      });
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        await supabase.from('folios').delete().eq('id', f.id);
+        if (activeRes?.id) await recalcResTotal(activeRes.id);
+      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not delete charge.'); }
       setFolios((p) => p.filter((x) => x.id !== f.id));
-      if (activeRes?.id) await recalcResTotal(activeRes.id);
       onSaved?.();
     } catch (e) { alert(e.message || String(e)); }
   }

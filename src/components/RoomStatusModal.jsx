@@ -21,9 +21,15 @@ export default function RoomStatusModal({ room, onClose, onSaved }) {
   async function save() {
     setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from('rooms').update({ status }).eq('id', room.id);
-      if (error) throw error;
+      const r = await fetch('/api/crm/room', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', id: room.id, status }),
+      });
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.from('rooms').update({ status }).eq('id', room.id);
+        if (error) throw error;
+      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not update status.'); }
       onSaved?.();
       onClose?.();
     } catch (e) {

@@ -22,12 +22,16 @@ export default function AddChargeModal({ roomNo, resId, onClose, onDone }) {
     if (!resId) return setErr('No active reservation — cannot add charge.');
     setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from('folios').insert({
-        room_number: roomNo, reservation_id: resId, description: desc || cat, category: cat, amount: a, tenant_id: TENANT,
+      const r = await fetch('/api/crm/folio', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', room_number: roomNo, reservation_id: resId, description: desc || cat, category: cat, amount: a }),
       });
-      if (error) throw error;
-      await recalcResTotal(resId); // non-incremental canonical recompute
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.from('folios').insert({ room_number: roomNo, reservation_id: resId, description: desc || cat, category: cat, amount: a, tenant_id: TENANT });
+        if (error) throw error;
+        await recalcResTotal(resId); // non-incremental canonical recompute
+      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not add charge.'); }
       onDone?.();
       onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }

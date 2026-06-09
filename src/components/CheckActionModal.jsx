@@ -20,14 +20,18 @@ export default function CheckActionModal({ reservation, action, onClose, onSaved
   async function go() {
     setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      const newStatus = isOut ? 'CHECKED_OUT' : 'CHECKED_IN';
-      const roomStatus = isOut ? 'DIRTY' : 'OCCUPIED';
-      const { error: rErr } = await supabase.from('reservations').update({ status: newStatus }).eq('id', r.id);
-      if (rErr) throw rErr;
-      for (const rn of roomNos) {
-        await supabase.from('rooms').update({ status: roomStatus }).eq('room_number', String(rn));
-      }
+      const resp = await fetch('/api/crm/check', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: isOut ? 'checkout' : 'checkin', reservation_id: r.id }),
+      });
+      if (resp.status === 401) {
+        const supabase = getSupabaseClient();
+        const newStatus = isOut ? 'CHECKED_OUT' : 'CHECKED_IN';
+        const roomStatus = isOut ? 'DIRTY' : 'OCCUPIED';
+        const { error: rErr } = await supabase.from('reservations').update({ status: newStatus }).eq('id', r.id);
+        if (rErr) throw rErr;
+        for (const rn of roomNos) { await supabase.from('rooms').update({ status: roomStatus }).eq('room_number', String(rn)); }
+      } else { const j = await resp.json().catch(() => ({})); if (!resp.ok || j.error) throw new Error(j.error || 'Could not complete.'); }
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
