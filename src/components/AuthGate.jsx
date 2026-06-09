@@ -74,7 +74,7 @@ export default function AuthGate({ children }) {
           {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
           <button type="submit" className="iv-btn" style={{ width: '100%', padding: '11px' }} disabled={busy}>{busy ? 'Signing in…' : 'Sign In'}</button>
           <div className="iv-stat__sub mt-4" style={{ textAlign: 'center' }}>
-            Need to activate your account? <a href="/crm.html" style={{ color: '#8B6914' }}>Staff portal →</a>
+            New staff? Ask the owner to set up your account in Settings → Staff.
           </div>
         </form>
       </div>
