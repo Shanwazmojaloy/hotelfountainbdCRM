@@ -6,6 +6,7 @@
 // Actual payment recording routes to the main /crm.html (proven money path). No writes here.
 import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import RecordPaymentModal from './RecordPaymentModal';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const initials = (name) =>
@@ -20,6 +21,7 @@ export default function Billing() {
   const [reservations, setReservations] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [payRes, setPayRes] = useState(null);
   const today = getDhakaDate();
 
   useEffect(() => { fetchData(); }, []);
@@ -114,7 +116,7 @@ export default function Billing() {
                   <td className="py-2 text-xs iv-mono" style={{ color: '#3C6B4A' }}>{bdt(r.paid_amount)}</td>
                   <td className="py-2 text-xs iv-mono" style={{ color: '#C0566A' }}>{bdt(due(r))}</td>
                   <td className="py-2">
-                    <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 12px', fontSize: 12 }} onClick={goPay}>Collect</button>
+                    <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 12px', fontSize: 12 }} onClick={() => setPayRes(r)}>Collect</button>
                   </td>
                 </tr>
               ))}
@@ -149,6 +151,10 @@ export default function Billing() {
           </table>
         </div>
       </div>
+
+      {payRes && (
+        <RecordPaymentModal reservation={payRes} onClose={() => setPayRes(null)} onSaved={fetchData} />
+      )}
     </div>
   );
 }
