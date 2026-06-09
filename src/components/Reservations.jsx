@@ -5,6 +5,8 @@
 // legacy app for now (the big ReservationDetail / NewReservation modals port later). No writes.
 import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import NewReservationModal from './NewReservationModal';
+import CheckActionModal from './CheckActionModal';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const initials = (name) =>
@@ -40,6 +42,9 @@ export default function Reservations() {
   const [filter, setFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showNew, setShowNew] = useState(false);
+  const [checkAction, setCheckAction] = useState(null); // { reservation, action }
+  const [allRooms, setAllRooms] = useState([]);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -47,11 +52,13 @@ export default function Reservations() {
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
-      const [{ data: r }, { data: g }] = await Promise.all([
+      const [{ data: r }, { data: g }, { data: rm }] = await Promise.all([
         supabase.from('reservations').select('*').order('check_in', { ascending: false }).limit(5000),
         supabase.from('guests').select('id, name').limit(5000),
+        supabase.from('rooms').select('id, room_number, status, category, price').order('room_number'),
       ]);
       setReservations(r || []);
+      setAllRooms(rm || []);
       const m = {}; (g || []).forEach((x) => { m[String(x.id)] = x.name; });
       setGuestMap(m);
     } catch (e) {
@@ -96,7 +103,7 @@ export default function Reservations() {
         <div className="flex items-center gap-2">
           <input className="iv-input" placeholder="Search guest, room…" value={search} onChange={(e) => setSearch(e.target.value)}
             style={{ padding: '8px 14px', minWidth: 200, border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8' }} />
-          <button className="iv-btn" onClick={() => { window.location.href = '/crm.html'; }}>+ New</button>
+          <button className="iv-btn" onClick={() => setShowNew(true)}>+ New</button>
         </div>
       </div>
 
@@ -136,8 +143,16 @@ export default function Reservations() {
                     <td className="py-2 text-xs iv-mono" style={{ color: b > 0 ? '#C0566A' : '#3C6B4A' }}>{bdt(b)}</td>
                     <td className="py-2"><Status s={r.status} /></td>
                     <td className="py-2">
-                      <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 12px', fontSize: 12 }}
-                        onClick={() => { window.location.href = '/crm.html'; }}>View</button>
+                      {r.status === 'RESERVED' ? (
+                        <button className="iv-btn" style={{ padding: '3px 12px', fontSize: 12 }}
+                          onClick={() => setCheckAction({ reservation: r, action: 'checkin' })}>Check In</button>
+                      ) : r.status === 'CHECKED_IN' ? (
+                        <button className="iv-btn" style={{ padding: '3px 12px', fontSize: 12 }}
+                          onClick={() => setCheckAction({ reservation: r, action: 'checkout' })}>Check Out</button>
+                      ) : (
+                        <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 12px', fontSize: 12 }}
+                          onClick={() => { window.location.href = '/crm.html'; }}>View</button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -146,6 +161,18 @@ export default function Reservations() {
           </table>
         </div>
       </div>
+
+      {showNew && (
+        <NewReservationModal rooms={allRooms} onClose={() => setShowNew(false)} onSaved={fetchData} />
+      )}
+      {checkAction && (
+        <CheckActionModal
+          reservation={checkAction.reservation}
+          action={checkAction.action}
+          onClose={() => setCheckAction(null)}
+          onSaved={fetchData}
+        />
+      )}
     </div>
   );
 }
