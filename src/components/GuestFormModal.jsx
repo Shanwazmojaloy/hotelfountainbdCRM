@@ -51,6 +51,23 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
     }
   }
 
+  async function doDelete() {
+    if (!isEdit) return;
+    if (!window.confirm(`Delete guest "${guest.name}"? This cannot be undone.`)) return;
+    setErr(''); setSaving(true);
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.from('guests').delete().eq('id', guest.id);
+      if (error) {
+        if (/23503|foreign key|violates/i.test(error.message || '')) {
+          throw new Error('Cannot delete — this guest has billing, ledger or payment history. Remove or reassign those first.');
+        }
+        throw error;
+      }
+      onSaved?.(); onClose?.();
+    } catch (e) { setErr(e.message || String(e)); setSaving(false); }
+  }
+
   const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
   const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
 
@@ -85,9 +102,19 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
 
         {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
 
-        <div className="flex justify-end gap-3">
-          <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : (isEdit ? 'Save Changes' : 'Add Guest')}</button>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            {isEdit && (
+              <button onClick={doDelete} disabled={saving}
+                style={{ padding: '8px 14px', fontSize: 13, color: '#C0566A', background: 'transparent', border: '1px solid rgba(192,86,106,0.4)', borderRadius: 8 }}>
+                Delete
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
+            <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : (isEdit ? 'Save Changes' : 'Add Guest')}</button>
+          </div>
         </div>
       </div>
     </div>
