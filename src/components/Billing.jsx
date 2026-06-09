@@ -1,28 +1,38 @@
 'use client';
 
-// Billing — ported from legacy crm-src.jsx BillingPage (overview / read-only).
-// Shows today's collected revenue, outstanding dues, and today's collections.
-// Canonical due = max(0, total - discount - paid) (owner-confirmed source of truth).
-// Actual payment recording routes to the main /crm.html (proven money path). No writes here.
+// Billing & Invoices — Hotel Fountain Design System master-detail (matches the mockup).
+// Left: folio search + status chips + selected Invoice card (Record Payment / Download).
+// Right: Today's Collections + Payment Methods. Real data + idempotent RecordPaymentModal.
 import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import RecordPaymentModal from './RecordPaymentModal';
 import { printDayReport } from '@/lib/printDocs';
+import { Card as DSCard, Badge, C } from './dskit';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
-const initials = (name) =>
-  String(name || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase() || '?';
 const getDhakaDate = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-// Real cash-in only (mirrors legacy _isRealPayment): excludes charges / BCF.
 const REAL_PAY = /payment|settlement|advance|deposit|bkash|nagad|bank\s*transfer|cash|card/i;
 const due = (r) => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
+const roomOf = (r) => (Array.isArray(r.room_ids) ? r.room_ids.join(', ') : (r.room_number || '—'));
+const nightsOf = (r) => { const ci = r.check_in, co = r.check_out; if (!ci || !co) return null; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : null; };
+
+function FRow({ label, value, color, sub }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--iv-border2)', fontSize: sub ? 11 : 12 }}>
+      <span style={{ color: 'var(--iv-ink3)' }}>{label}</span>
+      <span className="iv-mono" style={{ color: color || 'var(--iv-ink)' }}>{value}</span>
+    </div>
+  );
+}
 
 export default function Billing() {
   const [reservations, setReservations] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [payRes, setPayRes] = useState(null);
+  const [q, setQ] = useState('');
+  const [activeId, setActiveId] = useState(null);
   const today = getDhakaDate();
 
   useEffect(() => { fetchData(); }, []);
@@ -44,122 +54,132 @@ export default function Billing() {
     }
   }
 
-  // today's real collections (exclude tagged void-dups + non-payment markers)
   const collected = useMemo(
     () => transactions.filter((t) => !/^\[VOID-DUP\]/.test(t.type || '') && REAL_PAY.test(t.type || '')),
     [transactions],
   );
   const todayRevenue = collected.reduce((a, t) => a + (Number(t.amount) || 0), 0);
-
   const dues = useMemo(
-    () => reservations
-      .filter((r) => (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT') && due(r) > 0)
-      .sort((a, b) => due(b) - due(a)),
+    () => reservations.filter((r) => (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT') && due(r) > 0).sort((a, b) => due(b) - due(a)),
     [reservations],
   );
   const outstanding = dues.reduce((a, r) => a + due(r), 0);
 
-  const roomOf = (r) => (Array.isArray(r.room_ids) ? r.room_ids.join(', ') : (r.room_number || '—'));
-  const goPay = () => { window.location.href = '/crm/reservations'; };
+  // open folios = in-house or with a balance
+  const folios = useMemo(
+    () => reservations.filter((r) => r.status === 'CHECKED_IN' || due(r) > 0)
+      .sort((a, b) => due(b) - due(a)),
+    [reservations],
+  );
+  const fStatus = (r) => { const paid = +r.paid_amount || 0; if (due(r) <= 0 && paid > 0) return ['Paid', 'green']; if (paid > 0) return ['Partial', 'blue']; return ['Unpaid', 'amber']; };
+  const filtered = folios.filter((r) => (roomOf(r) + ' ' + (r.guest_name || '')).toLowerCase().includes(q.trim().toLowerCase()));
+  const sel = reservations.find((r) => r.id === activeId) || filtered[0] || folios[0] || null;
+
+  let mCash = 0, mDigital = 0;
+  collected.forEach((t) => {
+    const amt = Number(t.amount) || 0;
+    const blob = ((t.type || '') + ' ' + (t.payment_method || '')).toLowerCase();
+    if (/cash/.test(blob)) mCash += amt; else if (/bkash|nagad|card|bank/.test(blob)) mDigital += amt; else mCash += amt;
+  });
+  const mTotal = (mCash + mDigital) || 1;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8 pb-6 iv-divider">
-        <h1 className="text-3xl">Billing &amp; Invoices</h1>
-        <button className="iv-btn iv-btn--ghost" disabled={loading}
-          onClick={() => printDayReport({ dateLabel: today, collected, dues, reservations })}>📥 Download Report</button>
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-        <div className="iv-card iv-card--hover">
-          <div className="iv-stat__lbl">Today Revenue</div>
-          <div className="iv-stat__val">{loading ? '—' : bdt(todayRevenue)}</div>
-          <div className="iv-stat__sub">Collected today · Asia/Dhaka</div>
-        </div>
-        <div className="iv-card iv-card--hover">
-          <div className="iv-stat__lbl">Outstanding Dues</div>
-          <div className="iv-stat__val iv-due">{loading ? '—' : bdt(outstanding)}</div>
-          <div className="iv-stat__sub">Across {dues.length} open folio{dues.length === 1 ? '' : 's'}</div>
-        </div>
-        <div className="iv-card iv-card--hover flex items-center justify-between">
-          <div>
-            <div className="iv-stat__lbl">Record a Payment</div>
-            <div className="iv-stat__sub mt-1">Opens the main CRM folio</div>
+      <div className="iv-bill-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start' }}>
+        {/* LEFT */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid var(--iv-border)', padding: '8px 12px', marginBottom: 12 }}>
+            <span style={{ color: 'var(--iv-ink3)', fontSize: 13 }}>⌕</span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search folios by room number or guest name…" style={{ background: 'none', border: 'none', outline: 'none', fontFamily: 'var(--iv-body)', fontSize: 12, color: 'var(--iv-ink)', flex: 1 }} />
+            {q && <button onClick={() => setQ('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--iv-ink3)', fontSize: 14 }}>×</button>}
           </div>
-          <button className="iv-btn" onClick={goPay}>+ Payment</button>
-        </div>
-      </div>
 
-      {/* Outstanding dues */}
-      <div className="iv-card mb-6">
-        <h3 className="text-lg mb-6 pb-4 iv-divider">Outstanding Dues</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ color: '#8A7F6E', borderBottom: '1px solid #EAE3D6' }}>
-                {['Guest', 'Room', 'Check-Out', 'Total', 'Paid', 'Balance', ''].map((h) => (
-                  <th key={h} className="text-left py-2 font-normal whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading && <tr><td colSpan={7} className="py-3 iv-stat__sub">Loading…</td></tr>}
-              {!loading && dues.length === 0 && <tr><td colSpan={7} className="py-3 iv-stat__sub">No outstanding dues. 🎉</td></tr>}
-              {dues.slice(0, 100).map((r) => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #F0EBE0' }}>
-                  <td className="py-2 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-2">
-                      <span className="inline-flex items-center justify-center" style={{ width: 24, height: 24, borderRadius: 99,
-                        background: 'rgba(139,105,20,0.12)', color: '#8B6914', fontSize: 10, fontWeight: 700 }}>{initials(r.guest_name)}</span>
-                      <span style={{ color: 'var(--iv-ink)' }}>{r.guest_name || 'Guest'}</span>
-                    </span>
-                  </td>
-                  <td className="py-2"><span className="iv-badge">{roomOf(r)}</span></td>
-                  <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{(r.check_out || '').slice(0, 10) || '—'}</td>
-                  <td className="py-2 text-xs iv-mono" style={{ color: '#8B6914' }}>{bdt(r.total_amount)}</td>
-                  <td className="py-2 text-xs iv-mono" style={{ color: '#3C6B4A' }}>{bdt(r.paid_amount)}</td>
-                  <td className="py-2 text-xs iv-mono" style={{ color: '#C0566A' }}>{bdt(due(r))}</td>
-                  <td className="py-2">
-                    <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 12px', fontSize: 12 }} onClick={() => setPayRes(r)}>Collect</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto' }}>
+            {filtered.slice(0, 40).map((r) => {
+              const [lbl, tone] = fStatus(r);
+              const on = sel && r.id === sel.id;
+              return (
+                <button key={r.id} onClick={() => setActiveId(r.id)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 10px', whiteSpace: 'nowrap', flexShrink: 0, background: on ? '#fff' : 'transparent', cursor: 'pointer', border: '1px solid var(--iv-border)', borderTop: `3px solid ${on ? 'var(--iv-side)' : 'var(--iv-border)'}`, fontFamily: 'var(--iv-body)', fontSize: 11, color: 'var(--iv-ink)' }}>
+                  <span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{roomOf(r)}</span>
+                  <span style={{ fontWeight: 500 }}>{r.guest_name || 'Guest'}</span>
+                  <Badge tone={tone} style={{ fontSize: 7, padding: '1px 6px' }}>{lbl}</Badge>
+                </button>
+              );
+            })}
+            {!loading && filtered.length === 0 && <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--iv-ink3)', fontStyle: 'italic' }}>No open folios{q ? ` match “${q}”` : ''}.</div>}
+          </div>
 
-      {/* Today's collections */}
-      <div className="iv-card">
-        <h3 className="text-lg mb-6 pb-4 iv-divider">Today's Collections</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ color: '#8A7F6E', borderBottom: '1px solid #EAE3D6' }}>
-                {['Guest', 'Room', 'Type', 'Amount'].map((h) => (
-                  <th key={h} className="text-left py-2 font-normal whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {!loading && collected.length === 0 && <tr><td colSpan={4} className="py-3 iv-stat__sub">No collections recorded today yet.</td></tr>}
-              {collected.map((t) => (
-                <tr key={t.id} style={{ borderBottom: '1px solid #F0EBE0' }}>
-                  <td className="py-2">{t.guest_name || '—'}</td>
-                  <td className="py-2"><span className="iv-badge">{t.room_number || '—'}</span></td>
-                  <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{t.type || '—'}</td>
-                  <td className="py-2 text-xs iv-mono" style={{ color: '#3C6B4A' }}>{bdt(t.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {sel ? (() => {
+            const [lbl, tone] = fStatus(sel);
+            const paid = +sel.paid_amount || 0;
+            const billTotal = Math.max(0, (+sel.total_amount || 0) - (+sel.discount_amount || +sel.discount || 0));
+            const n = nightsOf(sel);
+            const bal = due(sel);
+            return (
+              <DSCard bodyStyle={{ padding: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)' }}>{sel.guest_name || 'Guest'} — <em style={{ fontStyle: 'italic', color: 'var(--iv-gold)', fontWeight: 400 }}>Invoice</em></div>
+                    <div className="iv-mono" style={{ fontSize: 10.5, color: 'var(--iv-ink3)' }}>Rm {roomOf(sel)}{n ? ` · ${n} nights` : ''}</div>
+                  </div>
+                  <Badge tone={tone}>{lbl}</Badge>
+                </div>
+                <div style={{ padding: '12px 16px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
+                    <thead><tr>
+                      <th style={{ fontFamily: 'var(--iv-body)', fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', padding: '8px 0', textAlign: 'left', borderBottom: '2px solid var(--iv-side)', fontWeight: 600 }}>Description</th>
+                      <th style={{ fontFamily: 'var(--iv-body)', fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', padding: '8px 0', textAlign: 'right', borderBottom: '2px solid var(--iv-side)', fontWeight: 600 }}>Amount</th>
+                    </tr></thead>
+                    <tbody>
+                      <tr><td style={{ padding: '6px 0', fontSize: 12, color: 'var(--iv-ink)', borderBottom: '1px solid var(--iv-border2)' }}>Room Charge — {sel.category || 'Room'}{n ? ` (${n} nights)` : ''}</td><td className="iv-mono" style={{ padding: '6px 0', fontSize: 12, textAlign: 'right', color: 'var(--iv-gold)', borderBottom: '1px solid var(--iv-border2)' }}>{bdt(billTotal)}</td></tr>
+                    </tbody>
+                  </table>
+                  <div style={{ background: 'var(--iv-sunken)', border: '1px solid var(--iv-border2)', padding: '10px 14px' }}>
+                    <FRow label="Bill Total" value={bdt(billTotal)} />
+                    <FRow label="Paid" value={bdt(paid)} color="var(--iv-in-fg)" />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, paddingTop: 8, fontFamily: 'var(--iv-head)' }}>
+                      <span>Balance Due</span><span className="iv-mono" style={{ color: bal > 0 ? 'var(--iv-rose-fg)' : 'var(--iv-in-fg)' }}>{bdt(bal)}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 9.5, padding: '8px' }} onClick={() => printDayReport({ dateLabel: today, collected, dues, reservations })}>📥 Download Report</button>
+                    <button className="iv-btn" style={{ flex: 1, fontSize: 9.5, padding: '8px' }} disabled={bal <= 0} onClick={() => setPayRes(sel)}>{bal <= 0 ? '✓ Settled' : '✓ Record Payment'}</button>
+                  </div>
+                </div>
+              </DSCard>
+            );
+          })() : <DSCard><div style={{ padding: 24, textAlign: 'center', color: 'var(--iv-ink3)', fontSize: 12 }}>{loading ? 'Loading folios…' : 'No open folios. 🎉'}</div></DSCard>}
+        </div>
+
+        {/* RIGHT */}
+        <div>
+          <DSCard title="Today's" titleAccent="Collections" accent="var(--iv-gold)">
+            <div style={{ fontFamily: 'var(--iv-head)', fontSize: 30, fontWeight: 700, color: 'var(--iv-ink)', marginBottom: 4 }}>{bdt(todayRevenue)}</div>
+            <div style={{ fontSize: 11, color: 'var(--iv-ink3)' }}>Cash {bdt(mCash)} · Digital {bdt(mDigital)}</div>
+            <hr style={{ border: 'none', borderTop: '1px solid var(--iv-border2)', margin: '10px 0' }} />
+            <FRow label="Open folios" value={folios.length} sub />
+            <FRow label="Outstanding dues" value={bdt(outstanding)} color="var(--iv-due-fg)" sub />
+          </DSCard>
+          <DSCard title="Payment" titleAccent="Methods">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--iv-ink3)', marginBottom: 4 }}><span>Cash</span><span className="iv-mono" style={{ color: 'var(--iv-ink)' }}>{bdt(mCash)}</span></div>
+                <div style={{ height: 6, background: 'var(--iv-border2)' }}><div style={{ height: '100%', width: `${Math.round(mCash / mTotal * 100)}%`, background: 'var(--iv-side)' }} /></div>
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--iv-ink3)', marginBottom: 4 }}><span>Digital · bKash / Card / Bank</span><span className="iv-mono" style={{ color: 'var(--iv-ink)' }}>{bdt(mDigital)}</span></div>
+                <div style={{ height: 6, background: 'var(--iv-border2)' }}><div style={{ height: '100%', width: `${Math.round(mDigital / mTotal * 100)}%`, background: 'var(--iv-gold)' }} /></div>
+              </div>
+            </div>
+          </DSCard>
         </div>
       </div>
 
       {payRes && (
         <RecordPaymentModal reservation={payRes} onClose={() => setPayRes(null)} onSaved={fetchData} />
       )}
+
+      <style>{`@media (max-width:900px){ .iv-bill-grid{ grid-template-columns:1fr !important; } }`}</style>
     </div>
   );
 }
