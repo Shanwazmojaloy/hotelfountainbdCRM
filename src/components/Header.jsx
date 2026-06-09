@@ -62,7 +62,7 @@ export default function Header() {
         {t0}{t1 && <em style={{ fontStyle: 'italic', color: 'var(--iv-gold)', fontWeight: 400 }}> {t1}</em>}
       </div>
       <div className="iv-mono" style={{ fontSize: 9, color: 'var(--iv-ink3)', letterSpacing: '.04em', whiteSpace: 'nowrap' }}>{meta}</div>
-      <button className="iv-btn" onClick={() => router.push('/crm/reservations')} style={{ fontSize: 9.5, padding: '6px 14px' }}>+ New Booking</button>
+      <button className="iv-btn" onClick={() => { if (pathname === '/crm/reservations') window.dispatchEvent(new CustomEvent('lumea:new-booking')); else router.push('/crm/reservations?new=1'); }} style={{ fontSize: 9.5, padding: '6px 14px' }}>+ New Booking</button>
       <div ref={bellRef} style={{ position: 'relative' }}>
         <div onClick={() => setBell((v) => !v)} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${bell ? 'var(--iv-side)' : 'var(--iv-border)'}`, background: bell ? 'var(--iv-sunken)' : 'transparent', cursor: 'pointer', position: 'relative', fontSize: 15, color: 'var(--iv-ink3)' }}>
           🔔

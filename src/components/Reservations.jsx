@@ -40,7 +40,22 @@ export default function Reservations() {
   const [allGuests, setAllGuests] = useState(_cached?.allGuests || []);
   const [editRes, setEditRes] = useState(null);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    // Open the New Reservation/Check-In modal when the topbar "+ New Booking" fires —
+    // via a custom event (already on this page) or a ?new=1 param (navigated from elsewhere).
+    const openNew = () => setShowNew(true);
+    window.addEventListener('lumea:new-booking', openNew);
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('new') === '1') {
+        setShowNew(true);
+        sp.delete('new');
+        window.history.replaceState({}, '', window.location.pathname + (sp.toString() ? '?' + sp.toString() : ''));
+      }
+    } catch { /* ignore */ }
+    return () => window.removeEventListener('lumea:new-booking', openNew);
+  }, []);
 
   async function fetchData() {
     if (!getSnap('reservations')) setLoading(true); // revisits refresh silently behind cached rows
