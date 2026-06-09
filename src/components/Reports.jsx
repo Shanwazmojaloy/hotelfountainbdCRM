@@ -1,168 +1,173 @@
 'use client';
 
-// Reports — ported from the legacy crm-src.jsx ReportsPage (read-only analytics).
-// Same metrics (Total Revenue, Occupancy, ADR, RevPAR, 14-day revenue, revenue-by-category,
-// room-category performance) rendered in the Warm Ivory design system. No writes.
+// Reports — Hotel Fountain Design System (Daily / Monthly / Yearly tabs).
+// Daily: date-stepped movements (check-ins/outs) + collection ledger w/ opening token.
+// Monthly: per-day revenue bars. Yearly: per-month revenue bars. Live, read-only.
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { Tabs, Card, StatCard, Table, Badge, TD, MONO, C, bdt } from './dskit';
 
-const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
-const getDhakaDate = () =>
-  new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date());
+const dhakaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const addDays = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(t); };
+const fmtLong = (d) => { try { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }); } catch { return d; } };
+const notBCF = (t) => !/balance carried forward/i.test(t.type ?? '');
+const dueOf = (r) => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
+const roomOf = (r) => Array.isArray(r.room_ids) ? r.room_ids.join(', ') : (r.room_number || '—');
+
+function FRow({ label, value, color }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--iv-border2)', fontSize: 12 }}>
+      <span style={{ color: 'var(--iv-ink3)' }}>{label}</span>
+      <span className="iv-mono" style={{ color: color || 'var(--iv-ink)' }}>{value}</span>
+    </div>
+  );
+}
 
 export default function Reports() {
-  const [data, setData] = useState({ txs: [], rooms: [] });
+  const [data, setData] = useState({ txs: [], rooms: [], res: [] });
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('daily');
 
   useEffect(() => { fetchData(); }, []);
-
   async function fetchData() {
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
-      const [{ data: txs }, { data: rooms }] = await Promise.all([
-        supabase.from('transactions').select('amount, type, fiscal_day'),
+      const [{ data: txs }, { data: rooms }, { data: res }] = await Promise.all([
+        supabase.from('transactions').select('amount, type, payment_method, fiscal_day, created_at, reservation_id, room_number, guest_name'),
         supabase.from('rooms').select('id, status, category, price'),
+        supabase.from('reservations').select('id, guest_name, room_ids, room_number, check_in, check_out, total_amount, discount_amount, discount, paid_amount, status'),
       ]);
-      setData({ txs: txs || [], rooms: rooms || [] });
-    } catch (e) {
-      console.error('[Reports] fetch error:', e);
-    } finally {
-      setLoading(false);
-    }
+      setData({ txs: txs || [], rooms: rooms || [], res: res || [] });
+    } catch (e) { console.error('[Reports] fetch error:', e); } finally { setLoading(false); }
   }
-
-  const { txs, rooms } = data;
-
-  // --- metrics (mirror legacy ReportsPage) ---
-  const totalRev = txs.reduce((a, t) => a + (Number(t.amount) || 0), 0);
-  const occ = rooms.filter((r) => r.status === 'OCCUPIED').length;
-  const occPct = rooms.length ? Math.round((occ / rooms.length) * 100) : 0;
-  const avgRate = rooms.length ? Math.round(rooms.reduce((a, r) => a + (Number(r.price) || 0), 0) / rooms.length) : 0;
-  const revPAR = Math.round((avgRate * occPct) / 100);
-
-  // last 14 days (Dhaka), revenue per fiscal_day
-  const today = getDhakaDate();
-  const last14 = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - (13 - i));
-    const ds = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-    return { ds, v: txs.filter((t) => t.fiscal_day === ds).reduce((a, t) => a + (Number(t.amount) || 0), 0) };
-  });
-  const max14 = Math.max(1, ...last14.map((d) => d.v));
-  const total14 = last14.reduce((a, d) => a + d.v, 0);
-
-  // revenue by category (transaction type)
-  const catMap = txs.reduce((a, t) => { if (t.type) a[t.type] = (a[t.type] || 0) + (Number(t.amount) || 0); return a; }, {});
-  const topCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  const topCatMax = topCats[0]?.[1] || 1;
-
-  // room category performance
-  const cats = [...new Set(rooms.map((r) => r.category).filter(Boolean))];
 
   return (
     <div>
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        <div className="iv-card iv-card--hover">
-          <div className="iv-stat__lbl">Total Revenue</div>
-          <div className="iv-stat__val">{loading ? '—' : bdt(totalRev)}</div>
-          <div className="iv-stat__sub">All recorded transactions</div>
-        </div>
-        <div className="iv-card iv-card--hover">
-          <div className="iv-stat__lbl">Occupancy</div>
-          <div className="iv-stat__val">{loading ? '—' : `${occPct}%`}</div>
-          <div className="iv-stat__sub">{occ}/{rooms.length} rooms</div>
-        </div>
-        <div className="iv-card iv-card--hover">
-          <div className="iv-stat__lbl">ADR</div>
-          <div className="iv-stat__val">{loading ? '—' : bdt(avgRate)}</div>
-          <div className="iv-stat__sub">Avg Daily Rate</div>
-        </div>
-        <div className="iv-card iv-card--hover">
-          <div className="iv-stat__lbl">RevPAR</div>
-          <div className="iv-stat__val">{loading ? '—' : bdt(revPAR)}</div>
-          <div className="iv-stat__sub">Revenue / Available Room</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* 14-day revenue */}
-        <div className="iv-card">
-          <h3 className="text-lg mb-6 pb-4 iv-divider">Daily Revenue — Last 14 Days</h3>
-          <div className="flex items-end gap-1.5" style={{ height: 140 }}>
-            {last14.map((d, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center justify-end" title={`${d.ds} · ${bdt(d.v)}`}>
-                <div style={{ width: '100%', height: `${Math.round((d.v / max14) * 110)}px`, minHeight: 2,
-                  background: i === last14.length - 1 ? 'var(--iv-gold)' : 'var(--iv-side)' }} />
-                <div className="text-xs mt-1" style={{ color: '#8A7F6E' }}>{d.ds.slice(8)}</div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between text-xs mt-4 pt-4 iv-divider" style={{ color: '#5C5347' }}>
-            <span>14-day total</span><span className="iv-mono" style={{ color: '#8B6914' }}>{bdt(total14)}</span>
-          </div>
-        </div>
-
-        {/* revenue by category */}
-        <div className="iv-card">
-          <h3 className="text-lg mb-6 pb-4 iv-divider">Revenue by Category</h3>
-          <div className="space-y-2">
-            {!loading && topCats.length === 0 && <div className="iv-stat__sub">No transactions yet.</div>}
-            {topCats.map(([cat, rev]) => (
-              <div key={cat} className="flex items-center justify-between py-1.5" style={{ borderBottom: '1px solid #EAE3D6' }}>
-                <span className="text-sm" style={{ color: 'var(--iv-ink)' }}>{cat}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs iv-mono" style={{ color: '#8B6914' }}>{bdt(rev)}</span>
-                  <div style={{ height: 5, width: Math.round((rev / topCatMax) * 70), background: 'var(--iv-side)' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* room category performance */}
-      <div className="iv-card">
-        <h3 className="text-lg mb-6 pb-4 iv-divider">Room Category Performance</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ color: '#8A7F6E', borderBottom: '1px solid #EAE3D6' }}>
-                <th className="text-left py-2 font-normal">Category</th>
-                <th className="text-left py-2 font-normal">Rooms</th>
-                <th className="text-left py-2 font-normal">Rate/Night</th>
-                <th className="text-left py-2 font-normal">Occupied</th>
-                <th className="text-left py-2 font-normal">Occupancy %</th>
-                <th className="text-left py-2 font-normal">RevPAR</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cats.map((cat) => {
-                const cr = rooms.filter((r) => r.category === cat);
-                const rate = Number(cr[0]?.price || 0);
-                const occN = cr.filter((r) => r.status === 'OCCUPIED').length;
-                const pct = cr.length ? Math.round((occN / cr.length) * 100) : 0;
-                return (
-                  <tr key={cat} style={{ borderBottom: '1px solid #F0EBE0' }}>
-                    <td className="py-2"><span className="iv-badge">{cat}</span></td>
-                    <td className="py-2">{cr.length}</td>
-                    <td className="py-2 iv-mono" style={{ color: '#8B6914' }}>{bdt(rate)}</td>
-                    <td className="py-2">{occN}</td>
-                    <td className="py-2">{pct}%</td>
-                    <td className="py-2 iv-mono" style={{ color: '#8B6914' }}>{bdt(Math.round((rate * pct) / 100))}</td>
-                  </tr>
-                );
-              })}
-              {!loading && cats.length === 0 && (
-                <tr><td colSpan={6} className="py-3 iv-stat__sub">No room categories found.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Tabs tabs={[{ id: 'daily', label: 'Daily' }, { id: 'monthly', label: 'Monthly' }, { id: 'yearly', label: 'Yearly' }]} value={period} onChange={setPeriod} />
+      {period === 'daily' && <Daily {...data} loading={loading} />}
+      {period === 'monthly' && <Monthly txs={data.txs} />}
+      {period === 'yearly' && <Yearly txs={data.txs} />}
     </div>
+  );
+}
+
+function Daily({ txs, res, loading }) {
+  const [date, setDate] = useState(dhakaToday());
+  const [token, setToken] = useState('');
+  const collectedFor = (r) => txs.filter((t) => notBCF(t) && t.reservation_id === r.id && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+  const ins = res.filter((r) => (r.check_in || '').slice(0, 10) === date).map((r) => ({ ...r, _type: 'IN' }));
+  const outs = res.filter((r) => (r.check_out || '').slice(0, 10) === date).map((r) => ({ ...r, _type: 'OUT' }));
+  const moves = [...ins, ...outs];
+  const collected = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+  const dues = moves.filter((m) => dueOf(m) > 0);
+  const totalDue = dues.reduce((a, m) => a + dueOf(m), 0);
+  const tok = parseInt(token || '0', 10) || 0;
+  const closing = collected - tok;
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <button className="iv-btn iv-btn--ghost" onClick={() => setDate(addDays(date, -1))} style={{ fontSize: 11, padding: '6px 11px' }}>‹</button>
+          <input type="date" className="iv-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: '7px 10px', width: 160 }} />
+          <button className="iv-btn iv-btn--ghost" onClick={() => setDate(addDays(date, 1))} style={{ fontSize: 11, padding: '6px 11px' }}>›</button>
+          <button className="iv-btn iv-btn--ghost" onClick={() => setDate(dhakaToday())} style={{ fontSize: 9.5, padding: '7px 12px' }}>Today</button>
+        </div>
+        <div className="flex items-center gap-2">
+          <input className="iv-input" type="number" placeholder="Opening token ৳" value={token} onChange={(e) => setToken(e.target.value)} style={{ padding: '7px 10px', width: 170 }} />
+          <button className="iv-btn" onClick={() => window.print()} style={{ fontSize: 9.5, padding: '7px 12px' }}>⬇ Download</button>
+        </div>
+      </div>
+
+      <div className="iv-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+        <StatCard label="Movements" value={loading ? '—' : moves.length} accent={C.walnut} sub={fmtLong(date)} />
+        <StatCard label="Total Collection" value={loading ? '—' : bdt(collected)} accent={C.gold} />
+        <StatCard label="Closing Balance" value={loading ? '—' : bdt(closing)} accent={C.grn} sub="collection − token" />
+        <StatCard label="Total Due" value={loading ? '—' : bdt(totalDue)} accent={C.rose} sub={`${dues.length} carried`} />
+      </div>
+
+      <Card title="Daily" titleAccent="Movements" bodyStyle={{ padding: 0 }}>
+        <Table head={['Guest', 'Room', 'Type', 'Collected', 'Balance', 'Status']}>
+          {loading && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>Loading…</td></tr>}
+          {!loading && moves.length === 0 && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No check-ins or check-outs on {fmtLong(date)}.</td></tr>}
+          {moves.map((m, i) => {
+            const due = dueOf(m);
+            return (
+              <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+                <td style={TD}>{m.guest_name || 'Guest'}</td>
+                <td style={TD}><Badge tone="blue">{roomOf(m)}</Badge></td>
+                <td style={TD}><Badge tone={m._type === 'IN' ? 'green' : 'teal'}>{m._type === 'IN' ? 'Check-In' : 'Check-Out'}</Badge></td>
+                <td style={{ ...TD, ...MONO, color: C.grn }}>{bdt(collectedFor(m))}</td>
+                <td style={{ ...TD, ...MONO, color: due > 0 ? C.rose : C.ink3 }}>{due > 0 ? bdt(due) : '—'}</td>
+                <td style={TD}>{due > 0 ? <Badge tone="amber">Balance Due</Badge> : <Badge tone="green">Settled</Badge>}</td>
+              </tr>
+            );
+          })}
+        </Table>
+      </Card>
+
+      <Card title="Closing" titleAccent="Ledger" accent={C.gold}>
+        <FRow label="Total Collection" value={bdt(collected)} />
+        <FRow label="Less — Opening Token / Float" value={'− ' + bdt(tok)} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, fontFamily: 'var(--iv-head)', paddingTop: 8 }}>
+          <span>Closing Balance</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(closing)}</span>
+        </div>
+        <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Total Collection − Opening Token. Outstanding due ({bdt(totalDue)}) carries to guest folios.</div>
+      </Card>
+    </>
+  );
+}
+
+function RevBars({ bars, gap, lastGold, fontSize }) {
+  const max = Math.max(1, ...bars.map((b) => b.v));
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap, height: 180, padding: '4px 0' }}>
+      {bars.map((b, i) => (
+        <div key={i} title={`${b.lbl} · ${bdt(b.v)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <div style={{ width: '100%', height: `${Math.round((b.v / max) * 100)}%`, minHeight: 2, background: (lastGold && i === bars.length - 1) ? 'var(--iv-gold)' : 'var(--iv-side)' }} />
+          <span style={{ fontFamily: 'var(--iv-mono)', fontSize, color: 'var(--iv-ink3)' }}>{b.lbl}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Monthly({ txs }) {
+  const [month, setMonth] = useState(dhakaToday().slice(0, 7));
+  const [y, m] = month.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  const bars = Array.from({ length: days }, (_, i) => {
+    const ds = `${month}-${String(i + 1).padStart(2, '0')}`;
+    const v = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === ds).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+    return { v, lbl: String(i + 1) };
+  });
+  const total = bars.reduce((a, b) => a + b.v, 0);
+  return (
+    <Card title="Monthly" titleAccent="Revenue" accent={C.gold} action={<input type="month" className="iv-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: '6px 10px', width: 160 }} />}>
+      <RevBars bars={bars} gap={2} lastGold fontSize={7} />
+      <div className="flex justify-between" style={{ fontSize: 11, color: 'var(--iv-ink3)', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--iv-border2)' }}>
+        <span>Month total</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(total)}</span>
+      </div>
+    </Card>
+  );
+}
+
+function Yearly({ txs }) {
+  const [year, setYear] = useState(() => dhakaToday().slice(0, 4));
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const bars = MONTHS.map((ml, i) => {
+    const mm = `${year}-${String(i + 1).padStart(2, '0')}`;
+    const v = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 7) === mm).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+    return { v, lbl: ml };
+  });
+  const total = bars.reduce((a, b) => a + b.v, 0);
+  return (
+    <Card title="Yearly" titleAccent="Revenue" accent={C.gold} action={<input className="iv-input" type="number" value={year} onChange={(e) => setYear(e.target.value)} style={{ padding: '6px 10px', width: 110 }} />}>
+      <RevBars bars={bars} gap={6} lastGold={false} fontSize={8} />
+      <div className="flex justify-between" style={{ fontSize: 11, color: 'var(--iv-ink3)', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--iv-border2)' }}>
+        <span>Year total</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(total)}</span>
+      </div>
+    </Card>
   );
 }
