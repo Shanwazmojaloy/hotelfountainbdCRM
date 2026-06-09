@@ -1,0 +1,13 @@
+# Lumea — encoding/EOL hardening for the corruption-prone CRM files.
+# These three repeatedly broke via OneDrive sync + editor saves (UTF-16 re-encode,
+# CRLF flips, NUL-fill, tail truncation). Pinning the working-tree encoding makes git
+# re-encode to UTF-8/LF on add and surfaces divergence instead of silently committing it.
+# (Surgical on purpose — no global `* text=auto` to avoid a mass renormalization churn.)
+
+public/crm.html        working-tree-encoding=UTF-8 text eol=lf
+public/crm-src.jsx     working-tree-encoding=UTF-8 text eol=lf
+public/crm-bundle.js   text eol=lf
+
+# Keep shell scripts LF so the git hooks run under Git-for-Windows bash.
+*.sh                   text eol=lf
+.githooks/*            text eol=lf
