@@ -45,6 +45,25 @@ if [ -f "$F" ]; then
   fi
 fi
 
+# ── 1b. crm.html — live CRM shell: no NUL bytes, must end with </html> ──
+# This file repeatedly corrupts via OneDrive/editor saves (UTF-16/NUL-fill,
+# tail truncation). It was NOT guarded before — commit e370c8a shipped a
+# 196KB 95%-NUL crm.html to production. Recover from history if this trips.
+F="public/crm.html"
+if [ -f "$F" ]; then
+  if ! cmp -s "$F" <(tr -d '\000' < "$F"); then
+    fail "$F: contains NUL bytes (corrupt/UTF-16 — recover from git history)"
+  fi
+  if [ "$(wc -c < "$F")" -lt 1000 ]; then
+    fail "$F: under 1KB — truncated"
+  fi
+  LASTH=$(tail -c 64 "$F" | tr -d '[:space:]')
+  if ! echo "$LASTH" | grep -q "</html>$"; then
+    fail "$F: does not end with </html> — truncated"
+  fi
+  [ "$FAIL" = "0" ] && pass "$F: shell integrity ok"
+fi
+
 # ── 2. lumea/page.tsx — must end with a balanced TSX export ─────────────
 F="app/lumea/page.tsx"
 if [ -f "$F" ]; then

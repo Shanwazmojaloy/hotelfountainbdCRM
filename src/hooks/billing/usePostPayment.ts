@@ -34,6 +34,12 @@ async function postPayment(
     );
   }
 
+  // Stable idempotency key: caller should pass a per-attempt UUID (generated when the
+  // modal opens) so retries reuse it; fall back to a fresh one if absent.
+  const idemKey =
+    payload.idempotency_key ??
+    (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined);
+
   // Step 1: Insert payment transaction
   const { data: payment, error: payErr } = await supabase
     .from('payment_transactions')
@@ -50,11 +56,26 @@ async function postPayment(
       payment_reference:      payload.payment_reference ?? null,
       processed_by:           userId,
       notes:                  payload.notes ?? null,
+      idempotency_key:        idemKey ?? null,
     })
     .select()
     .single();
 
-  if (payErr) throw new Error(`[usePostPayment] payment insert: ${payErr.message}`);
+  if (payErr) {
+    // 23505 = unique_violation on uq_payment_tx_idempotency: this exact payment already
+    // landed (double-submit / retry). Treat as success — return the existing row, do NOT
+    // insert a duplicate or post a second ledger credit (that double-count is the ghost-bleed).
+    if (payErr.code === '23505' && idemKey) {
+      const { data: existing } = await supabase
+        .from('payment_transactions')
+        .select('*')
+        .eq('idempotency_key', idemKey)
+        .eq('status', 'COMPLETED')
+        .single();
+      if (existing) return existing as PaymentTransaction;
+    }
+    throw new Error(`[usePostPayment] payment insert: ${payErr.message}`);
+  }
 
   // Step 2: Mirror as a negative ledger entry (credit to guest account)
   // amount_bdt is NEGATIVE here — reduces what the guest owes.
