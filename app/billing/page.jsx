@@ -6,7 +6,17 @@ import Layout from "@/components/Layout";
 import BillingCard from "@/components/BillingCard";
 import ProgressRing from "@/components/ProgressRing";
 import QueryProvider from "@/providers/QueryProvider";
-import { Tabs, C } from "@/components/dskit";
+import { C, Card as DSCard, Badge } from "@/components/dskit";
+import RecordPaymentModal from "@/components/RecordPaymentModal";
+
+function FRow({ label, value, color, sub }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--iv-border2)', fontSize: sub ? 11 : 12 }}>
+      <span style={{ color: 'var(--iv-ink3)' }}>{label}</span>
+      <span className="iv-mono" style={{ color: color || 'var(--iv-ink)' }}>{value}</span>
+    </div>
+  );
+}
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
@@ -26,6 +36,9 @@ function BillingPageInner() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("TODAY");
   const [stats, setStats] = useState({ revenue: 0, occupancy: 0 });
+  const [activeId, setActiveId] = useState(null);
+  const [q, setQ] = useState("");
+  const [payFolio, setPayFolio] = useState(null);
 
   useEffect(() => {
     fetchBillingData();
@@ -159,56 +172,119 @@ function BillingPageInner() {
     );
   }
 
+  // ---- design-system master-detail derivations ----
+  const dhaka = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const fName = (g) => g.res?.guest_name || 'Guest';
+  const fRoom = (g) => Array.isArray(g.res?.room_ids) ? g.res.room_ids.join(', ') : (g.res?.room_number || '—');
+  const fNights = (g) => { const ci = g.res?.check_in, co = g.res?.check_out; if (!ci || !co) return null; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : null; };
+  const fStatus = (g) => { const paid = +g.res?.paid_amount || 0; if ((g.balanceDue || 0) <= 0 && paid > 0) return ['Paid', 'green']; if (paid > 0) return ['Partial', 'blue']; return ['Unpaid', 'amber']; };
+  const filteredFolios = billingData.filter((g) => (fRoom(g) + ' ' + fName(g)).toLowerCase().includes(q.trim().toLowerCase()));
+  const sel = billingData.find((g) => g.res?.id === activeId) || filteredFolios[0] || billingData[0] || null;
+
+  let mCash = 0, mDigital = 0;
+  billingData.forEach((g) => (g.txs || []).forEach((t) => {
+    if (/balance carried forward/i.test(t.type ?? '')) return;
+    if ((t.fiscal_day || t.created_at || '').slice(0, 10) !== dhaka) return;
+    const amt = Number(t.amount) || 0;
+    const blob = ((t.type || '') + ' ' + (t.payment_method || '')).toLowerCase();
+    if (/cash/.test(blob)) mCash += amt; else if (/bkash|card|bank/.test(blob)) mDigital += amt; else mCash += amt;
+  }));
+  const mTotal = (mCash + mDigital) || 1;
+
   return (
     <Layout>
-      {/* Header Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-        <div className="iv-card iv-card--hover" style={{ borderTopColor: C.gold }}>
-          <div className="iv-stat__lbl">Today Revenue</div>
-          <div className="iv-stat__val">{bdt(stats.revenue)}</div>
-          <div className="iv-stat__sub">Collected · {filter.toLowerCase()}</div>
-        </div>
-        <div className="iv-card iv-card--hover flex items-center gap-5" style={{ borderTopColor: C.grn }}>
-          <ProgressRing progress={stats.occupancy} size={64} color="#8B6914" />
-          <div>
-            <div className="iv-stat__lbl">Occupancy Rate</div>
-            <div className="iv-stat__val">{stats.occupancy}%</div>
+      <div className="iv-bill-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start' }}>
+        {/* LEFT — folio search + invoice */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid var(--iv-border)', padding: '8px 12px', marginBottom: 12 }}>
+            <span style={{ color: 'var(--iv-ink3)', fontSize: 13 }}>⌕</span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search folios by room number or guest name…" style={{ background: 'none', border: 'none', outline: 'none', fontFamily: 'var(--iv-body)', fontSize: 12, color: 'var(--iv-ink)', flex: 1 }} />
+            {q && <button onClick={() => setQ('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--iv-ink3)', fontSize: 14 }}>×</button>}
           </div>
+
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto' }}>
+            {filteredFolios.map((g) => {
+              const [lbl, tone] = fStatus(g);
+              const on = sel && g.res?.id === sel.res?.id;
+              return (
+                <button key={g.res?.id} onClick={() => setActiveId(g.res?.id)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 10px', whiteSpace: 'nowrap', flexShrink: 0, background: on ? '#fff' : 'transparent', cursor: 'pointer', border: '1px solid var(--iv-border)', borderTop: `3px solid ${on ? 'var(--iv-side)' : 'var(--iv-border)'}`, fontFamily: 'var(--iv-body)', fontSize: 11, color: 'var(--iv-ink)' }}>
+                  <span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{fRoom(g)}</span>
+                  <span style={{ fontWeight: 500 }}>{fName(g)}</span>
+                  <Badge tone={tone} style={{ fontSize: 7, padding: '1px 6px' }}>{lbl}</Badge>
+                </button>
+              );
+            })}
+            {filteredFolios.length === 0 && <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--iv-ink3)', fontStyle: 'italic' }}>No folios match “{q}”.</div>}
+          </div>
+
+          {sel ? (() => {
+            const [lbl, tone] = fStatus(sel);
+            const paid = +sel.res?.paid_amount || 0;
+            const cat = sel.res?.category || sel.res?.room_category || 'Room';
+            const n = fNights(sel);
+            return (
+              <DSCard bodyStyle={{ padding: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)' }}>{fName(sel)} — <em style={{ fontStyle: 'italic', color: 'var(--iv-gold)', fontWeight: 400 }}>Invoice</em></div>
+                    <div className="iv-mono" style={{ fontSize: 10.5, color: 'var(--iv-ink3)' }}>Rm {fRoom(sel)}{n ? ` · ${n} nights` : ''}</div>
+                  </div>
+                  <Badge tone={tone}>{lbl}</Badge>
+                </div>
+                <div style={{ padding: '12px 16px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
+                    <thead><tr>
+                      <th style={{ fontFamily: 'var(--iv-body)', fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', padding: '8px 0', textAlign: 'left', borderBottom: '2px solid var(--iv-side)', fontWeight: 600 }}>Description</th>
+                      <th style={{ fontFamily: 'var(--iv-body)', fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', padding: '8px 0', textAlign: 'right', borderBottom: '2px solid var(--iv-side)', fontWeight: 600 }}>Amount</th>
+                    </tr></thead>
+                    <tbody>
+                      <tr><td style={{ padding: '6px 0', fontSize: 12, color: 'var(--iv-ink)', borderBottom: '1px solid var(--iv-border2)' }}>Room Charge — {cat}{n ? ` (${n} nights)` : ''}</td><td className="iv-mono" style={{ padding: '6px 0', fontSize: 12, textAlign: 'right', color: 'var(--iv-gold)', borderBottom: '1px solid var(--iv-border2)' }}>{bdt(sel.billTotal)}</td></tr>
+                    </tbody>
+                  </table>
+                  <div style={{ background: 'var(--iv-sunken)', border: '1px solid var(--iv-border2)', padding: '10px 14px' }}>
+                    <FRow label="Bill Total" value={bdt(sel.billTotal)} />
+                    <FRow label="Paid" value={bdt(paid)} color="var(--iv-in-fg)" />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, paddingTop: 8, fontFamily: 'var(--iv-head)' }}>
+                      <span>Balance Due</span><span className="iv-mono" style={{ color: sel.balanceDue > 0 ? 'var(--iv-rose-fg)' : 'var(--iv-in-fg)' }}>{bdt(sel.balanceDue)}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 9.5, padding: '8px' }} onClick={() => window.print()}>🖨 Print</button>
+                    <button className="iv-btn" style={{ flex: 1, fontSize: 9.5, padding: '8px' }} disabled={sel.balanceDue <= 0} onClick={() => setPayFolio(sel.res)}>{sel.balanceDue <= 0 ? '✓ Settled' : '✓ Record Payment'}</button>
+                  </div>
+                </div>
+              </DSCard>
+            );
+          })() : <DSCard><div style={{ padding: 24, textAlign: 'center', color: 'var(--iv-ink3)', fontSize: 12 }}>No open folios.</div></DSCard>}
         </div>
-        <div className="iv-card iv-card--hover" style={{ borderTopColor: C.sky }}>
-          <div className="iv-stat__lbl">Active Folios</div>
-          <div className="iv-stat__val">{billingData.length}</div>
-          <div className="iv-stat__sub">In selected period</div>
+
+        {/* RIGHT — collections + methods */}
+        <div>
+          <DSCard title="Today's" titleAccent="Collections" accent="var(--iv-gold)">
+            <div style={{ fontFamily: 'var(--iv-head)', fontSize: 30, fontWeight: 700, color: 'var(--iv-ink)', marginBottom: 4 }}>{bdt(stats.revenue)}</div>
+            <div style={{ fontSize: 11, color: 'var(--iv-ink3)' }}>Cash {bdt(mCash)} · Digital {bdt(mDigital)}</div>
+            <hr style={{ border: 'none', borderTop: '1px solid var(--iv-border2)', margin: '10px 0' }} />
+            <FRow label="Active folios" value={billingData.length} sub />
+            <FRow label="Occupancy" value={`${stats.occupancy}%`} sub />
+          </DSCard>
+          <DSCard title="Payment" titleAccent="Methods">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--iv-ink3)', marginBottom: 4 }}><span>Cash</span><span className="iv-mono" style={{ color: 'var(--iv-ink)' }}>{bdt(mCash)}</span></div>
+                <div style={{ height: 6, background: 'var(--iv-border2)' }}><div style={{ height: '100%', width: `${Math.round(mCash / mTotal * 100)}%`, background: 'var(--iv-side)' }} /></div>
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--iv-ink3)', marginBottom: 4 }}><span>Digital · bKash / Card / Bank</span><span className="iv-mono" style={{ color: 'var(--iv-ink)' }}>{bdt(mDigital)}</span></div>
+                <div style={{ height: 6, background: 'var(--iv-border2)' }}><div style={{ height: '100%', width: `${Math.round(mDigital / mTotal * 100)}%`, background: 'var(--iv-gold)' }} /></div>
+              </div>
+            </div>
+          </DSCard>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <Tabs value={filter} onChange={setFilter} tabs={[{ id: 'TODAY', label: 'Today' }, { id: 'WEEK', label: 'Week' }, { id: 'MONTH', label: 'Month' }]} />
+      {payFolio && <RecordPaymentModal reservation={payFolio} onClose={() => setPayFolio(null)} onSaved={() => { setPayFolio(null); fetchBillingData(); }} />}
 
-
-      {/* Billing Cards / Table */}
-      <div className="space-y-4">
-        {billingData.map((item, index) => (
-          <BillingCard
-            reservationId={item.res?.id}
-            onCheckoutSuccess={fetchBillingData}
-            key={index}
-            guestName={item.res?.guest_name || "Guest"}
-            room={Array.isArray(item.res?.room_ids) ? item.res.room_ids.join(', ') : (item.res?.room_number || "N/A")}
-            status={item.status}
-            stayDates={`${item.res?.check_in || ""} → ${item.res?.check_out || ""}`}
-            folioDues={item.billTotal || 0}
-            todayPaid={item.paidInReportPeriod || 0}
-            balanceDue={item.balanceDue || 0}
-            detailData={item}
-          />
-        ))}
-        {billingData.length === 0 && (
-          <div className="iv-card text-center py-16 iv-stat__sub">
-            No active folios for selected period
-          </div>
-        )}
-      </div>
+      <style>{`@media (max-width:900px){ .iv-bill-grid{ grid-template-columns:1fr !important; } }`}</style>
     </Layout>
   );
 }
