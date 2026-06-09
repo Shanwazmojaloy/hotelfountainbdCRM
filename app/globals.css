@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist:wght@200;300;400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist:wght@200;300;400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Roboto:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 
@@ -99,7 +99,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 /* ═══════════════════════════════════════════════════════════════════════════
    LUMEA CRM — Warm Ivory Editorial (Concept 2)
    Scoped under .crm-root so it never affects the public site or /churn.
-   Headings: Libre Baskerville · Body: DM Sans · Data: IBM Plex Mono
+   Headings: Libre Baskerville · Body: DM Sans · Data/Numbers: Roboto (--iv-mono)
    ═══════════════════════════════════════════════════════════════════════════ */
 .crm-root {
   /* Hotel Fountain Design System — Warm Ivory Editorial tokens (handoff). */
@@ -116,7 +116,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   --iv-ease:cubic-bezier(0.4,0,0.2,1);
   --iv-head:'Libre Baskerville', Georgia, serif;
   --iv-body:'DM Sans', system-ui, sans-serif;
-  --iv-mono:'IBM Plex Mono', ui-monospace, monospace;
+  --iv-mono:'Roboto', system-ui, -apple-system, sans-serif;
   min-height:100vh; background:var(--iv-bg); color:var(--iv-ink);
   font-family:var(--iv-body); font-weight:400; -webkit-font-smoothing:antialiased;
 }
@@ -130,7 +130,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 
 /* Stat block */
 .crm-root .iv-stat__lbl { font-size:10px; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--iv-ink3); margin-bottom:10px; }
-.crm-root .iv-stat__val { font-family:var(--iv-mono); font-size:26px; font-weight:600; color:var(--iv-ink); font-variant-numeric:tabular-nums; line-height:1.1; }
+.crm-root .iv-stat__val { font-family:var(--iv-mono); font-size:29px; font-weight:700; color:var(--iv-ink); font-variant-numeric:tabular-nums; line-height:1.1; letter-spacing:-.01em; }
 .crm-root .iv-stat__sub { font-size:12px; color:var(--iv-ink2); margin-top:6px; }
 .crm-root .iv-pos { color:var(--iv-in-fg); }
 .crm-root .iv-due { color:var(--iv-due-fg); }

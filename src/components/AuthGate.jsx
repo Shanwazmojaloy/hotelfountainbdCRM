@@ -22,9 +22,13 @@ const serif = "'Libre Baskerville', Georgia, 'Times New Roman', serif";
 const sans = "'DM Sans', system-ui, -apple-system, sans-serif";
 const mono = "'IBM Plex Mono', ui-monospace, monospace";
 
+// Persists the verified session across route re-mounts so switching tabs is instant
+// (no LOADING flash / re-fetch). Cleared on sign-out.
+let _authCache = null;
+
 export default function AuthGate({ children }) {
-  const [status, setStatus] = useState('checking'); // checking | in | out
-  const [user, setUser] = useState(null);
+  const [status, setStatus] = useState(_authCache ? 'in' : 'checking'); // checking | in | out
+  const [user, setUser] = useState(_authCache);
 
   const [mode, setMode] = useState('signin'); // signin | activate
   const [email, setEmail] = useState('');
@@ -42,7 +46,7 @@ export default function AuthGate({ children }) {
   const [actMsg, setActMsg] = useState('');
   const [actBusy, setActBusy] = useState(false);
 
-  useEffect(() => { restore(); }, []);
+  useEffect(() => { if (!_authCache) restore(); }, []);
 
   async function restore() {
     try {
@@ -50,14 +54,14 @@ export default function AuthGate({ children }) {
       if (!saved?.id) { setStatus('out'); return; }
       const { data } = await getSupabaseClient().from('staff').select('id, name, role, session_v, activated').eq('tenant_id', TENANT).eq('id', saved.id).limit(1);
       const u = data && data[0];
-      if (u && (u.session_v || 1) === saved.session_v) { setUser(u); setStatus('in'); }
+      if (u && (u.session_v || 1) === saved.session_v) { _authCache = u; setUser(u); setStatus('in'); }
       else { localStorage.removeItem('lumea_session'); setStatus('out'); }
     } catch { setStatus('out'); }
   }
 
   function applySession(s) {
     localStorage.setItem('lumea_session', JSON.stringify({ id: s.id, session_v: s.session_v || 1 }));
-    setUser(s); setStatus('in'); setPw(''); setActPw(''); setActOtp('');
+    _authCache = s; setUser(s); setStatus('in'); setPw(''); setActPw(''); setActOtp('');
   }
 
   async function login(e) {
@@ -95,7 +99,7 @@ export default function AuthGate({ children }) {
     } catch (e2) { setActErr(e2.message || String(e2)); } finally { setActBusy(false); }
   }
 
-  function signOut() { try { localStorage.removeItem('lumea_session'); } catch {} setUser(null); setStatus('out'); }
+  function signOut() { try { localStorage.removeItem('lumea_session'); } catch {} _authCache = null; setUser(null); setStatus('out'); }
 
   if (status === 'checking') {
     return <div style={{ minHeight: '100vh', background: WALNUT, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(200,169,110,.6)', fontFamily: mono, letterSpacing: '.2em', fontSize: 12 }}>LOADING…</div>;

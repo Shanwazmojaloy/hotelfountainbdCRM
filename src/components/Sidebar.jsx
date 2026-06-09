@@ -38,7 +38,7 @@ export default function Sidebar() {
     <aside className="iv-sidebar hidden md:flex flex-col w-64 h-screen sticky top-0" style={{ overflow: 'hidden' }}>
       {/* Brand crest */}
       <div style={{ padding: '22px 20px 18px', borderBottom: '1px solid rgba(200,169,110,.15)', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
-        <img src="/fountain-logo.png" alt="Hotel Fountain" style={{ width: 64, height: 64, objectFit: 'contain' }} />
+        <img src="/logo-crest.png" alt="Hotel Fountain" style={{ width: 'auto', height: 58, objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.35))' }} />
         <div style={{ minWidth: 0 }}>
           <div className="iv-brand">Hotel <em>Fountain</em></div>
           <div className="iv-side-tag" style={{ marginTop: 5 }}>Management CRM</div>
