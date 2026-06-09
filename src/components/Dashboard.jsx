@@ -116,8 +116,8 @@ export default function Dashboard() {
     try {
       const supabase = getSupabaseClient();
       const [{ data: reservations }, { data: transactions }, { data: rooms }] = await Promise.all([
-        supabase.from('reservations').select('*').order('check_in', { ascending: false }),
-        supabase.from('transactions').select('*'),
+        supabase.from('reservations').select('id, guest_name, room_ids, check_in, check_out, status, total_amount, discount_amount, discount, paid_amount').order('check_in', { ascending: false }),
+        supabase.from('transactions').select('amount, type, fiscal_day, created_at, reservation_id, room_number'),
         supabase.from('rooms').select('id, room_number, status, category, price'),
       ]);
 

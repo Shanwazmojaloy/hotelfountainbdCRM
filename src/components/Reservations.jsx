@@ -47,7 +47,7 @@ export default function Reservations() {
     try {
       const supabase = getSupabaseClient();
       const [{ data: r }, { data: g }, { data: rm }] = await Promise.all([
-        supabase.from('reservations').select('*').order('check_in', { ascending: false }).limit(5000),
+        supabase.from('reservations').select('id, guest_name, guest_ids, room_ids, check_in, check_out, status, total_amount, paid_amount, discount, discount_amount, on_duty_officer, special_requests, notes').order('check_in', { ascending: false }).limit(5000),
         supabase.from('guests').select('id, name').limit(5000),
         supabase.from('rooms').select('id, room_number, status, category, price').order('room_number'),
       ]);
