@@ -195,3 +195,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 
 /* Editorial form controls — sharp corners, walnut focus, on warm-ivory surfaces. */
 .crm-root .iv-input, .crm-root .iv-select, .crm-root .iv-textarea { border-radius:0; }
+
+/* Responsive stat / chart grids (design-system screens use inline 4-col / 3fr-2fr). */
+@media (max-width:900px){
+  .crm-root .iv-stat-grid { grid-template-columns:repeat(2,1fr) !important; }
+  .crm-root .iv-chart-grid { grid-template-columns:1fr !important; }
+}
