@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   if (action !== 'checkin' && action !== 'checkout') return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
 
   try {
-    const { data: rrows } = await supabase.from('reservations').select('room_ids, room_number').eq('id', resId).limit(1);
+    const { data: rrows } = await supabase.from('reservations').select('room_ids').eq('id', resId).limit(1);
     const r = rrows && rrows[0];
     if (!r) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
     const rooms: string[] = Array.isArray(r.room_ids) && r.room_ids.length ? r.room_ids.filter(Boolean) : (r.room_number ? [r.room_number] : []);
