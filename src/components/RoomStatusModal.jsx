@@ -52,7 +52,7 @@ export default function RoomStatusModal({ room, onClose, onSaved }) {
               style={{ padding: '10px 14px', border: `1px solid ${status === o.v ? o.c : '#E0D8C8'}`,
                 borderRadius: 8, background: status === o.v ? `${o.c}14` : '#FFFDF8' }}>
               <span style={{ width: 10, height: 10, borderRadius: 99, background: o.c, display: 'inline-block' }} />
-              <span style={{ color: '#2B2722', fontSize: 14 }}>{o.label}</span>
+              <span style={{ color: 'var(--iv-ink)', fontSize: 14 }}>{o.label}</span>
               {status === o.v && <span className="ml-auto" style={{ color: o.c, fontSize: 13 }}>✓</span>}
             </button>
           ))}

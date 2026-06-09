@@ -112,7 +112,7 @@ export default function Billing() {
                     <span className="inline-flex items-center gap-2">
                       <span className="inline-flex items-center justify-center" style={{ width: 24, height: 24, borderRadius: 99,
                         background: 'rgba(139,105,20,0.12)', color: '#8B6914', fontSize: 10, fontWeight: 700 }}>{initials(r.guest_name)}</span>
-                      <span style={{ color: '#2B2722' }}>{r.guest_name || 'Guest'}</span>
+                      <span style={{ color: 'var(--iv-ink)' }}>{r.guest_name || 'Guest'}</span>
                     </span>
                   </td>
                   <td className="py-2"><span className="iv-badge">{roomOf(r)}</span></td>

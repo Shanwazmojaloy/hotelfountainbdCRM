@@ -113,7 +113,7 @@ export default function Guests() {
                       <span className="inline-flex items-center gap-2">
                         <span className="inline-flex items-center justify-center" style={{ width: 26, height: 26, borderRadius: 99,
                           background: 'rgba(139,105,20,0.12)', color: '#8B6914', fontSize: 11, fontWeight: 700 }}>{initials(g.name)}</span>
-                        <span style={{ color: '#2B2722' }}>{g.name}</span>
+                        <span style={{ color: 'var(--iv-ink)' }}>{g.name}</span>
                       </span>
                     </td>
                     <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{g.phone || '—'}</td>

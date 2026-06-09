@@ -79,7 +79,7 @@ export default function Council() {
                 setResult({ session_id: h.session_id, panelists: panelArr.filter((p) => p.role !== 'chairman'), chairman: chair || { role: 'chairman', label: 'The Chairman', verdict: h.chairman_verdict || '', tokens_out: 0, cost_bdt: 0, latency_ms: 0 }, totals: { total_tokens_in: h.total_tokens_in, total_tokens_out: h.total_tokens_out, total_cost_bdt: +h.total_cost_bdt || 0 } });
                 setActiveRole('chairman'); setHistoryOpen(false);
               }}>
-              <div className="text-sm" style={{ color: '#2B2722', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.prompt}</div>
+              <div className="text-sm" style={{ color: 'var(--iv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.prompt}</div>
               <div className="iv-mono" style={{ fontSize: 10, color: '#8A7F6E', marginTop: 2 }}>{new Date(h.created_at).toLocaleString()} · ৳{(+h.total_cost_bdt || 0).toFixed(2)} · {h.status}</div>
             </div>
           ))}
@@ -137,7 +137,7 @@ export default function Council() {
       {active && (
         <div className="iv-card mb-4">
           <div style={lbl} className="mb-3">{active.label}</div>
-          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, color: '#2B2722', lineHeight: 1.65, margin: 0 }}>{active.verdict}</pre>
+          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, color: 'var(--iv-ink)', lineHeight: 1.65, margin: 0 }}>{active.verdict}</pre>
         </div>
       )}
 

@@ -115,7 +115,7 @@ export default function Reports() {
             {!loading && topCats.length === 0 && <div className="iv-stat__sub">No transactions yet.</div>}
             {topCats.map(([cat, rev]) => (
               <div key={cat} className="flex items-center justify-between py-1.5" style={{ borderBottom: '1px solid #EAE3D6' }}>
-                <span className="text-sm" style={{ color: '#2B2722' }}>{cat}</span>
+                <span className="text-sm" style={{ color: 'var(--iv-ink)' }}>{cat}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs iv-mono" style={{ color: '#8B6914' }}>{bdt(rev)}</span>
                   <div style={{ height: 5, width: Math.round((rev / topCatMax) * 70), background: 'rgba(139,105,20,0.4)', borderRadius: 3 }} />

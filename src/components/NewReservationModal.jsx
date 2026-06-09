@@ -143,7 +143,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
             <div className="iv-card" style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, marginTop: 2, padding: 4, maxHeight: 200, overflowY: 'auto' }}>
               {guestHits.map((g) => (
                 <button key={g.id} onClick={() => { setF((p) => ({ ...p, guestId: g.id, guestName: g.name })); setGuestHits([]); setGuestQuery(''); }}
-                  className="block w-full text-left" style={{ padding: '6px 10px', fontSize: 13, color: '#2B2722' }}>
+                  className="block w-full text-left" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--iv-ink)' }}>
                   {g.name} <span style={{ color: '#8A7F6E' }}>{g.phone || ''}</span>
                 </button>
               ))}

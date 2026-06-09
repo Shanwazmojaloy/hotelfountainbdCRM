@@ -58,11 +58,11 @@ export default function BillingCard({
         <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
           <div>
             <div className="iv-eyebrow mb-1">Stay Dates</div>
-            <div className="iv-mono" style={{ color: '#2B2722' }}>{stayDates}</div>
+            <div className="iv-mono" style={{ color: 'var(--iv-ink)' }}>{stayDates}</div>
           </div>
           <div>
             <div className="iv-eyebrow mb-1">Folio Total</div>
-            <div className="iv-mono" style={{ fontSize: 20, fontWeight: 600, color: '#2B2722' }}>{bdt(folioDues)}</div>
+            <div className="iv-mono" style={{ fontSize: 20, fontWeight: 600, color: 'var(--iv-ink)' }}>{bdt(folioDues)}</div>
           </div>
           <div>
             <div className="iv-eyebrow mb-1">Paid (period)</div>
@@ -153,7 +153,7 @@ export default function BillingCard({
                       <div className="iv-mono text-sm">{(tx.fiscal_day || tx.created_at || '').slice(0, 10)}</div>
                       <div className="iv-eyebrow">{tx.type}</div>
                     </div>
-                    <div className="iv-mono" style={{ color: '#2B2722' }}>{bdt(Math.abs(Number(tx.amount) || 0))}</div>
+                    <div className="iv-mono" style={{ color: 'var(--iv-ink)' }}>{bdt(Math.abs(Number(tx.amount) || 0))}</div>
                   </div>
                 ))}
 
