@@ -164,8 +164,8 @@ export default function BillingCard({
                 )}
 
                 <div className="flex gap-3 pt-2">
-                  <button className="iv-btn flex-1">Pay Now</button>
-                  <button className="iv-btn iv-btn--ghost flex-1">Print</button>
+                  <button className="iv-btn flex-1" onClick={() => { window.location.href = '/crm.html'; }}>Pay Now</button>
+                  <button className="iv-btn iv-btn--ghost flex-1" onClick={() => window.print()}>Print</button>
                 </div>
 
                 {status === 'CHECKED_IN' && reservationId && (

@@ -49,7 +49,7 @@ export default function Header() {
         <div className="text-sm flex items-center gap-2" style={{ color: '#5C5347' }}>
           Night Audit: <span className="iv-dot iv-dot--in" /> Ready
         </div>
-        <button className="iv-btn iv-btn--ghost" style={{ padding: '10px 18px' }}>
+        <button className="iv-btn iv-btn--ghost" style={{ padding: '10px 18px' }} onClick={() => { window.location.href = '/billing'; }}>
           New Folio
         </button>
       </div>
