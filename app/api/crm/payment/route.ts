@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   if (!a || a <= 0) return NextResponse.json({ error: 'Enter a valid amount.' }, { status: 400 });
 
   // Derive bill math server-side (do not trust the client).
-  const { data: rrows } = await supabase.from('reservations').select('id, guest_name, room_ids, room_number, total_amount, discount_amount, discount, paid_amount').eq('id', reservationId).limit(1);
+  const { data: rrows } = await supabase.from('reservations').select('id, guest_name, room_ids, total_amount, discount_amount, discount, paid_amount').eq('id', reservationId).limit(1);
   const r = rrows && rrows[0];
   if (!r) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
   const net = Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0));
