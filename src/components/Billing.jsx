@@ -42,8 +42,8 @@ export default function Billing() {
     try {
       const supabase = getSupabaseClient();
       const [{ data: r }, { data: t }] = await Promise.all([
-        supabase.from('reservations').select('*').order('check_out', { ascending: false }).limit(5000),
-        supabase.from('transactions').select('*').eq('fiscal_day', today),
+        supabase.from('reservations').select('id, guest_name, room_ids, status, total_amount, discount_amount, discount, paid_amount, check_in, check_out, category').order('check_out', { ascending: false }).limit(5000),
+        supabase.from('transactions').select('type, amount, payment_method').eq('fiscal_day', today),
       ]);
       setReservations(r || []);
       setTransactions(t || []);
@@ -87,14 +87,14 @@ export default function Billing() {
     <div>
       <div className="iv-bill-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start' }}>
         {/* LEFT */}
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid var(--iv-border)', padding: '8px 12px', marginBottom: 12 }}>
             <span style={{ color: 'var(--iv-ink3)', fontSize: 13 }}>⌕</span>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search folios by room number or guest name…" style={{ background: 'none', border: 'none', outline: 'none', fontFamily: 'var(--iv-body)', fontSize: 12, color: 'var(--iv-ink)', flex: 1 }} />
             {q && <button onClick={() => setQ('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--iv-ink3)', fontSize: 14 }}>×</button>}
           </div>
 
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto' }}>
+          <div className="iv-tabbar" style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto' }}>
             {filtered.slice(0, 40).map((r) => {
               const [lbl, tone] = fStatus(r);
               const on = sel && r.id === sel.id;
@@ -152,7 +152,7 @@ export default function Billing() {
         </div>
 
         {/* RIGHT */}
-        <div>
+        <div style={{ minWidth: 0 }}>
           <DSCard title="Today's" titleAccent="Collections" accent="var(--iv-gold)">
             <div style={{ fontFamily: 'var(--iv-head)', fontSize: 30, fontWeight: 700, color: 'var(--iv-ink)', marginBottom: 4 }}>{bdt(todayRevenue)}</div>
             <div style={{ fontSize: 11, color: 'var(--iv-ink3)' }}>Cash {bdt(mCash)} · Digital {bdt(mDigital)}</div>

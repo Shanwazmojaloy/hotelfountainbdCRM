@@ -74,7 +74,7 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.45)', zIndex: 100,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 460 }}>
+      <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 460, maxHeight: '92vh', overflowY: 'auto' }}>
         <h3 className="text-xl mb-1">Record Payment</h3>
         <div className="iv-stat__sub mb-4 pb-4 iv-divider">
           {r.guest_name || 'Guest'} · Room {room || '—'} · Balance <span style={{ color: '#C0566A' }}>{bdt(balance)}</span>

@@ -39,7 +39,7 @@ export default function CheckActionModal({ reservation, action, onClose, onSaved
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.45)', zIndex: 100,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 440 }}>
+      <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 440, maxHeight: '92vh', overflowY: 'auto' }}>
         <h3 className="text-xl mb-1">{isOut ? 'Check Out' : 'Check In'}</h3>
         <div className="iv-stat__sub mb-4 pb-4 iv-divider">
           {r.guest_name || 'Guest'} · Room {roomNos.join(', ') || '—'}
