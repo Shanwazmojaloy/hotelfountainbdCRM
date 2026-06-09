@@ -2,7 +2,41 @@
 
 // Hotel Fountain Design System primitives (Warm Ivory Editorial) — shared across CRM screens.
 // Mirrors the handoff components: Badge, Avatar, StatCard, Card, Tabs + table cell styles.
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+// Skeleton shimmer — shown while a value is still loading (instead of a blank/dash).
+export function Skeleton({ w = 88, h = 30, style }) {
+  return <span className="iv-skel" style={{ width: w, height: h, ...style }} />;
+}
+
+// CountUp — animates a numeric value (preserving ৳ / %, thousands separators) so KPIs
+// "tick up" like a professional dashboard. Non-numeric values (e.g. text) render as-is.
+export function CountUp({ value, duration = 650 }) {
+  const str = String(value ?? '');
+  const target = typeof value === 'number' ? value : parseFloat(str.replace(/[^0-9.-]/g, ''));
+  const finite = Number.isFinite(target);
+  const prefix = finite ? (str.match(/^[^\d-]*/)?.[0] || '') : '';
+  const suffix = finite ? (str.match(/[^\d.,-]*$/)?.[0] || '') : '';
+  const [disp, setDisp] = useState(finite ? target : value);
+  const prev = useRef(finite ? target : 0);
+  useEffect(() => {
+    if (!finite) { setDisp(value); return; }
+    let raf; const from = Number.isFinite(prev.current) ? prev.current : 0; const start = performance.now();
+    const tick = (t) => {
+      const p = Math.min(1, (t - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisp(Math.round(from + (target - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick); else prev.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  if (!finite) return <>{value}</>;
+  return <>{prefix}{Number(disp).toLocaleString('en-US')}{suffix}</>;
+}
+
+const isLoadingVal = (v) => v == null || v === '—' || v === '';
 
 export const C = {
   grn: '#15803D', gold: '#8B6914', gold2: '#6B4E0A', goldL: '#C8A96E', sky: '#1D4ED8',
@@ -55,7 +89,7 @@ export function StatCard({ icon, label, value, sub, accent = C.walnut }) {
         <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
         {icon != null && <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: accent }}>{icon}</div>}
       </div>
-      <div style={{ fontFamily: 'var(--iv-mono)', fontSize: 29, fontWeight: 700, color: 'var(--iv-ink)', lineHeight: 1.1, marginTop: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.01em' }}>{value}</div>
+      <div style={{ fontFamily: 'var(--iv-mono)', fontSize: 29, fontWeight: 700, color: 'var(--iv-ink)', lineHeight: 1.1, marginTop: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.01em' }}>{isLoadingVal(value) ? <Skeleton w={84} h={30} /> : <CountUp value={value} />}</div>
       {sub != null && <div style={{ fontSize: 11, color: 'var(--iv-ink2)', marginTop: 6 }}>{sub}</div>}
     </div>
   );

@@ -46,21 +46,33 @@ export default function AuthGate({ children }) {
   const [actMsg, setActMsg] = useState('');
   const [actBusy, setActBusy] = useState(false);
 
-  useEffect(() => { if (!_authCache) restore(); }, []);
+  // Optimistic restore: if a saved session exists, paint the app IMMEDIATELY (no blocking
+  // network gate / LOADING screen) and verify against Supabase in the background. This is what
+  // keeps tab switches and reloads from flashing a black "checking" screen.
+  useEffect(() => {
+    if (_authCache) return;
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('lumea_session') || 'null'); } catch { /* ignore */ }
+    if (saved?.id) {
+      const optimistic = { id: saved.id, name: saved.name, role: saved.role };
+      _authCache = optimistic; setUser(optimistic); setStatus('in');
+      validateSession(saved);
+    } else {
+      setStatus('out');
+    }
+  }, []);
 
-  async function restore() {
+  async function validateSession(saved) {
     try {
-      const saved = JSON.parse(localStorage.getItem('lumea_session') || 'null');
-      if (!saved?.id) { setStatus('out'); return; }
       const { data } = await getSupabaseClient().from('staff').select('id, name, role, session_v, activated').eq('tenant_id', TENANT).eq('id', saved.id).limit(1);
       const u = data && data[0];
-      if (u && (u.session_v || 1) === saved.session_v) { _authCache = u; setUser(u); setStatus('in'); }
-      else { localStorage.removeItem('lumea_session'); setStatus('out'); }
-    } catch { setStatus('out'); }
+      if (u && (u.session_v || 1) === saved.session_v) { _authCache = u; setUser(u); }
+      else { try { localStorage.removeItem('lumea_session'); } catch { /* ignore */ } _authCache = null; setUser(null); setStatus('out'); }
+    } catch { /* transient/offline — keep the optimistic session, don't bounce the user to login */ }
   }
 
   function applySession(s) {
-    localStorage.setItem('lumea_session', JSON.stringify({ id: s.id, session_v: s.session_v || 1 }));
+    localStorage.setItem('lumea_session', JSON.stringify({ id: s.id, session_v: s.session_v || 1, name: s.name, role: s.role }));
     _authCache = s; setUser(s); setStatus('in'); setPw(''); setActPw(''); setActOtp('');
   }
 
@@ -102,7 +114,8 @@ export default function AuthGate({ children }) {
   function signOut() { try { localStorage.removeItem('lumea_session'); } catch {} _authCache = null; setUser(null); setStatus('out'); }
 
   if (status === 'checking') {
-    return <div style={{ minHeight: '100vh', background: WALNUT, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(200,169,110,.6)', fontFamily: mono, letterSpacing: '.2em', fontSize: 12 }}>LOADING…</div>;
+    // Ivory (never near-black) so the split-second before the optimistic flip is seamless.
+    return <div style={{ minHeight: '100vh', background: PARCH, display: 'flex', alignItems: 'center', justifyContent: 'center', color: TX3, fontFamily: mono, letterSpacing: '.2em', fontSize: 12 }} />;
   }
   if (status === 'in') {
     return <AuthContext.Provider value={{ user, signOut }}>{children}</AuthContext.Provider>;

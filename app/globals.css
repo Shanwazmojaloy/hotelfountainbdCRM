@@ -132,6 +132,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-stat__lbl { font-size:10px; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--iv-ink3); margin-bottom:10px; }
 .crm-root .iv-stat__val { font-family:var(--iv-mono); font-size:29px; font-weight:700; color:var(--iv-ink); font-variant-numeric:tabular-nums; line-height:1.1; letter-spacing:-.01em; }
 .crm-root .iv-stat__sub { font-size:12px; color:var(--iv-ink2); margin-top:6px; }
+
+/* ── Smoothness: route fade-in, count-up host, skeleton shimmer ── */
+@keyframes ivFade { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+.iv-fade { animation: ivFade .26s var(--iv-ease, cubic-bezier(.4,0,.2,1)); }
+@keyframes ivShimmer { 100% { transform:translateX(100%); } }
+.iv-skel { position:relative; overflow:hidden; display:inline-block; background:#EAE3D6; border-radius:5px; vertical-align:middle; }
+.iv-skel::after { content:''; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent); animation:ivShimmer 1.15s infinite; }
 .crm-root .iv-pos { color:var(--iv-in-fg); }
 .crm-root .iv-due { color:var(--iv-due-fg); }
 
