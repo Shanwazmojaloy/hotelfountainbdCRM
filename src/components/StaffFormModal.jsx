@@ -23,21 +23,24 @@ export default function StaffFormModal({ user, existing, onClose, onSaved }) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return setErr('Enter a valid email address.');
     setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      if (isEdit) {
-        const patch = { name: f.name, email: f.email.trim().toLowerCase(), role: f.role, device: f.device };
-        const { error } = await supabase.from('staff').update(patch).eq('id', user.id);
-        if (error) throw error;
-      } else {
-        const nextId = Math.max(0, ...(existing || []).map((s) => +s.id || 0)) + 1;
-        const row = {
-          id: nextId, name: f.name, email: f.email.trim().toLowerCase(), role: f.role,
-          device: f.device || f.name + ' Terminal', av: initials(f.name),
-          tenant_id: TENANT, activated: false, pwh: null, session_v: 1,
-        };
-        const { error } = await supabase.from('staff').insert(row);
-        if (error) throw error;
-      }
+      const r = await fetch('/api/crm/staff', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: isEdit ? 'update' : 'create', id: user?.id, name: f.name, email: f.email, role: f.role, device: f.device }),
+      });
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        if (isEdit) {
+          const patch = { name: f.name, email: f.email.trim().toLowerCase(), role: f.role, device: f.device };
+          const { error } = await supabase.from('staff').update(patch).eq('id', user.id); if (error) throw error;
+        } else {
+          const nextId = Math.max(0, ...(existing || []).map((s) => +s.id || 0)) + 1;
+          const { error } = await supabase.from('staff').insert({
+            id: nextId, name: f.name, email: f.email.trim().toLowerCase(), role: f.role,
+            device: f.device || f.name + ' Terminal', av: initials(f.name),
+            tenant_id: TENANT, activated: false, pwh: null, session_v: 1,
+          }); if (error) throw error;
+        }
+      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not save staff.'); }
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
@@ -46,9 +49,12 @@ export default function StaffFormModal({ user, existing, onClose, onSaved }) {
     if (!window.confirm(`Reset ${user.name}'s password? They must re-activate via the login page.`)) return;
     setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from('staff').update({ pwh: null, activated: false, otp_hash: null, otp_expires: null, session_v: 1 }).eq('id', user.id);
-      if (error) throw error;
+      const r = await fetch('/api/crm/staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset', id: user.id }) });
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.from('staff').update({ pwh: null, activated: false, otp_hash: null, otp_expires: null, session_v: 1 }).eq('id', user.id);
+        if (error) throw error;
+      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not reset.'); }
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
@@ -57,9 +63,12 @@ export default function StaffFormModal({ user, existing, onClose, onSaved }) {
     if (!window.confirm(`Remove staff account for ${user.name}?`)) return;
     setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from('staff').delete().eq('id', user.id);
-      if (error) throw error;
+      const r = await fetch('/api/crm/staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id: user.id }) });
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.from('staff').delete().eq('id', user.id);
+        if (error) throw error;
+      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not remove.'); }
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }

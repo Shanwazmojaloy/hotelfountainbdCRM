@@ -37,9 +37,12 @@ export default function Settings() {
     if (!window.confirm('Sign out ALL staff on every device? They will be logged out on next sync (≤90s).')) return;
     setSecBusy(true); setSecMsg('');
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from('staff').update({ session_v: 2 }).eq('tenant_id', TENANT).neq('role', 'owner');
-      if (error) throw error;
+      const r = await fetch('/api/crm/staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout_all' }) });
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.from('staff').update({ session_v: 2 }).eq('tenant_id', TENANT).neq('role', 'owner');
+        if (error) throw error;
+      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Failed'); }
       setSecMsg('All sessions invalidated — staff will be signed out shortly.');
       reloadStaff();
     } catch (e) { setSecMsg('Failed: ' + (e.message || String(e))); } finally { setSecBusy(false); }
@@ -68,13 +71,14 @@ export default function Settings() {
   async function saveHotel() {
     setSaving(true); setMsg('');
     try {
-      const supabase = getSupabaseClient();
-      const rows = [
-        ['hotel_name', hs.hotelName], ['city', hs.city], ['currency', hs.currency],
-        ['check_in', hs.checkIn], ['check_out', hs.checkOut], ['vat_rate', hs.vat], ['service_charge', hs.svc],
-      ].map(([key, value]) => ({ key, value: String(value), tenant_id: TENANT }));
-      const { error } = await supabase.from('hotel_settings').upsert(rows, { onConflict: 'key,tenant_id' });
-      if (error) throw error;
+      const values = { hotel_name: hs.hotelName, city: hs.city, currency: hs.currency, check_in: hs.checkIn, check_out: hs.checkOut, vat_rate: hs.vat, service_charge: hs.svc };
+      const r = await fetch('/api/crm/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) });
+      if (r.status === 401) {
+        const supabase = getSupabaseClient();
+        const rows = Object.entries(values).map(([key, value]) => ({ key, value: String(value), tenant_id: TENANT }));
+        const { error } = await supabase.from('hotel_settings').upsert(rows, { onConflict: 'key,tenant_id' });
+        if (error) throw error;
+      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Save failed'); }
       setMsg('Hotel settings saved ✓');
     } catch (e) { setMsg('Save failed: ' + (e.message || String(e))); } finally { setSaving(false); }
   }
