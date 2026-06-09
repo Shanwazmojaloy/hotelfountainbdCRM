@@ -26,7 +26,7 @@ export default function Guests() {
     try {
       const supabase = getSupabaseClient();
       const [{ data: g }, { data: r }] = await Promise.all([
-        supabase.from('guests').select('id, name, phone, email, city, vip, id_type, id_number, id_card').order('name'),
+        supabase.from('guests').select('id, name, phone, email, city, vip, id_type, id_number, id_card').order('name').limit(5000),
         supabase.from('reservations').select('guest_ids, guest_name, total_amount, discount_amount, discount, paid_amount'),
       ]);
       setGuests(g || []);
