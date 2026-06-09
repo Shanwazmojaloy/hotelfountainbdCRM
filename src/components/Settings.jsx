@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import StaffFormModal from './StaffFormModal';
+import WorkflowMonitor from './WorkflowMonitor';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
@@ -155,7 +156,7 @@ export default function Settings() {
         </div>
       )}
 
-      {tab === 'system' && (
+      {tab === 'system' && (<>
         <div className="iv-card">
           <h3 className="text-lg mb-4 pb-3 iv-divider">System</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -166,7 +167,8 @@ export default function Settings() {
             ))}
           </div>
         </div>
-      )}
+        <div className="mt-5"><WorkflowMonitor /></div>
+      </>)}
 
       {staffModal && (
         <StaffFormModal
