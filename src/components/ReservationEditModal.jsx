@@ -10,6 +10,7 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 import { recalcResTotal } from '@/lib/recalcResTotal';
 import AddChargeModal from './AddChargeModal';
 import RecordPaymentModal from './RecordPaymentModal';
+import { printConfirmation } from '@/lib/printDocs';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
@@ -180,9 +181,11 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
         {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
 
         <div className="flex justify-between gap-2 flex-wrap">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button className="iv-btn iv-btn--ghost" onClick={() => setShowCharge(true)}>+ Add Charge</button>
             <button className="iv-btn iv-btn--ghost" onClick={() => setShowPay(true)}>Record Payment</button>
+            <button className="iv-btn iv-btn--ghost" title="Print booking confirmation voucher"
+              onClick={() => printConfirmation({ ...res, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), total_amount: totalAmt, discount_amount: discountNum, paid_amount: paidNum, notes, status, guest_name: gn }, rooms, gn)}>Print</button>
           </div>
           <div className="flex gap-2">
             <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>

@@ -6,6 +6,7 @@
 // security actions remain owner-only in the legacy admin for now.
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import StaffFormModal from './StaffFormModal';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
@@ -18,7 +19,16 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [staffModal, setStaffModal] = useState(null); // 'new' | { user } | null
   const set = (k) => (e) => setHS((p) => ({ ...p, [k]: e.target.value }));
+
+  async function reloadStaff() {
+    try {
+      const supabase = getSupabaseClient();
+      const { data: st } = await supabase.from('staff').select('id, name, email, role, activated, device').order('role');
+      setStaff(st || []);
+    } catch (e) { console.error('[Settings] staff reload:', e); }
+  }
 
   useEffect(() => {
     (async () => {
@@ -26,7 +36,7 @@ export default function Settings() {
         const supabase = getSupabaseClient();
         const [{ data: rows }, { data: st }] = await Promise.all([
           supabase.from('hotel_settings').select('key, value').eq('tenant_id', TENANT),
-          supabase.from('staff').select('id, name, email, role, activated').order('role'),
+          supabase.from('staff').select('id, name, email, role, activated, device').order('role'),
         ]);
         if (rows && rows.length) {
           const m = {}; rows.forEach((r) => { m[r.key] = r.value; });
@@ -99,7 +109,10 @@ export default function Settings() {
 
       {tab === 'users' && (
         <div className="iv-card">
-          <h3 className="text-lg mb-4 pb-3 iv-divider">Staff Accounts <span className="iv-stat__sub" style={{ fontWeight: 400 }}>· read-only (manage in legacy admin)</span></h3>
+          <div className="flex items-center justify-between mb-4 pb-3 iv-divider">
+            <h3 className="text-lg">Staff Accounts</h3>
+            <button className="iv-btn" style={{ padding: '5px 12px', fontSize: 13 }} onClick={() => setStaffModal('new')}>+ Add Staff</button>
+          </div>
           {loading && <div className="iv-stat__sub">Loading…</div>}
           {!loading && staff.length === 0 && <div className="iv-stat__sub">No staff accounts.</div>}
           <div className="flex flex-col gap-2">
@@ -110,6 +123,7 @@ export default function Settings() {
                   {u.role === 'owner' ? <span className="iv-badge" style={{ background: 'rgba(139,105,20,0.15)', color: '#8B6914' }}>★ Owner</span>
                     : <span className="iv-badge">{ROLE_LABEL[u.role] || u.role}</span>}
                   {u.activated === false && <span className="iv-badge" style={{ background: 'rgba(192,86,106,0.12)', color: '#A23B4E' }}>Pending</span>}
+                  {u.role !== 'owner' && <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => setStaffModal({ user: u })}>Edit</button>}
                 </div>
               </div>
             ))}
@@ -128,6 +142,15 @@ export default function Settings() {
             ))}
           </div>
         </div>
+      )}
+
+      {staffModal && (
+        <StaffFormModal
+          user={staffModal === 'new' ? null : staffModal.user}
+          existing={staff}
+          onClose={() => setStaffModal(null)}
+          onSaved={reloadStaff}
+        />
       )}
     </div>
   );
