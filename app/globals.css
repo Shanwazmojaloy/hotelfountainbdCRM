@@ -139,6 +139,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 @keyframes ivShimmer { 100% { transform:translateX(100%); } }
 .iv-skel { position:relative; overflow:hidden; display:inline-block; background:#EAE3D6; border-radius:5px; vertical-align:middle; }
 .iv-skel::after { content:''; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent); animation:ivShimmer 1.15s infinite; }
+/* Tab bar: keep horizontal scrollability but hide the (dark) scrollbar track */
+.iv-tabbar { scrollbar-width:none; -ms-overflow-style:none; }
+.iv-tabbar::-webkit-scrollbar { height:0; width:0; display:none; }
 .crm-root .iv-pos { color:var(--iv-in-fg); }
 .crm-root .iv-due { color:var(--iv-due-fg); }
 
