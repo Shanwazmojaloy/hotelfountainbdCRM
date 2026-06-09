@@ -6,6 +6,7 @@
 // Add Room links to legacy too. No writes here.
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import RoomStatusModal from './RoomStatusModal';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
@@ -21,6 +22,7 @@ export default function Rooms() {
   const [rooms, setRooms] = useState([]);
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
+  const [statusRoom, setStatusRoom] = useState(null);
 
   useEffect(() => { fetchRooms(); }, []);
 
@@ -84,7 +86,10 @@ export default function Rooms() {
           return (
             <button
               key={room.id}
-              onClick={() => { window.location.href = '/crm.html'; }}
+              onClick={() => {
+                if (room.status === 'OCCUPIED' || room.status === 'RESERVED') { window.location.href = '/crm.html'; }
+                else { setStatusRoom(room); }
+              }}
               className="iv-card iv-card--hover text-left relative"
               style={{ borderTop: `3px solid ${st.c}`, padding: '14px 16px' }}
             >
@@ -103,6 +108,10 @@ export default function Rooms() {
           );
         })}
       </div>
+
+      {statusRoom && (
+        <RoomStatusModal room={statusRoom} onClose={() => setStatusRoom(null)} onSaved={fetchRooms} />
+      )}
     </div>
   );
 }
