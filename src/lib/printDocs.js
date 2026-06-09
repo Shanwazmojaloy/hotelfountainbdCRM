@@ -161,6 +161,99 @@ export function printConfirmation(res, rooms, guestName) {
   w.document.open(); w.document.write(html); w.document.close();
 }
 
+// printDayReport — ported from legacy BillingPage.downloadPDF (A4 portrait, 5mm/7mm). Daily
+// closing report: collected transactions grouped by reservation (today's paid, aggregated
+// payment methods), pending dues, and a closing summary by payment method. Bill Total is the
+// NET (post-discount) figure to match the web Billing page.
+const _net = (r) => Math.max(0, (+r?.total_amount || 0) - (+r?.discount_amount || +r?.discount || 0));
+const _due = (r) => Math.max(0, _net(r) - (+r?.paid_amount || 0));
+export function printDayReport({ dateLabel, collected, dues, reservations }) {
+  const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
+  const resById = {}; (reservations || []).forEach((r) => { resById[String(r.id)] = r; });
+  // group today's collections by reservation_id (orphans by guest|room)
+  const groups = {};
+  (collected || []).forEach((t) => {
+    const key = t.reservation_id ? 'r:' + t.reservation_id : 'o:' + (t.guest_name || '') + '|' + (t.room_number || '');
+    if (!groups[key]) groups[key] = { guest: t.guest_name || '—', room: t.room_number || '—', paidToday: 0, methods: new Set(), res: resById[String(t.reservation_id)] };
+    groups[key].paidToday += +t.amount || 0;
+    if (t.type) groups[key].methods.add(String(t.type).replace(/Room Payment \(|\)/g, ''));
+  });
+  const grpArr = Object.values(groups);
+  const totalCollected = grpArr.reduce((a, g) => a + g.paidToday, 0);
+  const totalOutstanding = (dues || []).reduce((a, r) => a + _due(r), 0);
+  // closing summary by method
+  const byMethod = {};
+  (collected || []).forEach((t) => { const m = String(t.type || 'Other').replace(/Room Payment \(|\)/g, ''); byMethod[m] = (byMethod[m] || 0) + (+t.amount || 0); });
+
+  const collectedRows = grpArr.map((g) => `<tr><td>${esc(g.guest)}</td><td class="rno">${esc(g.room)}</td><td class="num">${fmt(g.res ? _net(g.res) : g.paidToday)}</td><td class="num">${fmt(g.paidToday)}</td><td class="rt">${esc([...g.methods].join(' + ') || '—')}</td></tr>`).join('')
+    || `<tr><td colspan="5" style="text-align:center;color:#8A8276;padding:20px">No collections recorded.</td></tr>`;
+  const dueRows = (dues || []).map((r) => `<tr><td>${esc(r.guest_name || 'Guest')}</td><td class="rno">${esc(Array.isArray(r.room_ids) ? r.room_ids.join(', ') : (r.room_number || '—'))}</td><td class="num">${fmt(_net(r))}</td><td class="num">${fmt(r.paid_amount)}</td><td class="num due">${fmt(_due(r))}</td></tr>`).join('')
+    || `<tr><td colspan="5" style="text-align:center;color:#8A8276;padding:20px">No pending dues.</td></tr>`;
+  const methodRows = Object.entries(byMethod).map(([m, amt]) => `<div class="pm"><span>${esc(m)}</span><span>${fmt(amt)}</span></div>`).join('');
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Daily Closing Report · ${esc(dateLabel)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  @page{size:A4 portrait;margin:5mm 7mm}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#FBF8F1;color:#15110D;font-family:'Inter',sans-serif;font-size:8px;line-height:1.5;font-variant-numeric:tabular-nums;text-rendering:geometricPrecision}
+  .page{max-width:820px;margin:0 auto;padding:24px 28px;background:#FBF8F1}
+  .hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #C8A96E;padding-bottom:12px;margin-bottom:14px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand img{width:40px;height:40px;object-fit:contain}
+  .brand h1{font-size:14px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
+  .brand h1 em{font-style:normal;color:#C8A96E;font-weight:500}
+  .brand .tag{font-size:8px;color:#8A8276}
+  .meta{text-align:right;font-size:9px;color:#5A544A}
+  .meta .t{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+  .stat{border:1px solid #E0D8C8;border-radius:3px;padding:8px 10px;background:#FFFDF7}
+  .stat .l{font-size:7px;letter-spacing:1px;text-transform:uppercase;color:#8A8276}
+  .stat .v{font-size:14px;font-weight:700;margin-top:2px}
+  .sec-hdr{font-size:10.5px;font-weight:700;letter-spacing:.5px;color:#15110D;margin:14px 0 6px}
+  table{width:100%;border-collapse:collapse;border:1px solid #E0D8C8;background:#FFFDF7}
+  thead th{font-size:7.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#8A8276;text-align:left;padding:6px 8px;border-bottom:1px solid #E0D8C8;background:#F7F2E6}
+  thead th.num{text-align:right}
+  tbody td{padding:6px 8px;border-bottom:1px solid #F2EEE4;font-size:8.5px}
+  td.rno{color:#9C7A3E;font-weight:600}
+  td.rt{color:#5A544A}
+  td.num{text-align:right;font-weight:500}
+  td.num.due{color:#B14D4D;font-weight:600}
+  .closing{margin-top:16px;border-top:2px solid #C8A96E;padding-top:10px;display:flex;justify-content:space-between;align-items:flex-end}
+  .pm{display:flex;justify-content:space-between;gap:24px;font-size:7px;font-weight:600;color:#5A544A;padding:1px 0}
+  .final{text-align:right}
+  .final .l{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:#8A8276}
+  .final .v{font-size:14px;font-weight:700;color:#4A7C59}
+  @media print{html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0 !important;max-width:none !important}}
+</style></head><body>
+<div class="page">
+  <div class="hdr">
+    <div class="brand"><img src="${logo}" alt="HF"/><div><h1>Hotel <em>Fountain</em></h1><div class="tag">Daily Closing Report</div></div></div>
+    <div class="meta"><div class="t">Closing Report</div><div>${esc(dateLabel)}</div><div>Generated ${esc(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }))} BST</div></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="l">Collected Today</div><div class="v" style="color:#4A7C59">${fmt(totalCollected)}</div></div>
+    <div class="stat"><div class="l">Outstanding Dues</div><div class="v" style="color:#B14D4D">${fmt(totalOutstanding)}</div></div>
+    <div class="stat"><div class="l">Transactions</div><div class="v">${grpArr.length}</div></div>
+    <div class="stat"><div class="l">Open Folios</div><div class="v">${(dues || []).length}</div></div>
+  </div>
+  <div class="sec-hdr">Collected Transactions</div>
+  <table><thead><tr><th>Guest</th><th>Room</th><th class="num">Bill Total</th><th class="num">Paid</th><th>Payment Method</th></tr></thead><tbody>${collectedRows}</tbody></table>
+  <div class="sec-hdr">Pending Dues</div>
+  <table><thead><tr><th>Guest</th><th>Room</th><th class="num">Bill Total</th><th class="num">Paid</th><th class="num">Balance</th></tr></thead><tbody>${dueRows}</tbody></table>
+  <div class="closing">
+    <div><div style="font-size:8px;letter-spacing:1px;text-transform:uppercase;color:#8A8276;margin-bottom:3px">By Payment Method</div>${methodRows || '<div class="pm"><span>—</span><span>৳0</span></div>'}</div>
+    <div class="final"><div class="l">Total Collected Today</div><div class="v">${fmt(totalCollected)}</div></div>
+  </div>
+</div>
+<script>(function(){const imgs=document.getElementsByTagName('img');let p=0;const go=()=>setTimeout(()=>window.print(),120);if(!imgs.length){go();return;}for(const im of imgs){if(im.complete&&im.naturalWidth>0)continue;p++;im.addEventListener('load',()=>{if(--p<=0)go();});im.addEventListener('error',()=>{if(--p<=0)go();});}if(p===0)go();setTimeout(go,2500);})();</script>
+</body></html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) { alert('Pop-up blocked — allow pop-ups to print.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
 // printInvoice — tax-invoice variant built from the reservation + its folios (no dependency
 // on BillingPage.computeBill). Lists room charge(s) + billable folios, discount, paid, due,
 // with a PAID / BALANCE DUE stamp. Same A4-portrait Warm-Ivory shell as the confirmation.

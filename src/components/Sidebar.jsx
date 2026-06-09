@@ -32,6 +32,7 @@ const navItems = [
   { href: '/crm/reports', icon: 'trend', label: 'Reports' },
   { href: '/crm/settings', icon: 'gear', label: 'Settings' },
   { href: '/crm/ai', icon: 'sparkle', label: 'AI Agents' },
+  { href: '/crm/council', icon: 'users', label: 'Council' },
   { href: '/leads', icon: 'users', label: 'Leads' },
   { href: '/suppliers', icon: 'building', label: 'Suppliers' },
   { href: '/churn', icon: 'trend', label: 'Follow-up' },

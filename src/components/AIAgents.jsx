@@ -7,6 +7,9 @@
 import { useState } from 'react';
 
 const EDGE = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/ai-agents';
+const PLAN_G = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/plan-g-upsell';
+const SWARM = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/lead-gen-swarm';
+const SHEETS = 'https://mynwfkgksqqwlqowlscj.supabase.co/functions/v1/sync-to-sheets';
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
@@ -47,10 +50,21 @@ export default function AIAgents() {
   const [closerBusy, setCloserBusy] = useState(false);
   const [analystRes, setAnalystRes] = useState(null);
   const [analystBusy, setAnalystBusy] = useState(false);
+  const [autoBusy, setAutoBusy] = useState('');
+  const [autoRes, setAutoRes] = useState(null);
+  const [leadType, setLeadType] = useState('corporate');
 
   async function runProspect() { setProspectBusy(true); setProspectRes(null); setProspectRes(await callAgent('prospect', { query: prospectQ })); setProspectBusy(false); }
   async function runCloser() { if (!leadId.trim()) return; setCloserBusy(true); setCloserRes(null); setCloserRes(await callAgent('close', { lead_id: leadId.trim() })); setCloserBusy(false); }
   async function runAnalyst() { setAnalystBusy(true); setAnalystRes(null); setAnalystRes(await callAgent('analyze')); setAnalystBusy(false); }
+  async function runEdge(key, url, body) {
+    setAutoBusy(key); setAutoRes(null);
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: ANON, Authorization: `Bearer ${ANON}` }, body: JSON.stringify(body || {}) });
+      const txt = await r.text(); let j; try { j = JSON.parse(txt); } catch { j = { raw: txt.slice(0, 500) }; }
+      setAutoRes({ key, ...j });
+    } catch (e) { setAutoRes({ key, error: String(e?.message || e) }); } finally { setAutoBusy(''); }
+  }
 
   return (
     <div style={{ maxWidth: 820 }}>
@@ -102,7 +116,31 @@ export default function AIAgents() {
             </div>)}
       </Card>
 
-      <div className="iv-stat__sub mt-2">Council, Lead-gen swarm, Workflow monitor and AI research remain in the legacy admin.</div>
+      <Card icon="🎁" title="Plan-G Upsell" color="#8B6FB0" desc="Agentic pre-arrival upsell + in-stay room customizer (results land as upsell offers)">
+        <div className="flex gap-2 flex-wrap">
+          <button className="iv-btn iv-btn--ghost" onClick={() => runEdge('pre_arrival', PLAN_G, { action: 'pre_arrival' })} disabled={!!autoBusy}>{autoBusy === 'pre_arrival' ? 'Running…' : 'Run Pre-Arrival'}</button>
+          <button className="iv-btn iv-btn--ghost" onClick={() => runEdge('room_customizer', PLAN_G, { action: 'room_customizer' })} disabled={!!autoBusy}>{autoBusy === 'room_customizer' ? 'Running…' : 'Run Room Customizer'}</button>
+        </div>
+        {autoRes && (autoRes.key === 'pre_arrival' || autoRes.key === 'room_customizer') && <div style={pre}>{autoRes.error || JSON.stringify(autoRes, null, 2)}</div>}
+      </Card>
+
+      <Card icon="🐝" title="Lead-Gen Swarm" color="#3884B4" desc="Scout B2B leads then score/analyze them (saved to swarm_leads)">
+        <div className="flex gap-2 flex-wrap items-center">
+          <select style={field} value={leadType} onChange={(e) => setLeadType(e.target.value)}>
+            <option value="corporate">Corporate</option><option value="travel_agency">Travel Agency</option><option value="event">Event / MICE</option>
+          </select>
+          <button className="iv-btn iv-btn--ghost" onClick={() => runEdge('scout', SWARM, { action: 'scout', lead_type: leadType })} disabled={!!autoBusy}>{autoBusy === 'scout' ? 'Scouting…' : 'Scout Leads'}</button>
+          <button className="iv-btn iv-btn--ghost" onClick={() => runEdge('analyze_all', SWARM, { action: 'analyze' })} disabled={!!autoBusy}>{autoBusy === 'analyze_all' ? 'Analyzing…' : 'Score All'}</button>
+        </div>
+        {autoRes && (autoRes.key === 'scout' || autoRes.key === 'analyze_all') && <div style={pre}>{autoRes.error || JSON.stringify(autoRes, null, 2)}</div>}
+      </Card>
+
+      <Card icon="📊" title="Google Sheets Backup" color="#3C6B4A" desc="Push all six tables to the backup spreadsheet (auto-sync also runs on every write)">
+        <button className="iv-btn iv-btn--ghost" onClick={() => runEdge('sheets', SHEETS, {})} disabled={!!autoBusy}>{autoBusy === 'sheets' ? 'Syncing…' : 'Sync All Data Now'}</button>
+        {autoRes && autoRes.key === 'sheets' && <div style={pre}>{autoRes.error || (autoRes.counts ? `Synced ${Object.entries(autoRes.counts).map(([k, v]) => `${k}:${v}`).join(' · ')}` : JSON.stringify(autoRes, null, 2))}</div>}
+      </Card>
+
+      <div className="iv-stat__sub mt-2">Full Plan-G offer management, the lead pipeline table, AI research viewer and workflow monitor remain in the legacy admin. The Council is at <a href="/crm/council" style={{ color: '#8B6914' }}>/crm/council</a>.</div>
     </div>
   );
 }
