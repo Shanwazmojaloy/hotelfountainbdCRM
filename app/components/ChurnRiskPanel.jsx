@@ -63,6 +63,15 @@ function slopeLabel(s) {
   if (v > 0.05)  return "improving";
   return "stable";
 }
+// Recalibrated priority bands derived from churn_score so "Low" is reachable.
+// The scorer floors scores at ~0.56, which previously made ~85% of accounts read
+// as "High" with Low unreachable. These cutoffs spread the observed 0.56–1.0 range.
+function band(score) {
+  const s = Number(score) || 0;
+  if (s >= 0.75) return "High";
+  if (s >= 0.66) return "Medium";
+  return "Low";
+}
 function timeAgo(iso) {
   if (!iso) return "—";
   const d = (Date.now() - new Date(iso).getTime()) / 86400000;
@@ -144,7 +153,8 @@ function ScoreBar({ score, status }) {
 }
 
 function Card({ row }) {
-  const r = RISK[row.risk_status] || RISK.Low;
+  const st = band(row.churn_score);
+  const r = RISK[st] || RISK.Low;
   const normalizedReasons = normalizeReasons(row.reasons, row.source_type);
   return (
     <article style={{
@@ -162,16 +172,16 @@ function Card({ row }) {
             {row.display_name || row.account_id}
           </h3>
         </div>
-        <Badge status={row.risk_status} />
+        <Badge status={st} />
       </div>
 
       <div style={{ marginTop: "1.25rem", display: "flex", alignItems: "baseline", gap: 14 }}>
         <span style={{ fontFamily: FONT_MONO, fontSize: 30, color: r.fg, fontWeight: 600 }}>{pct(row.churn_score)}</span>
         <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#8A847A" }}>
-          churn probability · trend <strong style={{ color: INK }}>{slopeLabel(row.sentiment_slope)}</strong>
+          follow-up priority · trend <strong style={{ color: INK }}>{slopeLabel(row.sentiment_slope)}</strong>
         </span>
       </div>
-      <div style={{ marginTop: 10 }}><ScoreBar score={row.churn_score} status={row.risk_status} /></div>
+      <div style={{ marginTop: 10 }}><ScoreBar score={row.churn_score} status={st} /></div>
 
       {normalizedReasons.length > 0 && (
         <ul style={{ listStyle: "none", padding: 0, margin: "1.25rem 0 0" }}>
@@ -231,12 +241,12 @@ export default function ChurnRiskPanel({ supabase = null, defaultFilter = "All" 
 
   const filtered = useMemo(() => {
     if (!rows) return null;
-    return filter === "All" ? rows : rows.filter((r) => r.risk_status === filter);
+    return filter === "All" ? rows : rows.filter((r) => band(r.churn_score) === filter);
   }, [rows, filter]);
 
   const counts = useMemo(() => {
     const c = { All: rows?.length || 0, High: 0, Medium: 0, Low: 0 };
-    (rows || []).forEach((r) => { c[r.risk_status] = (c[r.risk_status] || 0) + 1; });
+    (rows || []).forEach((r) => { const b = band(r.churn_score); c[b] = (c[b] || 0) + 1; });
     return c;
   }, [rows]);
 
@@ -244,9 +254,9 @@ export default function ChurnRiskPanel({ supabase = null, defaultFilter = "All" 
     <section style={{ background: IVORY, padding: "2rem", borderRadius: 16, border: "1px solid " + BORDER, fontFamily: FONT_BODY }}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12, marginBottom: "1.5rem" }}>
         <div>
-          <h2 style={{ fontFamily: FONT_HEAD, fontSize: 26, color: INK, margin: 0 }}>Churn Risk</h2>
+          <h2 style={{ fontFamily: FONT_HEAD, fontSize: 26, color: INK, margin: 0 }}>Follow-up Priority</h2>
           <p style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#8A847A", margin: "6px 0 0" }}>
-            Partner accounts and corporate leads ranked by cancellation risk and sentiment trend.
+            Partner accounts and corporate leads ranked by follow-up priority — driven mainly by contact recency.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -274,7 +284,7 @@ export default function ChurnRiskPanel({ supabase = null, defaultFilter = "All" 
 
       {filtered && filtered.length === 0 && (
         <div style={{ fontFamily: FONT_BODY, color: "#8A847A", padding: "2rem", textAlign: "center", background: CARD, border: "1px dashed " + BORDER, borderRadius: 12 }}>
-          No accounts at <strong>{filter}</strong> risk. That&apos;s a good sign.
+          No accounts at <strong>{filter}</strong> priority. That&apos;s a good sign.
         </div>
       )}
 
