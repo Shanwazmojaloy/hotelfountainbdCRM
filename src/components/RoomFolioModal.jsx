@@ -10,6 +10,7 @@ import { recalcResTotal } from '@/lib/recalcResTotal';
 import AddChargeModal from './AddChargeModal';
 import RecordPaymentModal from './RecordPaymentModal';
 import CheckActionModal from './CheckActionModal';
+import { printInvoice } from '@/lib/printDocs';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const ADMIN_RE = /receivable|payment|settlement|advance|refund/i;
@@ -116,6 +117,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
 
             <div className="flex gap-2 flex-wrap justify-end">
               <button className="iv-btn iv-btn--ghost" onClick={() => setShowCharge(true)}>+ Add Charge</button>
+              <button className="iv-btn iv-btn--ghost" onClick={() => printInvoice({ ...activeRes, guest_name: guestName }, rooms, guestName, folios)}>Invoice</button>
               <button className="iv-btn iv-btn--ghost" onClick={() => setShowPay(true)} disabled={due <= 0}>Collect Payment</button>
               <button className="iv-btn" style={{ background: '#A23B4E' }} onClick={() => setShowCO(true)}>Check Out</button>
             </div>

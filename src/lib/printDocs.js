@@ -1,0 +1,263 @@
+// printDocs — ported from legacy ReservationDetail.printConfirmation. Opens a print
+// window with the A4-portrait Booking Confirmation voucher (WhatsApp QR, image-load-aware
+// print trigger). The 69KB base64 logo is replaced by the hosted /logo.png (same origin)
+// to keep the bundle lean. Invoice printing lives in printInvoice (billing).
+const HF_ADDR = 'House-05, Road-02, Nikunja-02, Dhaka 1229, Bangladesh';
+const HF_EMAIL = 'hotellfountainbd@gmail.com';
+const HF_SITE = 'fountainbd.com';
+const HF_PHONE = '+880 1322-840799';
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (n) => '৳' + Number(n || 0).toLocaleString('en-BD');
+const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return String(d).slice(0, 10); } };
+const nightsCount = (ci, co) => { if (!ci || !co) return 0; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : 0; };
+
+export function printConfirmation(res, rooms, guestName) {
+  const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
+  const gn = guestName || res.guest_name || 'Guest';
+  const confNo = 'HF-' + String(res.id || '').slice(0, 8).toUpperCase();
+  const issued = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const roomArr = (res.room_ids || []).filter(Boolean);
+  const nights = nightsCount(res.check_in, res.check_out);
+  const ratesSum = roomArr.reduce((a, rn) => a + (+(rooms || []).find((r) => String(r.room_number) === String(rn))?.price || 0), 0);
+  const totalAmt = +res.total_amount > 0 ? +res.total_amount : ratesSum * nights;
+  const discountNum = +(res.discount_amount || res.discount || 0);
+  const paidNum = +res.paid_amount || 0;
+  const balance = Math.max(0, totalAmt - discountNum - paidNum);
+  const rows = roomArr.map((rn) => {
+    const rm = (rooms || []).find((r) => String(r.room_number) === String(rn));
+    const rate = +rm?.price || 0;
+    const type = rm?.room_type || rm?.category || 'Room';
+    return `<tr><td class="rno">${esc(rn)}</td><td class="rtp">${esc(type)}</td><td class="num">${fmt(rate)}</td><td class="num">${nights}</td><td class="num">${fmt(rate * nights)}</td></tr>`;
+  }).join('');
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Booking Confirmation · ${esc(confNo)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#FBF8F1;color:#1F1B16;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .page{max-width:780px;margin:0 auto;padding:48px 56px;background:#FBF8F1}
+  .hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-bottom:2px solid #C8A96E;padding-bottom:28px;margin-bottom:32px}
+  .brand{display:flex;align-items:center;gap:22px;flex:1;min-width:0}
+  .brand img.logo{width:84px;height:84px;object-fit:contain;flex:none;display:block}
+  .brand .txt{display:flex;flex-direction:column;min-width:0}
+  .brand h1{font-family:'Inter',sans-serif;font-size:24px;font-weight:700;letter-spacing:.8px;color:#1F1B16;text-transform:uppercase;line-height:1.1}
+  .brand h1 em{font-style:normal;color:#C8A96E;font-weight:500;letter-spacing:1px}
+  .brand .tag{font-style:italic;font-size:12px;letter-spacing:1.5px;color:#C8A96E;margin-top:3px}
+  .brand .contact{font-size:10px;color:#5A544A;line-height:1.6;margin-top:8px}
+  .brand .contact span{color:#8A8276;font-weight:500}
+  .meta{text-align:right;font-size:11px;color:#5A544A;line-height:1.7;font-variant-numeric:tabular-nums}
+  .meta .conf{color:#9C7A3E;font-weight:500;font-size:12px}
+  .doc-title{font-size:22px;font-weight:600;letter-spacing:.5px;margin-bottom:6px}
+  .doc-sub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:32px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
+  .box{border:2px solid #D9CFB8;background:#FFFDF7;padding:18px 20px;border-radius:3px}
+  .lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:6px}
+  .val{font-size:15px;font-weight:500;color:#1F1B16}
+  .val.mono{font-size:14px;font-variant-numeric:tabular-nums}
+  table{width:100%;border-collapse:collapse;margin-bottom:24px;border:2px solid #D9CFB8;background:#FFFDF7;border-radius:3px;overflow:hidden}
+  thead th{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;text-align:left;padding:12px 14px;border-bottom:1px solid #EAE6DD;font-weight:500}
+  thead th.num{text-align:right}
+  tbody td{padding:14px;border-bottom:1px solid #F2EEE4;font-size:13px}
+  tbody tr:last-child td{border-bottom:none}
+  td.rno{color:#9C7A3E;font-weight:600;letter-spacing:.5px}
+  td.rtp{color:#5A544A}
+  td.num{text-align:right;color:#1F1B16;font-weight:500;font-variant-numeric:tabular-nums}
+  .totals{margin-left:auto;width:300px}
+  .totals .row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;font-variant-numeric:tabular-nums}
+  .totals .row.disc{color:#9C7A3E}
+  .totals .row.bal{border-top:1px solid #EAE6DD;margin-top:6px;padding-top:14px;font-size:15px;font-weight:500}
+  .totals .row.bal.due{color:#B14D4D}
+  .totals .row.bal.paid{color:#4A7C59}
+  .stamp{display:inline-block;border:1px solid #9C7A3E;color:#9C7A3E;padding:4px 12px;font-size:10px;letter-spacing:3px;text-transform:uppercase;font-weight:500;border-radius:1px}
+  .notes{margin-top:8px;padding:16px 20px;border-left:2px solid #9C7A3E;background:#F7F2E6;font-size:12px;color:#5A544A;font-style:italic}
+  .terms{margin-top:32px;font-size:10px;color:#8A8276;line-height:1.7}
+  .terms h4{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#5A544A;margin-bottom:8px;font-weight:500}
+  .ftr{margin-top:48px;padding-top:24px;border-top:1px solid #EAE6DD;display:flex;justify-content:space-between;font-size:10px;color:#8A8276}
+  @page{size:A4 portrait;margin:8mm 10mm}
+  @media print{
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:12px !important;text-rendering:geometricPrecision !important;color:#1F1B16 !important}
+    .page{padding:0 !important;max-width:none !important;width:100% !important;margin:0 !important;background:#fff !important;display:flex !important;flex-direction:column !important;min-height:calc(297mm - 16mm) !important}
+    .hdr{padding-bottom:16px !important;margin-bottom:20px !important}
+    .brand img.logo{width:54px !important;height:54px !important}
+    .brand h1{font-size:21px !important}
+    .doc-title{font-size:18px !important}
+    .ftr{margin-top:auto !important;padding-top:14px !important;align-items:center !important}
+    .ftr img{width:68px !important;height:68px !important}
+    .ftr,.totals,table tr,.terms,.hdr,.grid{page-break-inside:avoid}
+  }
+</style></head><body>
+<div class="page">
+  <div class="hdr">
+    <div class="brand">
+      <img class="logo" src="${logo}" alt="Hotel Fountain"/>
+      <div class="txt">
+        <h1>Hotel <em>Fountain</em></h1>
+        <div class="tag">Luxury In Comfort</div>
+        <div class="contact">${esc(HF_ADDR)}<br/><span>Email</span> ${esc(HF_EMAIL)} &nbsp;·&nbsp; <span>Web</span> ${esc(HF_SITE)} &nbsp;·&nbsp; <span>Tel</span> ${esc(HF_PHONE)}</div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="conf">${esc(confNo)}</div>
+      <div>Issued ${esc(issued)} BST</div>
+      <div style="margin-top:8px"><span class="stamp">${esc(res.status || 'Reserved')}</span></div>
+    </div>
+  </div>
+  <div class="doc-title">Booking Confirmation</div>
+  <div class="doc-sub">Reservation Voucher · Not a Tax Invoice</div>
+  <div class="grid">
+    <div class="box"><div class="lbl">Guest</div><div class="val">${esc(gn)}</div></div>
+    <div class="box"><div class="lbl">Confirmation No.</div><div class="val mono">${esc(confNo)}</div></div>
+    <div class="box"><div class="lbl">Check-In</div><div class="val mono">${esc(fmtDate(res.check_in))}</div></div>
+    <div class="box"><div class="lbl">Check-Out</div><div class="val mono">${esc(fmtDate(res.check_out))}</div></div>
+    <div class="box"><div class="lbl">Nights</div><div class="val mono">${nights || 0}</div></div>
+    <div class="box"><div class="lbl">On-Duty Officer</div><div class="val">${esc(res.on_duty_officer || res.officer || '—')}</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Room</th><th>Type</th><th class="num">Rate / Night</th><th class="num">Nights</th><th class="num">Subtotal</th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#8A8276;padding:24px">No rooms assigned</td></tr>`}</tbody>
+  </table>
+  <div class="totals">
+    <div class="row"><span>Subtotal</span><span>${fmt(totalAmt)}</span></div>
+    ${discountNum > 0 ? `<div class="row disc"><span>Discount</span><span>− ${fmt(discountNum)}</span></div>` : ''}
+    <div class="row"><span>Total Payable</span><span>${fmt(totalAmt - discountNum)}</span></div>
+    <div class="row"><span>Advance Paid</span><span>${fmt(paidNum)}</span></div>
+    <div class="row bal ${balance > 0 ? 'due' : 'paid'}"><span>${balance > 0 ? 'Balance Due' : 'Fully Paid'}</span><span>${fmt(balance)}</span></div>
+  </div>
+  ${res.notes ? `<div class="notes">${esc(res.notes)}</div>` : ''}
+  <div class="terms">
+    <h4>Reservation Terms</h4>
+    Standard check-in 2:00 PM · check-out 12:00 PM. Early check-in / late check-out subject to availability. Balance due payable at check-in. Cancellation policy applies as per booking agreement. This document is a booking confirmation and does not constitute a VAT invoice; a tax invoice will be issued at check-out.
+  </div>
+  <div class="ftr" style="align-items:flex-end">
+    <div><div>${esc(HF_PHONE)} &nbsp;·&nbsp; ${esc(HF_EMAIL)}</div><div style="margin-top:3px">${esc(HF_SITE)}</div></div>
+    <div style="text-align:center;flex-shrink:0;margin-left:16px">
+      <img id="wa-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="68" height="68" style="display:block;margin-bottom:4px" alt="WhatsApp QR"/>
+      <div style="font-size:7px;letter-spacing:.12em;margin-bottom:1px">SCAN TO WHATSAPP</div>
+      <div style="font-size:8px;font-weight:700;color:#1C1510;font-family:monospace">+880 1322-840799</div>
+    </div>
+  </div>
+</div>
+<script>
+  (function(){
+    const imgs = document.getElementsByTagName('img');
+    let pending = 0;
+    const trigger = () => setTimeout(() => window.print(), 120);
+    if (imgs.length === 0) { trigger(); return; }
+    for (const im of imgs) {
+      if (im.complete && im.naturalWidth > 0) continue;
+      pending++;
+      im.addEventListener('load', () => { if (--pending <= 0) trigger(); });
+      im.addEventListener('error', () => { if (--pending <= 0) trigger(); });
+    }
+    if (pending === 0) trigger();
+    setTimeout(trigger, 2500);
+  })();
+</script>
+</body></html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) { alert('Pop-up blocked — allow pop-ups to print.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+// printInvoice — tax-invoice variant built from the reservation + its folios (no dependency
+// on BillingPage.computeBill). Lists room charge(s) + billable folios, discount, paid, due,
+// with a PAID / BALANCE DUE stamp. Same A4-portrait Warm-Ivory shell as the confirmation.
+const MARKER_RE = /receivable|payment|settlement|advance|refund/i;
+export function printInvoice(res, rooms, guestName, folios) {
+  const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
+  const gn = guestName || res.guest_name || 'Guest';
+  const invNo = 'INV-' + String(res.id || Date.now()).slice(-8).toUpperCase();
+  const issued = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const roomArr = (res.room_ids || []).filter(Boolean);
+  const nights = nightsCount(res.check_in, res.check_out) || 1;
+  const billFolios = (folios || []).filter((f) => !MARKER_RE.test(String(f.category || '') + ' ' + String(f.description || '')));
+  let roomCharge = 0;
+  const roomRows = roomArr.map((rn) => {
+    const rm = (rooms || []).find((r) => String(r.room_number) === String(rn));
+    const rate = +rm?.price || 0; const sub = rate * nights; roomCharge += sub;
+    return `<tr><td class="dt">${esc(fmtDate(res.check_in))} → ${esc(fmtDate(res.check_out))}</td><td>Room ${esc(rn)} · ${esc(rm?.category || 'Room')} (${nights}n)</td><td class="rt">${fmt(rate)}/n</td><td class="num">${fmt(sub)}</td></tr>`;
+  }).join('');
+  const folioRows = billFolios.map((f) => `<tr><td class="dt">${esc(String(f.created_at || '').slice(0, 10))}</td><td>${esc(f.description || f.category || 'Charge')}</td><td class="rt">${esc(f.category || '—')}</td><td class="num">${fmt(f.amount)}</td></tr>`).join('');
+  const extras = billFolios.reduce((a, f) => a + (+f.amount || 0), 0);
+  const subtotal = roomCharge + extras;
+  const discount = +(res.discount_amount || res.discount || 0);
+  const total = Math.max(0, subtotal - discount);
+  const paid = +res.paid_amount || 0;
+  const due = Math.max(0, total - paid);
+  const isPaid = due <= 0;
+  const stampColor = isPaid ? '#4A7C59' : '#B14D4D';
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Invoice · ${esc(invNo)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  @page{size:A4 portrait;margin:8mm 10mm}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#FBF8F1;color:#1F1B16;font-family:'Inter',sans-serif;font-size:12px;line-height:1.55;font-variant-numeric:tabular-nums}
+  .page{max-width:820px;margin:0 auto;padding:44px 52px;background:#FBF8F1}
+  .hdr{display:flex;justify-content:space-between;align-items:center;gap:24px;border-bottom:2px solid #C8A96E;padding-bottom:24px;margin-bottom:28px}
+  .brand{display:flex;align-items:center;gap:20px}
+  .brand img{width:72px;height:72px;object-fit:contain}
+  .brand h1{font-size:23px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1.1}
+  .brand h1 em{font-style:normal;color:#C8A96E;font-weight:500}
+  .brand .tag{font-style:italic;font-size:11px;letter-spacing:1.5px;color:#C8A96E;margin-top:2px}
+  .brand .contact{font-size:9.5px;color:#5A544A;margin-top:6px;line-height:1.5}
+  .meta{text-align:right;font-size:11px;color:#5A544A;line-height:1.7;min-width:190px}
+  .meta .doc{font-size:20px;font-weight:700;letter-spacing:4px;margin-bottom:8px}
+  .meta .lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-top:6px}
+  .stamp{display:inline-block;border:2px solid ${stampColor};color:${stampColor};padding:5px 14px;font-size:11px;letter-spacing:3px;text-transform:uppercase;font-weight:600;border-radius:2px;margin-top:10px}
+  .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;margin-bottom:22px}
+  .box{border:2px solid #D9CFB8;background:#FFFDF7;padding:16px 18px;border-radius:3px}
+  .lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:6px}
+  .gname{font-size:16px;font-weight:600;margin-bottom:4px}
+  .stay{font-size:11.5px;color:#5A544A;margin-top:3px}
+  table{width:100%;border-collapse:collapse;margin-bottom:22px;border:2px solid #D9CFB8;background:#FFFDF7;border-radius:3px;overflow:hidden}
+  thead th{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;text-align:left;padding:11px 14px;border-bottom:2px solid #D9CFB8;font-weight:600;background:#F7F2E6}
+  thead th.num{text-align:right}
+  tbody td{padding:11px 14px;border-bottom:1px solid #F2EEE4;font-size:11.5px;vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  td.dt{color:#8A8276;font-size:10.5px;white-space:nowrap}
+  td.rt{color:#5A544A;text-align:right;font-size:10.5px}
+  td.num{text-align:right;font-weight:500}
+  .totals{margin-left:auto;width:300px}
+  .totals .row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px}
+  .totals .row.disc{color:#9C7A3E}
+  .totals .row.bal{border-top:1px solid #EAE6DD;margin-top:6px;padding-top:12px;font-size:15px;font-weight:600;color:${stampColor}}
+  .ftr{margin-top:40px;padding-top:20px;border-top:1px solid #EAE6DD;font-size:10px;color:#8A8276}
+  @media print{html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0 !important;max-width:none !important}}
+</style></head><body>
+<div class="page">
+  <div class="hdr">
+    <div class="brand"><img src="${logo}" alt="Hotel Fountain"/><div><h1>Hotel <em>Fountain</em></h1><div class="tag">Luxury In Comfort</div>
+      <div class="contact">${esc(HF_ADDR)}<br/>${esc(HF_EMAIL)} · ${esc(HF_SITE)} · ${esc(HF_PHONE)}</div></div></div>
+    <div class="meta"><div class="doc">INVOICE</div><div class="lbl">Invoice No.</div><div>${esc(invNo)}</div>
+      <div class="lbl">Issued</div><div>${esc(issued)}</div><div><span class="stamp">${isPaid ? 'PAID' : 'BALANCE DUE'}</span></div></div>
+  </div>
+  <div class="grid">
+    <div class="box"><div class="lbl">Billed To</div><div class="gname">${esc(gn)}</div>
+      <div class="stay">${esc(fmtDate(res.check_in))} → ${esc(fmtDate(res.check_out))} · ${nights} night${nights !== 1 ? 's' : ''}</div>
+      <div class="stay">Room${roomArr.length !== 1 ? 's' : ''}: ${esc(roomArr.join(', ') || '—')}</div></div>
+    <div class="box"><div class="lbl">Status</div><div class="gname" style="color:${stampColor}">${esc(res.status || '—')}</div>
+      <div class="stay">On-duty: ${esc(res.on_duty_officer || res.officer || '—')}</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Date</th><th>Description</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+    <tbody>${roomRows}${folioRows}${(roomRows || folioRows) ? '' : `<tr><td colspan="4" style="text-align:center;color:#8A8276;padding:22px">No charges</td></tr>`}</tbody>
+  </table>
+  <div class="totals">
+    <div class="row"><span>Subtotal</span><span>${fmt(subtotal)}</span></div>
+    ${discount > 0 ? `<div class="row disc"><span>Discount</span><span>− ${fmt(discount)}</span></div>` : ''}
+    <div class="row"><span>Total</span><span>${fmt(total)}</span></div>
+    <div class="row"><span>Paid</span><span>− ${fmt(paid)}</span></div>
+    <div class="row bal"><span>${isPaid ? 'Settled' : 'Balance Due'}</span><span>${fmt(due)}</span></div>
+  </div>
+  <div class="ftr">Thank you for staying with Hotel Fountain. ${esc(HF_PHONE)} · ${esc(HF_EMAIL)} · ${esc(HF_SITE)}</div>
+</div>
+<script>(function(){const imgs=document.getElementsByTagName('img');let p=0;const go=()=>setTimeout(()=>window.print(),120);if(!imgs.length){go();return;}for(const im of imgs){if(im.complete&&im.naturalWidth>0)continue;p++;im.addEventListener('load',()=>{if(--p<=0)go();});im.addEventListener('error',()=>{if(--p<=0)go();});}if(p===0)go();setTimeout(go,2500);})();</script>
+</body></html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) { alert('Pop-up blocked — allow pop-ups to print.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
