@@ -21,7 +21,7 @@ function Icon({ name }) {
 const navItems = [
   { href: '/crm', icon: 'home', label: 'Dashboard' },
   { href: '/billing', icon: 'dollar', label: 'Billing' },
-  { href: '/churn', icon: 'trend', label: 'Churn Risk' },
+  { href: '/churn', icon: 'trend', label: 'Follow-up' },
   { href: '/leads', icon: 'users', label: 'Leads' },
   { href: '/suppliers', icon: 'building', label: 'Suppliers' },
 ];
