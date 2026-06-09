@@ -21,19 +21,25 @@ export default function TaskFormModal({ rooms = [], onClose, onSaved }) {
     if (!f.room_number) return setErr('Room is required.');
     setErr(''); setSaving(true);
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.from('housekeeping_tasks').insert({
-        room_number: f.room_number,
-        task_type: f.task_type,
-        priority: f.priority,
-        assignee: f.assignee?.trim() || null,
-        scheduled_time: f.scheduled_time || null,
-        notes: f.notes?.trim() || null,
-        status: 'pending',
-        department: 'Housekeeping',
-        tenant_id: TENANT,
+      // Phase 3: write through the session-gated server route (service role).
+      const r = await fetch('/api/crm/task', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_number: f.room_number, task_type: f.task_type, priority: f.priority, assignee: f.assignee, scheduled_time: f.scheduled_time, notes: f.notes }),
       });
-      if (error) throw error;
+      if (r.status === 401) {
+        // Transition: this browser's session predates the secure cookie — fall back to the
+        // direct insert (still allowed until anon INSERT is revoked). Re-login to use the enforced path.
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.from('housekeeping_tasks').insert({
+          room_number: f.room_number, task_type: f.task_type, priority: f.priority,
+          assignee: f.assignee?.trim() || null, scheduled_time: f.scheduled_time || null,
+          notes: f.notes?.trim() || null, status: 'pending', department: 'Housekeeping', tenant_id: TENANT,
+        });
+        if (error) throw error;
+      } else {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.error) throw new Error(j.error || 'Could not create task.');
+      }
       onSaved?.();
       onClose?.();
     } catch (e) {
