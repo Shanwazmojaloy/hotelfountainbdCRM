@@ -12,11 +12,6 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
-async function sha256(p) {
-  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
-  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
-}
-
 const AuthContext = createContext({ user: null, signOut: () => {} });
 export const useAuth = () => useContext(AuthContext);
 
@@ -46,13 +41,17 @@ export default function AuthGate({ children }) {
     if (!email || !pw) return setErr('Email and password are required.');
     setBusy(true); setErr('');
     try {
-      const h = await sha256(pw);
-      const { data } = await getSupabaseClient().from('staff').select('*').eq('tenant_id', TENANT).ilike('email', email.trim()).limit(1);
-      const u = data && data[0];
-      if (!u || !u.pwh || u.pwh !== h) throw new Error('Incorrect email or password.');
-      if (u.activated === false) throw new Error('Account not activated yet — activate via the staff portal, then sign in here.');
-      localStorage.setItem('lumea_session', JSON.stringify({ id: u.id, session_v: u.session_v || 1 }));
-      setUser(u); setStatus('in'); setPw('');
+      // Server-side verification — the password hash is compared on the server and
+      // never reaches the browser (see app/api/crm/login). Only a minimal session returns.
+      const r = await fetch('/api/crm/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password: pw }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.error || 'Sign-in failed.');
+      const s = j.session;
+      localStorage.setItem('lumea_session', JSON.stringify({ id: s.id, session_v: s.session_v || 1 }));
+      setUser(s); setStatus('in'); setPw('');
     } catch (e2) { setErr(e2.message || String(e2)); } finally { setBusy(false); }
   }
 
