@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import RoomStatusModal from './RoomStatusModal';
+import RoomFormModal from './RoomFormModal';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
@@ -23,6 +24,7 @@ export default function Rooms() {
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [statusRoom, setStatusRoom] = useState(null);
+  const [showAddRoom, setShowAddRoom] = useState(false);
 
   useEffect(() => { fetchRooms(); }, []);
 
@@ -63,7 +65,7 @@ export default function Rooms() {
             </button>
           ))}
         </div>
-        <button className="iv-btn" onClick={() => { window.location.href = '/crm.html'; }}>+ Add Room</button>
+        <button className="iv-btn" onClick={() => setShowAddRoom(true)}>+ Add Room</button>
       </div>
 
       {/* Legend */}
@@ -111,6 +113,9 @@ export default function Rooms() {
 
       {statusRoom && (
         <RoomStatusModal room={statusRoom} onClose={() => setStatusRoom(null)} onSaved={fetchRooms} />
+      )}
+      {showAddRoom && (
+        <RoomFormModal existingRooms={rooms} onClose={() => setShowAddRoom(false)} onSaved={fetchRooms} />
       )}
     </div>
   );
