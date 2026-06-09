@@ -159,8 +159,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-row--in  { border-left:3px solid var(--iv-in-fg); }
 .crm-root .iv-row--due { border-left:3px solid var(--iv-due-fg); background:var(--iv-due-bg); }
 
-/* Sidebar (dark ink) */
-.crm-root .iv-sidebar { background:var(--iv-side); display:flex; flex-direction:column; }
+/* Sidebar (dark ink) — fixed 232px, no shrink; desktop-only (overrides Tailwind md: utils). */
+.crm-root .iv-sidebar { background:var(--iv-side); display:none; flex-direction:column; flex-shrink:0; width:232px; }
+@media (min-width:768px){ .crm-root .iv-sidebar { display:flex; } }
 .crm-root .iv-brand { font-family:var(--iv-head); font-size:20px; font-weight:700; color:var(--iv-gold-light); letter-spacing:.02em; line-height:1.1; }
 .crm-root .iv-brand em { font-style:italic; font-weight:400; color:#E0C585; }
 .crm-root .iv-side-tag { font-family:var(--iv-body); font-size:8px; color:rgba(200,169,110,.4); letter-spacing:.2em; text-transform:uppercase; margin-top:5px; }
@@ -174,6 +175,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 
 /* Mobile bottom nav */
 .crm-root .iv-bottom-nav { position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; background:var(--iv-side); border-top:1px solid rgba(200,169,110,.18); }
+@media (min-width:768px){ .crm-root .iv-bottom-nav { display:none; } }
 .crm-root .iv-bottom-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:10px 4px; color:rgba(238,228,210,.55); text-decoration:none; font-size:10px; font-weight:500; }
 .crm-root .iv-bottom-item.on { color:var(--iv-gold-light); }
 
