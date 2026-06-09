@@ -153,10 +153,10 @@ export default function Dashboard() {
         <div className="iv-card">
           <h3 className="text-lg mb-6 pb-4 iv-divider">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
-            <button className="iv-btn">New Check-in</button>
-            <button className="iv-btn iv-btn--ghost">Night Audit</button>
-            <button className="iv-btn">New Payment</button>
-            <button className="iv-btn iv-btn--ghost">Room Service</button>
+            <button className="iv-btn" onClick={() => { window.location.href = '/crm.html'; }}>New Check-in</button>
+            <button className="iv-btn iv-btn--ghost" onClick={() => { window.location.href = '/crm.html'; }}>Night Audit</button>
+            <button className="iv-btn" onClick={() => { window.location.href = '/billing'; }}>New Payment</button>
+            <button className="iv-btn iv-btn--ghost" onClick={() => { window.location.href = '/crm.html'; }}>Room Service</button>
           </div>
         </div>
       </div>
