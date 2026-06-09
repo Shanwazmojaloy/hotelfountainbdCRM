@@ -79,7 +79,7 @@ export default function Housekeeping() {
 
   return (
     <div>
-      <div className="iv-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+      <div className="iv-stat-grid iv-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
         <StatCard icon="✦" label="Awaiting Service" value={loading ? '—' : count('pending')} sub="rooms flagged for cleaning" accent={C.amb} />
         <StatCard icon="◐" label="In Progress" value={loading ? '—' : count('in-progress')} sub="being serviced now" accent={C.sky} />
         <StatCard icon="✓" label="Completed" value={loading ? '—' : count('completed')} sub="cleared for sale" accent={C.grn} />

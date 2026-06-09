@@ -72,7 +72,7 @@ export default function Rooms() {
   return (
     <div>
       {/* Status stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }} className="iv-stat-grid">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }} className="iv-stat-grid iv-stagger">
         {statCards.map((s) => (
           <div key={s.k} style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${s.c}`, padding: '14px 18px 16px' }}>
             <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', fontWeight: 600 }}>{s.label}</div>
@@ -108,7 +108,7 @@ export default function Rooms() {
           {loading && <div className="iv-stat__sub">Loading rooms…</div>}
           {!loading && filtered.length === 0 && <div className="iv-stat__sub">No rooms in this status.</div>}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 8 }}>
+          <div className="iv-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 8 }}>
             {filtered.map((room) => {
               const st = STATUS[room.status] || { c: '#9A8070', label: room.status };
               return (

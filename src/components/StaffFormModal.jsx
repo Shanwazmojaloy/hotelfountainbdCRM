@@ -77,7 +77,7 @@ export default function StaffFormModal({ user, existing, onClose, onSaved }) {
   const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 460, maxHeight: '92vh', overflowY: 'auto' }}>
         <h3 className="text-xl mb-4 pb-3 iv-divider">{isEdit ? `Edit — ${user.name}` : 'Add Staff Account'}</h3>
         {!isEdit && <div className="mb-4 text-sm" style={{ color: '#3C6B4A', background: 'rgba(60,107,74,0.07)', border: '1px solid rgba(60,107,74,0.18)', borderRadius: 8, padding: '8px 12px' }}>

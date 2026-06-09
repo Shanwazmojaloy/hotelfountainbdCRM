@@ -52,7 +52,7 @@ export default function Sidebar() {
             <div key={i} style={{ fontSize: 7, letterSpacing: '.24em', color: 'rgba(200,169,110,.3)', padding: '12px 10px 5px', textTransform: 'uppercase', fontWeight: 500 }}>{n.sect}</div>
           ) : (
             <Link key={n.href} href={n.href} className={`iv-nav-item ${(n.exact ? pathname === n.href : pathname === n.href || pathname.startsWith(n.href + '/')) ? 'on' : ''}`}>
-              <span style={{ width: 18, textAlign: 'center', fontSize: 13, flexShrink: 0 }}>{n.icon}</span>
+              <span className="iv-nav-ic" style={{ width: 18, textAlign: 'center', fontSize: 13, flexShrink: 0 }}>{n.icon}</span>
               <span style={{ flex: 1 }}>{n.label}</span>
               {n.badge && <span style={{ fontFamily: 'var(--iv-body)', fontSize: 9, fontWeight: 700, color: '#fff', background: n.badgeColor || 'var(--iv-rose-fg)', borderRadius: 3, padding: '1px 6px', minWidth: 16, textAlign: 'center' }}>{n.badge}</span>}
             </Link>

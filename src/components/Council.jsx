@@ -110,7 +110,7 @@ export default function Council() {
       </div>
 
       {(loading || result) && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6 iv-stagger">
           {ROLES.map((role) => {
             const panel = result?.panelists?.find((p) => p.role === role.id);
             return (

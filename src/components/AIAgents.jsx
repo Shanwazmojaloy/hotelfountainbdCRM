@@ -103,7 +103,7 @@ export default function AIAgents() {
         {analystRes && (analystRes.error
           ? <div style={pre}>{analystRes.error}</div>
           : <div className="mt-3">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 iv-stagger">
                 {Object.entries(analystRes.day_averages || {}).sort(([, a], [, b]) => b - a).map(([day, avg]) => (
                   <div key={day} style={{ border: '1px solid #EAE3D6', borderRadius: 8, padding: '8px 10px' }}>
                     <div style={lbl}>{day}</div>

@@ -85,7 +85,7 @@ export default function Billing() {
 
   return (
     <div>
-      <div className="iv-bill-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start' }}>
+      <div className="iv-bill-grid iv-stagger" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start' }}>
         {/* LEFT */}
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid var(--iv-border)', padding: '8px 12px', marginBottom: 12 }}>

@@ -1,0 +1,33 @@
+reservation_id,guest_name,gross_bdt,paid_total_bdt,balance_due_bdt,real_paid_after_dedup_bdt,ledger_payment_bdt,ledger_charge_bdt,resv_total_bdt,action,recommendation
+71d8cdcc-02a4-454e-b43f-f5ac1326d3bb,MD. FARUK HOSSAIN,4500,87500,-83000,82500,0,4500,4500,GROSS_UNDERSYNC_confirm_charges,LIKELY-DUP: 82500 paid vs 4500 charge — confirm duplicate submits then void surplus payment_transactions
+8fe99220-432b-447e-98a0-78b7f8068560,ZUBAYED KHAN,4500,70000,-65500,66000,0,4500,4500,GROSS_UNDERSYNC_confirm_charges,LIKELY-DUP: 66000 paid vs 4500 charge — confirm then void surplus
+719f05eb-adcd-4878-9f23-e159b07a58d8,,4500,18320,-13820,9160,0,13820,4500,GROSS_UNDERSYNC_confirm_charges,Mixed: paid_total inflated AND ledger_charge 13820 — verify real charges vs dup payments
+e101369b-1468-4769-8ce3-b494b467fe24,,1000,14000,-13000,13000,0,1000,1000,GROSS_UNDERSYNC_confirm_charges,LIKELY-DUP: 13000 paid vs 1000 charge
+b2b37285-702e-4d63-8dfc-77cedd2ebede,,17530,26640,-9110,26640,0,9110,17530,GROSS_UNDERSYNC_confirm_charges,Raise gross to include ledger_charge 9110 if F&B/extras real -> balance ~0
+f7e78599-9036-4651-b38f-aefb3348c78d,,4000,8000,-4000,8550,50,4550,4000,GROSS_UNDERSYNC_confirm_charges,Verify extras; real_paid 8550 ~ gross+ledger_charge
+e74506bf-8b31-4562-8543-f9c337ceb7db,,3500,7000,-3500,0,3500,0,3500,GL_DISAGREE_manual,Payment only in guest_ledger (3500); payment_transactions=0 — do NOT lower paid
+e22cf1fc-ee5e-4542-af78-b83c3315a349,,4500,6560,-2060,11060,0,2060,4500,GROSS_UNDERSYNC_confirm_charges,real_paid 11060 inflated — check dups
+5d1002f6-5b92-4a8e-a2a6-8736a2eb34be,,4000,5000,-1000,8300,4000,1000,4000,GROSS_UNDERSYNC_confirm_charges,Mixed sources — verify
+1117cc1e-77a1-4f58-a275-b8448f0bb458,,3500,4320,-820,81520,0,1320,3500,GROSS_UNDERSYNC_confirm_charges,LIKELY-DUP: real_paid 81520 huge — void surplus
+c2114f16-fb71-4522-be25-68964378256c,,4000,4700,-700,4700,200,500,4000,GROSS_UNDERSYNC_confirm_charges,Raise gross for extras 500 if real -> ~0
+15028b63-113f-4dc6-9ea3-d2ff4900b845,,8000,8200,-200,8140,180,140,8000,GROSS_UNDERSYNC_confirm_charges,Small extra; raise gross ~ balance 0
+f69e6485-67eb-4ef6-b448-26ee488c076d,,3500,3680,-180,3680,180,180,3500,GROSS_UNDERSYNC_confirm_charges,Extra 180 documented -> raise gross to 3680
+433c3c42-d649-49bd-a65c-c76f32b6b574,,4500,4680,-180,4680,0,180,4500,GROSS_UNDERSYNC_confirm_charges,Extra 180 documented -> raise gross to 4680
+a883b5a2-283f-4407-83fa-2b20d05ff335,,4500,4680,-180,9180,0,180,4500,GROSS_UNDERSYNC_confirm_charges,real_paid 9180 inflated — check dups
+fb5e865d-88b8-45da-887a-c6704fb0fef8,,8000,8160,-160,16260,160,160,8000,GROSS_UNDERSYNC_confirm_charges,real_paid 16260 inflated — check dups
+bafbb6e8-1f58-4227-b0f9-52833491815c,,4000,4160,-160,4160,0,160,4000,GROSS_UNDERSYNC_confirm_charges,Extra 160 -> raise gross to 4160
+5c6075f5-ab0b-41b2-b55d-149ce5c60e1d,,4000,4160,-160,4160,160,160,4000,GROSS_UNDERSYNC_confirm_charges,Extra 160 -> raise gross to 4160
+e8b9db6f-1b23-4fb8-8738-2b4e4e5d5b36,,4000,4160,-160,8160,0,160,4000,GROSS_UNDERSYNC_confirm_charges,real_paid 8160 inflated — check dups
+7322dd22-11eb-4062-88fb-9f71d38ca140,,4500,4640,-140,9140,0,140,4500,GROSS_UNDERSYNC_confirm_charges,real_paid 9140 inflated — check dups
+81ed2b52-eeb8-407e-b78b-5816c4de919a,,3500,3620,-120,7400,120,160,3500,GROSS_UNDERSYNC_confirm_charges,real_paid 7400 inflated — check dups
+a6efd2ed-d0ac-4000-8178-eb2f4c0399b3,,4000,4110,-110,0,100,160,4000,GL_DISAGREE_manual,Payment only in ledger; pt=0 — do NOT lower paid
+0b36335f-84d0-4c51-989b-e6a34fc6352a,,3000,3100,-100,6100,3000,100,3000,GROSS_UNDERSYNC_confirm_charges,Mixed sources — verify
+d980f136-774f-49d4-b6d7-2aef86147d6b,,4000,4100,-100,0,100,100,4000,GL_DISAGREE_manual,Payment only in ledger; pt=0 — do NOT lower paid
+c64bbb0f-33a2-4c3d-bb7b-aed5eb7fd564,,4000,4100,-100,8100,0,100,4000,GROSS_UNDERSYNC_confirm_charges,real_paid 8100 inflated — check dups
+3387079c-1622-472c-a182-c3641e080d05,,4000,4100,-100,4100,100,100,4000,GROSS_UNDERSYNC_confirm_charges,Extra 100 -> raise gross to 4100
+2b8e1544-f335-4215-a49f-9859d7b86c02,,4100,4200,-100,0,100,160,4100,GL_DISAGREE_manual,Payment only in ledger; pt=0 — do NOT lower paid
+c5e02feb-d90f-4a0a-86b3-37a0cd1fbfba,,4000,4099,-99,8198,4000,99,4000,GROSS_UNDERSYNC_confirm_charges,Mixed — verify
+e7dc158c-f2f4-4eb2-9db7-0fe54105fc66,,3000,3080,-80,0,80,80,3000,GL_DISAGREE_manual,Payment only in ledger; pt=0 — do NOT lower paid
+229486b1-4364-4395-b7f0-666db84be862,,4500,4560,-60,4560,60,60,4500,GROSS_UNDERSYNC_confirm_charges,Extra 60 -> raise gross to 4560
+427031e2-df6c-4aa2-9270-311f64bb5001,,3500,3560,-60,0,60,160,3500,GL_DISAGREE_manual,Payment only in ledger; pt=0 — do NOT lower paid
+e35fb40f-31de-4864-91b4-6ca2ebeaf7fd,,4500,4550,-50,4550,0,50,4500,GROSS_UNDERSYNC_confirm_charges,Extra 50 -> raise gross to 4550

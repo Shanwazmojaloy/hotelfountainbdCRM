@@ -1,0 +1,11 @@
+# Churn / sentiment background worker + ingestion pipeline
+# Core files run on the stdlib alone (Pydantic optional). These deps light up
+# the production paths (validation, LLM, embeddings, vectors, queue, DB).
+
+pydantic==2.10.3                 # structured-output schema enforcement
+anthropic==0.40.0                # LLM structured output (tool use)
+langchain==0.3.9                 # orchestration layer (optional)
+celery==5.4.0                    # background task workers (tasks.py)
+boto3==1.35.71                   # SQS / EventBridge / SNS / Secrets Manager / Bedrock
+psycopg[binary]==3.2.3           # Postgres / Supabase (pgvector)
+pgvector==0.3.6                  # vector column adapter

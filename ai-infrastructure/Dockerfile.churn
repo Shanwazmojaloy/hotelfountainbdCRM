@@ -1,0 +1,20 @@
+# Churn / sentiment background worker
+FROM python:3.12-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+COPY requirements-churn.txt .
+RUN pip install --no-cache-dir -r requirements-churn.txt
+
+COPY churn_worker.py .
+
+RUN useradd --create-home --uid 10001 appuser
+USER appuser
+
+# Default: run the mock demo. In prod, override CMD to start the Celery worker,
+# e.g. ["celery", "-A", "churn_worker", "worker", "--loglevel=info"].
+CMD ["python", "churn_worker.py"]
