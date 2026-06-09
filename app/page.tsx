@@ -217,7 +217,7 @@ export default function HotelFountainLanding() {
           {['Rooms', 'Experience', 'Availability', 'Contact'].map(l => (
             <button key={l} onClick={() => scrollTo(l.toLowerCase())} style={{ background: 'none', border: 'none', color: 'var(--tx2)', fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx2)')}>{l}</button>
           ))}
-          <a href="/crm.html" className="ob" style={{ padding: '9px 22px', fontSize: 10, textDecoration: 'none', display: 'inline-block' }}>Staff Login</a>
+          <a href="/crm" className="ob" style={{ padding: '9px 22px', fontSize: 10, textDecoration: 'none', display: 'inline-block' }}>Staff Login</a>
         </div>
         <button className="mobile-menu-btn" onClick={() => setMobileMenu(!mobileMenu)} style={{ display: 'none', background: 'none', border: '1px solid var(--br)', color: 'var(--tx)', padding: '8px 12px', cursor: 'pointer', fontSize: 16 }}>☰</button>
       </nav>
@@ -227,7 +227,7 @@ export default function HotelFountainLanding() {
           {['Rooms', 'Experience', 'Availability', 'Contact'].map(l => (
             <button key={l} onClick={() => scrollTo(l.toLowerCase())} style={{ background: 'none', border: 'none', color: 'var(--tx2)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', cursor: 'pointer', textAlign: 'left' }}>{l}</button>
           ))}
-          <a href="/crm.html" className="gb" style={{ textDecoration: 'none', display: 'block', textAlign: 'center', padding: '13px 32px' }} onClick={() => setMobileMenu(false)}>Staff Login</a>
+          <a href="/crm" className="gb" style={{ textDecoration: 'none', display: 'block', textAlign: 'center', padding: '13px 32px' }} onClick={() => setMobileMenu(false)}>Staff Login</a>
         </div>
       )}
 
@@ -503,7 +503,7 @@ export default function HotelFountainLanding() {
             <button key={l} onClick={() => scrollTo(l.toLowerCase())} style={{ background: 'none', border: 'none', fontSize: 10, color: 'var(--tx3)', letterSpacing: '.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx3)')}>{l}</button>
           ))}
           <button onClick={() => setTncOpen(true)} style={{ background: 'none', border: 'none', fontSize: 10, color: 'var(--tx3)', letterSpacing: '.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx3)')}>Terms</button>
-          <a href="/crm.html" style={{ fontSize: 10, color: 'var(--tx3)', letterSpacing: '.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s', textDecoration: 'none' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx3)')}>Staff</a>
+          <a href="/crm" style={{ fontSize: 10, color: 'var(--tx3)', letterSpacing: '.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color .3s', textDecoration: 'none' }} onMouseOver={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseOut={e => (e.currentTarget.style.color = 'var(--tx3)')}>Staff</a>
         </div>
       </footer>
 

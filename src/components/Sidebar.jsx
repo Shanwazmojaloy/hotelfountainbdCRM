@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from './AuthGate';
 
 function Icon({ name }) {
   const p = {
@@ -41,6 +42,7 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
 
   return (
     <aside className="iv-sidebar hidden md:flex flex-col w-64 h-screen sticky top-0">
@@ -59,6 +61,12 @@ export default function Sidebar() {
           );
         })}
       </nav>
+      <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(200,169,110,.15)' }}>
+        {user && <div className="iv-side-tag" style={{ marginBottom: 6 }}>{user.name} · {user.role}</div>}
+        <button onClick={signOut} className="iv-nav-item" style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}>
+          <span>↩ Sign out</span>
+        </button>
+      </div>
     </aside>
   );
 }
