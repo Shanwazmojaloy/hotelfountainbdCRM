@@ -21,8 +21,8 @@ type SB = ReturnType<typeof createClient>;
 async function ratesSumOf(supabase: SB, roomNos: string[]): Promise<number> {
   if (!roomNos.length) return 0;
   const { data } = await supabase.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
-  const arr = data || [];
-  return roomNos.reduce((a, rn) => a + (+(arr.find((r: Record<string, unknown>) => String(r.room_number) === String(rn))?.price) || 0), 0);
+  const arr = (data || []) as Array<{ room_number: string | number; price: number }>;
+  return roomNos.reduce((a, rn) => a + (Number(arr.find((r) => String(r.room_number) === String(rn))?.price) || 0), 0);
 }
 
 export async function POST(req: NextRequest) {
