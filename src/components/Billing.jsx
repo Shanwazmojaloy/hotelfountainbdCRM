@@ -9,6 +9,7 @@ import RecordPaymentModal from './RecordPaymentModal';
 import { printInvoice } from '@/lib/printDocs';
 import { Card as DSCard, Badge, C } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
+import { openBusinessDay } from '@/lib/businessDay';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const getDhakaDate = () =>
@@ -56,9 +57,12 @@ export default function Billing() {
       // NOTE: transactions has NO payment_method column (it lives on payment_transactions).
       // Selecting a non-existent column makes PostgREST 400 the WHOLE query → data:null →
       // this page silently renders ৳0. Method is derived from the `type` string instead.
+      // Open business day (latest closed + 1) drives "Today's Collections", not the calendar.
+      const { data: closes } = await supabase.from('night_audit_log').select('audit_date, status');
+      const openDay = openBusinessDay(closes);
       const [{ data: r, error: rErr }, { data: t, error: tErr }] = await Promise.all([
         supabase.from('reservations').select('id, guest_name, room_ids, status, total_amount, discount_amount, discount, paid_amount, check_in, check_out, room_type').order('check_out', { ascending: false }).limit(5000),
-        supabase.from('transactions').select('type, amount').eq('fiscal_day', today),
+        supabase.from('transactions').select('type, amount').eq('fiscal_day', openDay),
       ]);
       if (rErr || tErr) console.error('[Billing] query error:', rErr || tErr);
       setReservations(r || []);

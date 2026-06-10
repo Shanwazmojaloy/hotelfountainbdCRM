@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { recalcResTotalServer } from '@/lib/recalcResTotal.server';
+import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -42,6 +43,12 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { /* empty */ }
   const action = String(body.action || '');
 
+  // Open business day for any TX this request writes (advance / stay-extension / paid-increase).
+  // Collections accrue to the open day, not the calendar date, until "Closing Complete".
+  const { data: _closes } = await supabase.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT);
+  const openDay = openBusinessDay(_closes, todayDhaka());
+  const txFiscal = clampFiscalDay(typeof body.fiscal_day === 'string' ? (body.fiscal_day as string) : null, openDay);
+
   try {
     if (action === 'create') {
       const roomNos: string[] = Array.isArray(body.room_ids) ? (body.room_ids as string[]).filter(Boolean) : [];
@@ -67,7 +74,7 @@ export async function POST(req: NextRequest) {
         await supabase.from('transactions').insert({
           room_number: roomNos[0] || '?', guest_name: body.guest_name || null,
           type: pm ? `Advance Payment (${pm})` : 'Advance Payment',
-          amount: paid, fiscal_day: (body.fiscal_day as string) || todayDhaka(), reservation_id: newId,
+          amount: paid, fiscal_day: txFiscal, reservation_id: newId,
           tenant_id: TENANT, idempotency_key: (body.idempotency_key as string) || crypto.randomUUID(),
         });
       }
@@ -105,7 +112,7 @@ export async function POST(req: NextRequest) {
       const ratesSum = await ratesSumOf(supabase, newRoomNos);
       const nNew = nights(checkIn, checkOut);
       const extNights = Math.max(0, nNew - nights(prev.check_in, prev.check_out));
-      const fiscal = (body.fiscal_day as string) || todayDhaka();
+      const fiscal = txFiscal; // open business day (clamped), not calendar date
       if (checkOut && String(checkOut).slice(0, 10) !== String(prev.check_out || '').slice(0, 10) && extNights > 0 && ratesSum > 0) {
         await supabase.from('transactions').insert({
           room_number: newRoomNos[0] || '?', guest_name: gn,
