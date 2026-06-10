@@ -1,9 +1,12 @@
 'use client';
 
-// Header / Topbar — Hotel Fountain Design System. White bar, 2px walnut bottom-border,
-// per-page serif title (gold italic accent), live Dhaka clock, "+ New Booking", notif bell.
+// Header / Topbar — modern SaaS. White bar, per-page title (indigo accent word), live Dhaka
+// clock, global "+ New Booking" (opens the Check-In modal from ANY page), notif bell.
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { getSnap } from '@/lib/snap';
+import NewReservationModal from './NewReservationModal';
 
 const TITLES = {
   '/crm': ['Operations', 'Dashboard'],
@@ -35,6 +38,19 @@ export default function Header() {
   const [meta, setMeta] = useState('');
   const [bell, setBell] = useState(false);
   const bellRef = useRef(null);
+  const [showNew, setShowNew] = useState(false);
+  const [bkRooms, setBkRooms] = useState([]);
+
+  // Global New Booking: on the Reservations page reuse its own modal (event); anywhere else
+  // open the modal RIGHT HERE — seeded from the snap cache so it's instant, then refreshed.
+  function openNewBooking() {
+    if (pathname === '/crm/reservations') { window.dispatchEvent(new CustomEvent('lumea:new-booking')); return; }
+    const cached = getSnap('rooms')?.rooms || getSnap('reservations')?.allRooms || [];
+    if (cached.length) setBkRooms(cached);
+    setShowNew(true);
+    getSupabaseClient().from('rooms').select('id, room_number, status, category, price').order('room_number')
+      .then(({ data }) => { if (data?.length) setBkRooms(data); });
+  }
 
   useEffect(() => {
     const tick = () => {
@@ -62,7 +78,11 @@ export default function Header() {
         {t0}{t1 && <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}> {t1}</em>}
       </div>
       <div className="iv-mono" style={{ fontSize: 9, color: 'var(--iv-ink3)', letterSpacing: '.04em', whiteSpace: 'nowrap' }}>{meta}</div>
-      <button className="iv-btn" onClick={() => { if (pathname === '/crm/reservations') window.dispatchEvent(new CustomEvent('lumea:new-booking')); else router.push('/crm/reservations?new=1'); }} style={{ fontSize: 12.5, padding: '7px 14px' }}>+ New Booking</button>
+      <button className="iv-btn" onClick={openNewBooking} style={{ fontSize: 12.5, padding: '7px 14px' }}>+ New Booking</button>
+      {showNew && (
+        <NewReservationModal rooms={bkRooms} onClose={() => setShowNew(false)}
+          onSaved={() => { setShowNew(false); router.push('/crm/reservations'); }} />
+      )}
       <div ref={bellRef} style={{ position: 'relative' }}>
         <div onClick={() => setBell((v) => !v)} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${bell ? 'var(--iv-side)' : 'var(--iv-border)'}`, background: bell ? 'var(--iv-sunken)' : 'transparent', cursor: 'pointer', position: 'relative', fontSize: 15, color: 'var(--iv-ink3)', transition: 'border-color .2s var(--iv-ease), background .2s var(--iv-ease), box-shadow .2s var(--iv-ease)', boxShadow: bell ? '0 0 0 3px var(--iv-glow)' : 'none' }}>
           🔔
@@ -72,7 +92,7 @@ export default function Header() {
           <div style={{ position: 'absolute', top: 40, right: 0, width: 320, background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 16px 48px rgba(15,23,42,.14)', zIndex: 100, animation: 'bellFadeIn .22s var(--iv-ease) both', transformOrigin: 'top right' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)' }}>
               <span style={{ fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)' }}>Notifications</span>
-              <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--iv-rose-fg)', background: 'rgba(185,28,28,.08)', border: '1px solid rgba(185,28,28,.2)', borderRadius: 2, padding: '2px 8px' }}>{NOTIFS.length} new</span>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.01em', color: 'var(--iv-rose-fg)', background: 'rgba(220,38,38,.08)', border: '1px solid rgba(220,38,38,.2)', borderRadius: 999, padding: '2px 9px' }}>{NOTIFS.length} new</span>
             </div>
             <div style={{ maxHeight: 320, overflowY: 'auto' }}>
               {NOTIFS.map((n, i) => (
