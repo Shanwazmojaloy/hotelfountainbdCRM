@@ -134,7 +134,10 @@ export default function Dashboard() {
       const txs = transactions || [];
       const rms = rooms || [];
       const today = getDhakaDate();
-      const notBCF = (t) => !/balance carried forward/i.test(t.type ?? '');
+      // POSITIVE match (house rule): exclusion-only filters let charges (Stay Extension,
+      // Room Service) count as revenue. A tx is revenue only if it IS a payment.
+      const REAL_PAY = /payment|settlement|advance|deposit|bkash|nagad|bank\s*transfer|cash|card/i;
+      const isPay = (t) => REAL_PAY.test(t.type ?? '') && !/^\[VOID-DUP\]/.test(t.type ?? '') && !/balance carried forward/i.test(t.type ?? '');
 
       // group txs by reservation_id first, room+date overlap fallback
       const groups = {};
@@ -157,7 +160,7 @@ export default function Dashboard() {
       Object.values(groups).forEach((g) => {
         const inv = g.res;
         const balanceDue = Math.max(0, Number(inv?.total_amount || 0) - Number(inv?.discount_amount || inv?.discount || 0) - Number(inv?.paid_amount || 0));
-        revenue += g.txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === today).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+        revenue += g.txs.filter((t) => isPay(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === today).reduce((s, t) => s + (Number(t.amount) || 0), 0);
         outstanding += balanceDue;
         if (balanceDue > 0) dueCount++;
       });
@@ -170,7 +173,7 @@ export default function Dashboard() {
       const series = Array.from({ length: 14 }, (_, i) => {
         const d = new Date(today); d.setDate(d.getDate() - (13 - i));
         const ds = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-        const v = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === ds).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+        const v = txs.filter((t) => isPay(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === ds).reduce((s, t) => s + (Number(t.amount) || 0), 0);
         return { ds, v, lbl: ds.slice(8) };
       });
       const max14 = Math.max(1, ...series.map((d) => d.v));

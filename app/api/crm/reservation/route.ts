@@ -61,8 +61,11 @@ export async function POST(req: NextRequest) {
         for (const rn of roomNos) await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('room_number', rn).eq('tenant_id', TENANT);
       }
       if (paid > 0 && newId) {
+        // Method rides in the composite type string — transactions has NO payment_method column.
+        const pm = (body.payment_method as string) || '';
         await supabase.from('transactions').insert({
-          room_number: roomNos[0] || '?', guest_name: body.guest_name || null, type: 'Advance Payment',
+          room_number: roomNos[0] || '?', guest_name: body.guest_name || null,
+          type: pm ? `Advance Payment (${pm})` : 'Advance Payment',
           amount: paid, fiscal_day: (body.fiscal_day as string) || todayDhaka(), reservation_id: newId,
           tenant_id: TENANT, idempotency_key: (body.idempotency_key as string) || crypto.randomUUID(),
         });
@@ -109,11 +112,13 @@ export async function POST(req: NextRequest) {
           amount: extNights * ratesSum, fiscal_day: fiscal, reservation_id: id, tenant_id: TENANT, idempotency_key: crypto.randomUUID(),
         });
       }
-      // Advance-Payment TX when paid_amount increases
+      // Advance-Payment TX when paid_amount increases (method embedded in composite type)
       const payIncrease = paidNum - (+prev.paid_amount || 0);
       if (payIncrease > 0) {
+        const pm2 = (body.payment_method as string) || (prev.payment_method as string) || '';
         await supabase.from('transactions').insert({
-          room_number: newRoomNos[0] || '?', guest_name: gn, type: 'Advance Payment',
+          room_number: newRoomNos[0] || '?', guest_name: gn,
+          type: pm2 ? `Advance Payment (${pm2})` : 'Advance Payment',
           amount: payIncrease, fiscal_day: fiscal, reservation_id: id, tenant_id: TENANT, idempotency_key: crypto.randomUUID(),
         });
       }

@@ -15,7 +15,10 @@ const dhakaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhak
 const addDays = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(t); };
 const fmtLong = (d) => { try { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }); } catch { return d; } };
 const fmtTime = (iso) => { try { return new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: true }); } catch { return ''; } };
-const notBCF = (t) => !/balance carried forward/i.test(t.type ?? '');
+// POSITIVE payment match (house rule) — exclusion-only filters let charges (Stay Extension,
+// Room Service) count as collections. Name kept for the 5 call sites; semantics hardened.
+const REAL_PAY = /payment|settlement|advance|deposit|bkash|nagad|bank\s*transfer|cash|card/i;
+const notBCF = (t) => REAL_PAY.test(t.type ?? '') && !/^\[VOID-DUP\]/.test(t.type ?? '') && !/balance carried forward/i.test(t.type ?? '');
 const dueOf = (r) => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
 const roomOf = (r) => Array.isArray(r.room_ids) ? r.room_ids.join(', ') : (r.room_number || '—');
 
@@ -38,12 +41,14 @@ export default function Reports() {
     if (!getSnap('reports')) setLoading(true); // revisits refresh silently behind cached data
     try {
       const supabase = getSupabaseClient();
-      const [{ data: txs }, { data: rooms }, { data: res }, { data: closes }] = await Promise.all([
-        supabase.from('transactions').select('amount, type, payment_method, fiscal_day, created_at, reservation_id, room_number, guest_name'),
+      // transactions has NO payment_method column — selecting it 400s the whole query (see Billing).
+      const [{ data: txs, error: txErr }, { data: rooms }, { data: res }, { data: closes }] = await Promise.all([
+        supabase.from('transactions').select('amount, type, fiscal_day, created_at, reservation_id, room_number, guest_name'),
         supabase.from('rooms').select('id, status, category, price'),
         supabase.from('reservations').select('id, guest_name, room_ids, room_number, check_in, check_out, total_amount, discount_amount, discount, paid_amount, status'),
         supabase.from('night_audit_log').select('audit_date, closed_at, closed_by, total_checkins, total_checkouts, total_collections, carried_over_dues').order('closed_at', { ascending: false }),
       ]);
+      if (txErr) console.error('[Reports] transactions query error:', txErr);
       const next = { txs: txs || [], rooms: rooms || [], res: res || [], closes: closes || [] };
       setData(next); setSnap('reports', next);
     } catch (e) { console.error('[Reports] fetch error:', e); } finally { setLoading(false); }
