@@ -10,6 +10,7 @@ import CheckActionModal from './CheckActionModal';
 import ReservationEditModal from './ReservationEditModal';
 import { Tabs, Card, Table, Badge, Avatar, Skeleton, TD, MONO, HoverRow, C, bdt } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
+import { useAuth } from './AuthGate';
 
 const fmtDate = (d) => {
   if (!d) return '—';
@@ -39,6 +40,33 @@ export default function Reservations() {
   const [allRooms, setAllRooms] = useState(_cached?.allRooms || []);
   const [allGuests, setAllGuests] = useState(_cached?.allGuests || []);
   const [editRes, setEditRes] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const { user } = useAuth();
+  const canDelete = ['owner', 'manager'].includes(String(user?.role || '').toLowerCase());
+
+  // CASCADE delete via the session-gated server route (owner/manager — server re-enforces).
+  // DB FKs cascade transactions/payment_transactions/folios/ledger/invoices — no orphans.
+  async function removeReservation(r, gn) {
+    const b = resBalance(r);
+    const msg = `Delete reservation for ${gn} (Room ${(r.room_ids || []).join(', ') || '—'})?\n\n` +
+      `This permanently removes the reservation AND all its payments, folio charges and invoices.` +
+      (b > 0 ? `\n⚠ Outstanding balance ${bdt(b)} will be erased.` : '');
+    if (!window.confirm(msg)) return;
+    setDeleting(r.id);
+    try {
+      const resp = await fetch('/api/crm/reservation', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: r.id }),
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok || j.error) throw new Error(j.error || 'Delete failed.');
+      fetchData();
+    } catch (e) {
+      alert(e.message || String(e));
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   useEffect(() => {
     if (!getSnap('reservations')) {
@@ -149,13 +177,23 @@ export default function Reservations() {
                 <td style={{ ...TD, ...MONO, color: b > 0 ? C.rose : C.grn }}>{b > 0 ? bdt(b) : '—'}</td>
                 <td style={TD}><Badge tone={tone}>{label}</Badge></td>
                 <td style={TD}>
-                  {r.status === 'RESERVED' ? (
-                    <button className="iv-btn" style={{ fontSize: 12, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setCheckAction({ reservation: r, action: 'checkin' }); }}>Check In</button>
-                  ) : r.status === 'CHECKED_IN' ? (
-                    <button className="iv-btn" style={{ fontSize: 12, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setCheckAction({ reservation: r, action: 'checkout' }); }}>Check Out</button>
-                  ) : (
-                    <button className="iv-btn iv-btn--ghost" style={{ fontSize: 12, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setEditRes(r); }}>View</button>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                    {r.status === 'RESERVED' ? (
+                      <button className="iv-btn" style={{ fontSize: 12, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setCheckAction({ reservation: r, action: 'checkin' }); }}>Check In</button>
+                    ) : r.status === 'CHECKED_IN' ? (
+                      <button className="iv-btn" style={{ fontSize: 12, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setCheckAction({ reservation: r, action: 'checkout' }); }}>Check Out</button>
+                    ) : (
+                      <button className="iv-btn iv-btn--ghost" style={{ fontSize: 12, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setEditRes(r); }}>View</button>
+                    )}
+                    {canDelete && (
+                      <button className="iv-btn iv-btn--danger" title="Delete reservation (removes its payments, folios & invoices)"
+                        disabled={deleting === r.id}
+                        style={{ fontSize: 12, padding: '4px 9px', lineHeight: 1 }}
+                        onClick={(e) => { e.stopPropagation(); removeReservation(r, gn); }}>
+                        {deleting === r.id ? '…' : '✕'}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </HoverRow>
             );

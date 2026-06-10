@@ -32,10 +32,11 @@ export async function POST(req: NextRequest) {
 
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  const { data: srow } = await supabase.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  const { data: srow } = await supabase.from('staff').select('session_v, role').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
+  const staffRole = String(srow[0].role || '').toLowerCase();
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty */ }
@@ -129,6 +130,32 @@ export async function POST(req: NextRequest) {
       }).eq('id', id);
       if (upErr) throw upErr;
       await recalcResTotalServer(supabase, id); // authoritative recompute
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'delete') {
+      // CASCADE DELETE (house rule): reservations FKs cascade to transactions,
+      // payment_transactions, folios, guest_ledger, billing_invoices (DB-verified 2026-06-10) —
+      // one DELETE removes the full financial trail, no orphans. Owner/manager only.
+      if (!['owner', 'manager'].includes(staffRole)) {
+        return NextResponse.json({ error: 'Only owner/manager can delete reservations.' }, { status: 403 });
+      }
+      const id = body.id as string;
+      if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
+      const { data: prevRows } = await supabase.from('reservations').select('id, status, room_ids, guest_name').eq('id', id).eq('tenant_id', TENANT).limit(1);
+      const prev = prevRows && prevRows[0];
+      if (!prev) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
+
+      // Free rooms held by this reservation (an erroneous record shouldn't pin a room)
+      if (['CHECKED_IN', 'RESERVED'].includes(String(prev.status))) {
+        const roomNos: string[] = Array.isArray(prev.room_ids) ? prev.room_ids.filter(Boolean) : [];
+        for (const rn of roomNos) {
+          await supabase.from('rooms').update({ status: 'AVAILABLE' }).eq('room_number', rn).eq('tenant_id', TENANT);
+        }
+      }
+      const { error: delErr } = await supabase.from('reservations').delete().eq('id', id).eq('tenant_id', TENANT);
+      if (delErr) throw delErr;
+      console.log(`[crm/reservation] DELETE ${id} (${prev.guest_name || '—'}) by staff ${sess.id} (${staffRole})`);
       return NextResponse.json({ ok: true });
     }
 
