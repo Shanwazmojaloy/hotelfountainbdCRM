@@ -133,6 +133,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (action === 'confirm') {
+      // WEB-BOOKING PIPELINE: PENDING (from /api/book) → RESERVED with rooms assigned.
+      // Does NOT recalc/overwrite a canonical total; sets rate×nights only when the web
+      // booking arrived without a total. Room status is NOT flipped (matrix reserves at
+      // check-in, matching NewReservationModal's future-reservation behaviour).
+      const id = body.id as string;
+      const roomNos: string[] = Array.isArray(body.room_ids) ? (body.room_ids as string[]).filter(Boolean) : [];
+      if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
+      if (!roomNos.length) return NextResponse.json({ error: 'Select a room first.' }, { status: 400 });
+      const { data: prevRows } = await supabase.from('reservations').select('id, status, check_in, check_out, total_amount').eq('id', id).eq('tenant_id', TENANT).limit(1);
+      const prev = prevRows && prevRows[0];
+      if (!prev) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
+      if (String(prev.status) !== 'PENDING') return NextResponse.json({ error: `Already ${prev.status}.` }, { status: 409 });
+
+      // server-side double-booking guard for the requested window
+      const { data: clash } = await supabase.from('reservations')
+        .select('room_ids, guest_name, check_in, check_out')
+        .in('status', ['RESERVED', 'CHECKED_IN', 'CONFIRMED'])
+        .lt('check_in', prev.check_out).gt('check_out', prev.check_in);
+      const taken = new Set<string>();
+      (clash || []).forEach((r: { room_ids?: string[] }) => (r.room_ids || []).forEach((rn) => taken.add(String(rn))));
+      const blocked = roomNos.filter((rn) => taken.has(String(rn)));
+      if (blocked.length) return NextResponse.json({ error: `Room ${blocked.join(', ')} is already booked for those dates.` }, { status: 409 });
+
+      const upd: Record<string, unknown> = { room_ids: roomNos, status: 'RESERVED' };
+      if (!(+prev.total_amount > 0)) {
+        const rs = await ratesSumOf(supabase, roomNos);
+        const n = nights(prev.check_in, prev.check_out) || 1;
+        if (rs > 0) upd.total_amount = rs * n;
+      }
+      const { error: cfErr } = await supabase.from('reservations').update(upd).eq('id', id).eq('tenant_id', TENANT);
+      if (cfErr) throw cfErr;
+      console.log(`[crm/reservation] CONFIRM ${id} rooms=${roomNos.join('/')} by staff ${sess.id} (${staffRole})`);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'cancel_pending') {
+      const id = body.id as string;
+      if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
+      const { error: cnErr } = await supabase.from('reservations').update({ status: 'CANCELLED' }).eq('id', id).eq('tenant_id', TENANT).eq('status', 'PENDING');
+      if (cnErr) throw cnErr;
+      console.log(`[crm/reservation] CANCEL-PENDING ${id} by staff ${sess.id} (${staffRole})`);
+      return NextResponse.json({ ok: true });
+    }
+
     if (action === 'delete') {
       // CASCADE DELETE (house rule): reservations FKs cascade to transactions,
       // payment_transactions, folios, guest_ledger, billing_invoices (DB-verified 2026-06-10) —
