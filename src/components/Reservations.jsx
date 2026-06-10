@@ -42,7 +42,9 @@ export default function Reservations() {
   const [editRes, setEditRes] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const { user } = useAuth();
-  const canDelete = ['owner', 'manager'].includes(String(user?.role || '').toLowerCase());
+  // Owner decision 2026-06-10: delete visible to ALL signed-in staff (was owner/manager).
+  // Confirm dialog + server-side identity logging remain the guardrails.
+  const canDelete = !!user;
 
   // CASCADE delete via the session-gated server route (owner/manager — server re-enforces).
   // DB FKs cascade transactions/payment_transactions/folios/ledger/invoices — no orphans.

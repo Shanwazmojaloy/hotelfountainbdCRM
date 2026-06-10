@@ -136,10 +136,9 @@ export async function POST(req: NextRequest) {
     if (action === 'delete') {
       // CASCADE DELETE (house rule): reservations FKs cascade to transactions,
       // payment_transactions, folios, guest_ledger, billing_invoices (DB-verified 2026-06-10) —
-      // one DELETE removes the full financial trail, no orphans. Owner/manager only.
-      if (!['owner', 'manager'].includes(staffRole)) {
-        return NextResponse.json({ error: 'Only owner/manager can delete reservations.' }, { status: 403 });
-      }
+      // one DELETE removes the full financial trail, no orphans.
+      // Owner decision 2026-06-10: any valid staff session may delete (was owner/manager);
+      // the audit trail below records WHO deleted WHAT.
       const id = body.id as string;
       if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
       const { data: prevRows } = await supabase.from('reservations').select('id, status, room_ids, guest_name').eq('id', id).eq('tenant_id', TENANT).limit(1);
