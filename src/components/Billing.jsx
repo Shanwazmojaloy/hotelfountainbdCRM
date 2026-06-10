@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import RecordPaymentModal from './RecordPaymentModal';
-import { printDayReport } from '@/lib/printDocs';
+import { printInvoice } from '@/lib/printDocs';
 import { Card as DSCard, Badge, C } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 
@@ -159,7 +159,16 @@ export default function Billing() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 12, padding: '8px' }} onClick={() => printDayReport({ dateLabel: today, collected, dues, reservations })}>📥 Download Report</button>
+                    <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 12, padding: '8px' }} onClick={async () => {
+                      // Invoice needs room rates + this folio's charges — fetched on demand,
+                      // STRICTLY reservation_id-scoped (v3.1 anchor rule; room_number is not a join key).
+                      const supabase = getSupabaseClient();
+                      const [{ data: rms }, { data: fol }] = await Promise.all([
+                        supabase.from('rooms').select('room_number, category, price'),
+                        supabase.from('folios').select('*').eq('reservation_id', sel.id),
+                      ]);
+                      printInvoice(sel, rms || [], sel.guest_name, fol || []);
+                    }}>🖨 Print Invoice</button>
                     <button className="iv-btn" style={{ flex: 1, fontSize: 12, padding: '8px' }} disabled={bal <= 0} onClick={() => setPayRes(sel)}>{bal <= 0 ? '✓ Settled' : '✓ Record Payment'}</button>
                   </div>
                 </div>
