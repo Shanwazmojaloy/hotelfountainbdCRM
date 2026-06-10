@@ -163,10 +163,11 @@ export default function Billing() {
                       // Invoice needs room rates + this folio's charges — fetched on demand,
                       // STRICTLY reservation_id-scoped (v3.1 anchor rule; room_number is not a join key).
                       const supabase = getSupabaseClient();
-                      const [{ data: rms }, { data: fol }] = await Promise.all([
+                      const [{ data: rms, error: e1 }, { data: fol, error: e2 }] = await Promise.all([
                         supabase.from('rooms').select('room_number, category, price'),
                         supabase.from('folios').select('*').eq('reservation_id', sel.id),
                       ]);
+                      if (e1 || e2) { console.error('[Billing] print fetch error:', e1 || e2); alert('Could not load invoice data — try again.'); return; }
                       printInvoice(sel, rms || [], sel.guest_name, fol || []);
                     }}>🖨 Print Invoice</button>
                     <button className="iv-btn" style={{ flex: 1, fontSize: 12, padding: '8px' }} disabled={bal <= 0} onClick={() => setPayRes(sel)}>{bal <= 0 ? '✓ Settled' : '✓ Record Payment'}</button>

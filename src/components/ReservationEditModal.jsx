@@ -42,7 +42,8 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
     if (!res?.id) return;
     const supabase = getSupabaseClient();
     supabase.from('folios').select('amount, category, description').eq('reservation_id', res.id)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('[ResEdit] folio fetch:', error);
         if (cancelled) return;
         const ex = (data || []).filter((f) => !MARKER_RE.test(String(f.category || '') + ' ' + String(f.description || ''))).reduce((a, f) => a + (+f.amount || 0), 0);
         setResFolioExtras(ex);
@@ -137,7 +138,12 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
       };
       const { error } = await supabase.from('reservations').update(updates).eq('id', res.id);
       if (error) throw error;
-      await recalcResTotal(res.id); // authoritative recompute
+      // Recalc ONLY when dates/rooms changed — unconditional recalc clobbered negotiated
+      // totals (audit HIGH-3 2026-06-10; mirrors the server route's rule).
+      const _datesChanged = String(checkInDate || '').slice(0, 10) !== String(res.check_in || '').slice(0, 10)
+        || String(checkOut || '').slice(0, 10) !== String(res.check_out || '').slice(0, 10);
+      const _roomsChanged = JSON.stringify([...newRoomNos].sort()) !== JSON.stringify([...(res.room_ids || [])].sort());
+      if (_datesChanged || _roomsChanged) await recalcResTotal(res.id);
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }

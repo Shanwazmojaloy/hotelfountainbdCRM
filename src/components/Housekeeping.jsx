@@ -50,8 +50,11 @@ export default function Housekeeping() {
     setSaving(id);
     try {
       const supabase = getSupabaseClient();
+      // DB convention is UPPERCASE_UNDERSCORE — lowercase writes broke the auto-AVAILABLE
+      // trigger and the housekeeping_dashboard view (audit MED-9, 2026-06-10).
+      const dbStatus = status.toUpperCase().replace(/-/g, '_');
       const { error } = await supabase.from('housekeeping_tasks')
-        .update({ status, completed_at: status === 'completed' ? new Date().toISOString() : null }).eq('id', id);
+        .update({ status: dbStatus, completed_at: status === 'completed' ? new Date().toISOString() : null }).eq('id', id);
       if (error) throw error;
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     } catch (e) {

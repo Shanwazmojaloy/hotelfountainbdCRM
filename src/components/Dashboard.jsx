@@ -99,7 +99,10 @@ function Bar({ h, lbl, peak }) {
 }
 
 export default function Dashboard() {
-  const _cached = getSnap('dashboard');
+  // Day-scoped key: "Today's Revenue/Guests" are date-derived — an unscoped key painted
+  // yesterday's money after midnight (audit LOW-17).
+  const SNAP_KEY = 'dashboard.' + new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
+  const _cached = getSnap(SNAP_KEY);
   const [stats, setStats] = useState(_cached?.stats || { revenue: 0, occupancy: 0, occupied: 0, totalRooms: 0, checkins: 0, outstanding: 0, dueCount: 0 });
   const [rev14, setRev14] = useState(_cached?.rev14 || []);
   const [total14, setTotal14] = useState(_cached?.total14 || 0);
@@ -109,8 +112,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(!_cached);
 
   useEffect(() => {
-    if (!getSnap('dashboard')) {
-      const warm = warmSnap('dashboard'); // localStorage tier — instant paint after full reload
+    if (!getSnap(SNAP_KEY)) {
+      const warm = warmSnap(SNAP_KEY); // localStorage tier — instant paint after full reload
       if (warm) {
         setStats(warm.stats || {}); setRev14(warm.rev14 || []); setTotal14(warm.total14 || 0);
         setCatOcc(warm.catOcc || []); setGuests(warm.guests || []); setPeakInfo(warm.peakInfo || {});
@@ -121,14 +124,15 @@ export default function Dashboard() {
   }, []);
 
   async function fetchDashboard() {
-    if (!getSnap('dashboard')) setLoading(true); // first visit shows skeletons; revisits refresh silently
+    if (!getSnap(SNAP_KEY)) setLoading(true); // first visit shows skeletons; revisits refresh silently
     try {
       const supabase = getSupabaseClient();
-      const [{ data: reservations }, { data: transactions }, { data: rooms }] = await Promise.all([
+      const [{ data: reservations, error: e1 }, { data: transactions, error: e2 }, { data: rooms, error: e3 }] = await Promise.all([
         supabase.from('reservations').select('id, guest_name, room_ids, check_in, check_out, status, total_amount, discount_amount, discount, paid_amount').order('check_in', { ascending: false }),
         supabase.from('transactions').select('amount, type, fiscal_day, created_at, reservation_id, room_number'),
         supabase.from('rooms').select('id, room_number, status, category, price'),
       ]);
+      if (e1 || e2 || e3) console.error('[Dashboard] query error:', e1 || e2 || e3); // money page must never fail silently
 
       const res = reservations || [];
       const txs = transactions || [];
@@ -204,7 +208,7 @@ export default function Dashboard() {
       setRev14(bars); setTotal14(sum14);
       setCatOcc(cats); setGuests(todays);
       setPeakInfo(peakObj);
-      setSnap('dashboard', { stats: statsObj, rev14: bars, total14: sum14, catOcc: cats, guests: todays, peakInfo: peakObj });
+      setSnap(SNAP_KEY, { stats: statsObj, rev14: bars, total14: sum14, catOcc: cats, guests: todays, peakInfo: peakObj });
     } catch (e) {
       console.error('[Dashboard] fetch error:', e);
     } finally {

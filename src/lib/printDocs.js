@@ -279,15 +279,17 @@ export function printInvoice(res, rooms, guestName, folios) {
     const rate = +rm?.price || 0; const sub = rate * nights; rawRoomCharge += sub;
     return { rn, rm, sub };
   });
+  // canonical (total_amount) INCLUDES folio extras after Add-Charge resync — so the room
+  // portion is canonical − extras, otherwise extras are counted twice on the invoice.
   const canonical = +res.total_amount || 0;
-  const factor = canonical > 0 && rawRoomCharge > 0 ? canonical / rawRoomCharge : 1;
-  const roomCharge = canonical > 0 ? canonical : rawRoomCharge;
+  const roomCharge = canonical > 0 ? Math.max(0, canonical - (billFolios.reduce((a, f) => a + (+f.amount || 0), 0))) : rawRoomCharge;
+  const factor = canonical > 0 && rawRoomCharge > 0 ? roomCharge / rawRoomCharge : 1;
   const roomRows = rowData.length
     ? rowData.map(({ rn, rm, sub }) => {
         const amt = sub * factor; const effRate = nights > 0 ? amt / nights : amt;
         return `<tr><td class="dt">${esc(fmtDate(res.check_in))} → ${esc(fmtDate(res.check_out))}</td><td>Room ${esc(rn)} · ${esc(rm?.category || 'Room')} (${nights}n)</td><td class="rt">${fmt(effRate)}/n</td><td class="num">${fmt(amt)}</td></tr>`;
       }).join('')
-    : (canonical > 0 ? `<tr><td class="dt">${esc(fmtDate(res.check_in))} → ${esc(fmtDate(res.check_out))}</td><td>Room charge (${nights}n)</td><td class="rt">—</td><td class="num">${fmt(canonical)}</td></tr>` : '');
+    : (roomCharge > 0 ? `<tr><td class="dt">${esc(fmtDate(res.check_in))} → ${esc(fmtDate(res.check_out))}</td><td>Room charge (${nights}n)</td><td class="rt">—</td><td class="num">${fmt(roomCharge)}</td></tr>` : '');
   const folioRows = billFolios.map((f) => `<tr><td class="dt">${esc(String(f.created_at || '').slice(0, 10))}</td><td>${esc(f.description || f.category || 'Charge')}</td><td class="rt">${esc(f.category || '—')}</td><td class="num">${fmt(f.amount)}</td></tr>`).join('');
   const extras = billFolios.reduce((a, f) => a + (+f.amount || 0), 0);
   const subtotal = roomCharge + extras;

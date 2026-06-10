@@ -60,7 +60,7 @@ export default function Pipeline() {
         body: JSON.stringify({ action: 'accept_offer', offer_id: offer.id, guest_reply: reply }),
       });
       const j = await r.json().catch(() => ({}));
-      if (j.error) throw new Error(j.error);
+      if (!r.ok || j.error) throw new Error(j.error || `Request failed (${r.status})`); // money action: never show false success
       setMsg(reply === 'yes' ? `✓ ${bdt(j.amount || offer.offer_price)} added to ${offer.guest_name}'s folio` : 'Offer marked declined');
       reload();
     } catch (e) { setMsg('Failed: ' + (e.message || String(e))); } finally { setBusy(''); }

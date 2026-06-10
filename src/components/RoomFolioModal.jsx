@@ -34,7 +34,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
     let cancelled = false;
     const supabase = getSupabaseClient();
     supabase.from('folios').select('*').eq('reservation_id', activeRes.id).order('created_at')
-      .then(({ data }) => { if (!cancelled) { setFolios((data || []).filter((x) => String(x.reservation_id) === String(activeRes.id))); setFLoad(false); } });
+      .then(({ data, error }) => { if (error) console.error('[RoomFolio] folio fetch:', error); if (!cancelled) { setFolios((data || []).filter((x) => String(x.reservation_id) === String(activeRes.id))); setFLoad(false); } });
     return () => { cancelled = true; };
   }, [activeRes?.id]);
 
@@ -140,7 +140,10 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
           onClose={() => setShowCharge(false)} onDone={() => { onSaved?.(); }} />
       )}
       {showPay && activeRes && (
-        <RecordPaymentModal reservation={{ ...activeRes, total_amount: total + (isMulti ? 0 : 0), guest_name: guestName }}
+        {/* Pass the RAW reservation — RecordPaymentModal derives net = total − discount − paid
+            itself. Passing the pre-discounted `total` here double-subtracted the discount
+            (the blacklisted lockedDue anti-pattern) and broke multi-room payment caps. */}
+        <RecordPaymentModal reservation={{ ...activeRes, guest_name: guestName }}
           onClose={() => setShowPay(false)} onSaved={() => { setShowPay(false); onSaved?.(); }} />
       )}
       {showCO && activeRes && (
