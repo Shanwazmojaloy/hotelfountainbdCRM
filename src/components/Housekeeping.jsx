@@ -62,14 +62,17 @@ export default function Housekeeping() {
     }
   }
 
-  const count = (s) => tasks.filter((t) => (t.status || 'pending') === s).length;
+  // DB stores task statuses UPPERCASE (and sometimes underscored) — normalize for ALL
+  // comparisons or the stat cards count 0 while the table is full (live-audit bug 2026-06-10).
+  const norm = (s) => String(s || 'pending').toLowerCase().replace(/_/g, '-');
+  const count = (s) => tasks.filter((t) => norm(t.status) === s).length;
   const dirty = rooms.filter((r) => r.status === 'DIRTY');
 
   let list = tasks;
   if (filter === 'DIRTY') {
     list = dirty.map((r) => ({ id: 'r_' + r.id, room_number: r.room_number, task_type: 'Standard Clean', priority: 'high', status: 'pending', assignee: '—', _dirty: true }));
   } else if (filter !== 'ALL') {
-    list = tasks.filter((t) => (t.status || 'pending') === filter);
+    list = tasks.filter((t) => norm(t.status) === filter);
   }
 
   const filters = [['ALL', 'All'], ['pending', 'Pending'], ['in-progress', 'In Progress'], ['completed', 'Completed'], ['DIRTY', `Dirty (${dirty.length})`]];
@@ -99,7 +102,7 @@ export default function Housekeeping() {
           {loading && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>Loading…</td></tr>}
           {!loading && list.length === 0 && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No tasks for this filter.</td></tr>}
           {list.slice(0, 80).map((t) => {
-            const [tone, label] = STATUS_TONE[t.status || 'pending'] || ['amber', t.status];
+            const [tone, label] = STATUS_TONE[norm(t.status)] || ['amber', t.status];
             return (
               <tr key={t.id} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
                 <td style={TD}><span className="iv-mono" style={{ fontSize: 15, fontWeight: 500, color: 'var(--iv-ink)' }}>{t.room_number}</span></td>
@@ -118,7 +121,7 @@ export default function Housekeeping() {
                 <td style={TD}><Badge tone={tone}>{label}</Badge></td>
                 <td style={TD}>
                   {!t._dirty && (
-                    <select value={t.status || 'pending'} disabled={saving === t.id} onChange={(e) => updateStatus(t.id, e.target.value)} className="iv-input" style={{ padding: '4px 8px', fontSize: 12, minWidth: 120, width: 'auto' }}>
+                    <select value={norm(t.status)} disabled={saving === t.id} onChange={(e) => updateStatus(t.id, e.target.value)} className="iv-input" style={{ padding: '4px 8px', fontSize: 12, minWidth: 120, width: 'auto' }}>
                       {['pending', 'in-progress', 'completed'].map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                   )}

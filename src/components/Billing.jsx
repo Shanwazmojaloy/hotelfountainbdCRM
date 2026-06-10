@@ -57,7 +57,7 @@ export default function Billing() {
       // Selecting a non-existent column makes PostgREST 400 the WHOLE query → data:null →
       // this page silently renders ৳0. Method is derived from the `type` string instead.
       const [{ data: r, error: rErr }, { data: t, error: tErr }] = await Promise.all([
-        supabase.from('reservations').select('id, guest_name, room_ids, status, total_amount, discount_amount, discount, paid_amount, check_in, check_out, category').order('check_out', { ascending: false }).limit(5000),
+        supabase.from('reservations').select('id, guest_name, room_ids, status, total_amount, discount_amount, discount, paid_amount, check_in, check_out, room_type').order('check_out', { ascending: false }).limit(5000),
         supabase.from('transactions').select('type, amount').eq('fiscal_day', today),
       ]);
       if (rErr || tErr) console.error('[Billing] query error:', rErr || tErr);
@@ -148,7 +148,7 @@ export default function Billing() {
                       <th style={{ fontFamily: 'var(--iv-body)', fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', padding: '8px 0', textAlign: 'right', borderBottom: '2px solid var(--iv-side)', fontWeight: 600 }}>Amount</th>
                     </tr></thead>
                     <tbody>
-                      <tr><td style={{ padding: '6px 0', fontSize: 12, color: 'var(--iv-ink)', borderBottom: '1px solid var(--iv-border2)' }}>Room Charge — {sel.category || 'Room'}{n ? ` (${n} nights)` : ''}</td><td className="iv-mono" style={{ padding: '6px 0', fontSize: 12, textAlign: 'right', color: 'var(--iv-gold)', borderBottom: '1px solid var(--iv-border2)' }}>{bdt(billTotal)}</td></tr>
+                      <tr><td style={{ padding: '6px 0', fontSize: 12, color: 'var(--iv-ink)', borderBottom: '1px solid var(--iv-border2)' }}>Room Charge — {sel.room_type || 'Room'}{n ? ` (${n} nights)` : ''}</td><td className="iv-mono" style={{ padding: '6px 0', fontSize: 12, textAlign: 'right', color: 'var(--iv-gold)', borderBottom: '1px solid var(--iv-border2)' }}>{bdt(billTotal)}</td></tr>
                     </tbody>
                   </table>
                   <div style={{ background: 'var(--iv-sunken)', border: '1px solid var(--iv-border2)', padding: '10px 14px' }}>
