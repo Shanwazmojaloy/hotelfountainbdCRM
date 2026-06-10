@@ -73,10 +73,10 @@ function StatCard({ icon, label, value, sub, accent }) {
   );
 }
 
-function DSCard({ title, titleAccent, accent = 'var(--iv-side)', action, bodyStyle, children }) {
+function DSCard({ title, titleAccent, accent = 'var(--iv-side)', action, bodyStyle, children, sectionStyle }) {
   return (
-    <section style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${accent}`, overflow: 'hidden' }}>
-      <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48 }}>
+    <section style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${accent}`, overflow: 'hidden', ...sectionStyle }}>
+      <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexShrink: 0 }}>
         <h3 style={{ margin: 0, fontFamily: 'var(--iv-head)', fontSize: 16, fontWeight: 700, color: 'var(--iv-ink)' }}>
           {title}{titleAccent && <em style={{ fontStyle: 'italic', color: 'var(--iv-gold)', fontWeight: 400 }}> {titleAccent}</em>}
         </h3>
@@ -212,16 +212,16 @@ export default function Dashboard() {
   const revPAR = Math.round((peakInfo.adr * peakInfo.occupancy) / 100);
 
   return (
-    <div>
+    <div className="iv-dash-root" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: 14 }}>
       {/* Stat cards — colored walnut top-borders + icons */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }} className="iv-stat-grid iv-stagger">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, flexShrink: 0 }} className="iv-stat-grid iv-stagger">
         <StatCard icon="🏨" label="Occupied Rooms" accent={GRN} value={loading ? '—' : stats.occupied} sub={loading ? '' : `of ${stats.totalRooms} · ${stats.occupancy}% occupancy`} />
         <StatCard icon="৳" label="Today's Revenue" accent={GOLD} value={loading ? '—' : bdt(stats.revenue)} sub="Collected today · Asia/Dhaka" />
         <StatCard icon="✈" label="Arrivals Today" accent={SKY} value={loading ? '—' : stats.checkins} sub="Scheduled check-ins" />
         <StatCard icon="⚠" label="Balance Due" accent={ROSE} value={loading ? '—' : bdt(stats.outstanding)} sub={loading ? '' : `${stats.dueCount} reservation${stats.dueCount === 1 ? '' : 's'}`} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, marginBottom: 16 }} className="iv-chart-grid">
+      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, flexShrink: 0, alignItems: 'start' }} className="iv-chart-grid">
         {/* 14-day revenue */}
         <DSCard title="Revenue —" titleAccent="Last 14 Days" accent={GOLD} action={<Badge tone="gold">{bdt(total14)} total</Badge>}>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 120, padding: '4px 0' }}>
@@ -255,9 +255,11 @@ export default function Dashboard() {
       </div>
 
       {/* Today's guests */}
-      <DSCard title="Today's" titleAccent="Guests" bodyStyle={{ padding: 0 }}
+      <DSCard title="Today's" titleAccent="Guests"
+        bodyStyle={{ padding: 0, flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+        sectionStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         action={<a href="/crm/reservations" className="iv-btn iv-btn--ghost" style={{ fontSize: 9.5, padding: '4px 11px', textDecoration: 'none' }}>View All</a>}>
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -288,7 +290,7 @@ export default function Dashboard() {
         </div>
       </DSCard>
 
-      <style>{`@media (max-width: 900px){ .iv-stat-grid{ grid-template-columns:repeat(2,1fr) !important; } .iv-chart-grid{ grid-template-columns:1fr !important; } }`}</style>
+      <style>{`@media (min-width:901px){.iv-dash-root{height:calc(100dvh - 102px)}}@media (max-width:900px){.iv-stat-grid{grid-template-columns:repeat(2,1fr)!important}.iv-chart-grid{grid-template-columns:1fr!important}.iv-dash-root{height:auto;overflow-y:auto}}`}</style>
     </div>
   );
 }
