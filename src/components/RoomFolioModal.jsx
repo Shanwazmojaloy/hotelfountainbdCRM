@@ -139,10 +139,10 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
         <AddChargeModal roomNo={room.room_number} resId={activeRes.id}
           onClose={() => setShowCharge(false)} onDone={() => { onSaved?.(); }} />
       )}
+      {/* Pass the RAW reservation — RecordPaymentModal derives net = total − discount − paid
+          itself. Passing the pre-discounted `total` here double-subtracted the discount
+          (the blacklisted lockedDue anti-pattern) and broke multi-room payment caps. */}
       {showPay && activeRes && (
-        {/* Pass the RAW reservation — RecordPaymentModal derives net = total − discount − paid
-            itself. Passing the pre-discounted `total` here double-subtracted the discount
-            (the blacklisted lockedDue anti-pattern) and broke multi-room payment caps. */}
         <RecordPaymentModal reservation={{ ...activeRes, guest_name: guestName }}
           onClose={() => setShowPay(false)} onSaved={() => { setShowPay(false); onSaved?.(); }} />
       )}
