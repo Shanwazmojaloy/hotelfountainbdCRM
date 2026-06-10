@@ -42,7 +42,7 @@ function statusLabel(s) {
 function Badge({ tone = 'gold', children }) {
   const t = TONE[tone] || TONE.gold;
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--iv-body)', fontSize: 9, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 9px', borderRadius: 2, color: t.fg, background: t.bg, border: `1px solid ${t.br}`, whiteSpace: 'nowrap' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.01em', textTransform: 'none', padding: '3px 10px', borderRadius: 999, color: t.fg, background: t.bg, border: `1px solid ${t.br}`, whiteSpace: 'nowrap' }}>
       {children}
     </span>
   );
@@ -92,7 +92,7 @@ function Bar({ h, lbl, peak }) {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <div style={{ width: '100%', height: `${h}%`, minHeight: 2, background: hover ? GOLD : (peak ? WALNUT : 'var(--iv-border)'), transition: 'background .2s, height .3s' }} />
+      <div style={{ width: '100%', height: `${h}%`, minHeight: 3, borderRadius: '4px 4px 0 0', background: hover ? '#6366F1' : (peak ? GOLD : '#C7D2FE'), transition: 'background .2s, height .3s' }} />
       <span style={{ fontFamily: 'var(--iv-mono)', fontSize: 8, color: 'var(--iv-ink3)' }}>{lbl}</span>
     </div>
   );
@@ -181,7 +181,7 @@ export default function Dashboard() {
       // per-category occupancy
       const catMap = {};
       rms.forEach((r) => { const c = r.category || 'Uncategorized'; (catMap[c] = catMap[c] || { total: 0, occ: 0 }).total++; if (r.status === 'OCCUPIED') catMap[c].occ++; });
-      const palette = [WALNUT, GRN, SKY, AMB, '#6D28D9', TEAL];
+      const palette = [GOLD, GRN, SKY, AMB, '#7C3AED', TEAL];
       const cats = Object.entries(catMap).map(([name, v], i) => ({ name, pct: v.total ? Math.round((v.occ / v.total) * 100) : 0, color: palette[i % palette.length] })).sort((a, b) => b.pct - a.pct).slice(0, 6);
 
       // today's guests (checking in today or currently in-house)
@@ -245,8 +245,8 @@ export default function Dashboard() {
                   <span style={{ fontWeight: 500, color: 'var(--iv-ink)' }}>{o.name}</span>
                   <span style={{ fontFamily: 'var(--iv-mono)', color: o.color, fontSize: 10 }}>{o.pct}%</span>
                 </div>
-                <div style={{ height: 7, background: 'var(--iv-border2)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${o.pct}%`, background: o.color, transition: 'width .4s var(--iv-ease)' }} />
+                <div style={{ height: 7, background: 'var(--iv-border2)', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${o.pct}%`, background: o.color, borderRadius: 99, transition: 'width .4s var(--iv-ease)' }} />
                 </div>
               </div>
             ))}

@@ -2014,3 +2014,10 @@ CRM — FULL MODERN SAAS RETHEME (v3.21, 2026-06-10, owner-chosen over "Modern I
 - VERIFY: warm-literal grep over src/components must return 0 (pattern list in chat log). Remaining warm hexes in globals.css lines <100 are the PUBLIC LANDING (Gilded Threshold) — out of scope, do not flip.
 - NOT touched on purpose: printDocs.js (printed vouchers/invoices stay brand-warm for guests), public site, /churn, room-tile status hues (already modern).
 - Build + commit pending from PowerShell (combined with v3.20 which is also uncommitted).
+- v3.21 SHIPPED 2026-06-10 after a conflicted rebase onto remote RBAC/dvh-layout commits (b50d0f1/5d401c5/b2077f4): Dashboard.jsx conflicts hand-merged (kept remote `sectionStyle`/flex-fill + modern theme); public/crm.html taken from REMOTE (`git checkout --ours` during rebase — local side had NUL corruption; this session never touched the file). Live-verified: slate/indigo theme rendering at /crm.
+
+CRM — global New Booking + dashboard chart fixes (v3.22, 2026-06-10):
+- "+ New Booking" (Header) now opens NewReservationModal GLOBALLY: on /crm/reservations it still fires the `lumea:new-booking` event (page's own modal + fetchData); on any other page Header renders the modal itself — rooms seeded instantly from snap cache (`rooms`/`reservations` keys) then refreshed via a live rooms query. onSaved → close + `router.push('/crm/reservations')`. The old `?new=1` navigation path is replaced (Reservations' mount-param handler kept, harmless).
+- Modal is self-sufficient for writes (reservations+rooms+transactions w/ idempotency key); only needs the `rooms` prop.
+- Dashboard charts were nearly invisible after the retheme: 14-day Bar default color was `var(--iv-border)` (#E2E8F0 on white). Now indigo-200 #C7D2FE, peak = indigo-600, hover = #6366F1, rounded bar tops. Category-occupancy palette: WALNUT (read as black) → indigo; meter bars pill-rounded. NOTE: snap-cached `catOcc` carries baked colors — first paint after deploy shows old colors until the background refresh lands.
+- Pill-ified last square badges (Dashboard local Badge, Rooms "N rooms" chip, Header "N new") + Housekeeping filter chips → indigo pills.

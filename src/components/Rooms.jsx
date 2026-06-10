@@ -98,7 +98,7 @@ export default function Rooms() {
         <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexWrap: 'wrap' }}>
           <h3 style={{ margin: 0, fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)', letterSpacing: '-.01em' }}>Floor <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}>Plan</em></h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ display: 'inline-flex', fontFamily: 'var(--iv-body)', fontSize: 9, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 9px', borderRadius: 2, color: 'var(--iv-gold)', background: 'rgba(79,70,229,.08)', border: '1px solid rgba(79,70,229,.22)' }}>{filtered.length} rooms</span>
+            <span style={{ display: 'inline-flex', fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.01em', padding: '3px 10px', borderRadius: 999, color: 'var(--iv-gold)', background: 'rgba(79,70,229,.08)', border: '1px solid rgba(79,70,229,.22)' }}>{filtered.length} rooms</span>
             <button className="iv-btn" onClick={() => setShowAddRoom(true)} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Room</button>
           </div>
         </header>
