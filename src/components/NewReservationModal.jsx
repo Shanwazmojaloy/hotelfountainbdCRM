@@ -124,7 +124,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
-    <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.45)', zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 16, overflowY: 'auto' }}>
+    <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(7,9,14,0.55)', zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 16, overflowY: 'auto' }}>
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 620, margin: '24px 0' }}>
         <h3 className="text-xl mb-5 pb-4 iv-divider">New Reservation / Check-In</h3>
 
@@ -152,9 +152,12 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
         </div>
 
         <div className="mb-4">
-          <label style={lbl}>Room(s) *</label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={{ ...lbl, marginBottom: 0 }}>Room(s) *</label>
+            <button onClick={() => setF((p) => ({ ...p, roomNos: [...p.roomNos, ''] }))} className="iv-btn iv-btn--ghost" style={{ padding: '3px 10px', fontSize: 11.5, borderRadius: 999 }}>+ Add Room</button>
+          </div>
           {f.roomNos.map((rn, idx) => (
-            <div key={idx} className="flex gap-2 mb-2">
+            <div key={idx} className={idx < f.roomNos.length - 1 ? 'flex gap-2 mb-2' : 'flex gap-2'}>
               <select style={{ ...field, flex: 1 }} value={rn} onChange={(e) => { const a = [...f.roomNos]; a[idx] = e.target.value; setF((p) => ({ ...p, roomNos: a })); }}>
                 <option value="">— select room —</option>
                 {displayRooms.filter((r) => r.room_number === rn || !f.roomNos.includes(r.room_number)).map((r) => (
@@ -164,7 +167,6 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
               {f.roomNos.length > 1 && <button onClick={() => setF((p) => ({ ...p, roomNos: p.roomNos.filter((_, i) => i !== idx) }))} style={{ color: '#DC2626', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
             </div>
           ))}
-          <button onClick={() => setF((p) => ({ ...p, roomNos: [...p.roomNos, ''] }))} className="iv-btn iv-btn--ghost" style={{ padding: '4px 10px', fontSize: 12 }}>+ Add Room</button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">

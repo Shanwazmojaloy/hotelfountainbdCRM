@@ -2033,3 +2033,13 @@ CRM — BRAND-GOLD accent retheme + chart motion (v3.23, 2026-06-10, owner: "mat
 CRM — route transition + block separation (v3.24, 2026-06-10):
 - TAB→TAB TRANSITION: `app/crm/template.tsx` now renders `<span className="iv-route-bar">` (gold gradient bar sweeps across viewport top per navigation, NProgress-style, pure CSS `ivRouteBar` .75s) + `.iv-fade` upgraded to `ivPageIn` (.42s translateY(18px)+scale(.994) settle on cubic-bezier(.22,.9,.36,1)). CRITICAL: the bar must stay OUTSIDE the `.iv-fade` div — `.iv-fade` animates transform, and position:fixed inside a transformed ancestor anchors to the ancestor, not the viewport. Both registered in the reduced-motion kill-switch.
 - BLOCK SEPARATION: page bg deepened `#F6F8FB→#EEF2F7`, borders darkened `--iv-border #E2E8F0→#D9E2EC` / `--iv-border2 #EEF2F7→#E4EAF1`, card shadow strengthened, dskit Card mb 16→20, stat/chart grid gaps 12→16 + section gaps →20 (Dashboard flex-root gap 14→20 — NOTE Dashboard now uses a `gap`-based flex root from the remote dvh-layout commit, NOT marginBottom), Billing 2-col gap 20. ProgressRing track follows new border hue.
+
+CRM — BANDED MODAL DIALOGS (v3.25, 2026-06-10, owner: "modals should pop"):
+- All modals now read header-band / body / footer-band, PURE CSS via existing hooks — no per-modal structure changes:
+  · `.iv-modal-ov > .iv-card` → padding `0 28px 24px`, radius 14, gold ring border.
+  · `.iv-modal-ov > .iv-card > h3:first-child` → full-bleed DARK BRAND BAND (negative -28px margins, gradient #0D1117→#1C2433, #EEE9E2 text, 2px gold bottom rule, `position:sticky top:0 z-2` so it pins while the body scrolls). Applies to the 9 modals whose first element is the <h3> title.
+  · `.iv-modal-ov > .iv-card > div:first-child` → `padding-top:22px` for the 2 detail modals (ReservationEdit, RoomFolio) that open with a flex header div — they stay flat-headed. If a future modal starts with a div, it gets the gutter, not the band.
+  · `.iv-foot` → full-bleed sunken footer band (negative margins, `--iv-sunken` bg, top border, bottom radii). The earlier standalone `.iv-foot` rule was REMOVED (it cascaded later and would override the band).
+- Backdrops: all 11 inline overlay colors swept `rgba(43,39,34,.45-.55)` (warm brown) → brand-dark `rgba(7,9,14,.55-.6)`; overlay blur 3px→6px + saturate. Inline styles beat CSS — backdrop changes REQUIRE the per-modal sweep, not CSS.
+- NewReservationModal: "+ Add Room" moved INTO the Room(s) label row (right-aligned ghost pill) — was floating loose under the select, the main mis-alignment complaint.
+- GOTCHA: band CSS depends on `h3:first-child` / `div:first-child` ordering inside `.iv-card`. Don't insert elements before the modal title without re-checking these selectors.

@@ -75,7 +75,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
   const row = { display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--iv-border2)', fontSize: 13 };
 
   return (
-    <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.5)', zIndex: 90,
+    <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(7,9,14,0.58)', zIndex: 90,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="flex items-start justify-between mb-4 pb-4 iv-divider">

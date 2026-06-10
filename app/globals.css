@@ -261,11 +261,23 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-table tbody tr:nth-child(n+6), .crm-root .iv-tbody tr:nth-child(n+6) { animation-delay:.17s; }
 .crm-root .iv-table tbody tr:hover { background:var(--iv-hover); }
 
-/* Modals — backdrop fades, panel scales/slides in (overlay gets .iv-modal-ov) */
+/* Modals — banded dialog: dark gilded header, white body, sunken footer. Backdrop blurs deep. */
 @keyframes ivOvIn { from { opacity:0; } to { opacity:1; } }
 @keyframes ivModalIn { from { opacity:0; transform:translateY(14px) scale(.965); } to { opacity:1; transform:none; } }
-.crm-root .iv-modal-ov, .iv-modal-ov { animation:ivOvIn .22s ease both; backdrop-filter:blur(3px); }
-.iv-modal-ov > * { animation:ivModalIn .3s cubic-bezier(.34,1.2,.4,1) both; box-shadow:var(--iv-shadow-modal, 0 24px 70px rgba(28,21,16,.28)); }
+.crm-root .iv-modal-ov, .iv-modal-ov { animation:ivOvIn .22s ease both; backdrop-filter:blur(6px) saturate(1.05); }
+.iv-modal-ov > * { animation:ivModalIn .3s cubic-bezier(.34,1.2,.4,1) both; box-shadow:0 30px 80px rgba(2,6,23,.45), 0 0 0 1px rgba(200,169,110,.28); }
+/* Panel: padding moves to bands; body keeps 28px gutters */
+.crm-root .iv-modal-ov > .iv-card { padding:0 28px 24px; border-radius:14px; border:1px solid rgba(200,169,110,.3); }
+/* Header band — full-bleed dark brand strip (only modals whose first element is the <h3> title) */
+.crm-root .iv-modal-ov > .iv-card > h3:first-child {
+  margin:0 -28px 22px; padding:17px 28px 15px; background:linear-gradient(135deg,#0D1117 0%,#1C2433 100%);
+  color:#EEE9E2; font-size:17px; letter-spacing:-.01em; border-radius:13px 13px 0 0;
+  border-bottom:2px solid rgba(200,169,110,.45); position:sticky; top:0; z-index:2;
+}
+/* Detail modals (ReservationEdit/RoomFolio) open with a flex header div instead — give the body its top gutter */
+.crm-root .iv-modal-ov > .iv-card > div:first-child { padding-top:22px; }
+/* Footer band — full-bleed sunken action strip */
+.crm-root .iv-foot { margin:24px -28px -24px; padding:14px 28px 16px; background:var(--iv-sunken); border-top:1px solid var(--iv-border); border-radius:0 0 13px 13px; }
 
 /* Cards — gentle lift */
 .crm-root .iv-card { transition:box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease), border-color .25s var(--iv-ease); }
@@ -333,9 +345,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-bars > *:nth-child(n+14) > div:first-child { animation-delay:.41s; }
 @keyframes ivGrowX { from { transform:scaleX(0); } to { transform:scaleX(1); } }
 .crm-root .iv-grow-x { transform-origin:left; animation:ivGrowX .6s var(--iv-ease) both; }
-
-/* Modal footer — uniform action row: clear separation from the form body */
-.crm-root .iv-foot { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--iv-border2); }
 
 /* Accessibility — kill all motion for users who ask for it */
 @media (prefers-reduced-motion: reduce) {
