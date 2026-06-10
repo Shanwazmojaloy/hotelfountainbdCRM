@@ -81,7 +81,7 @@ export default function Rooms() {
   return (
     <div>
       {/* Status stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }} className="iv-stat-grid iv-stagger">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }} className="iv-stat-grid iv-stagger">
         {statCards.map((s) => (
           <div key={s.k} style={{ background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, boxShadow: 'var(--iv-card-shadow)', padding: '14px 18px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>

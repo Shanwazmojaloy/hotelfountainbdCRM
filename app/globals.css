@@ -106,14 +106,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root {
   /* Lumea — Modern SaaS × BRAND theme (2026-06-10): slate neutrals + Hotel Fountain gold
      (landing palette: #C8A96E gold / #0D1117 dark). Token NAMES kept from the Ivory system. */
-  --iv-bg:#F6F8FB; --iv-card:#FFFFFF; --iv-border:#E2E8F0;
-  --iv-border2:#EEF2F7; --iv-sunken:#F8FAFC; --iv-hover:#F1F5F9;
+  --iv-bg:#EEF2F7; --iv-card:#FFFFFF; --iv-border:#D9E2EC;
+  --iv-border2:#E4EAF1; --iv-sunken:#F8FAFC; --iv-hover:#F1F5F9;
   --iv-ink:#0F172A; --iv-ink2:#475569; --iv-ink3:#94A3B8;
   --iv-gold:#8B6914; --iv-gold2:#6B4E0A; --iv-gold-light:#C8A96E; /* BRAND gold (landing) */
   --iv-side:#0D1117; /* sidebar — landing dark2 */
   --iv-bar:0px; /* modern flat cards — no signature top-border */
-  --iv-shadow-stat:0 6px 18px rgba(15,23,42,.08);
-  --iv-card-shadow:0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+  --iv-shadow-stat:0 8px 22px rgba(15,23,42,.10);
+  --iv-card-shadow:0 1px 2px rgba(15,23,42,.05), 0 2px 8px rgba(15,23,42,.07);
   --iv-in-fg:#16A34A;  --iv-in-bg:rgba(22,163,74,.09);  --iv-in-gl:rgba(22,163,74,.16);
   --iv-due-fg:#D97706; --iv-due-bg:rgba(217,119,6,.09); --iv-due-gl:rgba(217,119,6,.16);
   --iv-rose-fg:#DC2626; --iv-rose-bg:rgba(220,38,38,.08); --iv-rose-gl:rgba(220,38,38,.16);
@@ -230,9 +230,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   --iv-shadow-modal:0 24px 70px rgba(15,23,42,.26), 0 0 0 1px rgba(226,232,240,.7);
 }
 
-/* Route fade — slightly richer arrival (kept fast; shell never animates) */
+/* Route transition — page body slides up & settles; gold bar sweeps the viewport top */
 @keyframes ivFadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-.iv-fade { animation: ivFadeUp .34s var(--iv-ease, cubic-bezier(.4,0,.2,1)) both; }
+@keyframes ivPageIn { 0% { opacity:0; transform:translateY(18px) scale(.994); } 60% { opacity:1; } 100% { opacity:1; transform:none; } }
+.iv-fade { animation: ivPageIn .42s cubic-bezier(.22,.9,.36,1) both; }
+@keyframes ivRouteBar { 0% { transform:scaleX(0); opacity:1; } 65% { transform:scaleX(1); opacity:1; } 100% { transform:scaleX(1); opacity:0; } }
+.iv-route-bar { position:fixed; top:0; left:0; right:0; height:2.5px; z-index:80; pointer-events:none; transform-origin:left;
+  background:linear-gradient(90deg,#C8A96E,#8B6914,#E0C585); animation:ivRouteBar .75s cubic-bezier(.3,.6,.3,1) both; }
 
 /* Staggered entrances — wrap any grid/list in .iv-stagger; children cascade in */
 .crm-root .iv-stagger > * { animation: ivFadeUp .38s var(--iv-ease) both; }
@@ -336,7 +340,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 /* Accessibility — kill all motion for users who ask for it */
 @media (prefers-reduced-motion: reduce) {
   .crm-root *, .crm-root *::before, .crm-root *::after,
-  .iv-fade, .iv-modal-ov, .iv-modal-ov > * {
+  .iv-fade, .iv-modal-ov, .iv-modal-ov > *, .iv-route-bar {
     animation-duration:.01ms !important; animation-delay:0ms !important; transition-duration:.01ms !important;
   }
 }

@@ -1,8 +1,15 @@
 'use client';
 
-// template.tsx re-mounts on every /crm navigation (layout stays put). The .iv-fade class
-// replays a short fade/slide-in each time, so page content arrives smoothly instead of
-// snapping in. The shell (sidebar/header) never animates — only the swapped page body.
+// template.tsx re-mounts on every /crm navigation (layout stays put). Two cues per switch:
+//  1. .iv-route-bar — a gold progress bar sweeps across the viewport top (NProgress-style).
+//  2. .iv-fade — the page body slides up and settles in. Shell (sidebar/header) never animates.
+// The bar lives OUTSIDE the animated div: .iv-fade animates transform, and position:fixed
+// inside a transformed ancestor would anchor to the div instead of the viewport.
 export default function CrmTemplate({ children }: { children: React.ReactNode }) {
-  return <div className="iv-fade">{children}</div>;
+  return (
+    <>
+      <span className="iv-route-bar" aria-hidden />
+      <div className="iv-fade">{children}</div>
+    </>
+  );
 }

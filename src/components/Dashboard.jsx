@@ -212,9 +212,9 @@ export default function Dashboard() {
   const revPAR = Math.round((peakInfo.adr * peakInfo.occupancy) / 100);
 
   return (
-    <div className="iv-dash-root" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: 14 }}>
-      {/* Stat cards — colored walnut top-borders + icons */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, flexShrink: 0 }} className="iv-stat-grid iv-stagger">
+    <div className="iv-dash-root" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: 20 }}>
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, flexShrink: 0 }} className="iv-stat-grid iv-stagger">
         <StatCard icon="🏨" label="Occupied Rooms" accent={GRN} value={loading ? '—' : stats.occupied} sub={loading ? '' : `of ${stats.totalRooms} · ${stats.occupancy}% occupancy`} />
         <StatCard icon="৳" label="Today's Revenue" accent={GOLD} value={loading ? '—' : bdt(stats.revenue)} sub="Collected today · Asia/Dhaka" />
         <StatCard icon="✈" label="Arrivals Today" accent={SKY} value={loading ? '—' : stats.checkins} sub="Scheduled check-ins" />
