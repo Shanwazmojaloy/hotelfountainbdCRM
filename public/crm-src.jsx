@@ -858,7 +858,7 @@ function LoginPage({onLogin, staffList}) {
 }
 
 /* ═══════════════════════ DASHBOARD ══════════════════════════ */
-function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}) {
+function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate,dashboardFull=true}) {
   const [chartActive,setChartActive]=useState(13)
   const today=businessDate||todayStr()
   const occ=rooms.filter(r=>r.status==='OCCUPIED').length
@@ -919,11 +919,11 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
     <div>
       <div className="stats-row">
         {[
-          {lbl:"Today's Revenue",val:BDT(todayRev),ico:'💰',sub:`${reservations.filter(r=>r.status==='CHECKED_IN').length} in-house`,ac:'var(--gold)'},
+          dashboardFull&&{lbl:"Today's Revenue",val:BDT(todayRev),ico:'💰',sub:`${reservations.filter(r=>r.status==='CHECKED_IN').length} in-house`,ac:'var(--gold)'},
           {lbl:'Occupancy',val:`${occPct}%`,ico:'🛏',sub:`${occ}/${rooms.length} rooms occupied`,ac:'var(--sky)'},
           {lbl:'In-House Guests',val:inHouse,ico:'👥',sub:'Currently checked in',ac:'var(--teal)'},
           {lbl:'Pending',val:pending,ico:'📅',sub:'Awaiting confirmation',ac:'var(--rose)'},
-        ].map(s=>(
+        ].filter(Boolean).map(s=>(
           <div key={s.lbl} className="stat" style={{'--ac':s.ac}}>
             <div className="stat-ico">{s.ico}</div><div className="stat-lbl">{s.lbl}</div>
             <div className="stat-val">{s.val}</div><div className="stat-sub">{s.sub}</div>
@@ -967,12 +967,12 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
               ?<div style={{padding:'18px 0',textAlign:'center',color:'var(--tx3)',fontSize:12}}>No active check-ins</div>
               :checkedIn.map(r=>(
                 <div key={r.id} className="flex fac gap2" style={{padding:'8px 0',borderBottom:'1px solid var(--br2)'}}>
-                  <Av name={getGN(r.guest_ids)} size={28}/>
+                  <Av name={dashboardFull?getGN(r.guest_ids):'HK'} size={28}/>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{getGN(r.guest_ids)}</div>
+                    <div style={{fontSize:12,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{dashboardFull?getGN(r.guest_ids):`Room ${(r.room_ids||[]).join(',')}`}</div>
                     <div className="xs muted">Rm {(r.room_ids||[]).join(',')} · Out: {fmtDate(r.check_out)}</div>
                   </div>
-                  <span className="badge bb">{BDT(r.total_amount)}</span>
+                  {dashboardFull&&<span className="badge bb">{BDT(r.total_amount)}</span>}
                 </div>
               ))
             }
@@ -987,10 +987,10 @@ function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate}
             {mergedTransactions.slice(0,8).map(t=>(
               <div key={t.id} className="flex fac fjb" style={{padding:'6px 0',borderBottom:'1px solid var(--br2)'}}>
                 <div style={{flex:1,minWidth:0}}>
-                  <div className="xs" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.guest_name||'—'}</div>
+                  <div className="xs" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{dashboardFull?(t.guest_name||'—'):`Room ${t.room_number||'?'}`}</div>
                   <div className="xs muted">Rm {t.room_number||'?'} · {t.type||'Payment'}</div>
                 </div>
-                <span className="xs gold">{BDT(t.amount)}</span>
+                <span className="xs gold">{dashboardFull?BDT(t.amount):'—'}</span>
               </div>
             ))}
           </div>
@@ -6479,6 +6479,7 @@ function App() {
   )
 
   const allowed=ROLES[user.role]?.pages||[]
+  const CAN={delete:user.role==='owner',dashboardFull:user.role!=='housekeeping'}
   const cur=allowed.includes(page)?page:allowed[0]
   const pendResList=data.reservations.filter(r=>r.status==='PENDING')
   const pendRes=pendResList.length
@@ -6763,7 +6764,7 @@ function App() {
 
           {/* Close notif by clicking content area */}
           <div className="content" onClick={()=>notifOpen&&setNotifOpen(false)}>
-            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} businessDate={businessDate}/>}
+            {cur==='dashboard'    &&<Dashboard rooms={data.rooms} guests={data.guests} reservations={data.reservations} transactions={data.transactions} setPage={setPage} businessDate={businessDate} dashboardFull={CAN.dashboardFull}/>}
             {cur==='rooms'        &&<RoomsPage rooms={data.rooms} guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate}/>}
             {cur==='reservations' &&<ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll} businessDate={businessDate} transactions={data.transactions}/>}
             {cur==='guests'       &&<GuestsPage guests={data.guests} reservations={data.reservations} toast={toast} currentUser={user} reload={loadAll}/>}
