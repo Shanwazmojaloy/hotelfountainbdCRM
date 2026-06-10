@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { Tabs, Card, StatCard, Table, Badge, TD, MONO, C, bdt } from './dskit';
-import { getSnap, setSnap } from '@/lib/snap';
+import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 
 const dhakaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const addDays = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(t); };
@@ -49,7 +49,13 @@ export default function Reports() {
     } catch (e) { console.error('[Reports] fetch error:', e); } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!getSnap('reports')) {
+      const warm = warmSnap('reports'); // localStorage tier — instant paint after full reload
+      if (warm) { setData(warm); setLoading(false); }
+    }
+    fetchData();
+  }, [fetchData]);
 
   return (
     <div>

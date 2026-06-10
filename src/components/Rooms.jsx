@@ -9,6 +9,7 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 import RoomStatusModal from './RoomStatusModal';
 import RoomFormModal from './RoomFormModal';
 import RoomFolioModal from './RoomFolioModal';
+import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
@@ -28,19 +29,26 @@ const tint = (hex, a) => {
 };
 
 export default function Rooms() {
-  const [rooms, setRooms] = useState([]);
+  const _cached = getSnap('rooms'); // hot tier — instant tab→tab revisits
+  const [rooms, setRooms] = useState(_cached?.rooms || []);
   const [filter, setFilter] = useState('ALL');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!_cached);
   const [statusRoom, setStatusRoom] = useState(null);
   const [folioRoom, setFolioRoom] = useState(null);
   const [showAddRoom, setShowAddRoom] = useState(false);
-  const [reservations, setReservations] = useState([]);
-  const [guests, setGuests] = useState([]);
+  const [reservations, setReservations] = useState(_cached?.reservations || []);
+  const [guests, setGuests] = useState(_cached?.guests || []);
 
-  useEffect(() => { fetchRooms(); }, []);
+  useEffect(() => {
+    if (!getSnap('rooms')) {
+      const warm = warmSnap('rooms'); // localStorage tier — instant paint after full reload
+      if (warm) { setRooms(warm.rooms || []); setReservations(warm.reservations || []); setGuests(warm.guests || []); setLoading(false); }
+    }
+    fetchRooms();
+  }, []);
 
   async function fetchRooms() {
-    setLoading(true);
+    if (!getSnap('rooms')) setLoading(true); // revisits refresh silently behind cached tiles
     try {
       const supabase = getSupabaseClient();
       const [{ data: rm }, { data: res }, { data: g }] = await Promise.all([
@@ -51,6 +59,7 @@ export default function Rooms() {
       setRooms(rm || []);
       setReservations(res || []);
       setGuests(g || []);
+      setSnap('rooms', { rooms: rm || [], reservations: res || [], guests: g || [] });
     } catch (e) {
       console.error('[Rooms] fetch error:', e);
     } finally {

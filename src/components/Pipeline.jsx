@@ -71,7 +71,7 @@ export default function Pipeline() {
 
   return (
     <div>
-      <h1 className="text-3xl mb-6 pb-6 iv-divider">Pipeline</h1>
+      <h1 className="text-2xl mb-5 pb-4 iv-divider">Pipeline</h1>
       <div className="flex gap-2 mb-6">
         <button onClick={() => setTab('leads')} className={tab === 'leads' ? 'iv-btn' : 'iv-btn iv-btn--ghost'} style={{ padding: '6px 14px', fontSize: 13 }}>Swarm Leads ({leads.length})</button>
         <button onClick={() => setTab('offers')} className={tab === 'offers' ? 'iv-btn' : 'iv-btn iv-btn--ghost'} style={{ padding: '6px 14px', fontSize: 13 }}>Upsell Offers ({offers.length})</button>

@@ -48,8 +48,8 @@ export default function TaskFormModal({ rooms = [], onClose, onSaved }) {
     }
   }
 
-  const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
-  const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
     <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.45)', zIndex: 100,
@@ -57,7 +57,7 @@ export default function TaskFormModal({ rooms = [], onClose, onSaved }) {
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 className="text-xl mb-5 pb-4 iv-divider">Add Housekeeping Task</h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Room *</label>
             <select style={field} value={f.room_number} onChange={set('room_number')}>
               {rooms.map((r) => <option key={r.id} value={r.room_number}>{r.room_number} — {String(r.status || '').replace('_', ' ')}</option>)}
@@ -67,18 +67,18 @@ export default function TaskFormModal({ rooms = [], onClose, onSaved }) {
             <select style={field} value={f.task_type} onChange={set('task_type')}>{TASK_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Priority</label>
             <select style={field} value={f.priority} onChange={set('priority')}>{['low', 'medium', 'high'].map((p) => <option key={p} value={p}>{p}</option>)}</select>
           </div>
           <div><label style={lbl}>Scheduled Time</label><input type="time" style={field} value={f.scheduled_time} onChange={set('scheduled_time')} /></div>
         </div>
-        <div className="mb-3"><label style={lbl}>Assignee</label><input style={field} value={f.assignee} onChange={set('assignee')} placeholder="Staff member name" /></div>
+        <div className="mb-4"><label style={lbl}>Assignee</label><input style={field} value={f.assignee} onChange={set('assignee')} placeholder="Staff member name" /></div>
         <div className="mb-4"><label style={lbl}>Notes</label><textarea style={{ ...field, minHeight: 56, resize: 'vertical' }} value={f.notes} onChange={set('notes')} placeholder="Optional details" /></div>
 
         {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
 
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Add Task'}</button>
         </div>

@@ -8,6 +8,7 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 import RecordPaymentModal from './RecordPaymentModal';
 import { printDayReport } from '@/lib/printDocs';
 import { Card as DSCard, Badge, C } from './dskit';
+import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const getDhakaDate = () =>
@@ -27,18 +28,29 @@ function FRow({ label, value, color, sub }) {
 }
 
 export default function Billing() {
-  const [reservations, setReservations] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Cache key is fiscal-day-scoped: transactions are TODAY-filtered, so yesterday's
+  // snapshot must never seed today's "Today's Collections" (would show stale money).
+  const today = getDhakaDate();
+  const SNAP_KEY = 'billing.' + today;
+  const _cached = getSnap(SNAP_KEY); // hot tier — instant tab→tab revisits
+  const [reservations, setReservations] = useState(_cached?.reservations || []);
+  const [transactions, setTransactions] = useState(_cached?.transactions || []);
+  const [loading, setLoading] = useState(!_cached);
   const [payRes, setPayRes] = useState(null);
   const [q, setQ] = useState('');
   const [activeId, setActiveId] = useState(null);
-  const today = getDhakaDate();
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    if (!getSnap(SNAP_KEY)) {
+      const warm = warmSnap(SNAP_KEY); // localStorage tier — instant paint after full reload
+      if (warm) { setReservations(warm.reservations || []); setTransactions(warm.transactions || []); setLoading(false); }
+    }
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function fetchData() {
-    setLoading(true);
+    if (!getSnap(SNAP_KEY)) setLoading(true); // revisits refresh silently behind cached rows
     try {
       const supabase = getSupabaseClient();
       const [{ data: r }, { data: t }] = await Promise.all([
@@ -47,6 +59,7 @@ export default function Billing() {
       ]);
       setReservations(r || []);
       setTransactions(t || []);
+      setSnap(SNAP_KEY, { reservations: r || [], transactions: t || [] });
     } catch (e) {
       console.error('[Billing] fetch error:', e);
     } finally {
@@ -88,7 +101,7 @@ export default function Billing() {
       <div className="iv-bill-grid iv-stagger" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start' }}>
         {/* LEFT */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid var(--iv-border)', padding: '8px 12px', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 4, padding: '9px 12px', marginBottom: 14 }}>
             <span style={{ color: 'var(--iv-ink3)', fontSize: 13 }}>⌕</span>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search folios by room number or guest name…" style={{ background: 'none', border: 'none', outline: 'none', fontFamily: 'var(--iv-body)', fontSize: 12, color: 'var(--iv-ink)', flex: 1 }} />
             {q && <button onClick={() => setQ('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--iv-ink3)', fontSize: 14 }}>×</button>}

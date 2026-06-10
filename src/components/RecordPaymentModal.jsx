@@ -68,8 +68,8 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
     }
   }
 
-  const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
-  const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
     <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.45)', zIndex: 100,
@@ -80,7 +80,7 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
           {r.guest_name || 'Guest'} · Room {room || '—'} · Balance <span style={{ color: '#C0566A' }}>{bdt(balance)}</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Amount (৳) *</label>
             <input style={field} type="number" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
           <div><label style={lbl}>Date</label>
@@ -93,7 +93,7 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
 
         {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
 
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Record Payment'}</button>
         </div>
