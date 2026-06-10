@@ -4,6 +4,15 @@ import Layout from '@/components/Layout';
 
 export const revalidate = 0; // Disable static rendering to ensure fresh leads
 
+type LeadRow = {
+  id: string;
+  name: string | null;
+  company: string | null;
+  email: string | null;
+  venue_preference: string | null;
+  expected_guests: number | null;
+};
+
 export default async function LeadsPage() {
   const { data: leads, error } = await supabase
     .from('leads')
@@ -34,7 +43,7 @@ export default async function LeadsPage() {
                 </tr>
               </thead>
               <tbody>
-                {leads?.map((lead: any) => (
+                {leads?.map((lead: LeadRow) => (
                   <tr key={lead.id}>
                     <td style={{ fontWeight: 600 }}>{lead.name}</td>
                     <td>{lead.company || <span style={{ color: '#9A907C' }}>N/A</span>}</td>
