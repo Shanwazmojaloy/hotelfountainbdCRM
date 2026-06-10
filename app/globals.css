@@ -104,13 +104,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
    automatically. --iv-gold IS the indigo accent now.
    ═══════════════════════════════════════════════════════════════════════════ */
 .crm-root {
-  /* Lumea — Modern SaaS theme (2026-06-10): slate neutrals + indigo accent, DM Sans.
-     Token NAMES kept from the Ivory system so every component flips automatically. */
+  /* Lumea — Modern SaaS × BRAND theme (2026-06-10): slate neutrals + Hotel Fountain gold
+     (landing palette: #C8A96E gold / #0D1117 dark). Token NAMES kept from the Ivory system. */
   --iv-bg:#F6F8FB; --iv-card:#FFFFFF; --iv-border:#E2E8F0;
   --iv-border2:#EEF2F7; --iv-sunken:#F8FAFC; --iv-hover:#F1F5F9;
   --iv-ink:#0F172A; --iv-ink2:#475569; --iv-ink3:#94A3B8;
-  --iv-gold:#4F46E5; --iv-gold2:#4338CA; --iv-gold-light:#818CF8; /* accent (indigo) */
-  --iv-side:#0F172A; /* sidebar / dark accent (slate-900) */
+  --iv-gold:#8B6914; --iv-gold2:#6B4E0A; --iv-gold-light:#C8A96E; /* BRAND gold (landing) */
+  --iv-side:#0D1117; /* sidebar — landing dark2 */
   --iv-bar:0px; /* modern flat cards — no signature top-border */
   --iv-shadow-stat:0 6px 18px rgba(15,23,42,.08);
   --iv-card-shadow:0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
@@ -160,9 +160,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-dot--due { background:var(--iv-due-fg); box-shadow:0 0 0 3px var(--iv-due-gl); }
 .crm-root .iv-dot--paid { background:var(--iv-ink3); }
 
-/* Buttons — modern SaaS: sentence case, 8px radius, solid indigo primary */
-.crm-root .iv-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; font-family:var(--iv-body); font-size:13px; font-weight:600; letter-spacing:0; text-transform:none; padding:9px 16px; border-radius:8px; cursor:pointer; background:var(--iv-gold); color:#fff; border:1px solid var(--iv-gold); transition:background .15s var(--iv-ease), border-color .15s var(--iv-ease), color .15s var(--iv-ease); }
-.crm-root .iv-btn:hover { background:var(--iv-gold2); border-color:var(--iv-gold2); color:#fff; }
+/* Buttons — landing-style brand primary: gold field, dark ink (mirrors public .gb) */
+.crm-root .iv-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; font-family:var(--iv-body); font-size:13px; font-weight:600; letter-spacing:0; text-transform:none; padding:9px 16px; border-radius:8px; cursor:pointer; background:var(--iv-gold-light); color:#1C1510; border:1px solid var(--iv-gold-light); transition:background .15s var(--iv-ease), border-color .15s var(--iv-ease), color .15s var(--iv-ease); }
+.crm-root .iv-btn:hover { background:#E0C585; border-color:#E0C585; color:#1C1510; }
 .crm-root .iv-btn:disabled { opacity:.45; cursor:not-allowed; }
 .crm-root .iv-btn--ghost { background:#fff; color:var(--iv-ink2); border:1px solid var(--iv-border); }
 .crm-root .iv-btn--ghost:hover { background:var(--iv-hover); color:var(--iv-ink); border-color:#CBD5E1; }
@@ -177,22 +177,22 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 /* Sidebar (dark ink) — fixed 232px, no shrink; desktop-only (overrides Tailwind md: utils). */
 .crm-root .iv-sidebar { background:var(--iv-side); display:none; flex-direction:column; flex-shrink:0; width:232px; }
 @media (min-width:768px){ .crm-root .iv-sidebar { display:flex; } }
-.crm-root .iv-brand { font-family:var(--iv-head); font-size:18px; font-weight:700; color:#E2E8F0; letter-spacing:-.01em; line-height:1.1; }
-.crm-root .iv-brand em { font-style:normal; font-weight:700; color:#A5B4FC; }
-.crm-root .iv-side-tag { font-family:var(--iv-body); font-size:8px; color:rgba(148,163,184,.65); letter-spacing:.2em; text-transform:uppercase; margin-top:5px; }
-.crm-root .iv-nav-item { display:flex; align-items:center; gap:11px; padding:10px 12px; cursor:pointer; font-family:var(--iv-body); font-size:13px; font-weight:500; color:rgba(203,213,225,.72); border-radius:8px; text-decoration:none; transition:all .15s var(--iv-ease); letter-spacing:.01em; }
-.crm-root .iv-nav-item:hover { background:rgba(148,163,184,.10); color:#E2E8F0; }
-.crm-root .iv-nav-item.on { background:rgba(99,102,241,.22); color:#C7D2FE; font-weight:600; }
+.crm-root .iv-brand { font-family:var(--iv-head); font-size:18px; font-weight:700; color:#EEE9E2; letter-spacing:-.01em; line-height:1.1; }
+.crm-root .iv-brand em { font-style:normal; font-weight:700; color:#C8A96E; }
+.crm-root .iv-side-tag { font-family:var(--iv-body); font-size:8px; color:rgba(200,169,110,.55); letter-spacing:.2em; text-transform:uppercase; margin-top:5px; }
+.crm-root .iv-nav-item { display:flex; align-items:center; gap:11px; padding:10px 12px; cursor:pointer; font-family:var(--iv-body); font-size:13px; font-weight:500; color:rgba(238,233,226,.6); border-radius:8px; text-decoration:none; transition:all .15s var(--iv-ease); letter-spacing:.01em; }
+.crm-root .iv-nav-item:hover { background:rgba(200,169,110,.08); color:#EEE9E2; }
+.crm-root .iv-nav-item.on { background:rgba(200,169,110,.16); color:#E0C585; font-weight:600; }
 
 /* Topbar */
 .crm-root .iv-topbar { background:var(--iv-card); border-bottom:1px solid var(--iv-border); }
 .crm-root .iv-divider { border-bottom:1px solid var(--iv-border); }
 
 /* Mobile bottom nav */
-.crm-root .iv-bottom-nav { position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; background:var(--iv-side); border-top:1px solid rgba(148,163,184,.2); }
+.crm-root .iv-bottom-nav { position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; background:var(--iv-side); border-top:1px solid rgba(200,169,110,.2); }
 @media (min-width:768px){ .crm-root .iv-bottom-nav { display:none; } }
-.crm-root .iv-bottom-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:10px 4px; color:rgba(203,213,225,.6); text-decoration:none; font-size:10px; font-weight:500; }
-.crm-root .iv-bottom-item.on { color:#C7D2FE; }
+.crm-root .iv-bottom-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:10px 4px; color:rgba(238,233,226,.55); text-decoration:none; font-size:10px; font-weight:500; }
+.crm-root .iv-bottom-item.on { color:#E0C585; }
 
 /* Form inputs / labels */
 .crm-root .iv-input { width:100%; background:var(--iv-card); border:1px solid var(--iv-border); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--iv-ink); font-family:var(--iv-body); outline:none; transition:border-color .15s var(--iv-ease); }
@@ -225,8 +225,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
    on --iv-ease. Gold glow = the Gilded accent over the Warm Ivory base.
    ═══════════════════════════════════════════════════════════════════════════ */
 .crm-root {
-  --iv-glow:rgba(99,102,241,.22);             /* indigo focus/hover ring */
-  --iv-shadow-lift:0 10px 30px rgba(15,23,42,.10), 0 2px 8px rgba(79,70,229,.05);
+  --iv-glow:rgba(200,169,110,.35);            /* brand gold focus/hover ring */
+  --iv-shadow-lift:0 10px 30px rgba(15,23,42,.10), 0 2px 8px rgba(200,169,110,.10);
   --iv-shadow-modal:0 24px 70px rgba(15,23,42,.26), 0 0 0 1px rgba(226,232,240,.7);
 }
 
@@ -292,7 +292,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 /* Bottom nav (mobile) — tap feedback + active gold dot */
 .crm-root .iv-bottom-item { transition:color .2s var(--iv-ease), transform .12s var(--iv-ease); position:relative; }
 .crm-root .iv-bottom-item:active { transform:scale(.9); }
-.crm-root .iv-bottom-item.on::after { content:''; position:absolute; top:4px; width:4px; height:4px; border-radius:50%; background:#A5B4FC; box-shadow:0 0 6px #A5B4FC; }
+.crm-root .iv-bottom-item.on::after { content:''; position:absolute; top:4px; width:4px; height:4px; border-radius:50%; background:#C8A96E; box-shadow:0 0 6px #C8A96E; }
 
 /* Tabs — smooth color shift (sliding indicator handled in dskit) */
 .crm-root .iv-tabbar button { transition:color .2s var(--iv-ease), background .2s var(--iv-ease), border-color .2s var(--iv-ease); }
@@ -309,6 +309,26 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root ::-webkit-scrollbar-track { background:var(--iv-sunken); }
 .crm-root ::-webkit-scrollbar-thumb { background:#CBD5E1; border-radius:4px; }
 .crm-root ::-webkit-scrollbar-thumb:hover { background:var(--iv-ink3); }
+
+/* Charts — bars grow up on mount (staggered), meters sweep in from the left */
+@keyframes ivGrowY { from { transform:scaleY(0); } to { transform:scaleY(1); } }
+.crm-root .iv-bars > * > div:first-child { transform-origin:bottom; animation:ivGrowY .55s var(--iv-ease) both; }
+.crm-root .iv-bars > *:nth-child(1) > div:first-child { animation-delay:.02s; }
+.crm-root .iv-bars > *:nth-child(2) > div:first-child { animation-delay:.05s; }
+.crm-root .iv-bars > *:nth-child(3) > div:first-child { animation-delay:.08s; }
+.crm-root .iv-bars > *:nth-child(4) > div:first-child { animation-delay:.11s; }
+.crm-root .iv-bars > *:nth-child(5) > div:first-child { animation-delay:.14s; }
+.crm-root .iv-bars > *:nth-child(6) > div:first-child { animation-delay:.17s; }
+.crm-root .iv-bars > *:nth-child(7) > div:first-child { animation-delay:.20s; }
+.crm-root .iv-bars > *:nth-child(8) > div:first-child { animation-delay:.23s; }
+.crm-root .iv-bars > *:nth-child(9) > div:first-child { animation-delay:.26s; }
+.crm-root .iv-bars > *:nth-child(10) > div:first-child { animation-delay:.29s; }
+.crm-root .iv-bars > *:nth-child(11) > div:first-child { animation-delay:.32s; }
+.crm-root .iv-bars > *:nth-child(12) > div:first-child { animation-delay:.35s; }
+.crm-root .iv-bars > *:nth-child(13) > div:first-child { animation-delay:.38s; }
+.crm-root .iv-bars > *:nth-child(n+14) > div:first-child { animation-delay:.41s; }
+@keyframes ivGrowX { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+.crm-root .iv-grow-x { transform-origin:left; animation:ivGrowX .6s var(--iv-ease) both; }
 
 /* Modal footer — uniform action row: clear separation from the form body */
 .crm-root .iv-foot { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--iv-border2); }

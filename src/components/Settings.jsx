@@ -134,7 +134,7 @@ export default function Settings() {
               <div key={u.id} className="flex items-center justify-between" style={{ border: '1px solid var(--iv-border2)', borderRadius: 8, padding: '10px 14px' }}>
                 <div><div style={{ fontWeight: 600, fontSize: 14 }}>{u.name}</div><div className="iv-mono" style={{ fontSize: 11, color: 'var(--iv-ink3)' }}>{u.email}</div></div>
                 <div className="flex items-center gap-2">
-                  {u.role === 'owner' ? <span className="iv-badge" style={{ background: 'rgba(79,70,229,0.12)', color: 'var(--iv-gold)' }}>★ Owner</span>
+                  {u.role === 'owner' ? <span className="iv-badge" style={{ background: 'rgba(139,105,20,0.12)', color: 'var(--iv-gold)' }}>★ Owner</span>
                     : <span className="iv-badge">{ROLE_LABEL[u.role] || u.role}</span>}
                   {u.activated === false && <span className="iv-badge" style={{ background: 'rgba(220,38,38,0.10)', color: '#DC2626' }}>Pending</span>}
                   {u.role !== 'owner' && <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => setStaffModal({ user: u })}>Edit</button>}

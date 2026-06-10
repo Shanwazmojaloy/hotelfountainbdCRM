@@ -17,7 +17,7 @@ export const useAuth = () => useContext(AuthContext);
 
 // Modern SaaS palette (literals — AuthGate renders outside .crm-root).
 const PARCH = '#FFFFFF', WALNUT = '#0F172A', WHITE = '#FFFFFF';
-const GOLD = '#4F46E5', GOLD2 = '#4338CA', GOLDL = '#818CF8';
+const GOLD = '#8B6914', GOLD2 = '#6B4E0A', GOLDL = '#C8A96E';
 const TX = '#0F172A', TX2 = '#475569', TX3 = '#94A3B8', BR = '#E2E8F0';
 const serif = "'DM Sans', system-ui, -apple-system, sans-serif";
 const sans = "'DM Sans', system-ui, -apple-system, sans-serif";
@@ -132,7 +132,7 @@ export default function AuthGate({ children }) {
   const inputSt = { width: '100%', background: WHITE, border: `1px solid ${BR}`, color: TX, fontFamily: sans, fontSize: 13, padding: '10px 12px', outline: 'none', boxSizing: 'border-box', borderRadius: 8 };
   const onFocus = (e) => (e.target.style.borderColor = GOLD);
   const onBlur = (e) => (e.target.style.borderColor = BR);
-  const goldBtn = (disabled) => ({ width: '100%', justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: sans, fontWeight: 600, letterSpacing: 0, textTransform: 'none', cursor: disabled ? 'not-allowed' : 'pointer', borderRadius: 8, padding: '12px 24px', fontSize: 14, marginTop: 8, background: GOLD, color: '#fff', border: `1px solid ${GOLD}`, opacity: disabled ? 0.5 : 1, transition: 'background .15s cubic-bezier(.4,0,.2,1)' });
+  const goldBtn = (disabled) => ({ width: '100%', justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: sans, fontWeight: 600, letterSpacing: 0, textTransform: 'none', cursor: disabled ? 'not-allowed' : 'pointer', borderRadius: 8, padding: '12px 24px', fontSize: 14, marginTop: 8, background: GOLDL, color: '#1C1510', border: `1px solid ${GOLDL}`, opacity: disabled ? 0.5 : 1, transition: 'background .15s cubic-bezier(.4,0,.2,1)' });
   const linkBtn = { background: 'none', border: 'none', cursor: 'pointer', fontFamily: sans, fontSize: 12, letterSpacing: 0, color: GOLD, textTransform: 'none', fontWeight: 600, padding: 0 };
   const subText = { textAlign: 'center', fontSize: 12, color: TX2, lineHeight: 1.5, margin: '8px 0 20px' };
   const errBox = (t) => <div style={{ marginTop: 10, marginBottom: 4, fontSize: 11, color: '#B91C1C', fontFamily: sans }}>{t}</div>;
@@ -140,7 +140,7 @@ export default function AuthGate({ children }) {
   return (
     <div style={{ minHeight: '100vh', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: WALNUT, position: 'relative', overflow: 'hidden', fontFamily: sans }}>
       {/* radial glow */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 50% at 20% 30%, rgba(99,102,241,.12), transparent 65%), radial-gradient(ellipse 50% 60% at 80% 70%, rgba(99,102,241,.07), transparent 60%)' }} />
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 50% at 20% 30%, rgba(200,169,110,.10), transparent 65%), radial-gradient(ellipse 50% 60% at 80% 70%, rgba(200,169,110,.06), transparent 60%)' }} />
       {/* fine grid texture */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'repeating-linear-gradient(0deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px)' }} />
 
