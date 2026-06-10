@@ -317,8 +317,10 @@ export function printInvoice(res, rooms, guestName, folios) {
   .totals .row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px}
   .totals .row.disc{color:#9C7A3E}
   .totals .row.bal{border-top:1px solid #EAE6DD;margin-top:6px;padding-top:12px;font-size:15px;font-weight:600;color:${stampColor}}
-  .ftr{margin-top:40px;padding-top:20px;border-top:1px solid #EAE6DD;font-size:10px;color:#8A8276}
-  @media print{html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0 !important;max-width:none !important}}
+  .ftr{margin-top:40px;padding-top:20px;border-top:1px solid #EAE6DD;font-size:10px;color:#8A8276;display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .ftr .wa{text-align:center;flex-shrink:0}
+  .ftr .wa .cap{font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:#8A8276;margin-top:3px}
+  @media print{html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0 !important;max-width:none !important}.ftr{page-break-inside:avoid}.ftr img{width:68px !important;height:68px !important}}
 </style></head><body>
 <div class="page">
   <div class="hdr">
@@ -345,7 +347,13 @@ export function printInvoice(res, rooms, guestName, folios) {
     <div class="row"><span>Paid</span><span>− ${fmt(paid)}</span></div>
     <div class="row bal"><span>${isPaid ? 'Settled' : 'Balance Due'}</span><span>${fmt(due)}</span></div>
   </div>
-  <div class="ftr">Thank you for staying with Hotel Fountain. ${esc(HF_PHONE)} · ${esc(HF_EMAIL)} · ${esc(HF_SITE)}</div>
+  <div class="ftr">
+    <div>Thank you for staying with Hotel Fountain.<br/>${esc(HF_PHONE)} · ${esc(HF_EMAIL)} · ${esc(HF_SITE)}</div>
+    <div class="wa">
+      <img id="wa-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="68" height="68" style="display:block;margin:0 auto" alt="WhatsApp QR"/>
+      <div class="cap">Scan · WhatsApp Us</div>
+    </div>
+  </div>
 </div>
 <script>(function(){const imgs=document.getElementsByTagName('img');let p=0;const go=()=>setTimeout(()=>window.print(),120);if(!imgs.length){go();return;}for(const im of imgs){if(im.complete&&im.naturalWidth>0)continue;p++;im.addEventListener('load',()=>{if(--p<=0)go();});im.addEventListener('error',()=>{if(--p<=0)go();});}if(p===0)go();setTimeout(go,2500);})();</script>
 </body></html>`;
