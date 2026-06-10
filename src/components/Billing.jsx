@@ -53,10 +53,14 @@ export default function Billing() {
     if (!getSnap(SNAP_KEY)) setLoading(true); // revisits refresh silently behind cached rows
     try {
       const supabase = getSupabaseClient();
-      const [{ data: r }, { data: t }] = await Promise.all([
+      // NOTE: transactions has NO payment_method column (it lives on payment_transactions).
+      // Selecting a non-existent column makes PostgREST 400 the WHOLE query → data:null →
+      // this page silently renders ৳0. Method is derived from the `type` string instead.
+      const [{ data: r, error: rErr }, { data: t, error: tErr }] = await Promise.all([
         supabase.from('reservations').select('id, guest_name, room_ids, status, total_amount, discount_amount, discount, paid_amount, check_in, check_out, category').order('check_out', { ascending: false }).limit(5000),
-        supabase.from('transactions').select('type, amount, payment_method').eq('fiscal_day', today),
+        supabase.from('transactions').select('type, amount').eq('fiscal_day', today),
       ]);
+      if (rErr || tErr) console.error('[Billing] query error:', rErr || tErr);
       setReservations(r || []);
       setTransactions(t || []);
       setSnap(SNAP_KEY, { reservations: r || [], transactions: t || [] });
