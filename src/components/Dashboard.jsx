@@ -15,11 +15,11 @@ const getDhakaDate = () =>
     timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date());
 
-const GRN = '#16A34A', GOLD = '#4F46E5', SKY = '#2563EB', ROSE = '#DC2626', AMB = '#D97706', TEAL = '#0D9488', WALNUT = '#0F172A';
+const GRN = '#16A34A', GOLD = '#8B6914', SKY = '#2563EB', ROSE = '#DC2626', AMB = '#D97706', TEAL = '#0D9488', WALNUT = '#0F172A';
 
 const TONE = {
   green: { fg: GRN, bg: 'rgba(21,128,61,.08)', br: 'rgba(21,128,61,.22)' },
-  gold: { fg: GOLD, bg: 'rgba(79,70,229,.08)', br: 'rgba(79,70,229,.22)' },
+  gold: { fg: GOLD, bg: 'rgba(139,105,20,.08)', br: 'rgba(139,105,20,.22)' },
   sky: { fg: SKY, bg: 'rgba(29,78,216,.08)', br: 'rgba(29,78,216,.22)' },
   rose: { fg: ROSE, bg: 'rgba(185,28,28,.08)', br: 'rgba(185,28,28,.22)' },
   amber: { fg: AMB, bg: 'rgba(180,83,9,.08)', br: 'rgba(180,83,9,.22)' },
@@ -92,7 +92,7 @@ function Bar({ h, lbl, peak }) {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <div style={{ width: '100%', height: `${h}%`, minHeight: 3, borderRadius: '4px 4px 0 0', background: hover ? '#6366F1' : (peak ? GOLD : '#C7D2FE'), transition: 'background .2s, height .3s' }} />
+      <div style={{ width: '100%', height: `${h}%`, minHeight: 3, borderRadius: '4px 4px 0 0', background: hover ? '#C8A96E' : (peak ? GOLD : '#EAD9B0'), transition: 'background .2s, height .3s' }} />
       <span style={{ fontFamily: 'var(--iv-mono)', fontSize: 8, color: 'var(--iv-ink3)' }}>{lbl}</span>
     </div>
   );
@@ -224,7 +224,7 @@ export default function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, flexShrink: 0, alignItems: 'start' }} className="iv-chart-grid">
         {/* 14-day revenue */}
         <DSCard title="Revenue —" titleAccent="Last 14 Days" accent={GOLD} action={<Badge tone="gold">{bdt(total14)} total</Badge>}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 120, padding: '4px 0' }}>
+          <div className="iv-bars" style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 120, padding: '4px 0' }}>
             {rev14.map((b, i) => <Bar key={i} h={b.h} lbl={b.lbl} peak={b.peak} />)}
             {!rev14.length && <div style={{ color: 'var(--iv-ink3)', fontSize: 12 }}>Loading…</div>}
           </div>
@@ -246,7 +246,7 @@ export default function Dashboard() {
                   <span style={{ fontFamily: 'var(--iv-mono)', color: o.color, fontSize: 10 }}>{o.pct}%</span>
                 </div>
                 <div style={{ height: 7, background: 'var(--iv-border2)', borderRadius: 99, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${o.pct}%`, background: o.color, borderRadius: 99, transition: 'width .4s var(--iv-ease)' }} />
+                  <div className="iv-grow-x" style={{ height: '100%', width: `${o.pct}%`, background: o.color, borderRadius: 99, transition: 'width .4s var(--iv-ease)' }} />
                 </div>
               </div>
             ))}
@@ -268,7 +268,7 @@ export default function Dashboard() {
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="iv-tbody">
               {guests.map((g, i) => (
                 <tr key={i} style={{ borderBottom: i < guests.length - 1 ? '1px solid var(--iv-border2)' : 'none' }}>
                   <td style={{ padding: '10px 14px', fontSize: 12.5, color: 'var(--iv-ink)', whiteSpace: 'nowrap' }}>

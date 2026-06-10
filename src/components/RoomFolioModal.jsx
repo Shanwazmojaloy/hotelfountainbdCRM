@@ -91,7 +91,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
 
         {activeRes && (
           <>
-            <div style={{ background: 'rgba(79,70,229,0.05)', border: '1px solid var(--iv-border2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+            <div style={{ background: 'rgba(139,105,20,0.06)', border: '1px solid var(--iv-border2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
               <div style={{ fontWeight: 600, fontSize: 15 }}>{guestName}</div>
               <div style={lblS} className="mt-1">{fmtDate(activeRes.check_in)} → {fmtDate(activeRes.check_out)} · {nights} night{nights !== 1 ? 's' : ''}</div>
             </div>
@@ -113,7 +113,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
               {!fLoad && chargeFolios.length === 0 && nights === 0 && <div className="iv-stat__sub">No charges.</div>}
             </div>
 
-            <div style={{ background: 'rgba(79,70,229,0.04)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+            <div style={{ background: 'rgba(139,105,20,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
               <div className="flex justify-between text-sm" style={{ color: 'var(--iv-ink3)', marginBottom: 3 }}><span>Subtotal</span><span className="iv-mono">{bdt(sub)}</span></div>
               {discount > 0 && <div className="flex justify-between text-sm" style={{ color: '#16A34A', marginBottom: 3 }}><span>Discount{isMulti ? ' (prorated)' : ''}</span><span className="iv-mono">− {bdt(discount)}</span></div>}
               <div className="flex justify-between text-sm" style={{ fontWeight: 600, marginBottom: 3 }}><span>Total</span><span className="iv-mono">{bdt(total)}</span></div>

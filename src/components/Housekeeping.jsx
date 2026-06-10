@@ -79,7 +79,7 @@ export default function Housekeeping() {
       {filters.map(([v, l]) => {
         const on = filter === v;
         return (
-          <button key={v} onClick={() => setFilter(v)} style={{ padding: '5px 13px', fontFamily: 'var(--iv-body)', fontSize: 12.5, letterSpacing: '.01em', fontWeight: on ? 600 : 500, cursor: 'pointer', borderRadius: 999, color: on ? '#fff' : 'var(--iv-ink2)', background: on ? 'var(--iv-gold)' : '#fff', border: `1px solid ${on ? 'var(--iv-gold)' : 'var(--iv-border)'}`, transition: 'all .18s var(--iv-ease)' }}>{l}</button>
+          <button key={v} onClick={() => setFilter(v)} style={{ padding: '5px 13px', fontFamily: 'var(--iv-body)', fontSize: 12.5, letterSpacing: '.01em', fontWeight: on ? 600 : 500, cursor: 'pointer', borderRadius: 999, color: on ? '#1C1510' : 'var(--iv-ink2)', background: on ? 'var(--iv-gold-light)' : '#fff', border: `1px solid ${on ? 'var(--iv-gold-light)' : 'var(--iv-border)'}`, transition: 'all .18s var(--iv-ease)' }}>{l}</button>
         );
       })}
       <button className="iv-btn" onClick={() => setShowAdd(true)} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Task</button>

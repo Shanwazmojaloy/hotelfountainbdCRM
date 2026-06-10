@@ -172,7 +172,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           <div><label style={lbl}>Check-Out Date *</label><input type="date" style={field} value={f.checkOut} onChange={set('checkOut')} /></div>
         </div>
         {nN > 0 && (
-          <div className="mb-4 text-sm" style={{ background: 'rgba(79,70,229,0.06)', border: '1px solid rgba(79,70,229,0.16)', padding: '9px 12px', borderRadius: 4 }}>
+          <div className="mb-4 text-sm" style={{ background: 'rgba(139,105,20,0.06)', border: '1px solid rgba(139,105,20,0.16)', padding: '9px 12px', borderRadius: 8 }}>
             {nN} night{nN !== 1 ? 's' : ''} × {f.roomNos.filter(Boolean).length} room{f.roomNos.filter(Boolean).length !== 1 ? 's' : ''} = <strong style={{ color: 'var(--iv-gold)' }}>{bdt(autoTotal)}</strong>
           </div>
         )}

@@ -39,7 +39,7 @@ export function CountUp({ value, duration = 650, animateMount = false }) {
 const isLoadingVal = (v) => v == null || v === '—' || v === '';
 
 export const C = {
-  grn: '#16A34A', gold: '#4F46E5', gold2: '#4338CA', goldL: '#818CF8', sky: '#2563EB',
+  grn: '#16A34A', gold: '#8B6914', gold2: '#6B4E0A', goldL: '#C8A96E', sky: '#2563EB',
   rose: '#DC2626', amb: '#D97706', teal: '#0D9488', pur: '#7C3AED', walnut: '#0F172A',
   ink: '#0F172A', ink2: '#475569', ink3: '#94A3B8', br: '#E2E8F0', br2: '#EEF2F7', sunken: '#F8FAFC', card: '#FFFFFF',
 };
@@ -50,7 +50,7 @@ const TONES = {
   blue: { bg: 'rgba(37,99,235,.08)', fg: C.sky, bd: 'rgba(37,99,235,.2)' },
   amber: { bg: 'rgba(217,119,6,.09)', fg: C.amb, bd: 'rgba(217,119,6,.2)' },
   rose: { bg: 'rgba(220,38,38,.08)', fg: C.rose, bd: 'rgba(220,38,38,.2)' },
-  gold: { bg: 'rgba(79,70,229,.08)', fg: C.gold, bd: 'rgba(79,70,229,.2)' },
+  gold: { bg: 'rgba(139,105,20,.08)', fg: C.gold, bd: 'rgba(139,105,20,.22)' },
   teal: { bg: 'rgba(13,148,136,.08)', fg: C.teal, bd: 'rgba(13,148,136,.2)' },
   purple: { bg: 'rgba(124,58,237,.08)', fg: C.pur, bd: 'rgba(124,58,237,.2)' },
 };
@@ -65,7 +65,7 @@ export function Badge({ tone = 'neutral', children, style }) {
 }
 
 const AV_TONES = {
-  gold: 'linear-gradient(135deg,#818CF8,#4F46E5)', teal: 'linear-gradient(135deg,#2DD4BF,#0D9488)',
+  gold: 'linear-gradient(135deg,#C8A96E,#8B6914)', teal: 'linear-gradient(135deg,#2DD4BF,#0D9488)',
   walnut: 'linear-gradient(135deg,#475569,#0F172A)', rose: 'linear-gradient(135deg,#F87171,#DC2626)',
   sky: 'linear-gradient(135deg,#60A5FA,#2563EB)',
 };

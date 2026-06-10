@@ -180,7 +180,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
 
         <div className="mb-4"><label style={lbl}>Notes / Special Requests</label><input style={field} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
 
-        <div style={{ background: 'rgba(79,70,229,0.04)', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
+        <div style={{ background: 'rgba(139,105,20,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
           <div className="flex justify-between text-sm" style={{ marginBottom: 3 }}><span style={{ color: 'var(--iv-ink3)' }}>Total{_isUserEditing ? ' (recalc)' : ''}</span><span className="iv-mono">{bdt(totalAmt)}</span></div>
           {discountNum > 0 && <div className="flex justify-between text-sm" style={{ color: '#16A34A', marginBottom: 3 }}><span>Discount</span><span className="iv-mono">− {bdt(discountNum)}</span></div>}
           <div className="flex justify-between text-sm" style={{ color: '#16A34A', marginBottom: 3 }}><span>Paid</span><span className="iv-mono">− {bdt(paidNum)}</span></div>
