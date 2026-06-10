@@ -233,13 +233,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 /* Route transition — page body slides up & settles; gold bar sweeps the viewport top */
 @keyframes ivFadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
 @keyframes ivPageIn { 0% { opacity:0; transform:translateY(18px) scale(.994); } 60% { opacity:1; } 100% { opacity:1; transform:none; } }
-.iv-fade { animation: ivPageIn .42s cubic-bezier(.22,.9,.36,1) both; }
+/* fill-mode MUST be backwards, not both: a filled transform (even identity) makes .iv-fade
+   the containing block for position:fixed — modals then anchor to the PAGE (5,000px tall on
+   big tables) instead of the viewport and render below the fold. Live-audit bug 2026-06-10. */
+.iv-fade { animation: ivPageIn .42s cubic-bezier(.22,.9,.36,1) backwards; }
 @keyframes ivRouteBar { 0% { transform:scaleX(0); opacity:1; } 65% { transform:scaleX(1); opacity:1; } 100% { transform:scaleX(1); opacity:0; } }
 .iv-route-bar { position:fixed; top:0; left:0; right:0; height:2.5px; z-index:80; pointer-events:none; transform-origin:left;
   background:linear-gradient(90deg,#C8A96E,#8B6914,#E0C585); animation:ivRouteBar .75s cubic-bezier(.3,.6,.3,1) both; }
 
 /* Staggered entrances — wrap any grid/list in .iv-stagger; children cascade in */
-.crm-root .iv-stagger > * { animation: ivFadeUp .38s var(--iv-ease) both; }
+.crm-root .iv-stagger > * { animation: ivFadeUp .38s var(--iv-ease) backwards; }
 .crm-root .iv-stagger > *:nth-child(1) { animation-delay:.03s; }
 .crm-root .iv-stagger > *:nth-child(2) { animation-delay:.07s; }
 .crm-root .iv-stagger > *:nth-child(3) { animation-delay:.11s; }
@@ -252,7 +255,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 
 /* Table rows cascade subtly on mount + smooth hover (.iv-tbody = dskit Table) */
 @keyframes ivRowIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
-.crm-root .iv-table tbody tr, .crm-root .iv-tbody tr { transition:background .18s var(--iv-ease); animation:ivRowIn .3s var(--iv-ease) both; }
+.crm-root .iv-table tbody tr, .crm-root .iv-tbody tr { transition:background .18s var(--iv-ease); animation:ivRowIn .3s var(--iv-ease) backwards; }
 .crm-root .iv-table tbody tr:nth-child(1), .crm-root .iv-tbody tr:nth-child(1) { animation-delay:.02s; }
 .crm-root .iv-table tbody tr:nth-child(2), .crm-root .iv-tbody tr:nth-child(2) { animation-delay:.05s; }
 .crm-root .iv-table tbody tr:nth-child(3), .crm-root .iv-tbody tr:nth-child(3) { animation-delay:.08s; }
@@ -265,7 +268,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 @keyframes ivOvIn { from { opacity:0; } to { opacity:1; } }
 @keyframes ivModalIn { from { opacity:0; transform:translateY(14px) scale(.965); } to { opacity:1; transform:none; } }
 .crm-root .iv-modal-ov, .iv-modal-ov { animation:ivOvIn .22s ease both; backdrop-filter:blur(6px) saturate(1.05); }
-.iv-modal-ov > * { animation:ivModalIn .3s cubic-bezier(.34,1.2,.4,1) both; box-shadow:0 30px 80px rgba(2,6,23,.45), 0 0 0 1px rgba(200,169,110,.28); }
+.iv-modal-ov > * { animation:ivModalIn .3s cubic-bezier(.34,1.2,.4,1) backwards; box-shadow:0 30px 80px rgba(2,6,23,.45), 0 0 0 1px rgba(200,169,110,.28); } /* backwards: filled transform would re-anchor NESTED fixed modals (AddCharge inside ReservationEdit) */
 /* Panel: padding moves to bands; body keeps 28px gutters */
 .crm-root .iv-modal-ov > .iv-card { padding:0 28px 24px; border-radius:14px; border:1px solid rgba(200,169,110,.3); }
 /* Header band — full-bleed dark brand strip (only modals whose first element is the <h3> title) */
@@ -328,7 +331,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 
 /* Charts — bars grow up on mount (staggered), meters sweep in from the left */
 @keyframes ivGrowY { from { transform:scaleY(0); } to { transform:scaleY(1); } }
-.crm-root .iv-bars > * > div:first-child { transform-origin:bottom; animation:ivGrowY .55s var(--iv-ease) both; }
+.crm-root .iv-bars > * > div:first-child { transform-origin:bottom; animation:ivGrowY .55s var(--iv-ease) backwards; }
 .crm-root .iv-bars > *:nth-child(1) > div:first-child { animation-delay:.02s; }
 .crm-root .iv-bars > *:nth-child(2) > div:first-child { animation-delay:.05s; }
 .crm-root .iv-bars > *:nth-child(3) > div:first-child { animation-delay:.08s; }
@@ -344,7 +347,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-bars > *:nth-child(13) > div:first-child { animation-delay:.38s; }
 .crm-root .iv-bars > *:nth-child(n+14) > div:first-child { animation-delay:.41s; }
 @keyframes ivGrowX { from { transform:scaleX(0); } to { transform:scaleX(1); } }
-.crm-root .iv-grow-x { transform-origin:left; animation:ivGrowX .6s var(--iv-ease) both; }
+.crm-root .iv-grow-x { transform-origin:left; animation:ivGrowX .6s var(--iv-ease) backwards; }
 
 /* Accessibility — kill all motion for users who ask for it */
 @media (prefers-reduced-motion: reduce) {
