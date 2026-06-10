@@ -1,9 +1,28 @@
 'use client';
 
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Header from "./Header";
 import BottomNav from "./BottomNav";
 import Sidebar from "./Sidebar";
-import AuthGate from "./AuthGate";
+import AuthGate, { useAuth } from "./AuthGate";
+import { canAccess } from '@/lib/permissions';
+
+// RBAC route guard — runs inside AuthGate so `user` is resolved. A role that deep-links
+// (or is redirected back) to a page outside its department is bounced to the Dashboard.
+// This is the in-app guard; the API routes re-check independently (server is authoritative).
+function RouteGuard({ children }) {
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  useEffect(() => {
+    if (user && pathname && !canAccess(user.role, pathname)) router.replace('/crm');
+  }, [user, pathname, router]);
+  if (user && pathname && !canAccess(user.role, pathname)) {
+    return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iv-ink3)', fontSize: 13 }}>Redirecting…</div>;
+  }
+  return children;
+}
 
 // App shell — Hotel Fountain Design System: walnut sidebar | (topbar + scrolling content).
 export default function Layout({ children }) {
@@ -17,7 +36,7 @@ export default function Layout({ children }) {
         <div className="flex-1 flex flex-col min-w-0" style={{ height: '100vh' }}>
           <Header />
           <main className="flex-1 overflow-y-auto pb-24 md:pb-8" style={{ padding: '24px 28px', background: 'var(--iv-bg)' }}>
-            {children}
+            <RouteGuard>{children}</RouteGuard>
           </main>
         </div>
 

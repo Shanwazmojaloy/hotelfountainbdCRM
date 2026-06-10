@@ -6,6 +6,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { getSnap } from '@/lib/snap';
+import { useAuth } from './AuthGate';
+import { canAccess } from '@/lib/permissions';
 import NewReservationModal from './NewReservationModal';
 
 const TITLES = {
@@ -36,6 +38,10 @@ function titleFor(pathname) {
 export default function Header() {
   const pathname = usePathname() || '/crm';
   const router = useRouter();
+  const { user } = useAuth();
+  // New Booking + the booking-request bell are reservation actions — only for roles that
+  // can access Reservations (receptionist + admin); hidden from housekeeping (RBAC 2026-06-10).
+  const canBook = canAccess(user?.role, '/crm/reservations');
   const [meta, setMeta] = useState('');
   const [bell, setBell] = useState(false);
   const bellRef = useRef(null);
@@ -130,12 +136,12 @@ export default function Header() {
         {t0}{t1 && <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}> {t1}</em>}
       </div>
       <div className="iv-mono" style={{ fontSize: 9, color: 'var(--iv-ink3)', letterSpacing: '.04em', whiteSpace: 'nowrap' }}>{meta}</div>
-      <button className="iv-btn" onClick={openNewBooking} style={{ fontSize: 12.5, padding: '7px 14px' }}>+ New Booking</button>
+      {canBook && <button className="iv-btn" onClick={openNewBooking} style={{ fontSize: 12.5, padding: '7px 14px' }}>+ New Booking</button>}
       {showNew && (
         <NewReservationModal rooms={bkRooms} onClose={() => setShowNew(false)}
           onSaved={() => { setShowNew(false); router.push('/crm/reservations'); }} />
       )}
-      <div ref={bellRef} style={{ position: 'relative' }}>
+      {canBook && <div ref={bellRef} style={{ position: 'relative' }}>
         <div onClick={() => { setBell((v) => !v); loadNotifs(); }} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${bell ? 'var(--iv-side)' : 'var(--iv-border)'}`, background: bell ? 'var(--iv-sunken)' : 'transparent', cursor: 'pointer', position: 'relative', fontSize: 15, color: 'var(--iv-ink3)', borderRadius: 8, transition: 'border-color .2s var(--iv-ease), background .2s var(--iv-ease), box-shadow .2s var(--iv-ease)', boxShadow: bell ? '0 0 0 3px var(--iv-glow)' : 'none' }}>
           🔔
           {unseen > 0 && (
@@ -188,7 +194,7 @@ export default function Header() {
             <div style={{ padding: '10px 16px', textAlign: 'center', borderTop: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--iv-ink3)' }}>Confirm → Reserved · arrival → Check-In · departure → Check-Out</div>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

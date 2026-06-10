@@ -5,6 +5,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from './AuthGate';
+import { canAccess } from '@/lib/permissions';
 
 const NAV = [
   { sect: 'Overview' },
@@ -33,6 +34,14 @@ const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((s)
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const role = user?.role;
+
+  // RBAC: keep only links this role may open, then drop any section header left empty.
+  const visibleNav = NAV.filter((n) => n.sect || canAccess(role, n.href)).filter((n, i, arr) => {
+    if (!n.sect) return true;
+    const next = arr[i + 1];
+    return next && !next.sect; // section kept only if a real link follows it
+  });
 
   return (
     <aside className="iv-sidebar hidden md:flex flex-col w-64 h-screen sticky top-0" style={{ overflow: 'hidden' }}>
@@ -47,7 +56,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {NAV.map((n, i) =>
+        {visibleNav.map((n, i) =>
           n.sect ? (
             <div key={i} style={{ fontSize: 10, letterSpacing: '.14em', color: 'rgba(200,169,110,.5)', padding: '14px 12px 5px', textTransform: 'uppercase', fontWeight: 600 }}>{n.sect}</div>
           ) : (
