@@ -349,6 +349,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 @keyframes ivGrowX { from { transform:scaleX(0); } to { transform:scaleX(1); } }
 .crm-root .iv-grow-x { transform-origin:left; animation:ivGrowX .6s var(--iv-ease) backwards; }
 
+/* Notification ping — pulsing red ring for unseen booking requests */
+@keyframes ivPing { 0% { box-shadow: 0 0 0 0 rgba(220,38,38,.55); } 70% { box-shadow: 0 0 0 7px rgba(220,38,38,0); } 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); } }
+.iv-ping { animation: ivPing 1.6s cubic-bezier(.4,0,.2,1) infinite; }
+
 /* Accessibility — kill all motion for users who ask for it */
 @media (prefers-reduced-motion: reduce) {
   .crm-root *, .crm-root *::before, .crm-root *::after,
