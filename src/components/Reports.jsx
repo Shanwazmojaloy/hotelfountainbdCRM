@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { Tabs, Card, StatCard, Table, Badge, TD, MONO, C, bdt } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
+import { openBusinessDay, nextDay } from '@/lib/businessDay';
 
 const dhakaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const addDays = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(t); };
@@ -73,20 +74,35 @@ export default function Reports() {
 }
 
 function Daily({ txs, res, closes, loading, onClosed }) {
-  const [date, setDate] = useState(dhakaToday());
+  // The OPEN business day = (latest closed + 1), NOT the calendar date. Collections & movements
+  // accrue here — across calendar days — until "Closing Complete". `picked` overrides only when
+  // the user steps to a historical day; otherwise the report tracks the open day automatically.
+  const openDay = openBusinessDay(closes);
+  const calToday = dhakaToday();
+  const [picked, setPicked] = useState(null);
+  const date = picked || openDay;
+  const setDate = setPicked;
+  const onOpenDay = date === openDay;
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const closeRow = (closes || []).find((c) => (c.audit_date || '').slice(0, 10) === date) || null;
 
+  // Open-day movements span openDay→today (so calendar 10-Jun AND 11-Jun show under the open
+  // 10-Jun report); a historical day shows only its own date.
+  const inDayRange = (d) => onOpenDay ? (d >= date && d <= calToday) : d === date;
+  // Collections are stamped with the open day at write-time, so `=== date` already captures
+  // every calendar day's payments that belong to this business day.
   const collectedFor = (r) => txs.filter((t) => notBCF(t) && t.reservation_id === r.id && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
-  const ins = res.filter((r) => (r.check_in || '').slice(0, 10) === date).map((r) => ({ ...r, _type: 'IN' }));
-  const outs = res.filter((r) => (r.check_out || '').slice(0, 10) === date).map((r) => ({ ...r, _type: 'OUT' }));
+  const ins = res.filter((r) => inDayRange((r.check_in || '').slice(0, 10))).map((r) => ({ ...r, _type: 'IN' }));
+  const outs = res.filter((r) => inDayRange((r.check_out || '').slice(0, 10))).map((r) => ({ ...r, _type: 'OUT' }));
   const moves = [...ins, ...outs];
   const collected = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
-  const dues = moves.filter((m) => dueOf(m) > 0);
-  const totalDue = dues.reduce((a, m) => a + dueOf(m), 0);
+  // Due/Outstanding is ALWAYS the full live book (every reservation with a balance) — visible
+  // on every day's report, not just guests who moved today.
+  const allDue = res.filter((r) => dueOf(r) > 0).sort((a, b) => dueOf(b) - dueOf(a));
+  const totalDue = allDue.reduce((a, r) => a + dueOf(r), 0);
   const tok = parseInt(token || '0', 10) || 0;
   const closing = collected - tok;
 
@@ -100,6 +116,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.ok) throw new Error(j.error || 'Could not close the day.');
       await onClosed();
+      setPicked(nextDay(date)); // jump to the freshly-opened next business day
+      setToken('');
     } catch (e) { setErr(e.message || String(e)); } finally { setBusy(false); }
   }
 
@@ -108,7 +126,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       <button className="iv-btn iv-btn--ghost" onClick={() => setDate(addDays(date, -1))} style={{ fontSize: 11, padding: '6px 11px' }}>‹</button>
       <input type="date" className="iv-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: '7px 10px', width: 160 }} />
       <button className="iv-btn iv-btn--ghost" onClick={() => setDate(addDays(date, 1))} style={{ fontSize: 11, padding: '6px 11px' }}>›</button>
-      <button className="iv-btn iv-btn--ghost" onClick={() => setDate(dhakaToday())} style={{ fontSize: 12, padding: '7px 12px' }}>Today</button>
+      <button className="iv-btn iv-btn--ghost" onClick={() => setPicked(null)} style={{ fontSize: 12, padding: '7px 12px' }}>Open Day</button>
     </div>
   );
 
@@ -218,7 +236,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         <StatCard label="Movements" value={loading ? '—' : moves.length} accent={C.walnut} sub={fmtLong(date)} />
         <StatCard label="Total Collection" value={loading ? '—' : bdt(collected)} accent={C.gold} />
         <StatCard label="Closing Balance" value={loading ? '—' : bdt(closing)} accent={C.grn} sub="collection − token" />
-        <StatCard label="Total Due" value={loading ? '—' : bdt(totalDue)} accent={C.rose} sub={`${dues.length} carried`} />
+        <StatCard label="Total Due" value={loading ? '—' : bdt(totalDue)} accent={C.rose} sub={`${allDue.length} reservation${allDue.length === 1 ? '' : 's'} outstanding`} />
       </div>
 
       <Card title="Daily" titleAccent="Movements" bodyStyle={{ padding: 0 }}>
@@ -247,7 +265,22 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, fontFamily: 'var(--iv-head)', paddingTop: 8 }}>
           <span>Closing Balance</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(closing)}</span>
         </div>
-        <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Total Collection − Opening Token. Outstanding due ({bdt(totalDue)}) carries to guest folios. Press “Closing Complete” to lock the day and open the fresh post-close report.</div>
+        <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Total Collection − Opening Token. Collections accrue to this open day until “Closing Complete” locks it and opens the next. Outstanding dues below carry across every day.</div>
+      </Card>
+
+      {/* Outstanding dues — always visible on every day's report (full live book) */}
+      <Card title="Outstanding" titleAccent="Dues" accent={C.rose} bodyStyle={{ padding: 0 }}>
+        <Table head={['Guest', 'Room', 'Status', 'Balance Due']}>
+          {!loading && allDue.length === 0 && <tr><td colSpan={4} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No outstanding balances. ✓</td></tr>}
+          {allDue.slice(0, 200).map((r, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+              <td style={TD}>{r.guest_name || 'Guest'}</td>
+              <td style={TD}><Badge tone="blue">{roomOf(r)}</Badge></td>
+              <td style={TD}><Badge tone="neutral">{r.status || '—'}</Badge></td>
+              <td style={{ ...TD, ...MONO, color: C.rose }}>{bdt(dueOf(r))}</td>
+            </tr>
+          ))}
+        </Table>
       </Card>
     </>
   );

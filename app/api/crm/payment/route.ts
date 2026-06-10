@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
+import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -31,10 +32,15 @@ export async function POST(req: NextRequest) {
   const reservationId = body.reservation_id;
   const a = +(body.amount as number);
   const type = (typeof body.type === 'string' && body.type) || 'Room Payment (Cash)';
-  const fiscalDay = (typeof body.fiscal_day === 'string' && body.fiscal_day) || null;
   const idempotencyKey = (typeof body.idempotency_key === 'string' && body.idempotency_key) || crypto.randomUUID();
   if (!reservationId) return NextResponse.json({ error: 'Missing reservation_id.' }, { status: 400 });
   if (!a || a <= 0) return NextResponse.json({ error: 'Enter a valid amount.' }, { status: 400 });
+
+  // fiscal_day is the OPEN business day, not the calendar date — collections accrue to the
+  // open day until it's closed. A modal defaulting to "today" snaps back to the open day;
+  // an explicit back-date (≤ open) is honored for offline reconciliation.
+  const { data: closes } = await supabase.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT);
+  const fiscalDay = clampFiscalDay(typeof body.fiscal_day === 'string' ? body.fiscal_day : null, openBusinessDay(closes));
 
   // Derive bill math server-side (do not trust the client).
   const { data: rrows } = await supabase.from('reservations').select('id, guest_name, room_ids, total_amount, discount_amount, discount, paid_amount').eq('id', reservationId).limit(1);

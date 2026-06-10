@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
+import { openBusinessDay } from '@/lib/businessDay';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -40,15 +41,20 @@ export async function POST(req: NextRequest) {
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty */ }
-  const auditDate = (typeof body.audit_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.audit_date)) ? body.audit_date : dhakaToday();
   const notes = typeof body.notes === 'string' ? body.notes.slice(0, 500) : null;
 
   // ── pull canonical data (tenant-scoped) ──
-  const [{ data: txs }, { data: res }, { data: rooms }] = await Promise.all([
+  const [{ data: txs }, { data: res }, { data: rooms }, { data: closes }] = await Promise.all([
     supabase.from('transactions').select('amount, type, fiscal_day, created_at').eq('tenant_id', TENANT),
     supabase.from('reservations').select('check_in, check_out, total_amount, discount_amount, discount, paid_amount, status').eq('tenant_id', TENANT),
     supabase.from('rooms').select('status').eq('tenant_id', TENANT),
+    supabase.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT),
   ]);
+
+  // Close the OPEN business day (latest closed + 1), NOT the calendar date — unless an
+  // explicit audit_date is passed (re-close of a past day).
+  const openDay = openBusinessDay(closes, dhakaToday());
+  const auditDate = (typeof body.audit_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.audit_date)) ? body.audit_date : openDay;
 
   const T = txs || [], R = res || [], RM = rooms || [];
 

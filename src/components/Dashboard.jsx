@@ -10,6 +10,7 @@ import { CountUp, Skeleton } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 import { useAuth } from './AuthGate';
 import { can } from '@/lib/permissions';
+import { openBusinessDay } from '@/lib/businessDay';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const getDhakaDate = () =>
@@ -132,17 +133,19 @@ export default function Dashboard() {
     if (!getSnap(SNAP_KEY)) setLoading(true); // first visit shows skeletons; revisits refresh silently
     try {
       const supabase = getSupabaseClient();
-      const [{ data: reservations, error: e1 }, { data: transactions, error: e2 }, { data: rooms, error: e3 }] = await Promise.all([
+      const [{ data: reservations, error: e1 }, { data: transactions, error: e2 }, { data: rooms, error: e3 }, { data: closes }] = await Promise.all([
         supabase.from('reservations').select('id, guest_name, room_ids, check_in, check_out, status, total_amount, discount_amount, discount, paid_amount').order('check_in', { ascending: false }),
         supabase.from('transactions').select('amount, type, fiscal_day, created_at, reservation_id, room_number'),
         supabase.from('rooms').select('id, room_number, status, category, price'),
+        supabase.from('night_audit_log').select('audit_date, status'),
       ]);
       if (e1 || e2 || e3) console.error('[Dashboard] query error:', e1 || e2 || e3); // money page must never fail silently
 
       const res = reservations || [];
       const txs = transactions || [];
       const rms = rooms || [];
-      const today = getDhakaDate();
+      const calToday = getDhakaDate();          // arrivals/guests = operational calendar day
+      const today = openBusinessDay(closes);    // revenue/collections = open business day
       // POSITIVE match (house rule): exclusion-only filters let charges (Stay Extension,
       // Room Service) count as revenue. A tx is revenue only if it IS a payment.
       const REAL_PAY = /payment|settlement|advance|deposit|bkash|nagad|bank\s*transfer|cash|card/i;
@@ -176,11 +179,11 @@ export default function Dashboard() {
 
       const occupied = rms.filter((r) => r.status === 'OCCUPIED').length;
       const occupancy = rms.length ? Math.round((occupied / rms.length) * 100) : 0;
-      const checkinRes = res.filter((r) => (r.check_in || '').slice(0, 10) === today);
+      const checkinRes = res.filter((r) => (r.check_in || '').slice(0, 10) === calToday);
 
-      // 14-day revenue series (collected, excl BCF)
+      // 14-day revenue series (collected, excl BCF) — anchored on the calendar so the chart axis is real
       const series = Array.from({ length: 14 }, (_, i) => {
-        const d = new Date(today); d.setDate(d.getDate() - (13 - i));
+        const d = new Date(calToday); d.setDate(d.getDate() - (13 - i));
         const ds = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
         const v = txs.filter((t) => isPay(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === ds).reduce((s, t) => s + (Number(t.amount) || 0), 0);
         return { ds, v, lbl: ds.slice(8) };
@@ -199,7 +202,7 @@ export default function Dashboard() {
       // today's guests (checking in today or currently in-house)
       const roomByNum = {}; rms.forEach((r) => { roomByNum[String(r.room_number)] = r; });
       const todays = res
-        .filter((r) => (r.check_in || '').slice(0, 10) === today || (r.status || '').toUpperCase() === 'CHECKED_IN')
+        .filter((r) => (r.check_in || '').slice(0, 10) === calToday || (r.status || '').toUpperCase() === 'CHECKED_IN')
         .slice(0, 8)
         .map((r) => {
           const roomArr = Array.isArray(r.room_ids) ? r.room_ids : (r.room_number ? [r.room_number] : []);
