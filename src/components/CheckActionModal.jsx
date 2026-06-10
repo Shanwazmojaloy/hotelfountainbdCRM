@@ -45,19 +45,19 @@ export default function CheckActionModal({ reservation, action, onClose, onSaved
           {r.guest_name || 'Guest'} · Room {roomNos.join(', ') || '—'}
         </div>
 
-        <p className="text-sm mb-4" style={{ color: '#5C5347' }}>
+        <p className="text-sm mb-4" style={{ color: 'var(--iv-ink2)' }}>
           {isOut
             ? <>This will mark the reservation <strong>Checked Out</strong> and set room {roomNos.join(', ')} to <strong>Dirty</strong> (a housekeeping task is created automatically).</>
             : <>This will mark the reservation <strong>Checked In</strong> and set room {roomNos.join(', ')} to <strong>Occupied</strong>.</>}
         </p>
 
         {isOut && balance > 0 && (
-          <div className="mb-4 text-sm" style={{ background: 'rgba(192,86,106,0.08)', border: '1px solid rgba(192,86,106,0.3)', borderRadius: 8, padding: '10px 12px', color: '#A23B4E' }}>
+          <div className="mb-4 text-sm" style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '10px 12px', color: '#DC2626' }}>
             ⚠ Outstanding balance of <strong>{bdt(balance)}</strong>. You can still check out, but consider collecting payment first (Billing → Collect).
           </div>
         )}
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>

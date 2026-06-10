@@ -79,10 +79,10 @@ export default function Housekeeping() {
       {filters.map(([v, l]) => {
         const on = filter === v;
         return (
-          <button key={v} onClick={() => setFilter(v)} style={{ padding: '5px 11px', fontFamily: 'var(--iv-body)', fontSize: 9.5, letterSpacing: '.06em', textTransform: 'uppercase', fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? 'var(--iv-gold-light)' : 'var(--iv-ink2)', background: on ? 'var(--iv-side)' : 'transparent', border: `1px solid ${on ? 'var(--iv-side)' : 'var(--iv-border)'}` }}>{l}</button>
+          <button key={v} onClick={() => setFilter(v)} style={{ padding: '5px 11px', fontFamily: 'var(--iv-body)', fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase', fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? 'var(--iv-gold-light)' : 'var(--iv-ink2)', background: on ? 'var(--iv-side)' : 'transparent', border: `1px solid ${on ? 'var(--iv-side)' : 'var(--iv-border)'}` }}>{l}</button>
         );
       })}
-      <button className="iv-btn" onClick={() => setShowAdd(true)} style={{ fontSize: 9.5, padding: '5px 12px' }}>+ Add Task</button>
+      <button className="iv-btn" onClick={() => setShowAdd(true)} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Task</button>
     </div>
   );
 

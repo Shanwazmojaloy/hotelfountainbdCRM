@@ -37,9 +37,9 @@ function Card({ icon, title, color, desc, children }) {
   );
 }
 
-const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
 const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
-const pre = { background: '#FBF7EE', border: '1px solid #EAE3D6', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, monospace', color: '#4A443B', marginTop: 10, maxHeight: 320, overflow: 'auto' };
+const pre = { background: '#FBF7EE', border: '1px solid var(--iv-border2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, monospace', color: '#4A443B', marginTop: 10, maxHeight: 320, overflow: 'auto' };
 
 export default function AIAgents() {
   const [prospectQ, setProspectQ] = useState('event planners in Dhaka needing hotel rooms');
@@ -69,7 +69,7 @@ export default function AIAgents() {
   return (
     <div style={{ maxWidth: 820 }}>
       <h1 className="text-2xl mb-2 pb-4 iv-divider">AI Agents</h1>
-      <div className="iv-stat__sub mb-6">Gemini-backed · connected to live Supabase data. {!ANON && <span style={{ color: '#C0566A' }}>· anon key not in build env</span>}</div>
+      <div className="iv-stat__sub mb-6">Gemini-backed · connected to live Supabase data. {!ANON && <span style={{ color: '#DC2626' }}>· anon key not in build env</span>}</div>
 
       <Card icon="🔍" title="Prospector" color="#3884B4" desc="Finds potential leads and saves them to your leads table">
         <label style={lbl}>Search Query</label>
@@ -80,7 +80,7 @@ export default function AIAgents() {
           : <div className="mt-3">
               <div className="iv-stat__sub mb-2">✓ {prospectRes.leads_found ?? (prospectRes.raw_leads || prospectRes.leads || []).length} leads found, saved &amp; emailed</div>
               {(prospectRes.raw_leads || prospectRes.leads || []).map((l, i) => (
-                <div key={i} style={{ border: '1px solid #EAE3D6', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+                <div key={i} style={{ border: '1px solid var(--iv-border2)', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{l.name} <span className="iv-stat__sub">· {l.company}</span></div>
                   <div className="iv-stat__sub">{l.email} · {l.phone}</div>
                   {l.notes && <div className="text-sm" style={{ color: '#2E6A8E', marginTop: 4 }}>{l.notes}</div>}
@@ -89,7 +89,7 @@ export default function AIAgents() {
             </div>)}
       </Card>
 
-      <Card icon="✉️" title="Closer" color="#8B6914" desc="Writes a personalized outreach email for a lead">
+      <Card icon="✉️" title="Closer" color="var(--iv-gold)" desc="Writes a personalized outreach email for a lead">
         <label style={lbl}>Lead ID (from leads table)</label>
         <input style={field} value={leadId} onChange={(e) => setLeadId(e.target.value)} placeholder="123e4567-e89b-12d3…" />
         <button className="iv-btn mt-3" onClick={runCloser} disabled={closerBusy}>{closerBusy ? 'Writing…' : 'Write Outreach'}</button>
@@ -98,16 +98,16 @@ export default function AIAgents() {
           : <div className="mt-3"><div className="iv-stat__sub mb-2">Draft for <strong>{closerRes.lead_name}</strong> — saved to lead notes</div><div style={pre}>{closerRes.email_draft}</div></div>)}
       </Card>
 
-      <Card icon="📊" title="Analyst" color="#3C6B4A" desc="Monitors transactions, spots patterns, suggests discounts">
+      <Card icon="📊" title="Analyst" color="#16A34A" desc="Monitors transactions, spots patterns, suggests discounts">
         <button className="iv-btn iv-btn--ghost" onClick={runAnalyst} disabled={analystBusy}>{analystBusy ? 'Analyzing…' : 'Run Analysis'}</button>
         {analystRes && (analystRes.error
           ? <div style={pre}>{analystRes.error}</div>
           : <div className="mt-3">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 iv-stagger">
                 {Object.entries(analystRes.day_averages || {}).sort(([, a], [, b]) => b - a).map(([day, avg]) => (
-                  <div key={day} style={{ border: '1px solid #EAE3D6', borderRadius: 8, padding: '8px 10px' }}>
+                  <div key={day} style={{ border: '1px solid var(--iv-border2)', borderRadius: 8, padding: '8px 10px' }}>
                     <div style={lbl}>{day}</div>
-                    <div className="iv-mono" style={{ color: day === analystRes.lowest_day ? '#C0566A' : day === analystRes.highest_day ? '#3C6B4A' : 'var(--iv-ink)' }}>{bdt(avg)}</div>
+                    <div className="iv-mono" style={{ color: day === analystRes.lowest_day ? '#DC2626' : day === analystRes.highest_day ? '#16A34A' : 'var(--iv-ink)' }}>{bdt(avg)}</div>
                   </div>
                 ))}
               </div>
@@ -135,12 +135,12 @@ export default function AIAgents() {
         {autoRes && (autoRes.key === 'scout' || autoRes.key === 'analyze_all') && <div style={pre}>{autoRes.error || JSON.stringify(autoRes, null, 2)}</div>}
       </Card>
 
-      <Card icon="📊" title="Google Sheets Backup" color="#3C6B4A" desc="Push all six tables to the backup spreadsheet (auto-sync also runs on every write)">
+      <Card icon="📊" title="Google Sheets Backup" color="#16A34A" desc="Push all six tables to the backup spreadsheet (auto-sync also runs on every write)">
         <button className="iv-btn iv-btn--ghost" onClick={() => runEdge('sheets', SHEETS, {})} disabled={!!autoBusy}>{autoBusy === 'sheets' ? 'Syncing…' : 'Sync All Data Now'}</button>
         {autoRes && autoRes.key === 'sheets' && <div style={pre}>{autoRes.error || (autoRes.counts ? `Synced ${Object.entries(autoRes.counts).map(([k, v]) => `${k}:${v}`).join(' · ')}` : JSON.stringify(autoRes, null, 2))}</div>}
       </Card>
 
-      <div className="iv-stat__sub mt-2">Full Plan-G offer management, the lead pipeline table, AI research viewer and workflow monitor remain in the legacy admin. The Council is at <a href="/crm/council" style={{ color: '#8B6914' }}>/crm/council</a>.</div>
+      <div className="iv-stat__sub mt-2">Full Plan-G offer management, the lead pipeline table, AI research viewer and workflow monitor remain in the legacy admin. The Council is at <a href="/crm/council" style={{ color: 'var(--iv-gold)' }}>/crm/council</a>.</div>
     </div>
   );
 }

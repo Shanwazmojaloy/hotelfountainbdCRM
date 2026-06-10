@@ -59,17 +59,17 @@ export default function Header() {
   return (
     <div className="iv-topbar" style={{ height: 54, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 16px 0 24px', gap: 14, position: 'sticky', top: 0, zIndex: 20 }}>
       <div style={{ fontFamily: 'var(--iv-head)', fontSize: 18, fontWeight: 700, color: 'var(--iv-ink)', flex: 1, letterSpacing: '.01em', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {t0}{t1 && <em style={{ fontStyle: 'italic', color: 'var(--iv-gold)', fontWeight: 400 }}> {t1}</em>}
+        {t0}{t1 && <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}> {t1}</em>}
       </div>
       <div className="iv-mono" style={{ fontSize: 9, color: 'var(--iv-ink3)', letterSpacing: '.04em', whiteSpace: 'nowrap' }}>{meta}</div>
-      <button className="iv-btn" onClick={() => { if (pathname === '/crm/reservations') window.dispatchEvent(new CustomEvent('lumea:new-booking')); else router.push('/crm/reservations?new=1'); }} style={{ fontSize: 9.5, padding: '6px 14px' }}>+ New Booking</button>
+      <button className="iv-btn" onClick={() => { if (pathname === '/crm/reservations') window.dispatchEvent(new CustomEvent('lumea:new-booking')); else router.push('/crm/reservations?new=1'); }} style={{ fontSize: 12.5, padding: '7px 14px' }}>+ New Booking</button>
       <div ref={bellRef} style={{ position: 'relative' }}>
         <div onClick={() => setBell((v) => !v)} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${bell ? 'var(--iv-side)' : 'var(--iv-border)'}`, background: bell ? 'var(--iv-sunken)' : 'transparent', cursor: 'pointer', position: 'relative', fontSize: 15, color: 'var(--iv-ink3)', transition: 'border-color .2s var(--iv-ease), background .2s var(--iv-ease), box-shadow .2s var(--iv-ease)', boxShadow: bell ? '0 0 0 3px var(--iv-glow)' : 'none' }}>
           🔔
           <span style={{ position: 'absolute', top: 4, right: 4, width: 14, height: 14, background: 'var(--iv-rose-fg)', border: '1.5px solid #fff', borderRadius: '50%', color: '#fff', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--iv-body)' }}>{NOTIFS.length}</span>
         </div>
         {bell && (
-          <div style={{ position: 'absolute', top: 40, right: 0, width: 320, background: '#fff', border: '1px solid var(--iv-border)', borderTop: '3px solid var(--iv-side)', boxShadow: '0 16px 48px rgba(28,21,16,.15)', zIndex: 100, animation: 'bellFadeIn .22s var(--iv-ease) both', transformOrigin: 'top right' }}>
+          <div style={{ position: 'absolute', top: 40, right: 0, width: 320, background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 16px 48px rgba(15,23,42,.14)', zIndex: 100, animation: 'bellFadeIn .22s var(--iv-ease) both', transformOrigin: 'top right' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)' }}>
               <span style={{ fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)' }}>Notifications</span>
               <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--iv-rose-fg)', background: 'rgba(185,28,28,.08)', border: '1px solid rgba(185,28,28,.2)', borderRadius: 2, padding: '2px 8px' }}>{NOTIFS.length} new</span>

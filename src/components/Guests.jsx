@@ -79,7 +79,7 @@ export default function Guests() {
         <input className="iv-input" placeholder="Search name, phone, email…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '9px 12px', minWidth: 280, maxWidth: 340 }} />
         <div className="flex items-center gap-3">
           <Badge tone="gold">{filtered.length}{search ? ' found' : ` of ${guests.length}`}</Badge>
-          <button className="iv-btn" onClick={() => setModalGuest(null)} style={{ fontSize: 9.5, padding: '8px 14px' }}>+ Add Guest</button>
+          <button className="iv-btn" onClick={() => setModalGuest(null)} style={{ fontSize: 12, padding: '8px 14px' }}>+ Add Guest</button>
         </div>
       </div>
 
@@ -100,7 +100,7 @@ export default function Guests() {
                 <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>{g.city || '—'}</td>
                 <td style={{ ...TD, ...MONO, color: b > 0 ? C.rose : C.grn }}>{b > 0 ? bdt(b) : '—'}</td>
                 <td style={TD}>{g.vip ? <Badge tone="gold">VIP</Badge> : null}</td>
-                <td style={TD}><button className="iv-btn iv-btn--ghost" style={{ fontSize: 9.5, padding: '4px 11px' }} onClick={() => setModalGuest(g)}>Edit</button></td>
+                <td style={TD}><button className="iv-btn iv-btn--ghost" style={{ fontSize: 12, padding: '4px 11px' }} onClick={() => setModalGuest(g)}>Edit</button></td>
               </tr>
             );
           })}
@@ -113,9 +113,9 @@ export default function Guests() {
             Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} guests
           </div>
           <div className="flex items-center gap-2">
-            <button className="iv-btn iv-btn--ghost" disabled={page === 1} style={{ fontSize: 9.5, padding: '5px 12px', opacity: page === 1 ? 0.4 : 1 }} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+            <button className="iv-btn iv-btn--ghost" disabled={page === 1} style={{ fontSize: 12, padding: '5px 12px', opacity: page === 1 ? 0.4 : 1 }} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
             <span className="iv-mono" style={{ fontSize: 11, color: C.ink2 }}>Page {page} / {totalPages}</span>
-            <button className="iv-btn iv-btn--ghost" disabled={page === totalPages} style={{ fontSize: 9.5, padding: '5px 12px', opacity: page === totalPages ? 0.4 : 1 }} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
+            <button className="iv-btn iv-btn--ghost" disabled={page === totalPages} style={{ fontSize: 12, padding: '5px 12px', opacity: page === totalPages ? 0.4 : 1 }} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
           </div>
         </div>
       )}

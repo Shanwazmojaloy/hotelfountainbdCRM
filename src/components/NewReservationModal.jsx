@@ -120,7 +120,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
@@ -144,7 +144,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
               {guestHits.map((g) => (
                 <button key={g.id} onClick={() => { setF((p) => ({ ...p, guestId: g.id, guestName: g.name })); setGuestHits([]); setGuestQuery(''); }}
                   className="block w-full text-left" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--iv-ink)' }}>
-                  {g.name} <span style={{ color: '#8A7F6E' }}>{g.phone || ''}</span>
+                  {g.name} <span style={{ color: 'var(--iv-ink3)' }}>{g.phone || ''}</span>
                 </button>
               ))}
             </div>
@@ -161,7 +161,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
                   <option key={r.id} value={r.room_number} disabled={roomBlocked(r)}>{roomLabel(r)}</option>
                 ))}
               </select>
-              {f.roomNos.length > 1 && <button onClick={() => setF((p) => ({ ...p, roomNos: p.roomNos.filter((_, i) => i !== idx) }))} style={{ color: '#C0566A', border: '1px solid rgba(192,86,106,0.3)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
+              {f.roomNos.length > 1 && <button onClick={() => setF((p) => ({ ...p, roomNos: p.roomNos.filter((_, i) => i !== idx) }))} style={{ color: '#DC2626', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
             </div>
           ))}
           <button onClick={() => setF((p) => ({ ...p, roomNos: [...p.roomNos, ''] }))} className="iv-btn iv-btn--ghost" style={{ padding: '4px 10px', fontSize: 12 }}>+ Add Room</button>
@@ -172,8 +172,8 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           <div><label style={lbl}>Check-Out Date *</label><input type="date" style={field} value={f.checkOut} onChange={set('checkOut')} /></div>
         </div>
         {nN > 0 && (
-          <div className="mb-4 text-sm" style={{ background: 'rgba(139,105,20,0.07)', border: '1px solid rgba(139,105,20,0.18)', padding: '9px 12px', borderRadius: 4 }}>
-            {nN} night{nN !== 1 ? 's' : ''} × {f.roomNos.filter(Boolean).length} room{f.roomNos.filter(Boolean).length !== 1 ? 's' : ''} = <strong style={{ color: '#8B6914' }}>{bdt(autoTotal)}</strong>
+          <div className="mb-4 text-sm" style={{ background: 'rgba(79,70,229,0.06)', border: '1px solid rgba(79,70,229,0.16)', padding: '9px 12px', borderRadius: 4 }}>
+            {nN} night{nN !== 1 ? 's' : ''} × {f.roomNos.filter(Boolean).length} room{f.roomNos.filter(Boolean).length !== 1 ? 's' : ''} = <strong style={{ color: 'var(--iv-gold)' }}>{bdt(autoTotal)}</strong>
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -189,7 +189,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
         </div>
         <div className="mb-4"><label style={lbl}>Notes</label><textarea style={{ ...field, minHeight: 64, resize: 'vertical' }} value={f.notes} onChange={set('notes')} placeholder="Optional" /></div>
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>

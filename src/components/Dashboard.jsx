@@ -15,11 +15,11 @@ const getDhakaDate = () =>
     timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date());
 
-const GRN = '#15803D', GOLD = '#8B6914', SKY = '#1D4ED8', ROSE = '#B91C1C', AMB = '#B45309', TEAL = '#0F766E', WALNUT = '#1C1510';
+const GRN = '#16A34A', GOLD = '#4F46E5', SKY = '#2563EB', ROSE = '#DC2626', AMB = '#D97706', TEAL = '#0D9488', WALNUT = '#0F172A';
 
 const TONE = {
   green: { fg: GRN, bg: 'rgba(21,128,61,.08)', br: 'rgba(21,128,61,.22)' },
-  gold: { fg: GOLD, bg: 'rgba(139,105,20,.08)', br: 'rgba(139,105,20,.24)' },
+  gold: { fg: GOLD, bg: 'rgba(79,70,229,.08)', br: 'rgba(79,70,229,.22)' },
   sky: { fg: SKY, bg: 'rgba(29,78,216,.08)', br: 'rgba(29,78,216,.22)' },
   rose: { fg: ROSE, bg: 'rgba(185,28,28,.08)', br: 'rgba(185,28,28,.22)' },
   amber: { fg: AMB, bg: 'rgba(180,83,9,.08)', br: 'rgba(180,83,9,.22)' },
@@ -61,11 +61,11 @@ function StatCard({ icon, label, value, sub, accent }) {
   return (
     <div
       className="iv-card--hover"
-      style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${accent}`, padding: '14px 18px 16px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease)' }}
+      style={{ background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, boxShadow: 'var(--iv-card-shadow)', padding: '16px 18px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease)' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 20 }}>
-        <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
-        <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: accent }}>{icon}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 24 }}>
+        <div style={{ fontSize: 12, letterSpacing: '.01em', color: '#64748B', fontWeight: 500 }}>{label}</div>
+        <div style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: accent, background: `${accent}14` }}>{icon}</div>
       </div>
       <div style={{ fontFamily: 'var(--iv-mono)', fontSize: 29, fontWeight: 700, color: 'var(--iv-ink)', lineHeight: 1.1, marginTop: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.01em' }}>{(value == null || value === '—' || value === '') ? <Skeleton w={84} h={30} /> : <CountUp value={value} />}</div>
       <div style={{ fontSize: 11, color: 'var(--iv-ink2)', marginTop: 6 }}>{sub}</div>
@@ -75,10 +75,10 @@ function StatCard({ icon, label, value, sub, accent }) {
 
 function DSCard({ title, titleAccent, accent = 'var(--iv-side)', action, bodyStyle, children, sectionStyle }) {
   return (
-    <section style={{ background: '#fff', border: '1px solid var(--iv-border)', borderTop: `3px solid ${accent}`, overflow: 'hidden', ...sectionStyle }}>
+    <section style={{ background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, boxShadow: 'var(--iv-card-shadow)', overflow: 'hidden', ...sectionStyle }}>
       <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexShrink: 0 }}>
-        <h3 style={{ margin: 0, fontFamily: 'var(--iv-head)', fontSize: 16, fontWeight: 700, color: 'var(--iv-ink)' }}>
-          {title}{titleAccent && <em style={{ fontStyle: 'italic', color: 'var(--iv-gold)', fontWeight: 400 }}> {titleAccent}</em>}
+        <h3 style={{ margin: 0, fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)', letterSpacing: '-.01em' }}>
+          {title}{titleAccent && <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}> {titleAccent}</em>}
         </h3>
         {action}
       </header>
@@ -258,13 +258,13 @@ export default function Dashboard() {
       <DSCard title="Today's" titleAccent="Guests"
         bodyStyle={{ padding: 0, flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         sectionStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        action={<a href="/crm/reservations" className="iv-btn iv-btn--ghost" style={{ fontSize: 9.5, padding: '4px 11px', textDecoration: 'none' }}>View All</a>}>
+        action={<a href="/crm/reservations" className="iv-btn iv-btn--ghost" style={{ fontSize: 12, padding: '4px 11px', textDecoration: 'none' }}>View All</a>}>
         <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 {['Guest', 'Room', 'Category', 'Check-In', 'Check-Out', 'Total', 'Status'].map((h) => (
-                  <th key={h} style={{ fontFamily: 'var(--iv-body)', fontSize: 8, letterSpacing: '.16em', color: 'var(--iv-ink3)', textTransform: 'uppercase', padding: '10px 14px', textAlign: 'left', borderBottom: '2px solid var(--iv-side)', background: 'var(--iv-sunken)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} style={{ fontFamily: 'var(--iv-body)', fontSize: 12, letterSpacing: '.01em', color: '#64748B', textTransform: 'none', padding: '10px 14px', textAlign: 'left', borderBottom: '1px solid var(--iv-border)', background: 'var(--iv-sunken)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>

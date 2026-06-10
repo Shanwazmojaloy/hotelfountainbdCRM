@@ -15,11 +15,11 @@ const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const AuthContext = createContext({ user: null, signOut: () => {} });
 export const useAuth = () => useContext(AuthContext);
 
-// Design-system palette (literals — AuthGate renders outside .crm-root).
-const PARCH = '#F5F0E8', WALNUT = '#1C1510', WHITE = '#FFFFFF';
-const GOLD = '#8B6914', GOLD2 = '#6B4E0A', GOLDL = '#C8A96E';
-const TX = '#1C1510', TX2 = '#5C4A2A', TX3 = '#9A8070', BR = '#D4C9B5';
-const serif = "'Libre Baskerville', Georgia, 'Times New Roman', serif";
+// Modern SaaS palette (literals — AuthGate renders outside .crm-root).
+const PARCH = '#FFFFFF', WALNUT = '#0F172A', WHITE = '#FFFFFF';
+const GOLD = '#4F46E5', GOLD2 = '#4338CA', GOLDL = '#818CF8';
+const TX = '#0F172A', TX2 = '#475569', TX3 = '#94A3B8', BR = '#E2E8F0';
+const serif = "'DM Sans', system-ui, -apple-system, sans-serif";
 const sans = "'DM Sans', system-ui, -apple-system, sans-serif";
 const mono = "'IBM Plex Mono', ui-monospace, monospace";
 
@@ -129,31 +129,31 @@ export default function AuthGate({ children }) {
 
   const fieldWrap = { marginBottom: 14 };
   const labelSt = { display: 'block', fontFamily: sans, fontSize: 9, letterSpacing: '.14em', color: TX3, textTransform: 'uppercase', fontWeight: 600, marginBottom: 5 };
-  const inputSt = { width: '100%', background: WHITE, border: `1px solid ${BR}`, color: TX, fontFamily: sans, fontSize: 13, padding: '10px 12px', outline: 'none', boxSizing: 'border-box', borderRadius: 0 };
-  const onFocus = (e) => (e.target.style.borderColor = WALNUT);
+  const inputSt = { width: '100%', background: WHITE, border: `1px solid ${BR}`, color: TX, fontFamily: sans, fontSize: 13, padding: '10px 12px', outline: 'none', boxSizing: 'border-box', borderRadius: 8 };
+  const onFocus = (e) => (e.target.style.borderColor = GOLD);
   const onBlur = (e) => (e.target.style.borderColor = BR);
-  const goldBtn = (disabled) => ({ width: '100%', justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: sans, fontWeight: 600, letterSpacing: '.10em', textTransform: 'uppercase', cursor: disabled ? 'not-allowed' : 'pointer', borderRadius: 0, padding: '12px 24px', fontSize: 12, marginTop: 8, background: WALNUT, color: GOLDL, border: `2px solid ${WALNUT}`, opacity: disabled ? 0.4 : 1, transition: 'background .15s cubic-bezier(.4,0,.2,1)' });
-  const linkBtn = { background: 'none', border: 'none', cursor: 'pointer', fontFamily: sans, fontSize: 11, letterSpacing: '.04em', color: GOLD, textTransform: 'uppercase', fontWeight: 600, padding: 0 };
+  const goldBtn = (disabled) => ({ width: '100%', justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: sans, fontWeight: 600, letterSpacing: 0, textTransform: 'none', cursor: disabled ? 'not-allowed' : 'pointer', borderRadius: 8, padding: '12px 24px', fontSize: 14, marginTop: 8, background: GOLD, color: '#fff', border: `1px solid ${GOLD}`, opacity: disabled ? 0.5 : 1, transition: 'background .15s cubic-bezier(.4,0,.2,1)' });
+  const linkBtn = { background: 'none', border: 'none', cursor: 'pointer', fontFamily: sans, fontSize: 12, letterSpacing: 0, color: GOLD, textTransform: 'none', fontWeight: 600, padding: 0 };
   const subText = { textAlign: 'center', fontSize: 12, color: TX2, lineHeight: 1.5, margin: '8px 0 20px' };
   const errBox = (t) => <div style={{ marginTop: 10, marginBottom: 4, fontSize: 11, color: '#B91C1C', fontFamily: sans }}>{t}</div>;
 
   return (
     <div style={{ minHeight: '100vh', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: WALNUT, position: 'relative', overflow: 'hidden', fontFamily: sans }}>
       {/* radial glow */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 50% at 20% 30%, rgba(200,169,110,.08), transparent 65%), radial-gradient(ellipse 50% 60% at 80% 70%, rgba(200,169,110,.05), transparent 60%)' }} />
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 50% at 20% 30%, rgba(99,102,241,.12), transparent 65%), radial-gradient(ellipse 50% 60% at 80% 70%, rgba(99,102,241,.07), transparent 60%)' }} />
       {/* fine grid texture */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'repeating-linear-gradient(0deg, rgba(200,169,110,.025) 0px, rgba(200,169,110,.025) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(200,169,110,.025) 0px, rgba(200,169,110,.025) 1px, transparent 1px, transparent 40px)' }} />
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'repeating-linear-gradient(0deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px)' }} />
 
-      <div style={{ background: PARCH, border: '1px solid rgba(200,169,110,.2)', borderTop: `4px solid ${GOLDL}`, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(0,0,0,.6)' }}>
+      <div style={{ background: PARCH, border: '1px solid rgba(148,163,184,.2)', borderRadius: 16, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(2,6,23,.55)' }}>
         {/* logo */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
           <img src="/fountain-logo.png" alt="Hotel Fountain" style={{ width: 96, height: 'auto', objectFit: 'contain' }} />
         </div>
         {/* eyebrow divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, justifyContent: 'center' }}>
-          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,transparent,#D4C9B5)' }} />
+          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,transparent,#E2E8F0)' }} />
           <span style={{ fontSize: 8, color: TX3, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 500, whiteSpace: 'nowrap' }}>{eyebrow}</span>
-          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,#D4C9B5,transparent)' }} />
+          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,#E2E8F0,transparent)' }} />
         </div>
 
         {/* step dots (activation) */}
@@ -167,8 +167,8 @@ export default function AuthGate({ children }) {
         )}
 
         {/* title */}
-        <div style={{ fontFamily: serif, fontSize: 24, fontWeight: 700, color: TX, textAlign: 'center', lineHeight: 1.1 }}>
-          {title[0]} <em style={{ fontStyle: 'italic', color: GOLD, fontWeight: 400 }}>{title[1]}</em>
+        <div style={{ fontFamily: serif, fontSize: 24, fontWeight: 700, color: TX, textAlign: 'center', lineHeight: 1.1, letterSpacing: '-.01em' }}>
+          {title[0]} <em style={{ fontStyle: 'normal', color: GOLD, fontWeight: 700 }}>{title[1]}</em>
         </div>
 
         {mode === 'signin' ? (

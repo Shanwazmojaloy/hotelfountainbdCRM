@@ -103,7 +103,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       <button className="iv-btn iv-btn--ghost" onClick={() => setDate(addDays(date, -1))} style={{ fontSize: 11, padding: '6px 11px' }}>‹</button>
       <input type="date" className="iv-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: '7px 10px', width: 160 }} />
       <button className="iv-btn iv-btn--ghost" onClick={() => setDate(addDays(date, 1))} style={{ fontSize: 11, padding: '6px 11px' }}>›</button>
-      <button className="iv-btn iv-btn--ghost" onClick={() => setDate(dhakaToday())} style={{ fontSize: 9.5, padding: '7px 12px' }}>Today</button>
+      <button className="iv-btn iv-btn--ghost" onClick={() => setDate(dhakaToday())} style={{ fontSize: 12, padding: '7px 12px' }}>Today</button>
     </div>
   );
 
@@ -124,8 +124,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
           {Stepper}
           <div className="flex items-center gap-2">
             <Badge tone="green">✓ Closed {fmtTime(closeRow.closed_at)} · {closeRow.closed_by || 'Staff'}</Badge>
-            <button className="iv-btn iv-btn--ghost" onClick={handleClose} disabled={busy} style={{ fontSize: 9.5, padding: '7px 12px' }}>{busy ? 'Re-closing…' : '↻ Re-close'}</button>
-            <button className="iv-btn" onClick={() => window.print()} style={{ fontSize: 9.5, padding: '7px 12px' }}>⬇ Download</button>
+            <button className="iv-btn iv-btn--ghost" onClick={handleClose} disabled={busy} style={{ fontSize: 12, padding: '7px 12px' }}>{busy ? 'Re-closing…' : '↻ Re-close'}</button>
+            <button className="iv-btn" onClick={() => window.print()} style={{ fontSize: 12, padding: '7px 12px' }}>⬇ Download</button>
           </div>
         </div>
         {err && <div style={{ color: C.rose, fontSize: 12, marginBottom: 10 }}>{err}</div>}
@@ -203,8 +203,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         {Stepper}
         <div className="flex items-center gap-2">
           <input className="iv-input" type="number" placeholder="Opening token ৳" value={token} onChange={(e) => setToken(e.target.value)} style={{ padding: '7px 10px', width: 170 }} />
-          <button className="iv-btn iv-btn--ghost" onClick={() => window.print()} style={{ fontSize: 9.5, padding: '7px 12px' }}>⬇ Download</button>
-          <button className="iv-btn" onClick={handleClose} disabled={busy || loading} style={{ fontSize: 9.5, padding: '7px 12px' }}>{busy ? 'Closing…' : '✓ Closing Complete'}</button>
+          <button className="iv-btn iv-btn--ghost" onClick={() => window.print()} style={{ fontSize: 12, padding: '7px 12px' }}>⬇ Download</button>
+          <button className="iv-btn" onClick={handleClose} disabled={busy || loading} style={{ fontSize: 12, padding: '7px 12px' }}>{busy ? 'Closing…' : '✓ Closing Complete'}</button>
         </div>
       </div>
       {err && <div style={{ color: C.rose, fontSize: 12, marginBottom: 10 }}>{err}</div>}

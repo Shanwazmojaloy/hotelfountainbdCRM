@@ -50,7 +50,7 @@ export default function BillingCard({
             <span className={dotClass} />
             <h3 className="text-lg" style={{ fontWeight: 700 }}>{guestName}</h3>
           </div>
-          <span className="iv-mono text-sm" style={{ background: '#F5F0E8', border: '1px solid #EAE6DD', padding: '3px 10px', borderRadius: 999, color: '#5C5347' }}>
+          <span className="iv-mono text-sm" style={{ background: 'var(--iv-sunken)', border: '1px solid var(--iv-border)', padding: '3px 10px', borderRadius: 999, color: 'var(--iv-ink2)' }}>
             Room {room}
           </span>
         </div>
@@ -101,22 +101,22 @@ export default function BillingCard({
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span style={{ color: '#5C5347' }}>Rooms vacated</span>
+                    <span style={{ color: 'var(--iv-ink2)' }}>Rooms vacated</span>
                     <span className="iv-mono">{checkoutSummary.rooms_vacated?.join(', ')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span style={{ color: '#5C5347' }}>Nights stayed</span>
+                    <span style={{ color: 'var(--iv-ink2)' }}>Nights stayed</span>
                     <span className="iv-mono">{checkoutSummary.actual_nights} / {checkoutSummary.stay_nights}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span style={{ color: '#5C5347' }}>Gross total</span>
+                    <span style={{ color: 'var(--iv-ink2)' }}>Gross total</span>
                     <span className="iv-mono">{bdt(checkoutSummary.gross_total_bdt)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span style={{ color: '#5C5347' }}>Paid</span>
+                    <span style={{ color: 'var(--iv-ink2)' }}>Paid</span>
                     <span className="iv-mono iv-pos">{bdt(checkoutSummary.paid_total_bdt)}</span>
                   </div>
-                  <div className="flex justify-between pt-2" style={{ fontWeight: 700, borderTop: '1px solid #EAE6DD' }}>
+                  <div className="flex justify-between pt-2" style={{ fontWeight: 700, borderTop: '1px solid var(--iv-border)' }}>
                     <span>Balance due</span>
                     <span className="iv-mono" style={{ color: checkoutSummary.balance_due_bdt > 0 ? '#8A6A1E' : '#3F6A4B' }}>
                       {bdt(checkoutSummary.balance_due_bdt)}
@@ -148,7 +148,7 @@ export default function BillingCard({
                 </div>
 
                 {txList.map((tx, i) => (
-                  <div key={i} className="flex items-center justify-between p-3" style={{ border: '1px solid #EAE6DD', borderRadius: 2 }}>
+                  <div key={i} className="flex items-center justify-between p-3" style={{ border: '1px solid var(--iv-border)', borderRadius: 8 }}>
                     <div>
                       <div className="iv-mono text-sm">{(tx.fiscal_day || tx.created_at || '').slice(0, 10)}</div>
                       <div className="iv-eyebrow">{tx.type}</div>

@@ -58,17 +58,17 @@ export default function WorkflowMonitor() {
         const last = lastRun(wf.id);
         const ok = last?.status === 'success';
         return (
-          <div key={wf.id} className="flex items-center gap-3" style={{ padding: '8px 0', borderBottom: '1px solid #F0EBE0' }}>
-            <span style={{ width: 8, height: 8, borderRadius: 99, flexShrink: 0, background: last ? (ok ? '#3C6B4A' : '#C0566A') : '#C9BFA8' }} />
+          <div key={wf.id} className="flex items-center gap-3" style={{ padding: '8px 0', borderBottom: '1px solid var(--iv-border2)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: 99, flexShrink: 0, background: last ? (ok ? '#16A34A' : '#DC2626') : '#CBD5E1' }} />
             <div className="flex-1 min-w-0">
               <div className="text-sm" style={{ color: 'var(--iv-ink)' }}>{wf.label}</div>
               <div className="iv-stat__sub" style={{ display: 'flex', gap: 10 }}>
                 <span>🕐 {wf.time}</span>
-                {last && <span style={{ color: ok ? '#3C6B4A' : '#C0566A' }}>Last: {fmtTime(last.ran_at)}</span>}
+                {last && <span style={{ color: ok ? '#16A34A' : '#DC2626' }}>Last: {fmtTime(last.ran_at)}</span>}
                 {last?.duration_ms ? <span>{last.duration_ms}ms</span> : null}
               </div>
             </div>
-            {last && <span className="iv-badge" style={{ background: ok ? 'rgba(60,107,74,0.15)' : 'rgba(192,86,106,0.15)', color: ok ? '#3C6B4A' : '#A23B4E' }}>{last.status}</span>}
+            {last && <span className="iv-badge" style={{ background: ok ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.12)', color: ok ? '#16A34A' : '#DC2626' }}>{last.status}</span>}
             <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 10px', fontSize: 12 }} disabled={!!triggering} onClick={() => triggerNow(wf)}>{triggering === wf.id ? '…' : '▶ Run'}</button>
           </div>
         );
