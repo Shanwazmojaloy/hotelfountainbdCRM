@@ -148,7 +148,8 @@ export default function InvoicePage() {
             <div style={{ textAlign: 'center', flexShrink: 0 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width={64} height={64} style={{ display: 'block', margin: '0 auto' }} alt="WhatsApp QR" />
-              <div style={{ fontSize: 7.5, letterSpacing: '.08em', textTransform: 'uppercase', color: C.tx3, fontFamily: sans, marginTop: 3 }}>Scan · WhatsApp Us</div>
+              <div style={{ fontSize: 7.5, letterSpacing: '.1em', textTransform: 'uppercase', color: C.tx3, fontFamily: sans, marginTop: 3, whiteSpace: 'nowrap' }}>Scan to WhatsApp</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.tx2, fontFamily: sans, whiteSpace: 'nowrap', marginTop: 1 }}>+880&nbsp;1322-840799</div>
             </div>
           </div>
 

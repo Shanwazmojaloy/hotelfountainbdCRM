@@ -129,12 +129,15 @@ export function printConfirmation(res, rooms, guestName) {
     <h4>Reservation Terms</h4>
     Standard check-in 2:00 PM · check-out 12:00 PM. Early check-in / late check-out subject to availability. Balance due payable at check-in. Cancellation policy applies as per booking agreement. This document is a booking confirmation and does not constitute a VAT invoice; a tax invoice will be issued at check-out.
   </div>
-  <div class="ftr" style="align-items:flex-end">
-    <div><div>${esc(HF_PHONE)} &nbsp;·&nbsp; ${esc(HF_EMAIL)}</div><div style="margin-top:3px">${esc(HF_SITE)}</div></div>
-    <div style="text-align:center;flex-shrink:0;margin-left:16px">
-      <img id="wa-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="68" height="68" style="display:block;margin-bottom:4px" alt="WhatsApp QR"/>
-      <div style="font-size:7px;letter-spacing:.12em;margin-bottom:1px">SCAN TO WHATSAPP</div>
-      <div style="font-size:8px;font-weight:700;color:#1C1510;font-family:monospace">+880 1322-840799</div>
+  <div class="ftr" style="align-items:center">
+    <div style="line-height:1.8">
+      <div style="white-space:nowrap">${esc(HF_PHONE)} &nbsp;·&nbsp; ${esc(HF_EMAIL)}</div>
+      <div>${esc(HF_SITE)}</div>
+    </div>
+    <div style="text-align:center;flex-shrink:0;margin-left:16px;display:flex;flex-direction:column;align-items:center">
+      <img id="wa-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="68" height="68" style="display:block;margin-bottom:5px" alt="WhatsApp QR"/>
+      <div style="font-size:7.5px;letter-spacing:.14em;white-space:nowrap;margin-bottom:2px">SCAN TO WHATSAPP</div>
+      <div style="font-size:9px;font-weight:700;color:#1C1510;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.04em">+880&nbsp;1322-840799</div>
     </div>
   </div>
 </div>
@@ -266,12 +269,25 @@ export function printInvoice(res, rooms, guestName, folios) {
   const roomArr = (res.room_ids || []).filter(Boolean);
   const nights = nightsCount(res.check_in, res.check_out) || 1;
   const billFolios = (folios || []).filter((f) => !MARKER_RE.test(String(f.category || '') + ' ' + String(f.description || '')));
-  let roomCharge = 0;
-  const roomRows = roomArr.map((rn) => {
+  // CANONICAL ANCHOR (billing_canonical_anchor rule): reservations.total_amount is the
+  // source of truth. rate×nights is only a fallback — when canonical is set, room rows are
+  // scaled so the printed invoice ALWAYS matches the web Billing card (e.g. negotiated
+  // ৳95,000/25n must not print as rate-derived ৳112,500).
+  let rawRoomCharge = 0;
+  const rowData = roomArr.map((rn) => {
     const rm = (rooms || []).find((r) => String(r.room_number) === String(rn));
-    const rate = +rm?.price || 0; const sub = rate * nights; roomCharge += sub;
-    return `<tr><td class="dt">${esc(fmtDate(res.check_in))} → ${esc(fmtDate(res.check_out))}</td><td>Room ${esc(rn)} · ${esc(rm?.category || 'Room')} (${nights}n)</td><td class="rt">${fmt(rate)}/n</td><td class="num">${fmt(sub)}</td></tr>`;
-  }).join('');
+    const rate = +rm?.price || 0; const sub = rate * nights; rawRoomCharge += sub;
+    return { rn, rm, sub };
+  });
+  const canonical = +res.total_amount || 0;
+  const factor = canonical > 0 && rawRoomCharge > 0 ? canonical / rawRoomCharge : 1;
+  const roomCharge = canonical > 0 ? canonical : rawRoomCharge;
+  const roomRows = rowData.length
+    ? rowData.map(({ rn, rm, sub }) => {
+        const amt = sub * factor; const effRate = nights > 0 ? amt / nights : amt;
+        return `<tr><td class="dt">${esc(fmtDate(res.check_in))} → ${esc(fmtDate(res.check_out))}</td><td>Room ${esc(rn)} · ${esc(rm?.category || 'Room')} (${nights}n)</td><td class="rt">${fmt(effRate)}/n</td><td class="num">${fmt(amt)}</td></tr>`;
+      }).join('')
+    : (canonical > 0 ? `<tr><td class="dt">${esc(fmtDate(res.check_in))} → ${esc(fmtDate(res.check_out))}</td><td>Room charge (${nights}n)</td><td class="rt">—</td><td class="num">${fmt(canonical)}</td></tr>` : '');
   const folioRows = billFolios.map((f) => `<tr><td class="dt">${esc(String(f.created_at || '').slice(0, 10))}</td><td>${esc(f.description || f.category || 'Charge')}</td><td class="rt">${esc(f.category || '—')}</td><td class="num">${fmt(f.amount)}</td></tr>`).join('');
   const extras = billFolios.reduce((a, f) => a + (+f.amount || 0), 0);
   const subtotal = roomCharge + extras;
@@ -349,9 +365,10 @@ export function printInvoice(res, rooms, guestName, folios) {
   </div>
   <div class="ftr">
     <div>Thank you for staying with Hotel Fountain.<br/>${esc(HF_PHONE)} · ${esc(HF_EMAIL)} · ${esc(HF_SITE)}</div>
-    <div class="wa">
-      <img id="wa-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="68" height="68" style="display:block;margin:0 auto" alt="WhatsApp QR"/>
-      <div class="cap">Scan · WhatsApp Us</div>
+    <div class="wa" style="display:flex;flex-direction:column;align-items:center">
+      <img id="wa-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width="68" height="68" style="display:block;margin-bottom:4px" alt="WhatsApp QR"/>
+      <div class="cap" style="white-space:nowrap">Scan to WhatsApp</div>
+      <div style="font-size:9px;font-weight:700;color:#1C1510;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.04em;margin-top:1px">+880&nbsp;1322-840799</div>
     </div>
   </div>
 </div>
