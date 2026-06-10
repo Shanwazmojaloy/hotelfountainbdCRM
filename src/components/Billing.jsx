@@ -155,8 +155,8 @@ export default function Billing() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 9.5, padding: '8px' }} onClick={() => printDayReport({ dateLabel: today, collected, dues, reservations })}>📥 Download Report</button>
-                    <button className="iv-btn" style={{ flex: 1, fontSize: 9.5, padding: '8px' }} disabled={bal <= 0} onClick={() => setPayRes(sel)}>{bal <= 0 ? '✓ Settled' : '✓ Record Payment'}</button>
+                    <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 12, padding: '8px' }} onClick={() => printDayReport({ dateLabel: today, collected, dues, reservations })}>📥 Download Report</button>
+                    <button className="iv-btn" style={{ flex: 1, fontSize: 12, padding: '8px' }} disabled={bal <= 0} onClick={() => setPayRes(sel)}>{bal <= 0 ? '✓ Settled' : '✓ Record Payment'}</button>
                   </div>
                 </div>
               </DSCard>

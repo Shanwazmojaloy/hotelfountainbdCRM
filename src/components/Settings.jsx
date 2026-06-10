@@ -84,7 +84,7 @@ export default function Settings() {
     } catch (e) { setMsg('Save failed: ' + (e.message || String(e))); } finally { setSaving(false); }
   }
 
-  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
   const TABS = [{ id: 'hotel', label: 'Hotel Info' }, { id: 'users', label: 'Staff' }, { id: 'security', label: 'Security' }, { id: 'system', label: 'System' }];
 
@@ -116,7 +116,7 @@ export default function Settings() {
             <div><label style={lbl}>VAT Rate (%)</label><input type="number" style={field} value={hs.vat} onChange={set('vat')} min="0" max="30" /></div>
             <div><label style={lbl}>Service Charge (%)</label><input type="number" style={field} value={hs.svc} onChange={set('svc')} min="0" max="30" /></div>
           </div>
-          {msg && <div className="mb-3 text-sm" style={{ color: msg.startsWith('Save failed') ? '#C0566A' : '#3C6B4A' }}>{msg}</div>}
+          {msg && <div className="mb-3 text-sm" style={{ color: msg.startsWith('Save failed') ? '#DC2626' : '#16A34A' }}>{msg}</div>}
           <button className="iv-btn" onClick={saveHotel} disabled={saving}>{saving ? 'Saving…' : 'Save Settings'}</button>
         </div>
       )}
@@ -131,12 +131,12 @@ export default function Settings() {
           {!loading && staff.length === 0 && <div className="iv-stat__sub">No staff accounts.</div>}
           <div className="flex flex-col gap-2">
             {staff.map((u) => (
-              <div key={u.id} className="flex items-center justify-between" style={{ border: '1px solid #EAE3D6', borderRadius: 8, padding: '10px 14px' }}>
-                <div><div style={{ fontWeight: 600, fontSize: 14 }}>{u.name}</div><div className="iv-mono" style={{ fontSize: 11, color: '#8A7F6E' }}>{u.email}</div></div>
+              <div key={u.id} className="flex items-center justify-between" style={{ border: '1px solid var(--iv-border2)', borderRadius: 8, padding: '10px 14px' }}>
+                <div><div style={{ fontWeight: 600, fontSize: 14 }}>{u.name}</div><div className="iv-mono" style={{ fontSize: 11, color: 'var(--iv-ink3)' }}>{u.email}</div></div>
                 <div className="flex items-center gap-2">
-                  {u.role === 'owner' ? <span className="iv-badge" style={{ background: 'rgba(139,105,20,0.15)', color: '#8B6914' }}>★ Owner</span>
+                  {u.role === 'owner' ? <span className="iv-badge" style={{ background: 'rgba(79,70,229,0.12)', color: 'var(--iv-gold)' }}>★ Owner</span>
                     : <span className="iv-badge">{ROLE_LABEL[u.role] || u.role}</span>}
-                  {u.activated === false && <span className="iv-badge" style={{ background: 'rgba(192,86,106,0.12)', color: '#A23B4E' }}>Pending</span>}
+                  {u.activated === false && <span className="iv-badge" style={{ background: 'rgba(220,38,38,0.10)', color: '#DC2626' }}>Pending</span>}
                   {u.role !== 'owner' && <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => setStaffModal({ user: u })}>Edit</button>}
                 </div>
               </div>
@@ -150,8 +150,8 @@ export default function Settings() {
           <h3 className="text-lg mb-4 pb-3 iv-divider">Security</h3>
           <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 4 }}>Logout All Devices</div>
           <div className="iv-stat__sub mb-3">Immediately invalidates all active staff sessions. Everyone (except the owner) is signed out on next sync (≤90s).</div>
-          {secMsg && <div className="mb-3 text-sm" style={{ color: secMsg.startsWith('Failed') ? '#C0566A' : '#3C6B4A' }}>{secMsg}</div>}
-          <button className="iv-btn" style={{ background: '#A23B4E' }} onClick={logoutAllDevices} disabled={secBusy}>{secBusy ? 'Working…' : '⏻ Logout All Devices'}</button>
+          {secMsg && <div className="mb-3 text-sm" style={{ color: secMsg.startsWith('Failed') ? '#DC2626' : '#16A34A' }}>{secMsg}</div>}
+          <button className="iv-btn" style={{ background: '#DC2626' }} onClick={logoutAllDevices} disabled={secBusy}>{secBusy ? 'Working…' : '⏻ Logout All Devices'}</button>
         </div>
       )}
 
@@ -160,7 +160,7 @@ export default function Settings() {
           <h3 className="text-lg mb-4 pb-3 iv-divider">System</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[['Database', 'mynwfkgksqqwlqowlscj'], ['Region', 'us-east-1 (N. Virginia)'], ['Tenant', TENANT.slice(0, 18) + '…'], ['Plan', 'Founder — Unlimited']].map(([l, v]) => (
-              <div key={l} style={{ border: '1px solid #EAE3D6', borderRadius: 8, padding: '10px 14px' }}>
+              <div key={l} style={{ border: '1px solid var(--iv-border2)', borderRadius: 8, padding: '10px 14px' }}>
                 <div style={lbl}>{l}</div><div className="iv-mono" style={{ fontSize: 12, color: 'var(--iv-ink)' }}>{v}</div>
               </div>
             ))}

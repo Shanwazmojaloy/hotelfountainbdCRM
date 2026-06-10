@@ -117,7 +117,7 @@ export default function Reservations() {
       {/* Toolbar above the tab bar — the tabs' walnut underline runs full-width, nothing crowds it */}
       <div className="flex items-center justify-end gap-2 flex-wrap" style={{ marginBottom: 14 }}>
         <input className="iv-input" placeholder="Search guest, room…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '9px 12px', width: 240, maxWidth: '100%' }} />
-        <button className="iv-btn" onClick={() => setShowNew(true)} style={{ fontSize: 9.5, padding: '9px 16px' }}>+ New</button>
+        <button className="iv-btn" onClick={() => setShowNew(true)} style={{ fontSize: 12, padding: '9px 16px' }}>+ New</button>
       </div>
       <Tabs value={filter} onChange={setFilter} tabs={tabs} />
 
@@ -150,11 +150,11 @@ export default function Reservations() {
                 <td style={TD}><Badge tone={tone}>{label}</Badge></td>
                 <td style={TD}>
                   {r.status === 'RESERVED' ? (
-                    <button className="iv-btn" style={{ fontSize: 9.5, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setCheckAction({ reservation: r, action: 'checkin' }); }}>Check In</button>
+                    <button className="iv-btn" style={{ fontSize: 12, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setCheckAction({ reservation: r, action: 'checkin' }); }}>Check In</button>
                   ) : r.status === 'CHECKED_IN' ? (
-                    <button className="iv-btn" style={{ fontSize: 9.5, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setCheckAction({ reservation: r, action: 'checkout' }); }}>Check Out</button>
+                    <button className="iv-btn" style={{ fontSize: 12, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setCheckAction({ reservation: r, action: 'checkout' }); }}>Check Out</button>
                   ) : (
-                    <button className="iv-btn iv-btn--ghost" style={{ fontSize: 9.5, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setEditRes(r); }}>View</button>
+                    <button className="iv-btn iv-btn--ghost" style={{ fontSize: 12, padding: '4px 11px' }} onClick={(e) => { e.stopPropagation(); setEditRes(r); }}>View</button>
                   )}
                 </td>
               </HoverRow>

@@ -31,7 +31,7 @@ export default function RoomFormModal({ existingRooms = [], onClose, onSaved }) 
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
@@ -51,7 +51,7 @@ export default function RoomFormModal({ existingRooms = [], onClose, onSaved }) 
             <select style={field} value={f.status} onChange={set('status')}>{['AVAILABLE', 'OUT_OF_ORDER'].map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select>
           </div>
         </div>
-        {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Add Room'}</button>

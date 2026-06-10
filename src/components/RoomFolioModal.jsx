@@ -71,8 +71,8 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
     } catch (e) { alert(e.message || String(e)); }
   }
 
-  const lblS = { fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A7F6E' };
-  const row = { display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #F0EBE0', fontSize: 13 };
+  const lblS = { fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--iv-ink3)' };
+  const row = { display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--iv-border2)', fontSize: 13 };
 
   return (
     <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.5)', zIndex: 90,
@@ -80,18 +80,18 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="flex items-start justify-between mb-4 pb-4 iv-divider">
           <div>
-            <h3 className="text-xl">Room {room.room_number} <span style={{ color: '#8A7F6E', fontWeight: 400 }}>· {room.category || 'Standard'}</span></h3>
+            <h3 className="text-xl">Room {room.room_number} <span style={{ color: 'var(--iv-ink3)', fontWeight: 400 }}>· {room.category || 'Standard'}</span></h3>
             <div style={lblS} className="mt-1">{bdt(roomRate)}/night · {room.status}</div>
           </div>
           {activeRes && <div style={{ textAlign: 'right' }}><div style={lblS}>Balance Due</div>
-            <div className="iv-mono" style={{ fontSize: 22, fontWeight: 700, color: due > 0 ? '#C0566A' : '#3C6B4A' }}>{bdt(due)}</div></div>}
+            <div className="iv-mono" style={{ fontSize: 22, fontWeight: 700, color: due > 0 ? '#DC2626' : '#16A34A' }}>{bdt(due)}</div></div>}
         </div>
 
         {!activeRes && <div className="iv-stat__sub" style={{ padding: '12px 0' }}>No active (checked-in) reservation for this room.</div>}
 
         {activeRes && (
           <>
-            <div style={{ background: 'rgba(139,105,20,0.05)', border: '1px solid #EAE3D6', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+            <div style={{ background: 'rgba(79,70,229,0.05)', border: '1px solid var(--iv-border2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
               <div style={{ fontWeight: 600, fontSize: 15 }}>{guestName}</div>
               <div style={lblS} className="mt-1">{fmtDate(activeRes.check_in)} → {fmtDate(activeRes.check_out)} · {nights} night{nights !== 1 ? 's' : ''}</div>
             </div>
@@ -101,31 +101,31 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
               {fLoad && <div className="iv-stat__sub">Loading folio…</div>}
               {!fLoad && nights > 0 && (
                 <div style={row}><span>Room charge <span className="iv-badge" style={{ marginLeft: 6 }}>{nights}×{bdt(roomRate)}</span></span>
-                  <span className="iv-mono" style={{ color: '#8B6914' }}>{bdt(roomCharge)}</span></div>
+                  <span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(roomCharge)}</span></div>
               )}
               {chargeFolios.map((f) => (
                 <div key={f.id} style={row}>
                   <span>{f.description} <span className="iv-badge" style={{ marginLeft: 6 }}>{f.category}</span></span>
-                  <span className="flex items-center gap-2"><span className="iv-mono" style={{ color: '#8B6914' }}>{bdt(f.amount)}</span>
-                    <button title="Delete charge" onClick={() => deleteCharge(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C0566A', fontSize: 15, lineHeight: 1 }}>×</button></span>
+                  <span className="flex items-center gap-2"><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(f.amount)}</span>
+                    <button title="Delete charge" onClick={() => deleteCharge(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 15, lineHeight: 1 }}>×</button></span>
                 </div>
               ))}
               {!fLoad && chargeFolios.length === 0 && nights === 0 && <div className="iv-stat__sub">No charges.</div>}
             </div>
 
-            <div style={{ background: 'rgba(139,105,20,0.04)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
-              <div className="flex justify-between text-sm" style={{ color: '#8A7F6E', marginBottom: 3 }}><span>Subtotal</span><span className="iv-mono">{bdt(sub)}</span></div>
-              {discount > 0 && <div className="flex justify-between text-sm" style={{ color: '#3C6B4A', marginBottom: 3 }}><span>Discount{isMulti ? ' (prorated)' : ''}</span><span className="iv-mono">− {bdt(discount)}</span></div>}
+            <div style={{ background: 'rgba(79,70,229,0.04)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+              <div className="flex justify-between text-sm" style={{ color: 'var(--iv-ink3)', marginBottom: 3 }}><span>Subtotal</span><span className="iv-mono">{bdt(sub)}</span></div>
+              {discount > 0 && <div className="flex justify-between text-sm" style={{ color: '#16A34A', marginBottom: 3 }}><span>Discount{isMulti ? ' (prorated)' : ''}</span><span className="iv-mono">− {bdt(discount)}</span></div>}
               <div className="flex justify-between text-sm" style={{ fontWeight: 600, marginBottom: 3 }}><span>Total</span><span className="iv-mono">{bdt(total)}</span></div>
-              <div className="flex justify-between text-sm" style={{ color: '#3C6B4A', marginBottom: 3 }}><span>Paid{isMulti ? ' (prorated)' : ''}</span><span className="iv-mono">− {bdt(paid)}</span></div>
-              <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 14, color: due > 0 ? '#C0566A' : '#3C6B4A', borderTop: '1px solid #EAE3D6', paddingTop: 6, marginTop: 3 }}><span>Balance Due</span><span className="iv-mono">{bdt(due)}</span></div>
+              <div className="flex justify-between text-sm" style={{ color: '#16A34A', marginBottom: 3 }}><span>Paid{isMulti ? ' (prorated)' : ''}</span><span className="iv-mono">− {bdt(paid)}</span></div>
+              <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 14, color: due > 0 ? '#DC2626' : '#16A34A', borderTop: '1px solid var(--iv-border2)', paddingTop: 6, marginTop: 3 }}><span>Balance Due</span><span className="iv-mono">{bdt(due)}</span></div>
             </div>
 
             <div className="flex gap-2 flex-wrap justify-end">
               <button className="iv-btn iv-btn--ghost" onClick={() => setShowCharge(true)}>+ Add Charge</button>
               <button className="iv-btn iv-btn--ghost" onClick={() => printInvoice({ ...activeRes, guest_name: guestName }, rooms, guestName, folios)}>Invoice</button>
               <button className="iv-btn iv-btn--ghost" onClick={() => setShowPay(true)} disabled={due <= 0}>Collect Payment</button>
-              <button className="iv-btn" style={{ background: '#A23B4E' }} onClick={() => setShowCO(true)}>Check Out</button>
+              <button className="iv-btn" style={{ background: '#DC2626' }} onClick={() => setShowCO(true)}>Check Out</button>
             </div>
           </>
         )}

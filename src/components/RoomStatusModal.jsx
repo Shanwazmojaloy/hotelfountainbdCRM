@@ -10,7 +10,7 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 const OPTIONS = [
   { v: 'AVAILABLE', label: 'Available', c: '#4A7C59' },
   { v: 'DIRTY', label: 'Dirty', c: '#D9A441' },
-  { v: 'OUT_OF_ORDER', label: 'Out of Order', c: '#C0566A' },
+  { v: 'OUT_OF_ORDER', label: 'Out of Order', c: '#DC2626' },
 ];
 
 export default function RoomStatusModal({ room, onClose, onSaved }) {
@@ -50,7 +50,7 @@ export default function RoomStatusModal({ room, onClose, onSaved }) {
             <button key={o.v} onClick={() => setStatus(o.v)}
               className="flex items-center gap-3 text-left"
               style={{ padding: '11px 14px', border: `1px solid ${status === o.v ? o.c : 'var(--iv-border)'}`,
-                borderRadius: 4, background: status === o.v ? `${o.c}14` : '#FFFDF8', transition: 'border-color .18s var(--iv-ease), background .18s var(--iv-ease)' }}>
+                borderRadius: 8, background: status === o.v ? `${o.c}14` : '#fff', transition: 'border-color .18s var(--iv-ease), background .18s var(--iv-ease)' }}>
               <span style={{ width: 10, height: 10, borderRadius: 99, background: o.c, display: 'inline-block' }} />
               <span style={{ color: 'var(--iv-ink)', fontSize: 14 }}>{o.label}</span>
               {status === o.v && <span className="ml-auto" style={{ color: o.c, fontSize: 13 }}>✓</span>}
@@ -58,7 +58,7 @@ export default function RoomStatusModal({ room, onClose, onSaved }) {
           ))}
         </div>
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>

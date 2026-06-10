@@ -68,7 +68,7 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
     }
   }
 
-  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
@@ -77,7 +77,7 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 460, maxHeight: '92vh', overflowY: 'auto' }}>
         <h3 className="text-xl mb-1">Record Payment</h3>
         <div className="iv-stat__sub mb-4 pb-4 iv-divider">
-          {r.guest_name || 'Guest'} · Room {room || '—'} · Balance <span style={{ color: '#C0566A' }}>{bdt(balance)}</span>
+          {r.guest_name || 'Guest'} · Room {room || '—'} · Balance <span style={{ color: '#DC2626' }}>{bdt(balance)}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -91,7 +91,7 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
           <select style={field} value={type} onChange={(e) => setType(e.target.value)}>{TYPES.map((t) => <option key={t}>{t}</option>)}</select>
         </div>
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>

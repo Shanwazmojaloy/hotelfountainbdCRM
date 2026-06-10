@@ -16,16 +16,16 @@ const LEAD_STATUS = {
   new: { bg: 'rgba(139,111,176,0.15)', fg: '#6B53A0' },
   approved: { bg: 'rgba(56,132,180,0.15)', fg: '#2E6A8E' },
   contacted: { bg: 'rgba(217,164,65,0.15)', fg: '#8A6A1E' },
-  replied: { bg: 'rgba(60,107,74,0.15)', fg: '#3C6B4A' },
+  replied: { bg: 'rgba(22,163,74,0.12)', fg: '#16A34A' },
 };
 const OFFER_STATUS = {
   sent: { bg: 'rgba(217,164,65,0.15)', fg: '#8A6A1E' },
-  accepted: { bg: 'rgba(60,107,74,0.15)', fg: '#3C6B4A' },
-  declined: { bg: 'rgba(192,86,106,0.15)', fg: '#A23B4E' },
+  accepted: { bg: 'rgba(22,163,74,0.12)', fg: '#16A34A' },
+  declined: { bg: 'rgba(220,38,38,0.12)', fg: '#DC2626' },
 };
 
 function Badge({ map, s }) {
-  const v = map[s] || { bg: '#EEE8DC', fg: '#8A7F6E' };
+  const v = map[s] || { bg: '#EEE8DC', fg: 'var(--iv-ink3)' };
   return <span className="iv-badge" style={{ background: v.bg, color: v.fg }}>{s || '—'}</span>;
 }
 
@@ -66,8 +66,8 @@ export default function Pipeline() {
     } catch (e) { setMsg('Failed: ' + (e.message || String(e))); } finally { setBusy(''); }
   }
 
-  const th = { color: '#8A7F6E', borderBottom: '1px solid #EAE3D6' };
-  const td = { borderBottom: '1px solid #F0EBE0' };
+  const th = { color: 'var(--iv-ink3)', borderBottom: '1px solid var(--iv-border2)' };
+  const td = { borderBottom: '1px solid var(--iv-border2)' };
 
   return (
     <div>
@@ -76,7 +76,7 @@ export default function Pipeline() {
         <button onClick={() => setTab('leads')} className={tab === 'leads' ? 'iv-btn' : 'iv-btn iv-btn--ghost'} style={{ padding: '6px 14px', fontSize: 13 }}>Swarm Leads ({leads.length})</button>
         <button onClick={() => setTab('offers')} className={tab === 'offers' ? 'iv-btn' : 'iv-btn iv-btn--ghost'} style={{ padding: '6px 14px', fontSize: 13 }}>Upsell Offers ({offers.length})</button>
       </div>
-      {msg && <div className="mb-4 text-sm" style={{ color: msg.startsWith('Failed') ? '#C0566A' : '#3C6B4A' }}>{msg}</div>}
+      {msg && <div className="mb-4 text-sm" style={{ color: msg.startsWith('Failed') ? '#DC2626' : '#16A34A' }}>{msg}</div>}
 
       {tab === 'leads' && (
         <div className="iv-card overflow-x-auto">
@@ -90,10 +90,10 @@ export default function Pipeline() {
                   <td className="py-2"><div style={{ color: 'var(--iv-ink)', fontWeight: 500 }}>{l.full_name || '—'}</div><div className="iv-stat__sub">{l.title || ''}</div></td>
                   <td className="py-2">{l.company_name || '—'}<div className="iv-stat__sub">{l.area || ''}</div></td>
                   <td className="py-2"><span className="iv-badge">{l.lead_type || '—'}</span></td>
-                  <td className="py-2 iv-mono" style={{ color: (l.intent_score || 0) >= 80 ? '#3C6B4A' : '#8B6914' }}>{l.intent_score ?? '—'}</td>
+                  <td className="py-2 iv-mono" style={{ color: (l.intent_score || 0) >= 80 ? '#16A34A' : 'var(--iv-gold)' }}>{l.intent_score ?? '—'}</td>
                   <td className="py-2"><Badge map={LEAD_STATUS} s={l.outreach_status} /></td>
-                  <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{l.email || ''}<div>{l.phone || ''}</div></td>
-                  <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{fmtDate(l.created_at)}</td>
+                  <td className="py-2 text-xs" style={{ color: 'var(--iv-ink3)' }}>{l.email || ''}<div>{l.phone || ''}</div></td>
+                  <td className="py-2 text-xs" style={{ color: 'var(--iv-ink3)' }}>{fmtDate(l.created_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -115,9 +115,9 @@ export default function Pipeline() {
                     <td className="py-2">{o.guest_name || '—'}</td>
                     <td className="py-2"><span className="iv-badge">{o.room_number || o.room || '—'}</span></td>
                     <td className="py-2">{o.offer_title || o.offer_type || '—'}</td>
-                    <td className="py-2 iv-mono" style={{ color: '#8B6914' }}>{bdt(o.offer_price)}</td>
+                    <td className="py-2 iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(o.offer_price)}</td>
                     <td className="py-2"><Badge map={OFFER_STATUS} s={o.status} /></td>
-                    <td className="py-2 text-xs" style={{ color: '#8A7F6E' }}>{fmtDate(o.sent_at || o.created_at)}</td>
+                    <td className="py-2 text-xs" style={{ color: 'var(--iv-ink3)' }}>{fmtDate(o.sent_at || o.created_at)}</td>
                     <td className="py-2">
                       {open && (
                         <span className="flex gap-1">

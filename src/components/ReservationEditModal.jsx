@@ -142,7 +142,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
@@ -152,7 +152,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
         <div className="flex items-start justify-between mb-4 pb-4 iv-divider">
           <div><h3 className="text-xl">{gn}</h3><div style={lbl} className="mt-1">Edit Reservation · {(res.room_ids || []).join(', ') || '—'}</div></div>
           <div style={{ textAlign: 'right' }}><div style={lbl}>Balance</div>
-            <div className="iv-mono" style={{ fontSize: 20, fontWeight: 700, color: balance > 0 ? '#C0566A' : '#3C6B4A' }}>{bdt(balance)}</div></div>
+            <div className="iv-mono" style={{ fontSize: 20, fontWeight: 700, color: balance > 0 ? '#DC2626' : '#16A34A' }}>{bdt(balance)}</div></div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -161,7 +161,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
         </div>
 
         <div className="mb-4">
-          <label style={lbl}>Rooms {nights > 0 && <span style={{ textTransform: 'none', letterSpacing: 0, color: '#8B6914' }}>· {nights} night{nights !== 1 ? 's' : ''}{extNights > 0 ? ` (+${extNights} ext)` : ''}</span>}</label>
+          <label style={lbl}>Rooms {nights > 0 && <span style={{ textTransform: 'none', letterSpacing: 0, color: 'var(--iv-gold)' }}>· {nights} night{nights !== 1 ? 's' : ''}{extNights > 0 ? ` (+${extNights} ext)` : ''}</span>}</label>
           <div className="flex flex-wrap gap-2">
             {selectableRooms.map((r) => (
               <button key={r.id} type="button" onClick={() => toggleRoom(r.room_number)}
@@ -180,15 +180,15 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
 
         <div className="mb-4"><label style={lbl}>Notes / Special Requests</label><input style={field} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
 
-        <div style={{ background: 'rgba(139,105,20,0.04)', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
-          <div className="flex justify-between text-sm" style={{ marginBottom: 3 }}><span style={{ color: '#8A7F6E' }}>Total{_isUserEditing ? ' (recalc)' : ''}</span><span className="iv-mono">{bdt(totalAmt)}</span></div>
-          {discountNum > 0 && <div className="flex justify-between text-sm" style={{ color: '#3C6B4A', marginBottom: 3 }}><span>Discount</span><span className="iv-mono">− {bdt(discountNum)}</span></div>}
-          <div className="flex justify-between text-sm" style={{ color: '#3C6B4A', marginBottom: 3 }}><span>Paid</span><span className="iv-mono">− {bdt(paidNum)}</span></div>
-          {extCharge > 0 && <div className="flex justify-between text-sm" style={{ color: '#A23B4E', marginBottom: 3 }}><span>Stay extension (will post)</span><span className="iv-mono">+ {bdt(extCharge)}</span></div>}
-          <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 14, color: balance > 0 ? '#C0566A' : '#3C6B4A', borderTop: '1px solid #EAE3D6', paddingTop: 6, marginTop: 3 }}><span>Balance Due</span><span className="iv-mono">{bdt(balance)}</span></div>
+        <div style={{ background: 'rgba(79,70,229,0.04)', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
+          <div className="flex justify-between text-sm" style={{ marginBottom: 3 }}><span style={{ color: 'var(--iv-ink3)' }}>Total{_isUserEditing ? ' (recalc)' : ''}</span><span className="iv-mono">{bdt(totalAmt)}</span></div>
+          {discountNum > 0 && <div className="flex justify-between text-sm" style={{ color: '#16A34A', marginBottom: 3 }}><span>Discount</span><span className="iv-mono">− {bdt(discountNum)}</span></div>}
+          <div className="flex justify-between text-sm" style={{ color: '#16A34A', marginBottom: 3 }}><span>Paid</span><span className="iv-mono">− {bdt(paidNum)}</span></div>
+          {extCharge > 0 && <div className="flex justify-between text-sm" style={{ color: '#DC2626', marginBottom: 3 }}><span>Stay extension (will post)</span><span className="iv-mono">+ {bdt(extCharge)}</span></div>}
+          <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 14, color: balance > 0 ? '#DC2626' : '#16A34A', borderTop: '1px solid var(--iv-border2)', paddingTop: 6, marginTop: 3 }}><span>Balance Due</span><span className="iv-mono">{bdt(balance)}</span></div>
         </div>
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
 
         <div className="flex justify-between gap-2 flex-wrap iv-foot">
           <div className="flex gap-2 flex-wrap">
