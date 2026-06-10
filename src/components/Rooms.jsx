@@ -10,6 +10,8 @@ import RoomStatusModal from './RoomStatusModal';
 import RoomFormModal from './RoomFormModal';
 import RoomFolioModal from './RoomFolioModal';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
+import { useAuth } from './AuthGate';
+import { can } from '@/lib/permissions';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
@@ -29,6 +31,9 @@ const tint = (hex, a) => {
 };
 
 export default function Rooms() {
+  const { user } = useAuth();
+  // Housekeeping updates room STATUS only — never opens the folio (guest billing) (RBAC 2026-06-10).
+  const canFolio = can(user?.role, 'viewGuestDetails');
   const _cached = getSnap('rooms'); // hot tier — instant tab→tab revisits
   const [rooms, setRooms] = useState(_cached?.rooms || []);
   const [filter, setFilter] = useState('ALL');
@@ -99,7 +104,7 @@ export default function Rooms() {
           <h3 style={{ margin: 0, fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)', letterSpacing: '-.01em' }}>Floor <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}>Plan</em></h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ display: 'inline-flex', fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.01em', padding: '3px 10px', borderRadius: 999, color: 'var(--iv-gold)', background: 'rgba(139,105,20,.08)', border: '1px solid rgba(139,105,20,.22)' }}>{filtered.length} rooms</span>
-            <button className="iv-btn" onClick={() => setShowAddRoom(true)} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Room</button>
+            {canFolio && <button className="iv-btn" onClick={() => setShowAddRoom(true)} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Room</button>}
           </div>
         </header>
         <div style={{ padding: '16px 18px' }}>
@@ -126,7 +131,7 @@ export default function Rooms() {
               return (
                 <div
                   key={room.id}
-                  onClick={() => { if (room.status === 'OCCUPIED') setFolioRoom(room); else setStatusRoom(room); }}
+                  onClick={() => { if (room.status === 'OCCUPIED' && canFolio) setFolioRoom(room); else setStatusRoom(room); }}
                   style={{
                     background: `linear-gradient(135deg, ${tint(st.c, 0.13)}, ${tint(st.c, 0.04)}), #ffffff`,
                     border: `1px solid ${tint(st.c, 0.28)}`,

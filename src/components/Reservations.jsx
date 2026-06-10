@@ -11,6 +11,7 @@ import ReservationEditModal from './ReservationEditModal';
 import { Tabs, Card, Table, Badge, Avatar, Skeleton, TD, MONO, HoverRow, C, bdt } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 import { useAuth } from './AuthGate';
+import { can } from '@/lib/permissions';
 
 const fmtDate = (d) => {
   if (!d) return '—';
@@ -42,9 +43,9 @@ export default function Reservations() {
   const [editRes, setEditRes] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const { user } = useAuth();
-  // Owner decision 2026-06-10: delete visible to ALL signed-in staff (was owner/manager).
-  // Confirm dialog + server-side identity logging remain the guardrails.
-  const canDelete = !!user;
+  // RBAC 2026-06-10: delete is ADMIN-ONLY (receptionist explicitly "cannot delete anything").
+  // Supersedes the earlier all-staff widening. Server route re-enforces.
+  const canDelete = can(user?.role, 'delete');
 
   // CASCADE delete via the session-gated server route (owner/manager — server re-enforces).
   // DB FKs cascade transactions/payment_transactions/folios/ledger/invoices — no orphans.

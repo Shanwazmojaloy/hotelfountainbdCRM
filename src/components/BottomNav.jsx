@@ -3,6 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from './AuthGate';
+import { canAccess } from '@/lib/permissions';
 
 function Icon({ name }) {
   const p = {
@@ -29,10 +31,12 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const items = navItems.filter((item) => canAccess(user?.role, item.href));
 
   return (
     <nav className="iv-bottom-nav md:hidden">
-      {navItems.map((item) => {
+      {items.map((item) => {
         const active = pathname === item.href;
         return (
           <Link key={item.href} href={item.href} className={`iv-bottom-item ${active ? 'on' : ''}`}>

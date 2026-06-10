@@ -8,6 +8,8 @@ import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { CountUp, Skeleton } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
+import { useAuth } from './AuthGate';
+import { can } from '@/lib/permissions';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const getDhakaDate = () =>
@@ -99,6 +101,9 @@ function Bar({ h, lbl, peak }) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  // Housekeeping = operational metrics only, NO guest personal details / money (RBAC 2026-06-10).
+  const showGuestDetails = can(user?.role, 'viewGuestDetails');
   // Day-scoped key: "Today's Revenue/Guests" are date-derived — an unscoped key painted
   // yesterday's money after midnight (audit LOW-17).
   const SNAP_KEY = 'dashboard.' + new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
@@ -221,11 +226,13 @@ export default function Dashboard() {
   return (
     <div className="iv-dash-root" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: 20 }}>
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, flexShrink: 0 }} className="iv-stat-grid iv-stagger">
+      <div style={{ display: 'grid', gridTemplateColumns: showGuestDetails ? 'repeat(4,1fr)' : 'repeat(3,1fr)', gap: 16, flexShrink: 0 }} className="iv-stat-grid iv-stagger">
         <StatCard icon="🏨" label="Occupied Rooms" accent={GRN} value={loading ? '—' : stats.occupied} sub={loading ? '' : `of ${stats.totalRooms} · ${stats.occupancy}% occupancy`} />
-        <StatCard icon="৳" label="Today's Revenue" accent={GOLD} value={loading ? '—' : bdt(stats.revenue)} sub="Collected today · Asia/Dhaka" />
+        {showGuestDetails && <StatCard icon="৳" label="Today's Revenue" accent={GOLD} value={loading ? '—' : bdt(stats.revenue)} sub="Collected today · Asia/Dhaka" />}
         <StatCard icon="✈" label="Arrivals Today" accent={SKY} value={loading ? '—' : stats.checkins} sub="Scheduled check-ins" />
-        <StatCard icon="⚠" label="Balance Due" accent={ROSE} value={loading ? '—' : bdt(stats.outstanding)} sub={loading ? '' : `${stats.dueCount} reservation${stats.dueCount === 1 ? '' : 's'}`} />
+        {showGuestDetails
+          ? <StatCard icon="⚠" label="Balance Due" accent={ROSE} value={loading ? '—' : bdt(stats.outstanding)} sub={loading ? '' : `${stats.dueCount} reservation${stats.dueCount === 1 ? '' : 's'}`} />
+          : <StatCard icon="🧹" label="Rooms to Clean" accent={AMB} value={loading ? '—' : (stats.totalRooms - stats.occupied)} sub="vacant / awaiting service" />}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, flexShrink: 0, alignItems: 'start' }} className="iv-chart-grid">
@@ -261,7 +268,8 @@ export default function Dashboard() {
         </DSCard>
       </div>
 
-      {/* Today's guests */}
+      {/* Today's guests — hidden from housekeeping (guest personal details + money) */}
+      {showGuestDetails && (
       <DSCard title="Today's" titleAccent="Guests"
         bodyStyle={{ padding: 0, flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         sectionStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
@@ -296,6 +304,7 @@ export default function Dashboard() {
           </table>
         </div>
       </DSCard>
+      )}
 
       <style>{`@media (min-width:901px){.iv-dash-root{height:calc(100dvh - 102px)}}@media (max-width:900px){.iv-stat-grid{grid-template-columns:repeat(2,1fr)!important}.iv-chart-grid{grid-template-columns:1fr!important}.iv-dash-root{height:auto;overflow-y:auto}}`}</style>
     </div>
