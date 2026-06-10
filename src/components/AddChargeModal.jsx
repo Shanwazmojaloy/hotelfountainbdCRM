@@ -37,21 +37,21 @@ export default function AddChargeModal({ roomNo, resId, onClose, onDone }) {
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
-  const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
     <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.55)', zIndex: 110,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 420, maxHeight: '92vh', overflowY: 'auto' }}>
         <h3 className="text-xl mb-5 pb-4 iv-divider">Add Charge — Room {roomNo || '—'}</h3>
-        <div className="mb-3"><label style={lbl}>Category</label>
+        <div className="mb-4"><label style={lbl}>Category</label>
           <select style={field} value={cat} onChange={(e) => setCat(e.target.value)}>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
         </div>
-        <div className="mb-3"><label style={lbl}>Amount (৳) *</label><input type="number" style={field} value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0" autoFocus /></div>
+        <div className="mb-4"><label style={lbl}>Amount (৳) *</label><input type="number" style={field} value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0" autoFocus /></div>
         <div className="mb-4"><label style={lbl}>Description</label><input style={field} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Optional detail" /></div>
         {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Adding…' : 'Add Charge'}</button>
         </div>

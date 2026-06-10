@@ -120,21 +120,21 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
-  const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
     <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.45)', zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 16, overflowY: 'auto' }}>
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 620, margin: '24px 0' }}>
-        <h3 className="text-xl mb-4 pb-4 iv-divider">New Reservation / Check-In</h3>
+        <h3 className="text-xl mb-5 pb-4 iv-divider">New Reservation / Check-In</h3>
 
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-5">
           {[['CHECK_IN', 'Direct Check-In'], ['RESERVATION', 'Future Reservation']].map(([v, l]) => (
             <button key={v} onClick={() => setF((p) => ({ ...p, stayType: v }))} className={f.stayType === v ? 'iv-btn' : 'iv-btn iv-btn--ghost'} style={{ padding: '6px 14px', fontSize: 13 }}>{l}</button>
           ))}
         </div>
 
-        <div className="mb-3" style={{ position: 'relative' }}>
+        <div className="mb-4" style={{ position: 'relative' }}>
           <label style={lbl}>Guest *</label>
           <input style={field} placeholder="Type name or phone…"
             value={f.guestName || guestQuery}
@@ -151,7 +151,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           )}
         </div>
 
-        <div className="mb-3">
+        <div className="mb-4">
           <label style={lbl}>Room(s) *</label>
           {f.roomNos.map((rn, idx) => (
             <div key={idx} className="flex gap-2 mb-2">
@@ -167,31 +167,31 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           <button onClick={() => setF((p) => ({ ...p, roomNos: [...p.roomNos, ''] }))} className="iv-btn iv-btn--ghost" style={{ padding: '4px 10px', fontSize: 12 }}>+ Add Room</button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Check-In Date *</label><input type="date" style={field} value={f.checkIn} onChange={set('checkIn')} /></div>
           <div><label style={lbl}>Check-Out Date *</label><input type="date" style={field} value={f.checkOut} onChange={set('checkOut')} /></div>
         </div>
         {nN > 0 && (
-          <div className="mb-3 text-sm" style={{ background: 'rgba(139,105,20,0.07)', border: '1px solid rgba(139,105,20,0.18)', padding: '8px 12px', borderRadius: 8 }}>
+          <div className="mb-4 text-sm" style={{ background: 'rgba(139,105,20,0.07)', border: '1px solid rgba(139,105,20,0.18)', padding: '9px 12px', borderRadius: 4 }}>
             {nN} night{nN !== 1 ? 's' : ''} × {f.roomNos.filter(Boolean).length} room{f.roomNos.filter(Boolean).length !== 1 ? 's' : ''} = <strong style={{ color: '#8B6914' }}>{bdt(autoTotal)}</strong>
           </div>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <div><label style={lbl}>Total (৳)</label><input type="number" style={field} value={f.total} onChange={set('total')} placeholder={String(autoTotal || 0)} /></div>
           <div><label style={lbl}>Paid (৳)</label><input type="number" style={field} value={f.paid} onChange={set('paid')} placeholder="0" /></div>
           <div><label style={lbl}>Discount (৳)</label><input type="number" style={field} value={f.discount} onChange={set('discount')} placeholder="0" /></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Payment Method</label>
             <select style={field} value={f.method} onChange={set('method')}>{['Cash', 'Bkash', 'Nagad', 'Card', 'Bank Transfer', 'Corporate', 'Complimentary'].map((m) => <option key={m}>{m}</option>)}</select>
           </div>
           <div><label style={lbl}>On-Duty Officer</label><input style={field} value={f.officer} onChange={set('officer')} placeholder="Staff name" /></div>
         </div>
-        <div className="mb-4"><label style={lbl}>Notes</label><textarea style={{ ...field, minHeight: 50, resize: 'vertical' }} value={f.notes} onChange={set('notes')} placeholder="Optional" /></div>
+        <div className="mb-4"><label style={lbl}>Notes</label><textarea style={{ ...field, minHeight: 64, resize: 'vertical' }} value={f.notes} onChange={set('notes')} placeholder="Optional" /></div>
 
         {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
 
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : (f.stayType === 'CHECK_IN' ? '✓ Check In Now' : 'Create Reservation')}</button>
         </div>

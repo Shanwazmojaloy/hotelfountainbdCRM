@@ -6,22 +6,30 @@ import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import TaskFormModal from './TaskFormModal';
 import { Card, StatCard, Table, Badge, Avatar, TD, C } from './dskit';
+import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 
 const STATUS_TONE = { pending: ['amber', 'Pending'], 'in-progress': ['blue', 'In Progress'], completed: ['green', 'Completed'] };
 const PRIORITY_DOT = { high: C.rose, medium: C.amb, low: C.grn };
 
 export default function Housekeeping() {
-  const [tasks, setTasks] = useState([]);
-  const [rooms, setRooms] = useState([]);
+  const _cached = getSnap('housekeeping'); // hot tier — instant tab→tab revisits
+  const [tasks, setTasks] = useState(_cached?.tasks || []);
+  const [rooms, setRooms] = useState(_cached?.rooms || []);
   const [filter, setFilter] = useState('ALL');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!_cached);
   const [saving, setSaving] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    if (!getSnap('housekeeping')) {
+      const warm = warmSnap('housekeeping'); // localStorage tier — instant paint after full reload
+      if (warm) { setTasks(warm.tasks || []); setRooms(warm.rooms || []); setLoading(false); }
+    }
+    fetchData();
+  }, []);
 
   async function fetchData() {
-    setLoading(true);
+    if (!getSnap('housekeeping')) setLoading(true); // revisits refresh silently behind cached rows
     try {
       const supabase = getSupabaseClient();
       const [{ data: t }, { data: r }] = await Promise.all([
@@ -30,6 +38,7 @@ export default function Housekeeping() {
       ]);
       setTasks(t || []);
       setRooms(r || []);
+      setSnap('housekeeping', { tasks: t || [], rooms: r || [] });
     } catch (e) {
       console.error('[Housekeeping] fetch error:', e);
     } finally {

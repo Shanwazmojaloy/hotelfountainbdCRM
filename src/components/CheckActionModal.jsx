@@ -59,7 +59,7 @@ export default function CheckActionModal({ reservation, action, onClose, onSaved
 
         {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
 
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="iv-btn" onClick={go} disabled={saving}>{saving ? 'Saving…' : (isOut ? 'Confirm Check-Out' : 'Confirm Check-In')}</button>
         </div>

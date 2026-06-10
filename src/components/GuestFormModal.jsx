@@ -81,8 +81,8 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
-  const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
     <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.45)', zIndex: 100,
@@ -90,21 +90,21 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
       <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 className="text-xl mb-5 pb-4 iv-divider">{isEdit ? `Edit — ${guest.name}` : 'Add New Guest'}</h3>
 
-        <div className="mb-3">
+        <div className="mb-4">
           <label style={lbl}>Full Name *</label>
           <input style={field} value={f.name} onChange={set('name')} placeholder="Guest full name" autoFocus />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Contact Number {isEdit ? '' : '*'}</label><input style={field} value={f.phone} onChange={set('phone')} placeholder="+880…" /></div>
           <div><label style={lbl}>Email</label><input style={field} type="email" value={f.email} onChange={set('email')} placeholder="guest@email.com" /></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>ID Type</label>
             <select style={field} value={f.id_type} onChange={set('id_type')}>{ID_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
           </div>
           <div><label style={lbl}>ID Number</label><input style={field} value={f.id_number} onChange={set('id_number')} placeholder="ID number" /></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Nationality</label><input style={field} value={f.nationality} onChange={set('nationality')} placeholder="e.g. Bangladeshi" /></div>
           <div><label style={lbl}>City</label><input style={field} value={f.city} onChange={set('city')} placeholder="Dhaka" /></div>
         </div>
@@ -115,7 +115,7 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
 
         {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 iv-foot">
           <div>
             {isEdit && (
               <button onClick={doDelete} disabled={saving}

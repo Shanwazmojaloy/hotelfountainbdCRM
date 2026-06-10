@@ -142,8 +142,8 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
-  const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
     <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(43,39,34,0.5)', zIndex: 90,
@@ -155,12 +155,12 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
             <div className="iv-mono" style={{ fontSize: 20, fontWeight: 700, color: balance > 0 ? '#C0566A' : '#3C6B4A' }}>{bdt(balance)}</div></div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Check-In</label><input type="date" style={field} value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} /></div>
           <div><label style={lbl}>Check-Out</label><input type="date" style={field} value={checkOut} onChange={(e) => setCheckOut(e.target.value)} /></div>
         </div>
 
-        <div className="mb-3">
+        <div className="mb-4">
           <label style={lbl}>Rooms {nights > 0 && <span style={{ textTransform: 'none', letterSpacing: 0, color: '#8B6914' }}>· {nights} night{nights !== 1 ? 's' : ''}{extNights > 0 ? ` (+${extNights} ext)` : ''}</span>}</label>
           <div className="flex flex-wrap gap-2">
             {selectableRooms.map((r) => (
@@ -172,13 +172,13 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <div><label style={lbl}>Status</label><select style={field} value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select></div>
           <div><label style={lbl}>Discount (৳)</label><input type="number" style={field} value={discountAmt} onChange={(e) => setDiscountAmt(e.target.value)} placeholder="0" /></div>
           <div><label style={lbl}>Paid (৳)</label><input type="number" style={field} value={paidAmt} onChange={(e) => setPaidAmt(e.target.value)} placeholder="0" /></div>
         </div>
 
-        <div className="mb-3"><label style={lbl}>Notes / Special Requests</label><input style={field} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        <div className="mb-4"><label style={lbl}>Notes / Special Requests</label><input style={field} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
 
         <div style={{ background: 'rgba(139,105,20,0.04)', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
           <div className="flex justify-between text-sm" style={{ marginBottom: 3 }}><span style={{ color: '#8A7F6E' }}>Total{_isUserEditing ? ' (recalc)' : ''}</span><span className="iv-mono">{bdt(totalAmt)}</span></div>
@@ -190,7 +190,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
 
         {err && <div className="mb-3 text-sm" style={{ color: '#C0566A' }}>{err}</div>}
 
-        <div className="flex justify-between gap-2 flex-wrap">
+        <div className="flex justify-between gap-2 flex-wrap iv-foot">
           <div className="flex gap-2 flex-wrap">
             <button className="iv-btn iv-btn--ghost" onClick={() => setShowCharge(true)}>+ Add Charge</button>
             <button className="iv-btn iv-btn--ghost" onClick={() => setShowPay(true)}>Record Payment</button>

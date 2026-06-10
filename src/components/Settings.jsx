@@ -84,8 +84,8 @@ export default function Settings() {
     } catch (e) { setMsg('Save failed: ' + (e.message || String(e))); } finally { setSaving(false); }
   }
 
-  const field = { padding: '9px 12px', border: '1px solid var(--iv-border)', borderRadius: 0, background: '#fff', width: '100%', fontSize: 13, color: 'var(--iv-ink)' };
-  const lbl = { fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--iv-ink3)', fontWeight: 600, marginBottom: 5, display: 'block' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
   const TABS = [{ id: 'hotel', label: 'Hotel Info' }, { id: 'users', label: 'Staff' }, { id: 'security', label: 'Security' }, { id: 'system', label: 'System' }];
 
   return (

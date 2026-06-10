@@ -37,8 +37,8 @@ function Card({ icon, title, color, desc, children }) {
   );
 }
 
-const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', width: '100%', fontSize: 14 };
-const lbl = { fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8A7F6E', marginBottom: 4, display: 'block' };
+const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 const pre = { background: '#FBF7EE', border: '1px solid #EAE3D6', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, monospace', color: '#4A443B', marginTop: 10, maxHeight: 320, overflow: 'auto' };
 
 export default function AIAgents() {
@@ -68,7 +68,7 @@ export default function AIAgents() {
 
   return (
     <div style={{ maxWidth: 820 }}>
-      <h1 className="text-3xl mb-2 pb-6 iv-divider">AI Agents</h1>
+      <h1 className="text-2xl mb-2 pb-4 iv-divider">AI Agents</h1>
       <div className="iv-stat__sub mb-6">Gemini-backed · connected to live Supabase data. {!ANON && <span style={{ color: '#C0566A' }}>· anon key not in build env</span>}</div>
 
       <Card icon="🔍" title="Prospector" color="#3884B4" desc="Finds potential leads and saves them to your leads table">

@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { CountUp, Skeleton } from './dskit';
-import { getSnap, setSnap } from '@/lib/snap';
+import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const getDhakaDate = () =>
@@ -108,7 +108,17 @@ export default function Dashboard() {
   const [peakInfo, setPeakInfo] = useState(_cached?.peakInfo || { date: '', val: 0, adr: 0, occupancy: 0 });
   const [loading, setLoading] = useState(!_cached);
 
-  useEffect(() => { fetchDashboard(); }, []);
+  useEffect(() => {
+    if (!getSnap('dashboard')) {
+      const warm = warmSnap('dashboard'); // localStorage tier — instant paint after full reload
+      if (warm) {
+        setStats(warm.stats || {}); setRev14(warm.rev14 || []); setTotal14(warm.total14 || 0);
+        setCatOcc(warm.catOcc || []); setGuests(warm.guests || []); setPeakInfo(warm.peakInfo || {});
+        setLoading(false);
+      }
+    }
+    fetchDashboard();
+  }, []);
 
   async function fetchDashboard() {
     if (!getSnap('dashboard')) setLoading(true); // first visit shows skeletons; revisits refresh silently

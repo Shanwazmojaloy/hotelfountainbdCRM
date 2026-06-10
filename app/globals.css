@@ -306,6 +306,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root ::-webkit-scrollbar-thumb { background:var(--iv-border); border-radius:4px; }
 .crm-root ::-webkit-scrollbar-thumb:hover { background:var(--iv-gold-light); }
 
+/* Modal footer — uniform action row: clear separation from the form body */
+.crm-root .iv-foot { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--iv-border2); }
+
 /* Accessibility — kill all motion for users who ask for it */
 @media (prefers-reduced-motion: reduce) {
   .crm-root *, .crm-root *::before, .crm-root *::after,

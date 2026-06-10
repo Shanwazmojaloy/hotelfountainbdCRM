@@ -6,22 +6,30 @@ import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import GuestFormModal from './GuestFormModal';
 import { Card, Table, Badge, Avatar, TD, MONO, C, bdt } from './dskit';
+import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 
 const PAGE_SIZE = 50;
 
 export default function Guests() {
-  const [guests, setGuests] = useState([]);
-  const [reservations, setReservations] = useState([]);
+  const _cached = getSnap('guests'); // hot tier — instant tab→tab revisits
+  const [guests, setGuests] = useState(_cached?.guests || []);
+  const [reservations, setReservations] = useState(_cached?.reservations || []);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!_cached);
   const [modalGuest, setModalGuest] = useState(undefined); // undefined=closed · null=add · object=edit
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    if (!getSnap('guests')) {
+      const warm = warmSnap('guests'); // localStorage tier — instant paint after full reload
+      if (warm) { setGuests(warm.guests || []); setReservations(warm.reservations || []); setLoading(false); }
+    }
+    fetchData();
+  }, []);
   useEffect(() => { setPage(1); }, [search]);
 
   async function fetchData() {
-    setLoading(true);
+    if (!getSnap('guests')) setLoading(true); // revisits refresh silently behind cached rows
     try {
       const supabase = getSupabaseClient();
       const [{ data: g }, { data: r }] = await Promise.all([
@@ -30,6 +38,7 @@ export default function Guests() {
       ]);
       setGuests(g || []);
       setReservations(r || []);
+      setSnap('guests', { guests: g || [], reservations: r || [] });
     } catch (e) {
       console.error('[Guests] fetch error:', e);
     } finally {
@@ -67,7 +76,7 @@ export default function Guests() {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <input className="iv-input" placeholder="Search name, phone, email…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '8px 12px', minWidth: 280, maxWidth: 340 }} />
+        <input className="iv-input" placeholder="Search name, phone, email…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '9px 12px', minWidth: 280, maxWidth: 340 }} />
         <div className="flex items-center gap-3">
           <Badge tone="gold">{filtered.length}{search ? ' found' : ` of ${guests.length}`}</Badge>
           <button className="iv-btn" onClick={() => setModalGuest(null)} style={{ fontSize: 9.5, padding: '8px 14px' }}>+ Add Guest</button>

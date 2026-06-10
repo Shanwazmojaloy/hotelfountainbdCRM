@@ -8,6 +8,7 @@
 // Session persisted as localStorage {id, session_v}; session_v match honours Logout-All.
 import { useState, useEffect, createContext, useContext } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { clearSnaps } from '@/lib/snap';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
@@ -111,7 +112,7 @@ export default function AuthGate({ children }) {
     } catch (e2) { setActErr(e2.message || String(e2)); } finally { setActBusy(false); }
   }
 
-  function signOut() { try { localStorage.removeItem('lumea_session'); } catch {} _authCache = null; setUser(null); setStatus('out'); }
+  function signOut() { try { localStorage.removeItem('lumea_session'); } catch {} clearSnaps(); _authCache = null; setUser(null); setStatus('out'); }
 
   if (status === 'checking') {
     // Ivory (never near-black) so the split-second before the optimistic flip is seamless.

@@ -130,7 +130,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
           </>
         )}
 
-        <div className="flex justify-end mt-4 pt-4 iv-divider">
+        <div className="flex justify-end iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose}>Close</button>
         </div>
       </div>

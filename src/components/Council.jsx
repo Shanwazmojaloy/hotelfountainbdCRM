@@ -54,14 +54,14 @@ export default function Council() {
 
   const allPanels = result ? [...result.panelists, result.chairman] : [];
   const active = allPanels.find((p) => p.role === activeRole);
-  const lbl = { fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A7F6E' };
-  const field = { padding: '8px 12px', border: '1px solid #E0D8C8', borderRadius: 8, background: '#FFFDF8', fontSize: 13 };
+  const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 4, background: '#FFFDF8', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
 
   return (
     <div style={{ maxWidth: 1100 }}>
-      <div className="flex items-end justify-between mb-6 pb-6 iv-divider">
+      <div className="flex items-end justify-between mb-6 pb-4 iv-divider">
         <div>
-          <h1 className="text-3xl">AI Advisory <span style={{ color: '#8B6914' }}>Council</span></h1>
+          <h1 className="text-2xl">AI Advisory <span style={{ color: '#8B6914' }}>Council</span></h1>
           <div style={lbl} className="mt-1">Five panelists · one chairman · one hardened verdict</div>
         </div>
         <button className="iv-btn iv-btn--ghost" onClick={() => setHistoryOpen((v) => !v)}>{historyOpen ? 'Hide' : 'History'} ({history.length})</button>

@@ -9,7 +9,7 @@ import NewReservationModal from './NewReservationModal';
 import CheckActionModal from './CheckActionModal';
 import ReservationEditModal from './ReservationEditModal';
 import { Tabs, Card, Table, Badge, Avatar, Skeleton, TD, MONO, HoverRow, C, bdt } from './dskit';
-import { getSnap, setSnap } from '@/lib/snap';
+import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 
 const fmtDate = (d) => {
   if (!d) return '—';
@@ -41,6 +41,10 @@ export default function Reservations() {
   const [editRes, setEditRes] = useState(null);
 
   useEffect(() => {
+    if (!getSnap('reservations')) {
+      const warm = warmSnap('reservations'); // localStorage tier — instant paint after full reload
+      if (warm) { setReservations(warm.reservations || []); setAllRooms(warm.allRooms || []); setAllGuests(warm.allGuests || []); setGuestMap(warm.guestMap || {}); setLoading(false); }
+    }
     fetchData();
     // Open the New Reservation/Check-In modal when the topbar "+ New Booking" fires —
     // via a custom event (already on this page) or a ?new=1 param (navigated from elsewhere).
@@ -110,15 +114,12 @@ export default function Reservations() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginBottom: 4 }}>
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <Tabs value={filter} onChange={setFilter} tabs={tabs} style={{ marginBottom: 16 }} />
-        </div>
-        <div className="flex items-center gap-2" style={{ paddingBottom: 16 }}>
-          <input className="iv-input" placeholder="Search guest, room…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '8px 12px', width: 200 }} />
-          <button className="iv-btn" onClick={() => setShowNew(true)} style={{ fontSize: 9.5, padding: '8px 14px' }}>+ New</button>
-        </div>
+      {/* Toolbar above the tab bar — the tabs' walnut underline runs full-width, nothing crowds it */}
+      <div className="flex items-center justify-end gap-2 flex-wrap" style={{ marginBottom: 14 }}>
+        <input className="iv-input" placeholder="Search guest, room…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '9px 12px', width: 240, maxWidth: '100%' }} />
+        <button className="iv-btn" onClick={() => setShowNew(true)} style={{ fontSize: 9.5, padding: '9px 16px' }}>+ New</button>
       </div>
+      <Tabs value={filter} onChange={setFilter} tabs={tabs} />
 
       <Card bodyStyle={{ padding: 0 }}>
         <Table head={['Guest', 'Room', 'Check-In', 'Check-Out', 'Nights', 'Total', 'Paid', 'Balance', 'Status', '']}>
