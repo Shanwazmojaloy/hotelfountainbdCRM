@@ -140,9 +140,16 @@ export default function InvoicePage() {
           </table>
           <p style={{ fontSize: 9, color: C.tx3, fontFamily: sans, margin: '8px 2px 0' }}>* Inclusive of applicable 15% VAT and 5% service charge per hotel policy.</p>
 
-          <div style={{ fontSize: 10.5, color: C.tx3, fontFamily: sans, lineHeight: 1.7, margin: '18px 0' }}>
-            <strong style={{ color: C.tx2, fontWeight: 400 }}>Check-in:</strong> 11:00 AM &nbsp;|&nbsp; <strong style={{ color: C.tx2, fontWeight: 400 }}>Check-out:</strong> 12:00 PM<br />
-            Thank you for choosing Hotel Fountain. Please present this invoice and a valid photo ID at the front desk on arrival.
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, margin: '18px 0' }}>
+            <div style={{ fontSize: 10.5, color: C.tx3, fontFamily: sans, lineHeight: 1.7 }}>
+              <strong style={{ color: C.tx2, fontWeight: 400 }}>Check-in:</strong> 11:00 AM &nbsp;|&nbsp; <strong style={{ color: C.tx2, fontWeight: 400 }}>Check-out:</strong> 12:00 PM<br />
+              Thank you for choosing Hotel Fountain. Please present this invoice and a valid photo ID at the front desk on arrival.
+            </div>
+            <div style={{ textAlign: 'center', flexShrink: 0 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1C1510&bgcolor=ffffff&data=https%3A%2F%2Fwa.me%2F8801322840799&qzone=1" width={64} height={64} style={{ display: 'block', margin: '0 auto' }} alt="WhatsApp QR" />
+              <div style={{ fontSize: 7.5, letterSpacing: '.08em', textTransform: 'uppercase', color: C.tx3, fontFamily: sans, marginTop: 3 }}>Scan · WhatsApp Us</div>
+            </div>
           </div>
 
           <button className="noprint" onClick={() => window.print()} style={{ width: '100%', padding: '12px', background: C.gold, color: C.bg, border: 'none', fontFamily: sans, fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', cursor: 'pointer', fontWeight: 600 }}>Print / Save PDF</button>

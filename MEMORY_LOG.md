@@ -2063,3 +2063,8 @@ CRM — per-row reservation DELETE (v3.28, 2026-06-10, owner request):
 - Server route: NEW delete action, **role-gated server-side to owner/manager** (staff select now pulls `role`; client also hides the button for other roles via useAuth — but the SERVER is the enforcement point). Frees held rooms (CHECKED_IN/RESERVED → AVAILABLE) before deleting; logs who deleted what.
 - CASCADE DELETE verified against live DB before building: reservations FKs cascade to transactions, payment_transactions, folios, guest_ledger, billing_invoices, upsell_offers, review_requests (council_sessions SET NULL). One DELETE = full financial trail removed, zero orphans — satisfies the house cascade rule.
 - Confirm dialog warns the payments/folios/invoices go too and shows outstanding balance being erased.
+
+INVOICE WHATSAPP QR — all guest-facing invoices (v3.29, 2026-06-10):
+- printInvoice (printDocs.js) footer → flex row: thank-you text left, 68×68 WhatsApp QR right ("Scan · WhatsApp Us"), linking https://wa.me/8801322840799 via api.qrserver.com 160×160 source (same pattern as printConfirmation, which already had it). Print trigger was already image-load-aware — QR can't miss the print.
+- Web invoice /invoice/[id] gets the same QR (64px) next to the check-in/out note. printDayReport (internal owner report) intentionally skipped.
+- Also v3.28.1: app/leads/page.tsx `any` → typed LeadRow (the last ESLint warning; builds are zero-warning now).
