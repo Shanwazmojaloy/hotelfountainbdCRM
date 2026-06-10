@@ -9,7 +9,7 @@
 //   clearSnaps()  — wipe both tiers; call on sign-out so cached guest/billing data does
 //                   not linger on the device after logout.
 const _snap = new Map();
-const PFX = 'lumea.snap.v1.';
+const PFX = 'lumea.snap.v2.'; // v2 2026-06-10: bust all pre-fresh-start snapshots on deploy
 const MAX_BYTES = 900000; // per-key guard — keep well under the ~5MB localStorage quota
 
 export function getSnap(key) { return _snap.has(key) ? _snap.get(key) : null; }
