@@ -129,7 +129,13 @@ export async function POST(req: NextRequest) {
         check_in: checkIn, check_out: checkOut, room_ids: newRoomNos, guest_name: gn,
       }).eq('id', id);
       if (upErr) throw upErr;
-      await recalcResTotalServer(supabase, id); // authoritative recompute
+      // Recalc ONLY when dates/rooms changed — unconditional recalc clobbered negotiated /
+      // custom totals on every edit (audit HIGH-3, 2026-06-10). Mirrors the modal's
+      // _isUserEditing rule: untouched stay = canonical total preserved.
+      const datesChanged = String(checkIn || '').slice(0, 10) !== String(prev.check_in || '').slice(0, 10)
+        || String(checkOut || '').slice(0, 10) !== String(prev.check_out || '').slice(0, 10);
+      const roomsChanged = JSON.stringify([...newRoomNos].sort()) !== JSON.stringify([...oldRoomNos].sort());
+      if (datesChanged || roomsChanged) await recalcResTotalServer(supabase, id);
       return NextResponse.json({ ok: true });
     }
 

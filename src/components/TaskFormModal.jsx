@@ -33,7 +33,7 @@ export default function TaskFormModal({ rooms = [], onClose, onSaved }) {
         const { error } = await supabase.from('housekeeping_tasks').insert({
           room_number: f.room_number, task_type: f.task_type, priority: f.priority,
           assignee: f.assignee?.trim() || null, scheduled_time: f.scheduled_time || null,
-          notes: f.notes?.trim() || null, status: 'pending', department: 'Housekeeping', tenant_id: TENANT,
+          notes: f.notes?.trim() || null, status: 'PENDING', department: 'Housekeeping', tenant_id: TENANT,
         });
         if (error) throw error;
       } else {

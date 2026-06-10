@@ -95,11 +95,12 @@ export default function Reservations() {
     if (!getSnap('reservations')) setLoading(true); // revisits refresh silently behind cached rows
     try {
       const supabase = getSupabaseClient();
-      const [{ data: r }, { data: g }, { data: rm }] = await Promise.all([
+      const [{ data: r, error: e1 }, { data: g, error: e2 }, { data: rm, error: e3 }] = await Promise.all([
         supabase.from('reservations').select('id, guest_name, guest_ids, room_ids, check_in, check_out, status, total_amount, paid_amount, discount, discount_amount, on_duty_officer, special_requests, notes').order('check_in', { ascending: false }).limit(5000),
         supabase.from('guests').select('id, name').limit(5000),
         supabase.from('rooms').select('id, room_number, status, category, price').order('room_number'),
       ]);
+      if (e1 || e2 || e3) console.error('[Reservations] query error:', e1 || e2 || e3);
       const m = {}; (g || []).forEach((x) => { m[String(x.id)] = x.name; });
       setReservations(r || []);
       setAllRooms(rm || []);

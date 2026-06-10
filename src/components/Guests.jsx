@@ -32,10 +32,11 @@ export default function Guests() {
     if (!getSnap('guests')) setLoading(true); // revisits refresh silently behind cached rows
     try {
       const supabase = getSupabaseClient();
-      const [{ data: g }, { data: r }] = await Promise.all([
+      const [{ data: g, error: e1 }, { data: r, error: e2 }] = await Promise.all([
         supabase.from('guests').select('id, name, phone, email, city, vip, id_type, id_number, id_card').order('name').limit(5000),
         supabase.from('reservations').select('guest_ids, guest_name, total_amount, discount_amount, discount, paid_amount'),
       ]);
+      if (e1 || e2) console.error('[Guests] query error:', e1 || e2);
       setGuests(g || []);
       setReservations(r || []);
       setSnap('guests', { guests: g || [], reservations: r || [] });
