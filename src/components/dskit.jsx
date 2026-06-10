@@ -95,7 +95,7 @@ export function StatCard({ icon, label, value, sub, accent = C.gold }) {
 
 export function Card({ title, titleAccent, accent, action, bodyStyle, children, style }) {
   return (
-    <section style={{ background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, boxShadow: 'var(--iv-card-shadow)', overflow: 'hidden', marginBottom: 16, ...style }}>
+    <section style={{ background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, boxShadow: 'var(--iv-card-shadow)', overflow: 'hidden', marginBottom: 20, ...style }}>
       {(title || action) && (
         <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexWrap: 'wrap' }}>
           {title != null && (
