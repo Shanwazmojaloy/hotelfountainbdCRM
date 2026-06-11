@@ -6,7 +6,7 @@
      - Cross-origin (Supabase, CDN, fonts) and /api/*: never intercepted.
      - Non-GET: never touched.
    Bump CACHE_VERSION to force a reinstall + purge of every old cache. */
-const CACHE_VERSION = 'lumea-v5';
+const CACHE_VERSION = 'lumea-v6';
 // respondWith must always resolve to a Response — never undefined (caused
 // "Failed to convert value to 'Response'" when an uncached fetch rejected).
 const swOffline = () => new Response('', { status: 504, statusText: 'Offline' });
