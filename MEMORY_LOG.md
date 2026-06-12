@@ -2181,3 +2181,7 @@ ROLE-BASED ACCESS CONTROL — department permissions (v3.34, 2026-06-10, owner s
 - TRADE-OFF: with both Daily Movements (~18) and Outstanding Dues (~18) as full tables, the PDF may now flow to a 2nd A4 page; the strict one-page lock only holds for modest lists. Accepted (owner wanted the complete dues table).
 - Shipped: `npm run build` GREEN; commit `aab3950` on chore/schema-baseline; cherry-picked to main as `bbdfe98` + pushed (Vercel auto-deploy). Backups src/components/Reports.jsx.bak_printreport (pre-feature) + .bak_duestable (pre-this-change).
 - PROCESS: MEMORY_LOG.md is now COMMITTED after each append (chore/schema-baseline) to avoid the reset --hard wipe that hit earlier; deploy verify uses BACKSLASH paths for findstr.
+
+## 2026-06-12 Reports - Today's Collections detail table (fix)
+- Bug report: room 308 MOHAMMAD RAIHAN paid Cash ৳4,000 today but did not appear in the report. Root cause = VISIBILITY gap, not lost money: Daily Movements is check-in/out driven, so a mid-stay "Advance Payment" on a guest with no movement today is counted in Total Collection (৳12,000 = 4,500 FAIJUL + 3,500 RAJIB + 4,000 RAIHAN) but shown in NO detail row. Two "Stay Extension" lines (8,000+4,500) are charges, correctly excluded by notBCF.
+- OPEN TODO: Billing "Outstanding dues ৳172,810" vs Reports "Total Due ৳220,810" differ - separate reconciliation (likely status/scope filter divergence), NOT addressed here.
