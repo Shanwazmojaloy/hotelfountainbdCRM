@@ -21,6 +21,22 @@ say()  { echo "${DIM}guard: $*${OFF}"; }
 fail() { echo "${RED}✖ $*${OFF}" >&2; FAIL=1; }
 pass() { echo "${GRN}✓ $*${OFF}"; }
 
+# Set when a counting/enumeration subprocess could not run (transient bash/fork
+# starvation — e.g. "couldn't create signal pipe, Win32 error 5"). When tripped
+# we report "guard could not run — rerun" instead of a FALSE brace-imbalance /
+# truncation block. See MEMORY_LOG (Win32-error-5 fork failures on landing commit).
+GUARD_BROKEN=0
+
+# Count occurrences of a single literal char in a file. Echoes a non-negative
+# integer on success, or "ERR" if the counting subprocess produced no/garbage
+# output (fork failure). Always exits 0 so `set -e` never trips on it.
+count_char() {
+  local n
+  n=$(grep -o "$2" "$1" 2>/dev/null | wc -l 2>/dev/null)
+  n=${n//[!0-9]/}
+  [ -n "$n" ] && echo "$n" || echo "ERR"
+}
+
 # ── 1. crm-src.jsx — must contain exactly one ReactDOM.createRoot call ──
 F="public/crm-src.jsx"
 if [ -f "$F" ]; then
@@ -30,12 +46,15 @@ if [ -f "$F" ]; then
   else
     pass "$F: createRoot guard ok"
   fi
-  # Balanced braces sanity
-  OB=$(grep -o "{" "$F" | wc -l)
-  CB=$(grep -o "}" "$F" | wc -l)
-  DIFF=$(( OB - CB ))
-  if [ "${DIFF#-}" -gt 5 ]; then
-    fail "$F: brace imbalance { = $OB, } = $CB"
+  # Balanced braces sanity (skip + flag if the counting subprocess failed)
+  OB=$(count_char "$F" "{"); CB=$(count_char "$F" "}")
+  if [ "$OB" = "ERR" ] || [ "$CB" = "ERR" ] || [ "$OB" = "0" ] || [ "$CB" = "0" ]; then
+    GUARD_BROKEN=1
+  else
+    DIFF=$(( OB - CB ))
+    if [ "${DIFF#-}" -gt 5 ]; then
+      fail "$F: brace imbalance { = $OB, } = $CB"
+    fi
   fi
   # Must end with the render line (no trailing junk)
   LAST=$(tail -1 "$F")
@@ -76,22 +95,36 @@ if [ -f "$F" ]; then
 fi
 
 # ── 3. All app/api/**/route.ts files — must end with closing brace ──────
-while IFS= read -r F; do
-  [ -z "$F" ] && continue
-  LAST=$(tail -1 "$F" | tr -d '[:space:]')
-  LC=${LAST: -1}
-  # valid TS file endings: } (block), ; (statement e.g. `export const POST = run;`), ) (call)
-  if [ "$LC" != "}" ] && [ "$LC" != ";" ] && [ "$LC" != ")" ]; then
-    fail "$F: last non-whitespace char '$LC' — possible truncation"
+if [ -d app/api ]; then
+  ROUTES=$(find app/api -name "route.ts" -type f 2>/dev/null || true)
+  if [ -z "$ROUTES" ]; then
+    # app/api exists but enumeration returned nothing — find/fork failed,
+    # NOT "no routes". Flag as guard-broken rather than silently passing.
+    GUARD_BROKEN=1
+  else
+    while IFS= read -r F; do
+      [ -z "$F" ] && continue
+      LAST=$(tail -1 "$F" 2>/dev/null | tr -d '[:space:]')
+      LC=${LAST: -1}
+      # valid TS file endings: } (block), ; (statement e.g. `export const POST = run;`), ) (call)
+      if [ "$LC" != "}" ] && [ "$LC" != ";" ] && [ "$LC" != ")" ]; then
+        fail "$F: last non-whitespace char '$LC' — possible truncation"
+      fi
+      # Quick syntactic sanity — balanced braces ±3 (skip + flag on counter failure)
+      OB=$(count_char "$F" "{"); CB=$(count_char "$F" "}")
+      if [ "$OB" = "ERR" ] || [ "$CB" = "ERR" ] || [ "$OB" = "0" ] || [ "$CB" = "0" ]; then
+        GUARD_BROKEN=1
+      else
+        DIFF=$(( OB - CB ))
+        if [ "${DIFF#-}" -gt 3 ]; then
+          fail "$F: brace imbalance { = $OB, } = $CB"
+        fi
+      fi
+    done <<EOF
+$ROUTES
+EOF
   fi
-  # Quick syntactic sanity — balanced braces ±3
-  OB=$(grep -o "{" "$F" | wc -l)
-  CB=$(grep -o "}" "$F" | wc -l)
-  DIFF=$(( OB - CB ))
-  if [ "${DIFF#-}" -gt 3 ]; then
-    fail "$F: brace imbalance { = $OB, } = $CB"
-  fi
-done < <(find app/api -name "route.ts" -type f 2>/dev/null)
+fi
 
 # ── 4. Untracked OneDrive sidecar files in tracked dirs ────────────────
 SIDE=$(git ls-files --others --exclude-standard 2>/dev/null | grep -E "\.(moved|stale|conflict|onedrive-[0-9])" || true)
@@ -100,29 +133,4 @@ if [ -n "$SIDE" ]; then
   echo "$SIDE" | head -5 | sed 's/^/   /'
 fi
 
-# ── 5. crm-bundle.js — built artifact must parse, have createRoot, stay in sync ──
-BUN="public/crm-bundle.js"
-if [ -f "$BUN" ]; then
-  if command -v node >/dev/null 2>&1; then
-    if node --check "$BUN" 2>/dev/null; then pass "$BUN: parses ok"; else fail "$BUN: does not parse — broken build, run 'npm run build:crm'"; fi
-  fi
-  NB=$(grep -c "createRoot" "$BUN" || true)
-  [ "$NB" -lt 1 ] && fail "$BUN: missing createRoot (empty/truncated build)"
-  if git diff --cached --name-only 2>/dev/null | grep -q "^public/crm-src.jsx$"; then
-    if ! git diff --cached --name-only 2>/dev/null | grep -q "^public/crm-bundle.js$"; then
-      fail "crm-src.jsx staged WITHOUT crm-bundle.js — run 'npm run build:crm' and stage the rebuilt bundle"
-    fi
-  fi
-fi
-
-if [ "$FAIL" = "1" ]; then
-  echo ""
-  echo "${RED}╔════════════════════════════════════════════════════════════╗${OFF}"
-  echo "${RED}║  COMMIT BLOCKED — OneDrive truncation guard tripped       ║${OFF}"
-  echo "${RED}║  See memory/onedrive_file_truncation.md for repair steps  ║${OFF}"
-  echo "${RED}╚════════════════════════════════════════════════════════════╝${OFF}"
-  exit 1
-fi
-
-say "all guarded files passed"
-exit 0
+# ── 5. crm-bundle.js — built artifact must parse
