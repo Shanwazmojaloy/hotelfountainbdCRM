@@ -105,6 +105,9 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const totalDue = allDue.reduce((a, r) => a + dueOf(r), 0);
   const tok = parseInt(token || '0', 10) || 0;
   const closing = collected - tok;
+  // Payment-method split derived from the composite `type` (no payment_method column exists).
+  const PM = [['Cash', /cash/i], ['bKash', /bkash/i], ['Nagad', /nagad/i], ['Card', /card/i], ['Bank', /bank|account|transfer/i]];
+  const paySplit = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((acc, t) => { const hit = PM.find(([, re]) => re.test(t.type || '')); const k = hit ? hit[0] : 'Other'; acc[k] = (acc[k] || 0) + (Number(t.amount) || 0); return acc; }, {});
 
   async function handleClose() {
     setErr('');
@@ -282,6 +285,48 @@ function Daily({ txs, res, closes, loading, onClosed }) {
           ))}
         </Table>
       </Card>
+
+      {/* ── PRINT-ONLY: one-page A4 condensed report (Download → window.print) ── */}
+      <div id="print-report" aria-hidden="true">
+        <div className="pr-head">
+          <div className="pr-brand"><span className="pr-crest">F</span><div><div className="pr-name">Hotel Fountain</div><div className="pr-sub">Management CRM · Powered by Lumea</div></div></div>
+          <div className="pr-meta"><div>Daily Performance Report</div><div>Generated: {fmtLong(date)}</div><div className="pr-badge">LIVE — OPEN DAY</div></div>
+        </div>
+        <div className="pr-grid3">
+          <div className="pr-card"><h4>Financial</h4>
+            <div className="pr-row"><span>Total Collection</span><b>{bdt(collected)}</b></div>
+            <div className="pr-row"><span>Opening Token</span><b>{bdt(tok)}</b></div>
+            <div className="pr-row pr-tot"><span>Closing Balance</span><b>{bdt(closing)}</b></div>
+          </div>
+          <div className="pr-card"><h4>Payment Method</h4>
+            {['Cash', 'bKash', 'Nagad', 'Card', 'Bank'].map((k) => (<div className="pr-row" key={k}><span>{k}</span><b>{bdt(paySplit[k] || 0)}</b></div>))}
+            {paySplit.Other ? (<div className="pr-row"><span>Other</span><b>{bdt(paySplit.Other)}</b></div>) : null}
+          </div>
+          <div className="pr-card"><h4>Operational</h4>
+            <div className="pr-row"><span>Total Movements</span><b>{moves.length}</b></div>
+            <div className="pr-row"><span>Outstanding Dues</span><b>{allDue.length} resv.</b></div>
+            <div className="pr-row pr-tot"><span>Total Due Sum</span><b className="pr-due">{bdt(totalDue)}</b></div>
+          </div>
+        </div>
+        <div className="pr-sec">Daily Movements</div>
+        <table className="pr-tbl">
+          <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th className="r">Collected</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
+          <tbody>
+            {moves.map((m, i) => { const due = dueOf(m); return (
+              <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{m._type === 'IN' ? 'Check-In' : 'Check-Out'}</td><td className="r">{bdt(collectedFor(m))}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
+            ); })}
+          </tbody>
+        </table>
+        <div className="pr-dues">
+          <div className="pr-dues-h"><span>Outstanding Dues — {allDue.length} reservation{allDue.length === 1 ? '' : 's'}</span><b>{bdt(totalDue)}</b></div>
+          <div className="pr-dues-b">
+            {allDue.slice(0, 6).map((r, i) => (<span className="pr-di" key={i}><b>{r.guest_name || 'Guest'}</b> <i>{roomOf(r)}</i> <u>{bdt(dueOf(r))}</u></span>))}
+            {allDue.length > 6 ? (<span className="pr-more">+ {allDue.length - 6} more outstanding</span>) : null}
+          </div>
+        </div>
+        <div className="pr-foot"><span>Hotel Fountain · Lumea CRM · /crm/reports</span><span>Generated {fmtLong(date)} · Page 1 of 1</span></div>
+      </div>
+      <style>{`#print-report{display:none}@media print{@page{size:A4 portrait;margin:10mm}html,body{background:#fff!important}body *{visibility:hidden!important}#print-report,#print-report *{visibility:visible!important}#print-report{display:block;position:absolute;left:0;top:0;width:100%;color:#000;font-family:'DM Sans',system-ui,sans-serif;font-size:10px;line-height:1.25;-webkit-print-color-adjust:exact;print-color-adjust:exact}#print-report .pr-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #C5A059;padding-bottom:6px;margin-bottom:8px}#print-report .pr-brand{display:flex;gap:8px;align-items:center}#print-report .pr-crest{width:24px;height:24px;border:1.5px solid #C5A059;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#8B6914;font-family:Georgia,serif;font-size:13px}#print-report .pr-name{font-family:Georgia,'Libre Baskerville',serif;font-size:15px;font-weight:700;color:#2D2A26}#print-report .pr-sub{font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:#7A7268;margin-top:1px}#print-report .pr-meta{text-align:right;font-size:8.5px;line-height:1.5;color:#2D2A26}#print-report .pr-badge{display:inline-block;margin-top:2px;background:#E9F3EE;color:#2F7D5B;border:1px solid #cfe5d9;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:600}#print-report .pr-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:8px}#print-report .pr-card{border:1px solid #EAE6DD;border-radius:5px;padding:6px 8px;background:#fcfbf8}#print-report .pr-card h4{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#8B6914;margin:0 0 4px;border-bottom:1px solid #EAE6DD;padding-bottom:3px}#print-report .pr-row{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;font-size:9.5px;color:#2D2A26}#print-report .pr-row span{color:#7A7268}#print-report .pr-row b{font-family:'IBM Plex Mono',monospace;font-weight:600}#print-report .pr-row.pr-tot{border-top:1px dashed #EAE6DD;margin-top:3px;padding-top:4px}#print-report .pr-row.pr-tot b{font-size:11px;color:#8B6914}#print-report .pr-due{color:#9A6A12!important}#print-report .pr-sec{font-family:Georgia,serif;font-size:11px;font-weight:700;color:#2D2A26;margin:3px 0 4px}#print-report .pr-tbl{width:100%;border-collapse:collapse}#print-report .pr-tbl th{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:#7A7268;text-align:left;border-bottom:1.5px solid #2D2A26;padding:4px 6px}#print-report .pr-tbl td{font-size:9.5px;padding:3px 6px;border-bottom:1px solid #EAE6DD;font-family:'IBM Plex Mono',monospace}#print-report .pr-tbl td:first-child,#print-report .pr-tbl th:first-child{font-family:'DM Sans',sans-serif}#print-report .pr-tbl .r{text-align:right}#print-report .pr-tbl tr{page-break-inside:avoid;break-inside:avoid}#print-report .pr-dues{margin-top:8px;border:1px solid #EAE6DD;border-radius:5px}#print-report .pr-dues-h{display:flex;justify-content:space-between;align-items:center;background:#FBF1DD;border-bottom:1px solid #ecdcb8;padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;text-transform:uppercase;letter-spacing:.08em;color:#9A6A12;font-weight:600}#print-report .pr-dues-h b{font-size:12px}#print-report .pr-dues-b{display:flex;flex-wrap:wrap;gap:4px 14px;padding:6px 8px}#print-report .pr-di{font-size:9px;color:#2D2A26}#print-report .pr-di i{font-style:normal;color:#7A7268;font-size:7.5px;font-family:'IBM Plex Mono',monospace}#print-report .pr-di u{text-decoration:none;color:#9A6A12;font-weight:600;font-family:'IBM Plex Mono',monospace}#print-report .pr-more{font-size:8.5px;color:#7A7268;align-self:center}#print-report .pr-foot{display:flex;justify-content:space-between;margin-top:7px;border-top:1px solid #EAE6DD;padding-top:5px;font-family:'IBM Plex Mono',monospace;font-size:7.5px;color:#7A7268}#print-report .pr-grid3,#print-report .pr-card,#print-report .pr-tbl,#print-report .pr-dues,#print-report .pr-head{page-break-inside:avoid;break-inside:avoid}}`}</style>
     </>
   );
 }
