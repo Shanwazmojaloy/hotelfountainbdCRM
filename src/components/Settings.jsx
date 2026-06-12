@@ -26,9 +26,10 @@ export default function Settings() {
 
   async function reloadStaff() {
     try {
-      const supabase = getSupabaseClient();
-      const { data: st } = await supabase.from('staff').select('id, name, email, role, activated, device').order('role');
-      setStaff(st || []);
+      // Server-routed (service role, owner-gated) — the browser anon key cannot read `staff`.
+      const r = await fetch('/api/crm/staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) });
+      const j = await r.json().catch(() => ({}));
+      setStaff(r.ok && j.staff ? j.staff : []);
     } catch (e) { console.error('[Settings] staff reload:', e); }
   }
 
@@ -39,11 +40,9 @@ export default function Settings() {
     setSecBusy(true); setSecMsg('');
     try {
       const r = await fetch('/api/crm/staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout_all' }) });
-      if (r.status === 401) {
-        const supabase = getSupabaseClient();
-        const { error } = await supabase.from('staff').update({ session_v: 2 }).eq('tenant_id', TENANT).neq('role', 'owner');
-        if (error) throw error;
-      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Failed'); }
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) throw new Error('Session expired — sign in again.');
+      if (!r.ok || j.error) throw new Error(j.error || 'Failed');
       setSecMsg('All sessions invalidated — staff will be signed out shortly.');
       reloadStaff();
     } catch (e) { setSecMsg('Failed: ' + (e.message || String(e))); } finally { setSecBusy(false); }
@@ -53,9 +52,9 @@ export default function Settings() {
     (async () => {
       try {
         const supabase = getSupabaseClient();
-        const [{ data: rows }, { data: st }] = await Promise.all([
+        const [{ data: rows }, staffRes] = await Promise.all([
           supabase.from('hotel_settings').select('key, value').eq('tenant_id', TENANT),
-          supabase.from('staff').select('id, name, email, role, activated, device').order('role'),
+          fetch('/api/crm/staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) }).then((r) => r.json()).catch(() => ({})),
         ]);
         if (rows && rows.length) {
           const m = {}; rows.forEach((r) => { m[r.key] = r.value; });
@@ -64,7 +63,7 @@ export default function Settings() {
             checkIn: m.check_in ?? p.checkIn, checkOut: m.check_out ?? p.checkOut, vat: m.vat_rate ?? p.vat, svc: m.service_charge ?? p.svc,
           }));
         }
-        setStaff(st || []);
+        setStaff(staffRes?.staff || []);
       } catch (e) { console.error('[Settings] load:', e); } finally { setLoading(false); }
     })();
   }, []);
