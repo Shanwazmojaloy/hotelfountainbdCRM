@@ -4,7 +4,6 @@
 // check-out (CHECKED_IN->CHECKED_OUT, rooms DIRTY; trg_auto_housekeeping makes the task).
 // Mirrors the legacy ReservationDetail status transitions. Warns on outstanding balance.
 import { useState } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const due = (r) => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
@@ -25,13 +24,12 @@ export default function CheckActionModal({ reservation, action, onClose, onSaved
         body: JSON.stringify({ action: isOut ? 'checkout' : 'checkin', reservation_id: r.id }),
       });
       if (resp.status === 401) {
-        const supabase = getSupabaseClient();
-        const newStatus = isOut ? 'CHECKED_OUT' : 'CHECKED_IN';
-        const roomStatus = isOut ? 'DIRTY' : 'OCCUPIED';
-        const { error: rErr } = await supabase.from('reservations').update({ status: newStatus }).eq('id', r.id);
-        if (rErr) throw rErr;
-        for (const rn of roomNos) { await supabase.from('rooms').update({ status: roomStatus }).eq('room_number', String(rn)); }
-      } else { const j = await resp.json().catch(() => ({})); if (!resp.ok || j.error) throw new Error(j.error || 'Could not complete.'); }
+        // Server session lapsed (12h). The old anon-write fallback was revoked by RLS hardening,
+        // so surface a clear re-login prompt instead of a confusing 'permission denied'.
+        throw new Error('Your session has expired. Please sign out and sign in again, then retry.');
+      }
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok || j.error) throw new Error(j.error || 'Could not complete.');
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
