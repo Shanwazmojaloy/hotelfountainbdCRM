@@ -10,6 +10,7 @@ import { printInvoice } from '@/lib/printDocs';
 import { Card as DSCard, Badge, C } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 import { openBusinessDay } from '@/lib/businessDay';
+import { outstandingList, outstandingTotal } from '@/lib/dues';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const getDhakaDate = () =>
@@ -80,11 +81,9 @@ export default function Billing() {
     [transactions],
   );
   const todayRevenue = collected.reduce((a, t) => a + (Number(t.amount) || 0), 0);
-  const dues = useMemo(
-    () => reservations.filter((r) => (r.status === 'CHECKED_IN' || r.status === 'CHECKED_OUT') && due(r) > 0).sort((a, b) => due(b) - due(a)),
-    [reservations],
-  );
-  const outstanding = dues.reduce((a, r) => a + due(r), 0);
+  // Outstanding = RECEIVABLES only (CHECKED_IN/CHECKED_OUT) - shared canonical helper (owner decision 2026-06-12)
+  const dues = useMemo(() => outstandingList(reservations), [reservations]);
+  const outstanding = outstandingTotal(reservations);
 
   // open folios = in-house or with a balance
   const folios = useMemo(

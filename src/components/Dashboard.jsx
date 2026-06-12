@@ -11,6 +11,7 @@ import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 import { useAuth } from './AuthGate';
 import { can } from '@/lib/permissions';
 import { openBusinessDay } from '@/lib/businessDay';
+import { outstandingTotal, outstandingList } from '@/lib/dues';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const getDhakaDate = () =>
@@ -168,14 +169,13 @@ export default function Dashboard() {
         if (match && groups[match.id]) groups[match.id].txs.push(tx);
       });
 
-      let revenue = 0, outstanding = 0, dueCount = 0;
+      let revenue = 0;
       Object.values(groups).forEach((g) => {
-        const inv = g.res;
-        const balanceDue = Math.max(0, Number(inv?.total_amount || 0) - Number(inv?.discount_amount || inv?.discount || 0) - Number(inv?.paid_amount || 0));
         revenue += g.txs.filter((t) => isPay(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === today).reduce((s, t) => s + (Number(t.amount) || 0), 0);
-        outstanding += balanceDue;
-        if (balanceDue > 0) dueCount++;
       });
+      // Outstanding = RECEIVABLES only (CHECKED_IN/CHECKED_OUT) - shared canonical helper (owner decision 2026-06-12)
+      const outstanding = outstandingTotal(res);
+      const dueCount = outstandingList(res).length;
 
       const occupied = rms.filter((r) => r.status === 'OCCUPIED').length;
       const occupancy = rms.length ? Math.round((occupied / rms.length) * 100) : 0;
