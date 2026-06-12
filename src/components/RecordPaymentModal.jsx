@@ -9,9 +9,7 @@
 //   3. else update reservations.paid_amount (owner-confirmed due-math source of truth),
 //      floored at the net bill so it can't push a balance negative.
 import { useState, useRef } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const getDhakaDate = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -44,24 +42,10 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
         body: JSON.stringify({ reservation_id: r.id, amount: a, type, fiscal_day: fiscalDay, idempotency_key: idemKey.current }),
       });
       if (resp.status === 401) {
-        // Transition fallback: session predates the cookie — direct write (allowed until revoke).
-        const supabase = getSupabaseClient();
-        const { error: txErr } = await supabase.from('transactions').insert({
-          room_number: room, guest_name: r.guest_name, type, amount: a,
-          fiscal_day: fiscalDay, reservation_id: r.id, tenant_id: TENANT, idempotency_key: idemKey.current,
-        });
-        if (txErr) {
-          if (/23505|duplicate key|uq_transactions_idempotency|uq_payment_tx_idempotency/i.test(txErr.message || '')) { onSaved?.(); onClose?.(); return; }
-          throw txErr;
-        }
-        const { data: fresh } = await supabase.from('reservations').select('paid_amount').eq('id', r.id).single();
-        const newPaid = Math.min(net, (+(fresh?.paid_amount || 0)) + a);
-        const { error: upErr } = await supabase.from('reservations').update({ paid_amount: newPaid }).eq('id', r.id);
-        if (upErr) throw upErr;
-      } else {
-        const j = await resp.json().catch(() => ({}));
-        if (!resp.ok || j.error) throw new Error(j.error || 'Could not record payment.');
+        throw new Error('Your session has expired. Please sign out and sign in again, then retry.');
       }
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok || j.error) throw new Error(j.error || 'Could not record payment.');
       onSaved?.(); onClose?.();
     } catch (e) {
       inFlight.current = false; setErr(e.message || String(e)); setSaving(false);

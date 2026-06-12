@@ -3,10 +3,7 @@
 // AddChargeModal — WRITE flow: add a folio charge to a reservation, then recompute the
 // canonical total (non-incremental). Mirrors legacy AddChargeModal. Money-adjacent.
 import { useState } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
-import { recalcResTotal } from '@/lib/recalcResTotal';
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const CATEGORIES = ['Room Charge', 'Room Service', 'Restaurant', 'Spa', 'Minibar', 'Laundry', 'Parking', 'Airport Transfer', 'Phone', 'Misc'];
 
 export default function AddChargeModal({ roomNo, resId, onClose, onDone }) {
@@ -27,11 +24,10 @@ export default function AddChargeModal({ roomNo, resId, onClose, onDone }) {
         body: JSON.stringify({ action: 'create', room_number: roomNo, reservation_id: resId, description: desc || cat, category: cat, amount: a }),
       });
       if (r.status === 401) {
-        const supabase = getSupabaseClient();
-        const { error } = await supabase.from('folios').insert({ room_number: roomNo, reservation_id: resId, description: desc || cat, category: cat, amount: a, tenant_id: TENANT });
-        if (error) throw error;
-        await recalcResTotal(resId); // non-incremental canonical recompute
-      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not add charge.'); }
+        throw new Error('Your session has expired. Please sign out and sign in again, then retry.');
+      }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) throw new Error(j.error || 'Could not add charge.');
       onDone?.();
       onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
