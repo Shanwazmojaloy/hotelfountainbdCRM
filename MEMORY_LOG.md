@@ -2188,3 +2188,7 @@ ROLE-BASED ACCESS CONTROL — department permissions (v3.34, 2026-06-10, owner s
 
 ## 2026-06-12 Reports - collections folded into Movements + Closing Ledger moved (layout)
 - Per owner: removed the separate "Today's Collections" block; mid-stay payments now appear IN Daily Movements as gold "Payment" rows (`payOnly` = reservations with `collectedFor(r)>0` not already a check-in/out today; `_type:'PAY'`). Movements count now includes them. Closing Ledger moved to the BOTTOM (below Outstanding Dues); caption reworded "dues below"- Same change applied to the print report. Commit f0babd9b49832589e80b36a657c749e85048c0d6 cherry-picked to main.
+
+## 2026-06-12 Reconcile Outstanding Dues across dashboards (fix)
+- Billing showed ৳172,810 vs Reports ৳220,810 - SAME formula `max(0, total-disc-paid)`, different SCOPE. Breakdown by status: CHECKED_IN 5/৳121,000 + CHECKED_OUT 10/৳51,810 = ৳172,810 (Billing); +RESERVED 3/৳48,000 (future part-prepaid bookings) = ৳220,810 (Reports full-book). Dashboard had a 3rd variant (all grouped, no status filter).
+- Owner decision: canonical "Outstanding Dues" = RECEIVABLES only (CHECKED_IN + CHECKED_OUT); future RESERVED/PENDING balances are NOT outstanding until check-in. New shared helper `src/lib/dues.js` (dueOf/isReceivable/outstandingList/outstandingTotal) now used by Billing + Reports + Dashboard - all three show ৳172,810. NOT a money bug; per-row balances were already correct (verified total=price×nights). Commit fb20cfd543e26e5d855033c26f4f90de042e8ee0 cherry-picked to main.
