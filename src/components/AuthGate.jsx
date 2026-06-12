@@ -7,10 +7,7 @@
 //   Activate  -> POST /api/crm/send-otp then /api/crm/activate (sets password, signs in)
 // Session persisted as localStorage {id, session_v}; session_v match honours Logout-All.
 import { useState, useEffect, createContext, useContext } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
 import { clearSnaps } from '@/lib/snap';
-
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 const AuthContext = createContext({ user: null, signOut: () => {} });
 export const useAuth = () => useContext(AuthContext);
@@ -86,10 +83,19 @@ export default function AuthGate({ children }) {
 
   async function validateSession(saved) {
     try {
-      const { data } = await getSupabaseClient().from('staff').select('id, name, role, session_v, activated').eq('tenant_id', TENANT).eq('id', saved.id).limit(1);
-      const u = data && data[0];
-      if (u && (u.session_v || 1) === saved.session_v) { _authCache = u; setUser(u); }
-      else { try { localStorage.removeItem('lumea_session'); } catch { /* ignore */ } _authCache = null; setUser(null); setStatus('out'); }
+      // Server-authoritative session check on the service role — the browser anon key cannot
+      // read `staff` (RLS revoked). 200 = session_v still valid; 401 = revoked/rotated
+      // (Logout-All) -> sign out cleanly. Mirrors the sliding-session ping() below.
+      const r = await fetch('/api/crm/session', { method: 'GET', cache: 'no-store' });
+      if (r.status === 401) {
+        try { localStorage.removeItem('lumea_session'); } catch { /* ignore */ }
+        _authCache = null; setUser(null); setStatus('out');
+        return;
+      }
+      if (r.ok) {
+        const u = { id: saved.id, name: saved.name, role: saved.role, session_v: saved.session_v };
+        _authCache = u; setUser(u);
+      }
     } catch { /* transient/offline — keep the optimistic session, don't bounce the user to login */ }
   }
 

@@ -33,6 +33,11 @@ export async function POST(req: NextRequest) {
   const id = body.id;
 
   try {
+    if (action === 'list') {
+      const { data, error } = await supabase.from('staff').select('id, name, email, role, activated, device').eq('tenant_id', TENANT).order('role');
+      if (error) throw error;
+      return NextResponse.json({ ok: true, staff: data || [] });
+    }
     if (action === 'create') {
       const name = s(body.name); const email = s(body.email);
       if (!name || !email) return NextResponse.json({ error: 'Name and email are required.' }, { status: 400 });

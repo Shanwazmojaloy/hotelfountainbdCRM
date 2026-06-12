@@ -5,13 +5,10 @@
 // OTP on the login page). Edit patches name/email/role/device, with force-reactivate (clears
 // pwh) and remove. Owner rows are never editable/removable here.
 import { useState } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const ROLE_OPTS = [['manager', 'Manager'], ['receptionist', 'Receptionist'], ['housekeeping', 'Housekeeping'], ['accountant', 'Accountant']];
-const initials = (n) => String(n || '').split(' ').map((w) => w[0] || '').join('').slice(0, 2).toUpperCase();
 
-export default function StaffFormModal({ user, existing, onClose, onSaved }) {
+export default function StaffFormModal({ user, onClose, onSaved }) {
   const isEdit = !!user;
   const [f, setF] = useState({ name: user?.name || '', email: user?.email || '', role: user?.role || 'receptionist', device: user?.device || '' });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -27,20 +24,9 @@ export default function StaffFormModal({ user, existing, onClose, onSaved }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: isEdit ? 'update' : 'create', id: user?.id, name: f.name, email: f.email, role: f.role, device: f.device }),
       });
-      if (r.status === 401) {
-        const supabase = getSupabaseClient();
-        if (isEdit) {
-          const patch = { name: f.name, email: f.email.trim().toLowerCase(), role: f.role, device: f.device };
-          const { error } = await supabase.from('staff').update(patch).eq('id', user.id); if (error) throw error;
-        } else {
-          const nextId = Math.max(0, ...(existing || []).map((s) => +s.id || 0)) + 1;
-          const { error } = await supabase.from('staff').insert({
-            id: nextId, name: f.name, email: f.email.trim().toLowerCase(), role: f.role,
-            device: f.device || f.name + ' Terminal', av: initials(f.name),
-            tenant_id: TENANT, activated: false, pwh: null, session_v: 1,
-          }); if (error) throw error;
-        }
-      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not save staff.'); }
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) throw new Error('Session expired — sign in again.');
+      if (!r.ok || j.error) throw new Error(j.error || 'Could not save staff.');
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
@@ -50,11 +36,9 @@ export default function StaffFormModal({ user, existing, onClose, onSaved }) {
     setSaving(true);
     try {
       const r = await fetch('/api/crm/staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset', id: user.id }) });
-      if (r.status === 401) {
-        const supabase = getSupabaseClient();
-        const { error } = await supabase.from('staff').update({ pwh: null, activated: false, otp_hash: null, otp_expires: null, session_v: 1 }).eq('id', user.id);
-        if (error) throw error;
-      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not reset.'); }
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) throw new Error('Session expired — sign in again.');
+      if (!r.ok || j.error) throw new Error(j.error || 'Could not reset.');
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
@@ -64,11 +48,9 @@ export default function StaffFormModal({ user, existing, onClose, onSaved }) {
     setSaving(true);
     try {
       const r = await fetch('/api/crm/staff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id: user.id }) });
-      if (r.status === 401) {
-        const supabase = getSupabaseClient();
-        const { error } = await supabase.from('staff').delete().eq('id', user.id);
-        if (error) throw error;
-      } else { const j = await r.json().catch(() => ({})); if (!r.ok || j.error) throw new Error(j.error || 'Could not remove.'); }
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) throw new Error('Session expired — sign in again.');
+      if (!r.ok || j.error) throw new Error(j.error || 'Could not remove.');
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
