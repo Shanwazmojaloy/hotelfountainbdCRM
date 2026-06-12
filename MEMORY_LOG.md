@@ -2101,3 +2101,77 @@ ROLE-BASED ACCESS CONTROL — department permissions (v3.34, 2026-06-10, owner s
 - CAPABILITY GATES: **delete = ADMIN ONLY** — `canDelete = can(role,'delete')` in Reservations + server route re-adds 403 for non-admin. **THIS SUPERSEDES the v3.31 "all staff can delete" widening** (owner's detailed RBAC spec says receptionist "cannot delete anything"). Housekeeping: Dashboard hides money StatCards (Revenue/Balance→shows "Rooms to Clean" instead) + hides Today's Guests card entirely (`showGuestDetails`); Rooms click never opens folio for HK (status modal only) + no "+ Add Room"; Header "+ New Booking" & booking-request bell hidden unless canAccess reservations.
 - ARCHITECTURE NOTE: this is APP-LAYER RBAC (matches the stack — custom auth on anon key, no JWT role claim for RLS). Server route gates the delete action; other reads remain anon (documented limitation). Roles in staff.role today: owner(1), receptionist(4). Add 'housekeeping'/'manager'/'admin' rows in Settings→Staff as needed; the map already handles them.
 - DB: integrity sweep CLEAN (0 orphan TX, 0 dup idem keys, 0 double-booked overlaps, 0 stuck rooms, 0 overdue checkouts). negative_due=433 reservations (97% Apr-2026 legacy overpay drift, accepted policy — UI clamps; do NOT re-chase). Advisors: no external ERROR-level security items; `rls_enabled_no_policy` infos = intentional deny-all service-role tables; `function_search_path_mutable` on a few fns = optional hardening.
+
+## 2026-06-12 CEO nightly sweep - P3 auto-applied (dup index cleanup)
+- Migration `ceo_sweep_drop_dup_index_invoice_line_items_20260612`: dropped duplicate index `idx_line_items_invoice` on `invoice_line_items` (byte-identical to `idx_invoice_line_items_invoice_id` created by the prior-day FK-tenancy fix; invoice_id was already covered out-of-band under that name).
+- invoice_id coverage preserved (exactly 1 btree index). Index-only change: no money/row/RLS touched. Transactionally validated GREEN, logged audit_logs 89a5229e (idempotent, won't re-trigger).
+- Sweep otherwise all GREEN: 0 negatives, 0 orphans, 0 dup transactions, 0 ERROR advisors, empty auth log, v30 edge-fn 200 (500s only on retired v29).
+- Lesson: check pg_indexes BY COLUMN (not just name) before adding FK indexes - base objects exist out-of-band.
+- Parked: P2 tenant_isolation always-true on customers/fountain_inventory (zero exposure, product decision, already emailed).
+- STANDING: schema baseline/squash still needed to restore Supabase branches; QA stays on transactional validation until then.
+
+## 2026-06-12 P2 tenant_isolation RLS bypass CLOSED (customers + fountain_inventory)
+- Migration `tenant_isolation_close_customers_fountain_inventory_20260612` (owner-approved). Dropped always-true ALL `tenant_isolation` policies; revoked anon/authenticated INSERT/UPDATE/DELETE/TRUNCATE on both.
+- customers (dead table, 0 rows, no FK, no code refs): policy `customers_owner_read` = SELECT WHERE owner_id=auth.uid(). Effectively locked.
+- fountain_inventory (global single-property rate-card, 28 rows): policy `fountain_inventory_read` = SELECT USING(true). Public READ preserved; writes now service_role-only (closes public-anon-key write to room rates).
+- Verified live: 0 always-true tenant_isolation ALL policies remain DB-wide; anon = REFERENCES,SELECT,TRIGGER on both. Transactionally validated (branch-QA unavailable).
+- STANDING: schema baseline still needed to restore Supabase branches; QA stays on transactional validation.
+
+## 2026-06-12 Schema baseline PROVEN + swarm operational (checkpoint)
+### Swarm (audit-and-fix) - operational
+- Cowork-native Manager-Worker (rejected LangGraph) in `lumea-agents/`: `ceo-orchestrator`, `qa-verification-agent`, `workflow-agent`, `lib/agentGuard.ts` (deployed to `src/lib/`, `--strict` clean), `CEO_ORCHESTRATION_RUNBOOK.md`; reuses `db-architect` + `billing-auditor`.
+- Gate: P3 auto-applies after QA green; P1/P2 always HOLD (Gmail + Slack). Nightly task `crm-ceo-orchestrator` at 02:00. Two live sweeps GREEN; first autonomous fix auto-dropped a duplicate index. Orphan branch `staging` deleted.
+### Production RLS fixes (approved, transactionally validated)
+- `invoice_line_items`: always-true to FK-derived tenancy via `billing_invoices` + index.
+- `customers`: dead table to owner-scoped read, anon writes revoked.
+- `fountain_inventory`: global rate-card to public read, server-only writes.
+- Result: 0 always-true `tenant_isolation` policies remain DB-wide.
+### Schema baseline - generated AND PROVEN
+- Generated `00000000000000_baseline.sql` (440 KB) from prod catalog DDL; counts matched exactly. Static validation 3,228/3,228 parse, view ordering valid.
+- Installed Docker/WSL2 locally and ran `supabase db reset`. Replay loop caught + fixed: pg_cron extension placement, bare uid() to auth.uid() (x32 + jwt), FK users to auth.users (x2).
+- `db reset` FINISHED CLEAN - the baseline replays from scratch into a fresh Postgres. Pushed on branch `chore/schema-baseline` (commit 3f9f0fc).
+### Root cause confirmed (branches broken)
+- Fresh Supabase branches died at migration #3 (`relation "rooms" does not exist`): base tables created out-of-band, migration history not self-contained (2/230 apply on fresh branch). Interim QA = transactional validation (BEGIN ... ROLLBACK on live ref).
+### Remaining (finish line)
+- 1. Run `BASELINE_repair_and_verify.txt`: migration repair --status applied 00000000000000 + 221 --status reverted lines, then migration list to confirm. Only prod-ledger change (schema/data untouched, reversible).
+- 2. Flip swarm runbook + scheduled task back to branch-QA (drop transactional-validation fallback).
+- 3. Housekeeping: connect Slack #crm-alerts; rotate DB password (exposed during dump attempts); npx supabase stop.
+
+## 2026-06-12 Schema baseline LEDGER REPAIR complete + verified (DONE)
+- Ran the 219 `supabase migration repair` commands against linked prod `mynwfkgksqqwlqowlscj` (1 applied 00000000000000 + 218 reverted). NOTE: the OneDrive-mounted log appeared frozen mid-run but that was the known sandbox mount-staleness - the CLI was progressing fine (verified live by polling `supabase_migrations.schema_migrations` via MCP, count fell 182 to 1).
+- End state: `supabase_migrations.schema_migrations` = exactly 1 row (00000000000000). Remote ledger now shows only the baseline applied.
+- STEP 7 schema-unchanged verify PASSED - every count equals acceptance baseline: tables 96, views 22, sequences 2, functions 249, triggers 61, policies 93, enums 8, extensions 9, cron_jobs 47. Only the migration ledger changed; schema/data untouched.
+- RESULT: Supabase preview branches are now restorable - a fresh branch replays the single self-contained baseline. The root-cause blocker (out-of-band base tables / non-self-contained history) is RESOLVED.
+- REMAINING (non-prod-ledger): (1) flip swarm runbook section 2 + scheduled task `crm-ceo-orchestrator` back to branch-QA (drop transactional-validation fallback) after a throwaway branch reaches MIGRATIONS_PASSED; (2) housekeeping - connect Slack #crm-alerts, rotate DB password (exposed during dump attempts), npx supabase stop.
+
+## 2026-06-12 Supabase branch-QA RESTORED + swarm flipped (DONE)
+- Root mechanism nailed: MCP `create_branch` replays the prod project's `supabase_migrations.schema_migrations.statements` snapshot (3228 elements for the baseline row), NOT the live git tip - which is why git pushes (to chore/schema-baseline OR main) never changed branch behavior.
+- IMPACT: touched ONLY the branch-replay snapshot - NOT prod schema, data, app, RLS, or the ledger's applied state.
+- Re-test branch `qa-baseline-verify4` (ref dyvbaxflpheyxzhvfczb) = FUNCTIONS_DEPLOYED: replayed tables 96 / views 22 / functions 249, rooms present, ledger=1, and the guard correctly SKIPPED the trigger on the branch (supabase_functions absent). Branch deleted; only default `main` remains.
+- Swarm flipped back to branch-QA: scheduled task `crm-ceo-orchestrator` prompt+description updated (branch sandbox primary; transactional validation = fallback only on MIGRATIONS_FAILED; always delete_branch, ~$0.01344/hr) and runbook section 2 rewritten to match.
+- Prod ledger repair + STEP-7 schema-unchanged verify (earlier today) remain DONE/unaffected.
+- Housekeeping still open: connect Slack #crm-alerts, rotate DB password (exposed during dump attempts), npx supabase stop. Repo-root leftovers `baseline.sql.bak_webhookguard` + `backups/` are harmless.
+
+## 2026-06-12 Session closeout - housekeeping done
+- Slack CONNECTED: productivity:slack OAuth complete; #crm-alerts = `C0B9UMQS42X` (hotelfountain.slack.com). Test post delivered. Swarm P1/P2 HOLDs now post there + Gmail.
+- Local Supabase stack STOPPED (`npx supabase stop`; data retained in docker volume).
+- DB PASSWORD ROTATED by owner (postgres role, dashboard). Reason: exposed during earlier baseline-dump attempts.
+- ENV IMPACT CHECK (read-only repo scan): app reaches Supabase ONLY via REST/JWT keys - `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`. NO `DATABASE_URL`/`DIRECT_URL`/`POSTGRES_*`/`PG*` connection string in .env.local or .env.production. So password rotation needs NO Vercel env change and NO app redeploy.
+- ONLY direct-connection consumers to refresh with the new password: (1) Supabase CLI on C:\dev\hotelfountainbd - supabase link` (needed for migrations/branch-QA); (2) `ai-infrastructure/docker-compose.yml` `DATABASE_URL` (defaults empty `${DATABASE_URL:-}`, only if that stack is run); (3) any personal psql/DBeaver/Compass saved connection.
+- Cleanup: session leftovers (`baseline.sql.bak_webhookguard` == git 3f9f0fc; `backups/20260612_schema.sql`) MOVED to workspace `_repo_leftovers_2026-06-12\` (out of repo working tree, not deleted). Owner to delete the folder at will. Remaining untracked `src/lib/agentGuard.ts` is the intended deployed guard lib - keep.
+- STATUS: prod ledger repair + STEP-7 verify, branch-QA restoration (statements[571] guard) + swarm flip, Slack, supabase stop, password rotation, env-impact check, cleanup = ALL DONE. Open TODO: re-run `npx supabase link` with the new password before next migration/branch op.
+
+## 2026-06-12 CLI re-link + local db reset confirmed (last TODO closed)
+- `npx supabase db reset` on branch chore/schema-baseline = FINISHED CLEAN (baseline 00000000000000 replays; NOTICEs are idempotent "already exists, skipping"; `no files matched supabase/seed.sql` WARN expected - no seed file).
+- `npx supabase link` - project mynwfkgksqqwlqowlscj, finished. Local project re-associated to remote after the DB password rotation.
+- CAVEAT: `link` did not prompt for the DB password (uses the saved access token). The rotated DB password is only needed for direct-DB CLI ops (`supabase db push`/`db pull`/`migration repair`) - if one ever errors on auth, supply the new password then (or `supabase link --password`). Branch-QA + swarm use the Management API (MCP), NOT the CLI password, so they are unaffected.
+- ALL session TODOs now closed.
+
+## 2026-06-12 DB password rotation CLOSED (verified)
+- DB password rotated (postgres role) + CLI re-linked. Auth VERIFIED: `npx supabase migration list --linked` connected to remote and returned Local==Remote == single baseline `00000000000000` (also re-confirms ledger repair held).
+- SECURITY NOTE: password was briefly passed via `--password` on the CLI (lands in PSReadLine `ConsoleHost_history.txt`); advised scrub `Clear-History` + `Remove-Item (Get-PSReadLineOption).HistorySavePath -Force`. Supabase CLI keeps its own encrypted copy so link survives the scrub. Password NEVER written to memory or any workspace file by the assistant. Prefer interactive prompt next time (no history).
+- SESSION FULLY CLOSED: prod ledger repair + STEP-7 verify; branch-QA restored (statements[571] guard) + swarm flipped; Slack #crm-alerts connected; supabase stop; password rotated+verified; env-impact check (no Vercel change needed); leftovers quarantined. No open TODOs.
+
+## 2026-06-12 Reports one-page A4 print/PDF (feat)
+- `/crm/reports` (src/components/Reports.jsx): print-only `#print-report` block + `@media print` engine (A4 portrait/10mm, visibility-strip of chrome, page-break guards) so the existing Download (window.print) outputs ONE A4 page from live data. `paySplit` derived from composite `type` (no payment_method col). Aggregated Outstanding Dues footer so it never overflows to page 2. `npm run build` GREEN. Commit f556834 on chore/schema-baseline; backup src/components/Reports.jsx.bak_printreport.
+- INCIDENT 2026-06-12: a deploy bat's `findstr` verify used a FORWARD-SLASH path which Windows findstr could not open -> false PRINT_BLOCK_MISSING -> safety `git reset --hard origin/main` -> WIPED the uncommitted MEMORY_LOG session appends (build artifacts crm.html/.temp also reset, they regenerate). Restored here and NOW COMMITTED so future branch switches/resets cannot wipe it. Lesson: commit MEMORY_LOG before any checkout; verify file paths with backslashes for findstr.
