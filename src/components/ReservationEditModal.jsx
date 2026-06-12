@@ -85,65 +85,11 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update', id: res.id, status, paid_amount: paidNum, discount_amount: discountNum, notes, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), guest_name: gn }),
       });
-      if (_r.status !== 401) {
-        const j = await _r.json().catch(() => ({}));
-        if (!_r.ok || j.error) throw new Error(j.error || 'Could not save reservation.');
-        onSaved?.(); onClose?.(); return;
+      if (_r.status === 401) {
+        throw new Error('Your session has expired. Please sign out and sign in again, then retry.');
       }
-      // 401 transition fallback — direct multi-table write below (allowed until anon revoke).
-      const supabase = getSupabaseClient();
-      const newRoomNos = roomArr.filter(Boolean);
-      const oldRoomNos = res.room_ids || [];
-      const roomByNo = (rn) => (rooms || []).find((r) => String(r.room_number) === String(rn));
-
-      // removed rooms -> AVAILABLE
-      for (const rn of oldRoomNos.filter((rn) => !newRoomNos.includes(rn))) {
-        const room = roomByNo(rn); if (room) await supabase.from('rooms').update({ status: 'AVAILABLE' }).eq('id', room.id);
-      }
-      // status transitions -> room status
-      if (status === 'CHECKED_IN') {
-        for (const rn of newRoomNos) { const room = roomByNo(rn); if (room) await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('id', room.id); }
-      }
-      if (status === 'CHECKED_OUT' && res.status !== 'CHECKED_OUT') {
-        for (const rn of newRoomNos) { const room = roomByNo(rn); if (room) await supabase.from('rooms').update({ status: 'DIRTY' }).eq('id', room.id); }
-      }
-
-      // Stay-Extension TX when checkout pushed out
-      let finalTotal = totalAmt;
-      if (checkOut && checkOut !== _origCheckOut) {
-        if (nights > 0) finalTotal = nights * ratesSum + resFolioExtras;
-        if (extCharge > 0) {
-          await supabase.from('transactions').insert({
-            room_number: newRoomNos[0] || '?', guest_name: gn,
-            type: `Stay Extension (+${extNights} night${extNights !== 1 ? 's' : ''})`,
-            amount: extCharge, fiscal_day: todayDhaka(), reservation_id: res.id, tenant_id: TENANT,
-            idempotency_key: crypto.randomUUID(),
-          });
-        }
-      }
-      // Advance-Payment TX when paid_amount increases (keeps Billing visible)
-      const payIncrease = paidNum - (+res.paid_amount || 0);
-      if (payIncrease > 0) {
-        await supabase.from('transactions').insert({
-          room_number: newRoomNos[0] || '?', guest_name: gn, type: 'Advance Payment',
-          amount: payIncrease, fiscal_day: todayDhaka(), reservation_id: res.id, tenant_id: TENANT,
-          idempotency_key: crypto.randomUUID(),
-        });
-      }
-
-      const updates = {
-        status, paid_amount: paidNum, discount_amount: discountNum, notes,
-        check_in: checkInDate, check_out: checkOut, room_ids: newRoomNos,
-        total_amount: finalTotal, guest_name: gn,
-      };
-      const { error } = await supabase.from('reservations').update(updates).eq('id', res.id);
-      if (error) throw error;
-      // Recalc ONLY when dates/rooms changed — unconditional recalc clobbered negotiated
-      // totals (audit HIGH-3 2026-06-10; mirrors the server route's rule).
-      const _datesChanged = String(checkInDate || '').slice(0, 10) !== String(res.check_in || '').slice(0, 10)
-        || String(checkOut || '').slice(0, 10) !== String(res.check_out || '').slice(0, 10);
-      const _roomsChanged = JSON.stringify([...newRoomNos].sort()) !== JSON.stringify([...(res.room_ids || [])].sort());
-      if (_datesChanged || _roomsChanged) await recalcResTotal(res.id);
+      const j = await _r.json().catch(() => ({}));
+      if (!_r.ok || j.error) throw new Error(j.error || 'Could not save reservation.');
       onSaved?.(); onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
