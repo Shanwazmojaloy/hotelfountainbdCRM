@@ -19,6 +19,13 @@ INVOICE LOGO (2026-06-13): `printInvoice` in `src/lib/printDocs.js` now uses `/l
 
 LOGO ASSETS: `/logo-crest.png` is the canonical square crest — visible on both dark (sidebar, drop-shadow) and cream (report/invoice) backgrounds. Public image assets are NOT reliably visible from the Cowork bash sandbox after a folder rename (stale mount); trust the live site + Read/Grep, not bash `ls public/`.
 
+SCHEMA — reservations.vip (2026-06-13): New column `reservations.vip` — `boolean`, default `false`, nullable. Flags a VIP reservation/guest. Default-false so existing rows are non-VIP. (Added outside the app code; documented here for persistence.)
+
+BUILD/DEPS — legacy-peer-deps (2026-06-13): Repo root has `.npmrc` with `legacy-peer-deps=true`. REQUIRED. `app/layout.tsx` imports `@vercel/analytics/next` + `@vercel/speed-insights/next`; `@vercel/analytics@^2` declares an *optional* peer on `@sveltejs/kit` (Svelte-only cruft in node_modules) which demands `vite@^8`, conflicting with the project's pinned `vite@5` (via vitest). A plain `npm install` then fails ERESOLVE. `.npmrc` legacy-peer-deps makes both local and Vercel installs ignore the optional peer. NEVER remove `.npmrc`.
+- ALSO: the 2026-06-12 cross-drive move (C:\dev → F:) left local `node_modules` INCOMPLETE (e.g. `@vercel/analytics` folder didn't copy), so `next build` failed `Module not found`. FIX = `npm install --legacy-peer-deps` to repair node_modules to package.json. Production was unaffected (Vercel installs deps fresh). If a build suddenly fails on a missing module after a move, reinstall before debugging code.
+
+CASH DUP AUDIT (2026-06-13): Re-derived same-reservation/same-amount cash pairs. 11 pairs found. 4 already `[VOID-DUP]` (safe). 2 GENUINE multi-installment (cash_sum == net bill): MOHAMMAD RAIHAN 308 (4000×2=8000=bill), SOHAN 505 (3500×2=7000=bill). 5 SUSPECT — cash collected EXCEEDS the net room bill (phantom/dup or unbooked folio): ZUBAYED KHAN 306 (4000×2 vs net 3500), SI SHAMIM 510 (2000×2 vs net 2000), MD JUBAYER AHMED RAKIB 301 (3500×2 vs bill 3500), MD SOLIMAN TUHIN 505 (3500×2, 2nd tx named SARFARAJ MIA), ENJAMUL/res-now-SAJJADUL 505 (6000×2 vs reservation total 2000 — misattributed). `paid_amount` reflects only the bill (due math OK per PAID-AMOUNT POLICY); excess sits in the tx ledger and can inflate that fiscal day's Total Collection. NOT auto-fixed — owner to review/void.
+
 Key Decisions Made:
 Pricing Logic: Room rates are calculated using a base rate plus a combined 20% markup (15% VAT and 5% Service Charge).
 Operational Hours: Standardized check-in at 12:00 PM or 2:00 PM and check-out at 12:00 PM.
