@@ -108,6 +108,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   // Payment-method split derived from the composite `type` (no payment_method column exists).
   const PM = [['Cash', /cash/i], ['bKash', /bkash/i], ['Nagad', /nagad/i], ['Card', /card/i], ['Bank', /bank|account|transfer/i]];
   const paySplit = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((acc, t) => { const hit = PM.find(([, re]) => re.test(t.type || '')); const k = hit ? hit[0] : 'Other'; acc[k] = (acc[k] || 0) + (Number(t.amount) || 0); return acc; }, {});
+  const dayPays = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date);
 
   async function handleClose() {
     setErr('');
@@ -262,6 +263,23 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         </Table>
       </Card>
 
+      <Card title="Today's" titleAccent="Collections" accent={C.grn} bodyStyle={{ padding: 0 }}>
+        <Table head={['Guest', 'Room', 'Method / Type', 'Amount']}>
+          {!loading && dayPays.length === 0 && <tr><td colSpan={4} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No collections recorded for {fmtLong(date)}.</td></tr>}
+          {dayPays.map((t, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+              <td style={TD}>{t.guest_name || '—'}</td>
+              <td style={TD}><Badge tone="blue">{t.room_number || '—'}</Badge></td>
+              <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>{t.type || '—'}</td>
+              <td style={{ ...TD, ...MONO, color: C.grn }}>{bdt(t.amount)}</td>
+            </tr>
+          ))}
+          {!loading && dayPays.length > 0 && (
+            <tr><td colSpan={3} style={{ ...TD, fontWeight: 700, fontFamily: 'var(--iv-head)' }}>Total Collection</td><td style={{ ...TD, ...MONO, fontWeight: 700, color: 'var(--iv-gold)' }}>{bdt(collected)}</td></tr>
+          )}
+        </Table>
+      </Card>
+
       <Card title="Closing" titleAccent="Ledger" accent={C.gold}>
         <FRow label="Total Collection" value={bdt(collected)} />
         <FRow label="Less — Opening Token / Float" value={'− ' + bdt(tok)} />
@@ -315,6 +333,16 @@ function Daily({ txs, res, closes, loading, onClosed }) {
             {moves.map((m, i) => { const due = dueOf(m); return (
               <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{m._type === 'IN' ? 'Check-In' : 'Check-Out'}</td><td className="r">{bdt(collectedFor(m))}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
             ); })}
+          </tbody>
+        </table>
+        <div className="pr-sec">Collections</div>
+        <table className="pr-tbl">
+          <thead><tr><th>Guest</th><th>Room</th><th>Method / Type</th><th className="r">Amount</th></tr></thead>
+          <tbody>
+            {dayPays.map((t, i) => (
+              <tr key={i}><td>{t.guest_name || '—'}</td><td>{t.room_number || '—'}</td><td>{t.type || '—'}</td><td className="r">{bdt(t.amount)}</td></tr>
+            ))}
+            <tr className="pr-tot-row"><td colSpan={3}>Total Collection</td><td className="r">{bdt(collected)}</td></tr>
           </tbody>
         </table>
         <div className="pr-sec">Outstanding Dues</div>
