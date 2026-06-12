@@ -6,7 +6,7 @@
 import crypto from 'crypto';
 
 const SECRET = process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const MAX_AGE_S = 60 * 60 * 12; // 12h
+const MAX_AGE_S = 60 * 60 * 24 * 7; // 7-day SLIDING window - re-issued on activity via /api/crm/session, so active staff never re-login
 export const SESSION_COOKIE = 'lumea_sess';
 
 export type Session = { id: number; role: string; session_v: number };

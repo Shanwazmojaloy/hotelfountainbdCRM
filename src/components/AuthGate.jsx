@@ -63,6 +63,27 @@ export default function AuthGate({ children }) {
     }
   }, []);
 
+  // Sliding session: keep the HttpOnly lumea_sess cookie fresh while the app is open so staff
+  // are never logged out mid-shift. Re-issues on mount, every 20 min, and on tab focus.
+  // A 401 here means the session is truly revoked/idle-expired -> sign out cleanly to login.
+  useEffect(() => {
+    if (status !== 'in') return;
+    let alive = true;
+    const ping = async () => {
+      try {
+        const r = await fetch('/api/crm/session', { method: 'GET', cache: 'no-store' });
+        if (r.status === 401 && alive) signOut();
+      } catch { /* offline/transient - keep the session */ }
+    };
+    ping();
+    const iv = setInterval(ping, 20 * 60 * 1000);
+    const onVis = () => { if (typeof document !== 'undefined' && document.visibilityState === 'visible') ping(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onVis);
+    return () => { alive = false; clearInterval(iv); document.removeEventListener('visibilitychange', onVis); window.removeEventListener('focus', onVis); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   async function validateSession(saved) {
     try {
       const { data } = await getSupabaseClient().from('staff').select('id, name, role, session_v, activated').eq('tenant_id', TENANT).eq('id', saved.id).limit(1);
