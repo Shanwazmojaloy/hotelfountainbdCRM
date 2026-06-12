@@ -15,6 +15,10 @@ REPORTS — COLLECTED COLUMN RULE (2026-06-13, commit 9a12a99):
 
 REPORTS — PRINT LAYOUT (2026-06-13): Daily Performance Report (`#print-report` in Reports.jsx) prints to a SINGLE A4 portrait page. `@page` margin = 0.7in all sides. Header crest uses `/logo-crest.png` (not the old "F" letter). Daily Movements and Outstanding Dues each render as a separate bordered `.pr-panel` block with a titled header bar (`.pr-panel-h`; dues uses `--due` gold variant) showing a count + total summary. Compressed type (body 8.5px, table td 8px / th 7px) keeps it one page; if a heavy day overflows, trim row padding before reverting to multi-page.
 
+INVOICE LOGO (2026-06-13): `printInvoice` in `src/lib/printDocs.js` now uses `/logo-crest.png` at 94px (`.brand img`, with a subtle drop-shadow) instead of the old `/logo.png`, which letterboxed to a tiny mark inside a 72px box. NOTE: the booking confirmation and daily closing report (also in printDocs.js) STILL use `/logo.png` — switch them to `/logo-crest.png` if full logo consistency is wanted. The two correct, visible brand assets are `/logo-crest.png` (square flame crest, used in Sidebar, report header, invoice) and `/logo.png` (legacy, used in confirmation + closing report).
+
+LOGO ASSETS: `/logo-crest.png` is the canonical square crest — visible on both dark (sidebar, drop-shadow) and cream (report/invoice) backgrounds. Public image assets are NOT reliably visible from the Cowork bash sandbox after a folder rename (stale mount); trust the live site + Read/Grep, not bash `ls public/`.
+
 Key Decisions Made:
 Pricing Logic: Room rates are calculated using a base rate plus a combined 20% markup (15% VAT and 5% Service Charge).
 Operational Hours: Standardized check-in at 12:00 PM or 2:00 PM and check-out at 12:00 PM.
