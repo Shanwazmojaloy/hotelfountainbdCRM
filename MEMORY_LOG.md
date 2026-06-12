@@ -1,5 +1,12 @@
 Purpose: Persistent memory of key decisions and technical hurdles.
 
+CANONICAL PROJECT PATH (2026-06-12):
+- The live repo now lives at `F:\Hotel Fountain\Hotel Fountain Web & CRM` (root). This is the SINGLE source of truth.
+- DEPRECATED — do NOT reference: `C:\dev\hotelfountainbd` (moved), `C:\dev\hotelfountainbdCRM` + `C:\dev\hf-crm` (stale clones, DELETED), and `C:\Users\ahmed\OneDrive\Desktop\New folder\claude\hotelfountainbd-vercel` (scratch workspace, archived).
+- The OneDrive scratch workspace was consolidated into `F:\...\Web & CRM\archive\onedrive-workspace` (gitignored).
+- Git remote unchanged: `https://github.com/Shanwazmojaloy/hotelfountainbdCRM.git` (branch `main`). Vercel/GitHub deploy unaffected by the move.
+- Any helper script that `cd`s into the repo must target the quoted path `"F:\Hotel Fountain\Hotel Fountain Web & CRM"` (path contains a space and `&`). COMMIT_PUSH_IVORY.bat, PUSH_BILLINGFIX.bat, FIX_MIGRATION_COPY.ps1 already repointed.
+
 Key Decisions Made:
 Pricing Logic: Room rates are calculated using a base rate plus a combined 20% markup (15% VAT and 5% Service Charge).
 Operational Hours: Standardized check-in at 12:00 PM or 2:00 PM and check-out at 12:00 PM.

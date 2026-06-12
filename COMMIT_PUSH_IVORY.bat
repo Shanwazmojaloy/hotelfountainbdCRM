@@ -1,5 +1,5 @@
 @echo off
-cd /d C:\dev\hotelfountainbd
+cd /d "F:\Hotel Fountain\Hotel Fountain Web & CRM"
 set LOG=push_log.txt
 > "%LOG%" echo ===== START =====
 if exist ".git\index.lock" del /f /q ".git\index.lock"
