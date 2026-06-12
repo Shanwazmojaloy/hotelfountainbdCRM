@@ -11,6 +11,7 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 import { Tabs, Card, StatCard, Table, Badge, TD, MONO, C, bdt } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 import { openBusinessDay, nextDay } from '@/lib/businessDay';
+import { outstandingList } from '@/lib/dues';
 
 const dhakaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const addDays = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(t); };
@@ -104,7 +105,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const collected = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
   // Due/Outstanding is ALWAYS the full live book (every reservation with a balance) — visible
   // on every day's report, not just guests who moved today.
-  const allDue = res.filter((r) => dueOf(r) > 0).sort((a, b) => dueOf(b) - dueOf(a));
+  const allDue = outstandingList(res); // receivables only (CHECKED_IN/CHECKED_OUT) - owner decision 2026-06-12
   const totalDue = allDue.reduce((a, r) => a + dueOf(r), 0);
   const tok = parseInt(token || '0', 10) || 0;
   const closing = collected - tok;
@@ -144,7 +145,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
     const newIns = res.filter((r) => (r.check_in || '').slice(0, 10) > date).map((r) => ({ ...r, _type: 'IN' }));
     const newOuts = res.filter((r) => (r.check_out || '').slice(0, 10) > date).map((r) => ({ ...r, _type: 'OUT' }));
     const newMoves = [...newIns, ...newOuts].sort((a, b) => ((a._type === 'IN' ? a.check_in : a.check_out) || '').localeCompare((b._type === 'IN' ? b.check_in : b.check_out) || ''));
-    const outstanding = res.filter((r) => dueOf(r) > 0).sort((a, b) => dueOf(b) - dueOf(a));
+    const outstanding = outstandingList(res); // receivables only - shared helper
     const totalOutstanding = outstanding.reduce((a, r) => a + dueOf(r), 0);
 
     return (
