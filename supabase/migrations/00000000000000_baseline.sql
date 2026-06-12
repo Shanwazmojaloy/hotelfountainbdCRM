@@ -5635,7 +5635,7 @@ CREATE TABLE public.customers (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   name text NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
-  owner_id uuid DEFAULT uid()
+  owner_id uuid DEFAULT auth.uid()
 );
 
 CREATE TABLE public.daily_closing (
@@ -7291,50 +7291,50 @@ ALTER TABLE public.workflow_runs ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES
 CREATE POLICY acp_tenant_isolation ON public.account_churn_profile AS PERMISSIVE FOR ALL TO public USING ((tenant_id = current_tenant_id())) WITH CHECK ((tenant_id = current_tenant_id()));
-CREATE POLICY audit_logs_tenant_select ON public.audit_logs AS PERMISSIVE FOR SELECT TO authenticated USING (((tenant_id IS NOT NULL) AND ((tenant_id)::text = (jwt() ->> 'tenant_id'::text))));
+CREATE POLICY audit_logs_tenant_select ON public.audit_logs AS PERMISSIVE FOR SELECT TO authenticated USING (((tenant_id IS NOT NULL) AND ((tenant_id)::text = (auth.jwt() ->> 'tenant_id'::text))));
 CREATE POLICY authorized_devices_service_only ON public.authorized_devices AS PERMISSIVE FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY tenant_access ON public.authorized_devices AS PERMISSIVE FOR ALL TO authenticated, anon USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
 CREATE POLICY tenant_isolation ON public.b2b_bookings AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY b2b_followup_log_tenant ON public.b2b_followup_log AS PERMISSIVE FOR ALL TO public USING ((tenant_id = ( SELECT b2b_followup_log.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid())))) WITH CHECK ((tenant_id = ( SELECT b2b_followup_log.tenant_id
+  WHERE (profiles.id = auth.uid())))) WITH CHECK ((tenant_id = ( SELECT b2b_followup_log.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid()))));
+  WHERE (profiles.id = auth.uid()))));
 CREATE POLICY tenant_isolation ON public.b2b_invoices AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY tenant_isolation ON public.b2b_outreach_log AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY tenant_isolation ON public.b2b_partners AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY tenant_isolation ON public.billing_invoices AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK ((tenant_id = current_tenant_id()));
 CREATE POLICY ceo_pipeline_tenant ON public.ceo_pipeline AS PERMISSIVE FOR ALL TO public USING ((tenant_id = ( SELECT ceo_pipeline.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid())))) WITH CHECK ((tenant_id = ( SELECT ceo_pipeline.tenant_id
+  WHERE (profiles.id = auth.uid())))) WITH CHECK ((tenant_id = ( SELECT ceo_pipeline.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid()))));
+  WHERE (profiles.id = auth.uid()))));
 CREATE POLICY content_tenant ON public.content_calendar AS PERMISSIVE FOR ALL TO public USING ((tenant_id = ( SELECT content_calendar.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid())))) WITH CHECK ((tenant_id = ( SELECT content_calendar.tenant_id
+  WHERE (profiles.id = auth.uid())))) WITH CHECK ((tenant_id = ( SELECT content_calendar.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid()))));
+  WHERE (profiles.id = auth.uid()))));
 CREATE POLICY service_role_all_leads ON public.corporate_leads AS PERMISSIVE FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY tenant_isolation ON public.corporate_leads AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY council_panelists_tenant_rw ON public.council_panelists AS PERMISSIVE FOR ALL TO public USING ((tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)) WITH CHECK ((tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid));
 CREATE POLICY council_sessions_tenant_rw ON public.council_sessions AS PERMISSIVE FOR ALL TO public USING ((tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)) WITH CHECK ((tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid));
 CREATE POLICY crm_build_read ON public.crm_build AS PERMISSIVE FOR SELECT TO authenticated, anon USING (true);
 CREATE POLICY crm_chunks_read ON public.crm_chunks AS PERMISSIVE FOR SELECT TO authenticated, anon USING (true);
-CREATE POLICY customers_owner_read ON public.customers AS PERMISSIVE FOR SELECT TO public USING ((owner_id = uid()));
+CREATE POLICY customers_owner_read ON public.customers AS PERMISSIVE FOR SELECT TO public USING ((owner_id = auth.uid()));
 CREATE POLICY tenant_isolation ON public.daily_closing AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK ((tenant_id = current_tenant_id()));
 CREATE POLICY email_chunks_tenant_isolation ON public.email_chunks AS PERMISSIVE FOR ALL TO public USING ((tenant_id = current_tenant_id())) WITH CHECK ((tenant_id = current_tenant_id()));
 CREATE POLICY event_inquiries_public_insert ON public.event_inquiries AS PERMISSIVE FOR INSERT TO authenticated, anon WITH CHECK (((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid) AND (status = 'NEW'::text) AND (source = 'events_page'::text)));
 CREATE POLICY event_inquiries_staff_delete ON public.event_inquiries AS PERMISSIVE FOR DELETE TO authenticated USING ((tenant_id = ( SELECT event_inquiries.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid()))));
+  WHERE (profiles.id = auth.uid()))));
 CREATE POLICY event_inquiries_staff_select ON public.event_inquiries AS PERMISSIVE FOR SELECT TO authenticated USING ((tenant_id = ( SELECT event_inquiries.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid()))));
+  WHERE (profiles.id = auth.uid()))));
 CREATE POLICY event_inquiries_staff_update ON public.event_inquiries AS PERMISSIVE FOR UPDATE TO authenticated USING ((tenant_id = ( SELECT event_inquiries.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid())))) WITH CHECK ((tenant_id = ( SELECT event_inquiries.tenant_id
+  WHERE (profiles.id = auth.uid())))) WITH CHECK ((tenant_id = ( SELECT event_inquiries.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid()))));
+  WHERE (profiles.id = auth.uid()))));
 CREATE POLICY tenant_access ON public.folios AS PERMISSIVE FOR ALL TO authenticated, anon USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
 CREATE POLICY fountain_inventory_read ON public.fountain_inventory AS PERMISSIVE FOR SELECT TO public USING (true);
 CREATE POLICY tenant_isolation ON public.guest_ledger AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK ((tenant_id = current_tenant_id()));
@@ -7355,9 +7355,9 @@ CREATE POLICY nal_tenant_read ON public.night_audit_log AS PERMISSIVE FOR SELECT
 CREATE POLICY tenant_isolation ON public.notifications_log AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY ota_rates_tenant ON public.ota_rate_plans AS PERMISSIVE FOR ALL TO public USING ((tenant_id = ( SELECT ota_rate_plans.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid())))) WITH CHECK ((tenant_id = ( SELECT ota_rate_plans.tenant_id
+  WHERE (profiles.id = auth.uid())))) WITH CHECK ((tenant_id = ( SELECT ota_rate_plans.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid()))));
+  WHERE (profiles.id = auth.uid()))));
 CREATE POLICY tenant_access ON public.ota_rate_plans AS PERMISSIVE FOR ALL TO authenticated, anon USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
 CREATE POLICY service_role_all_log ON public.outreach_log AS PERMISSIVE FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY tenant_isolation ON public.outreach_log AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
@@ -7365,13 +7365,13 @@ CREATE POLICY tenant_isolation ON public.payment_transactions AS PERMISSIVE FOR 
 CREATE POLICY block_anon_delete ON public.profiles AS PERMISSIVE FOR DELETE TO public USING (false);
 CREATE POLICY block_anon_insert ON public.profiles AS PERMISSIVE FOR INSERT TO public WITH CHECK (false);
 CREATE POLICY block_anon_update ON public.profiles AS PERMISSIVE FOR UPDATE TO public USING (false);
-CREATE POLICY profiles_select_own ON public.profiles AS PERMISSIVE FOR SELECT TO authenticated USING (((id = uid()) OR is_admin()));
+CREATE POLICY profiles_select_own ON public.profiles AS PERMISSIVE FOR SELECT TO authenticated USING (((id = auth.uid()) OR is_admin()));
 CREATE POLICY push_tenant_access ON public.push_subscriptions AS PERMISSIVE FOR ALL TO public USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
 CREATE POLICY tenant_isolation ON public.rate_plans AS PERMISSIVE FOR ALL TO authenticated USING ((tenant_id = ( SELECT rate_plans.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid())))) WITH CHECK ((tenant_id = ( SELECT rate_plans.tenant_id
+  WHERE (profiles.id = auth.uid())))) WITH CHECK ((tenant_id = ( SELECT rate_plans.tenant_id
    FROM profiles
-  WHERE (profiles.id = uid()))));
+  WHERE (profiles.id = auth.uid()))));
 CREATE POLICY tenant_isolation ON public.reservations AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK ((tenant_id = current_tenant_id()));
 CREATE POLICY tenant_isolation ON public.review_queue AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY review_requests_tenant ON public.review_requests AS PERMISSIVE FOR ALL TO authenticated, anon USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
@@ -7380,49 +7380,49 @@ CREATE POLICY tenant_isolation ON public.rooms AS PERMISSIVE FOR ALL TO public U
 CREATE POLICY tenant_isolation ON public.staff AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY owner_view_subscription ON public.subscriptions AS PERMISSIVE FOR ALL TO public USING ((tenant_id IN ( SELECT tenants.id
    FROM tenants
-  WHERE (tenants.owner_id = uid()))));
+  WHERE (tenants.owner_id = auth.uid()))));
 CREATE POLICY subscriptions_insert ON public.subscriptions AS PERMISSIVE FOR INSERT TO public WITH CHECK ((tenant_id IN ( SELECT tenants.id
    FROM tenants
-  WHERE (tenants.owner_id = uid()))));
+  WHERE (tenants.owner_id = auth.uid()))));
 CREATE POLICY subscriptions_select ON public.subscriptions AS PERMISSIVE FOR SELECT TO public USING (((tenant_id = get_my_tenant_id()) OR (tenant_id IN ( SELECT tenants.id
    FROM tenants
-  WHERE (tenants.owner_id = uid())))));
+  WHERE (tenants.owner_id = auth.uid())))));
 CREATE POLICY subscriptions_update ON public.subscriptions AS PERMISSIVE FOR UPDATE TO public USING ((tenant_id IN ( SELECT tenants.id
    FROM tenants
-  WHERE (tenants.owner_id = uid()))));
+  WHERE (tenants.owner_id = auth.uid()))));
 CREATE POLICY tenant_access ON public.subscriptions AS PERMISSIVE FOR ALL TO authenticated, anon USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
 CREATE POLICY tenant_isolation ON public.swarm_leads AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY tenant_access ON public.tenant_guests AS PERMISSIVE FOR ALL TO authenticated, anon USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
 CREATE POLICY tenant_guests_access ON public.tenant_guests AS PERMISSIVE FOR ALL TO public USING (((tenant_id IN ( SELECT tenant_users.tenant_id
    FROM tenant_users
-  WHERE (tenant_users.user_id = uid()))) OR (tenant_id IN ( SELECT tenants.id
+  WHERE (tenant_users.user_id = auth.uid()))) OR (tenant_id IN ( SELECT tenants.id
    FROM tenants
-  WHERE (tenants.owner_id = uid())))));
+  WHERE (tenants.owner_id = auth.uid())))));
 CREATE POLICY tenant_guests_all ON public.tenant_guests AS PERMISSIVE FOR ALL TO public USING ((tenant_id = get_my_tenant_id()));
 CREATE POLICY tenant_access ON public.tenant_reservations AS PERMISSIVE FOR ALL TO authenticated, anon USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
 CREATE POLICY tenant_reservations_access ON public.tenant_reservations AS PERMISSIVE FOR ALL TO public USING (((tenant_id IN ( SELECT tenant_users.tenant_id
    FROM tenant_users
-  WHERE (tenant_users.user_id = uid()))) OR (tenant_id IN ( SELECT tenants.id
+  WHERE (tenant_users.user_id = auth.uid()))) OR (tenant_id IN ( SELECT tenants.id
    FROM tenants
-  WHERE (tenants.owner_id = uid())))));
+  WHERE (tenants.owner_id = auth.uid())))));
 CREATE POLICY tenant_reservations_all ON public.tenant_reservations AS PERMISSIVE FOR ALL TO public USING ((tenant_id = get_my_tenant_id()));
 CREATE POLICY tenant_access ON public.tenant_rooms AS PERMISSIVE FOR ALL TO authenticated, anon USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
 CREATE POLICY tenant_rooms_access ON public.tenant_rooms AS PERMISSIVE FOR ALL TO public USING (((tenant_id IN ( SELECT tenant_users.tenant_id
    FROM tenant_users
-  WHERE (tenant_users.user_id = uid()))) OR (tenant_id IN ( SELECT tenants.id
+  WHERE (tenant_users.user_id = auth.uid()))) OR (tenant_id IN ( SELECT tenants.id
    FROM tenants
-  WHERE (tenants.owner_id = uid())))));
+  WHERE (tenants.owner_id = auth.uid())))));
 CREATE POLICY tenant_rooms_all ON public.tenant_rooms AS PERMISSIVE FOR ALL TO public USING ((tenant_id = get_my_tenant_id()));
 CREATE POLICY tenant_access ON public.tenant_users AS PERMISSIVE FOR ALL TO authenticated, anon USING ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid)) WITH CHECK ((tenant_id = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'::uuid));
 CREATE POLICY tenant_member_access ON public.tenant_users AS PERMISSIVE FOR ALL TO public USING (((tenant_id IN ( SELECT tenant_users_1.tenant_id
    FROM tenant_users tenant_users_1
-  WHERE (tenant_users_1.user_id = uid()))) OR (tenant_id IN ( SELECT tenants.id
+  WHERE (tenant_users_1.user_id = auth.uid()))) OR (tenant_id IN ( SELECT tenants.id
    FROM tenants
-  WHERE (tenants.owner_id = uid())))));
-CREATE POLICY tenant_users_insert ON public.tenant_users AS PERMISSIVE FOR INSERT TO public WITH CHECK ((user_id = uid()));
-CREATE POLICY tenant_users_select ON public.tenant_users AS PERMISSIVE FOR SELECT TO public USING (((user_id = uid()) OR (tenant_id = get_my_tenant_id())));
+  WHERE (tenants.owner_id = auth.uid())))));
+CREATE POLICY tenant_users_insert ON public.tenant_users AS PERMISSIVE FOR INSERT TO public WITH CHECK ((user_id = auth.uid()));
+CREATE POLICY tenant_users_select ON public.tenant_users AS PERMISSIVE FOR SELECT TO public USING (((user_id = auth.uid()) OR (tenant_id = get_my_tenant_id())));
 CREATE POLICY tenant_no_client_write ON public.tenants AS PERMISSIVE FOR ALL TO public USING (false) WITH CHECK (false);
-CREATE POLICY tenant_self_read ON public.tenants AS PERMISSIVE FOR SELECT TO public USING ((uid() IS NOT NULL));
+CREATE POLICY tenant_self_read ON public.tenants AS PERMISSIVE FOR SELECT TO public USING ((auth.uid() IS NOT NULL));
 CREATE POLICY tenant_isolation ON public.transactions AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK ((tenant_id = current_tenant_id()));
 CREATE POLICY tenant_isolation ON public.upsell_offers AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
 CREATE POLICY tenant_isolation ON public.workflow_locks AS PERMISSIVE FOR ALL TO public USING (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL))) WITH CHECK (((tenant_id = current_tenant_id()) OR (tenant_id IS NULL)));
