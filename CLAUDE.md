@@ -11,7 +11,7 @@
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
 - After any bash `cat >>` append to a .tsx/.ts file, immediately verify with `tail -5` and `tsc --noEmit` — appends frequently corrupt files silently
-- After any Edit to `public/crm.html`, grep for `ReactDOM.createRoot` AND `</html>` before `git add` — truncation regression check
+- After any Edit to `public/crm.html`, grep for `crm-bundle.js` AND `id="root"` AND `</html>` before `git add` — truncation regression check. (crm.html is now a thin LOADER; the React `createRoot` bootstrap lives in `crm-bundle.js`, NOT inline — do NOT grep for `ReactDOM.createRoot` here, it will false-flag.)
 - After EVERY Edit to `public/crm-src.jsx`: run `npm run build:crm` immediately. If Babel errors near line 5470+, tail is truncated — recover with Python splice anchored at `cur==='rooms'` line (see coding_conventions.md)
 - All git commits MUST originate from Windows PowerShell, NOT from the bash sandbox (`.git/*.lock` files are owned by Windows UID and cannot be removed from sandbox)
 - `_isRealPayment` MUST use positive match: `/payment|settlement|advance|deposit|bkash|bank\s*transfer/i` — exclusion-only allows charges (Stay Extension, Room Service) to count as revenue
@@ -100,7 +100,7 @@ npm run lint
 
 - **NTFS index.lock**: `.git/*.lock` owned by Windows UID — cannot be deleted from Linux sandbox. All commits MUST originate from Windows PowerShell, not bash sandbox.
 - **Staged deletions guard**: Before every `git commit`, run `git diff --cached --name-only` and verify no critical files (`.env.local`, `facebook_post.py`, `ADD_FACEBOOK_TOKEN.bat`, `ruflo.config.json`, batch scripts) are staged for deletion. Use `git restore --staged <file>` if caught.
-- **crm.html truncation check**: After any Edit to `public/crm.html`, grep for `ReactDOM.createRoot` AND `</html>` before `git add`. Missing either = truncation regression.
+- **crm.html truncation check**: After any Edit to `public/crm.html`, grep for `crm-bundle.js` AND `id="root"` AND `</html>` before `git add`. Missing any = truncation regression. (crm.html is a thin LOADER — the React `createRoot` bootstrap lives in `crm-bundle.js`, not inline. The old `ReactDOM.createRoot` check is RETIRED: it false-flagged a valid loader on 2026-06-12.)
 
 ## Lumea CRM — Active Key Architecture (updated 2026-05-12)
 
