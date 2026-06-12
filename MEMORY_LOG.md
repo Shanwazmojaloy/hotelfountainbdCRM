@@ -1,11 +1,17 @@
 Purpose: Persistent memory of key decisions and technical hurdles.
 
 CANONICAL PROJECT PATH (2026-06-12):
-- The live repo now lives at `F:\Hotel Fountain\Hotel Fountain Web & CRM` (root). This is the SINGLE source of truth.
+- The live repo now lives at `F:\Hotel Fountain\Hotel Fountain Web CRM` (root). This is the SINGLE source of truth.
 - DEPRECATED — do NOT reference: `C:\dev\hotelfountainbd` (moved), `C:\dev\hotelfountainbdCRM` + `C:\dev\hf-crm` (stale clones, DELETED), and `C:\Users\ahmed\OneDrive\Desktop\New folder\claude\hotelfountainbd-vercel` (scratch workspace, archived).
 - The OneDrive scratch workspace was consolidated into `F:\...\Web & CRM\archive\onedrive-workspace` (gitignored).
 - Git remote unchanged: `https://github.com/Shanwazmojaloy/hotelfountainbdCRM.git` (branch `main`). Vercel/GitHub deploy unaffected by the move.
-- Any helper script that `cd`s into the repo must target the quoted path `"F:\Hotel Fountain\Hotel Fountain Web & CRM"` (path contains a space and `&`). COMMIT_PUSH_IVORY.bat, PUSH_BILLINGFIX.bat, FIX_MIGRATION_COPY.ps1 already repointed.
+- Any helper script that `cd`s into the repo must use the quoted path `"F:\Hotel Fountain\Hotel Fountain Web CRM"` (contains spaces). COMMIT_PUSH_IVORY.bat, PUSH_BILLINGFIX.bat, FIX_MIGRATION_COPY.ps1 already repointed.
+- LESSON (2026-06-12): the folder was first named `Hotel Fountain Web & CRM`. The `&` broke npm/Next on Windows — cmd.exe treats `&` as a command separator inside `node_modules/.bin` shims, so `next build` failed with `'CRM\node_modules\.bin\' is not recognized` and `Cannot find module 'F:\Hotel Fountain\next\dist\bin\next'`. Renamed to drop the `&`. NEVER put `&` (or other cmd metacharacters) in a path that runs Node tooling. Git/file ops tolerated it; npm did not.
+
+REPORTS — COLLECTED COLUMN RULE (2026-06-13, commit 9a12a99):
+- Daily Movements "Collected" is attributed ONCE per reservation — on the FIRST movement row only (`moveColl` dedupe in Reports.jsx). A guest who checks in AND out on the same open business day produces two movement rows; showing the payment on both double-counted the column (e.g. ৳27,000 visible vs the true ৳15,500). Repeat rows render `—`.
+- `Total Collection` (the StatCard / Closing Ledger figure) is the AUTHORITATIVE number: sum of today's transactions once via `txs.filter(notBCF && fiscal_day===date)`. It is NOT derived from the movement rows and must stay that way.
+- DO NOT "re-fix" the Collected cell back to `collectedFor(m)` per row — that reintroduces the double-count. The column is a display attribution; the ledger total is the source of truth.
 
 Key Decisions Made:
 Pricing Logic: Room rates are calculated using a base rate plus a combined 20% markup (15% VAT and 5% Service Charge).
