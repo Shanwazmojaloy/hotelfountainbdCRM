@@ -97,7 +97,10 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const collectedFor = (r) => txs.filter((t) => notBCF(t) && t.reservation_id === r.id && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
   const ins = res.filter((r) => inDayRange((r.check_in || '').slice(0, 10))).map((r) => ({ ...r, _type: 'IN' }));
   const outs = res.filter((r) => inDayRange((r.check_out || '').slice(0, 10))).map((r) => ({ ...r, _type: 'OUT' }));
-  const moves = [...ins, ...outs];
+  const _mv = [...ins, ...outs];
+  const _movedIds = new Set(_mv.map((m) => m.id));
+  const payOnly = res.filter((r) => !_movedIds.has(r.id) && collectedFor(r) > 0).map((r) => ({ ...r, _type: 'PAY' }));
+  const moves = [..._mv, ...payOnly];
   const collected = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
   // Due/Outstanding is ALWAYS the full live book (every reservation with a balance) — visible
   // on every day's report, not just guests who moved today.
@@ -108,7 +111,6 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   // Payment-method split derived from the composite `type` (no payment_method column exists).
   const PM = [['Cash', /cash/i], ['bKash', /bkash/i], ['Nagad', /nagad/i], ['Card', /card/i], ['Bank', /bank|account|transfer/i]];
   const paySplit = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((acc, t) => { const hit = PM.find(([, re]) => re.test(t.type || '')); const k = hit ? hit[0] : 'Other'; acc[k] = (acc[k] || 0) + (Number(t.amount) || 0); return acc; }, {});
-  const dayPays = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date);
 
   async function handleClose() {
     setErr('');
@@ -181,7 +183,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
                 <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
                   <td style={TD}>{m.guest_name || 'Guest'}</td>
                   <td style={TD}><Badge tone="blue">{roomOf(m)}</Badge></td>
-                  <td style={TD}><Badge tone={m._type === 'IN' ? 'green' : 'teal'}>{m._type === 'IN' ? 'Check-In' : 'Check-Out'}</Badge></td>
+                  <td style={TD}><Badge tone={m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : 'teal'}>{m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : 'Check-Out'}</Badge></td>
                   <td style={{ ...TD, ...MONO, color: C.ink3 }}>{dt}</td>
                   <td style={{ ...TD, ...MONO, color: due > 0 ? C.rose : C.ink3 }}>{due > 0 ? bdt(due) : '—'}</td>
                   <td style={TD}>{due > 0 ? <Badge tone="amber">Balance Due</Badge> : <Badge tone="green">Settled</Badge>}</td>
@@ -246,14 +248,14 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       <Card title="Daily" titleAccent="Movements" bodyStyle={{ padding: 0 }}>
         <Table head={['Guest', 'Room', 'Type', 'Collected', 'Balance', 'Status']}>
           {loading && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>Loading…</td></tr>}
-          {!loading && moves.length === 0 && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No check-ins or check-outs on {fmtLong(date)}.</td></tr>}
+          {!loading && moves.length === 0 && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No movements or collections on {fmtLong(date)}.</td></tr>}
           {moves.map((m, i) => {
             const due = dueOf(m);
             return (
               <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
                 <td style={TD}>{m.guest_name || 'Guest'}</td>
                 <td style={TD}><Badge tone="blue">{roomOf(m)}</Badge></td>
-                <td style={TD}><Badge tone={m._type === 'IN' ? 'green' : 'teal'}>{m._type === 'IN' ? 'Check-In' : 'Check-Out'}</Badge></td>
+                <td style={TD}><Badge tone={m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : 'teal'}>{m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : 'Check-Out'}</Badge></td>
                 <td style={{ ...TD, ...MONO, color: C.grn }}>{bdt(collectedFor(m))}</td>
                 <td style={{ ...TD, ...MONO, color: due > 0 ? C.rose : C.ink3 }}>{due > 0 ? bdt(due) : '—'}</td>
                 <td style={TD}>{due > 0 ? <Badge tone="amber">Balance Due</Badge> : <Badge tone="green">Settled</Badge>}</td>
@@ -261,32 +263,6 @@ function Daily({ txs, res, closes, loading, onClosed }) {
             );
           })}
         </Table>
-      </Card>
-
-      <Card title="Today's" titleAccent="Collections" accent={C.grn} bodyStyle={{ padding: 0 }}>
-        <Table head={['Guest', 'Room', 'Method / Type', 'Amount']}>
-          {!loading && dayPays.length === 0 && <tr><td colSpan={4} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No collections recorded for {fmtLong(date)}.</td></tr>}
-          {dayPays.map((t, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
-              <td style={TD}>{t.guest_name || '—'}</td>
-              <td style={TD}><Badge tone="blue">{t.room_number || '—'}</Badge></td>
-              <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>{t.type || '—'}</td>
-              <td style={{ ...TD, ...MONO, color: C.grn }}>{bdt(t.amount)}</td>
-            </tr>
-          ))}
-          {!loading && dayPays.length > 0 && (
-            <tr><td colSpan={3} style={{ ...TD, fontWeight: 700, fontFamily: 'var(--iv-head)' }}>Total Collection</td><td style={{ ...TD, ...MONO, fontWeight: 700, color: 'var(--iv-gold)' }}>{bdt(collected)}</td></tr>
-          )}
-        </Table>
-      </Card>
-
-      <Card title="Closing" titleAccent="Ledger" accent={C.gold}>
-        <FRow label="Total Collection" value={bdt(collected)} />
-        <FRow label="Less — Opening Token / Float" value={'− ' + bdt(tok)} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, fontFamily: 'var(--iv-head)', paddingTop: 8 }}>
-          <span>Closing Balance</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(closing)}</span>
-        </div>
-        <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Total Collection − Opening Token. Collections accrue to this open day until “Closing Complete” locks it and opens the next. Outstanding dues below carry across every day.</div>
       </Card>
 
       {/* Outstanding dues — always visible on every day's report (full live book) */}
@@ -302,6 +278,15 @@ function Daily({ txs, res, closes, loading, onClosed }) {
             </tr>
           ))}
         </Table>
+      </Card>
+
+      <Card title="Closing" titleAccent="Ledger" accent={C.gold}>
+        <FRow label="Total Collection" value={bdt(collected)} />
+        <FRow label="Less — Opening Token / Float" value={'− ' + bdt(tok)} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, fontFamily: 'var(--iv-head)', paddingTop: 8 }}>
+          <span>Closing Balance</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(closing)}</span>
+        </div>
+        <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Total Collection − Opening Token. Collections accrue to this open day until “Closing Complete” locks it and opens the next. Outstanding dues above carry across every day.</div>
       </Card>
 
       {/* ── PRINT-ONLY: one-page A4 condensed report (Download → window.print) ── */}
@@ -331,18 +316,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
           <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th className="r">Collected</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
           <tbody>
             {moves.map((m, i) => { const due = dueOf(m); return (
-              <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{m._type === 'IN' ? 'Check-In' : 'Check-Out'}</td><td className="r">{bdt(collectedFor(m))}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
+              <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : 'Check-Out'}</td><td className="r">{bdt(collectedFor(m))}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
             ); })}
-          </tbody>
-        </table>
-        <div className="pr-sec">Collections</div>
-        <table className="pr-tbl">
-          <thead><tr><th>Guest</th><th>Room</th><th>Method / Type</th><th className="r">Amount</th></tr></thead>
-          <tbody>
-            {dayPays.map((t, i) => (
-              <tr key={i}><td>{t.guest_name || '—'}</td><td>{t.room_number || '—'}</td><td>{t.type || '—'}</td><td className="r">{bdt(t.amount)}</td></tr>
-            ))}
-            <tr className="pr-tot-row"><td colSpan={3}>Total Collection</td><td className="r">{bdt(collected)}</td></tr>
           </tbody>
         </table>
         <div className="pr-sec">Outstanding Dues</div>
