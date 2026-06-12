@@ -2185,3 +2185,6 @@ ROLE-BASED ACCESS CONTROL — department permissions (v3.34, 2026-06-10, owner s
 ## 2026-06-12 Reports - Today's Collections detail table (fix)
 - Bug report: room 308 MOHAMMAD RAIHAN paid Cash ৳4,000 today but did not appear in the report. Root cause = VISIBILITY gap, not lost money: Daily Movements is check-in/out driven, so a mid-stay "Advance Payment" on a guest with no movement today is counted in Total Collection (৳12,000 = 4,500 FAIJUL + 3,500 RAJIB + 4,000 RAIHAN) but shown in NO detail row. Two "Stay Extension" lines (8,000+4,500) are charges, correctly excluded by notBCF.
 - OPEN TODO: Billing "Outstanding dues ৳172,810" vs Reports "Total Due ৳220,810" differ - separate reconciliation (likely status/scope filter divergence), NOT addressed here.
+
+## 2026-06-12 Reports - collections folded into Movements + Closing Ledger moved (layout)
+- Per owner: removed the separate "Today's Collections" block; mid-stay payments now appear IN Daily Movements as gold "Payment" rows (`payOnly` = reservations with `collectedFor(r)>0` not already a check-in/out today; `_type:'PAY'`). Movements count now includes them. Closing Ledger moved to the BOTTOM (below Outstanding Dues); caption reworded "dues below"- Same change applied to the print report. Commit f0babd9b49832589e80b36a657c749e85048c0d6 cherry-picked to main.
