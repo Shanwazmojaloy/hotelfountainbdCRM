@@ -13,6 +13,8 @@ REPORTS — COLLECTED COLUMN RULE (2026-06-13, commit 9a12a99):
 - `Total Collection` (the StatCard / Closing Ledger figure) is the AUTHORITATIVE number: sum of today's transactions once via `txs.filter(notBCF && fiscal_day===date)`. It is NOT derived from the movement rows and must stay that way.
 - DO NOT "re-fix" the Collected cell back to `collectedFor(m)` per row — that reintroduces the double-count. The column is a display attribution; the ledger total is the source of truth.
 
+REPORTS — PRINT LAYOUT (2026-06-13): Daily Performance Report (`#print-report` in Reports.jsx) prints to a SINGLE A4 portrait page. `@page` margin = 0.7in all sides. Header crest uses `/logo-crest.png` (not the old "F" letter). Daily Movements and Outstanding Dues each render as a separate bordered `.pr-panel` block with a titled header bar (`.pr-panel-h`; dues uses `--due` gold variant) showing a count + total summary. Compressed type (body 8.5px, table td 8px / th 7px) keeps it one page; if a heavy day overflows, trim row padding before reverting to multi-page.
+
 Key Decisions Made:
 Pricing Logic: Room rates are calculated using a base rate plus a combined 20% markup (15% VAT and 5% Service Charge).
 Operational Hours: Standardized check-in at 12:00 PM or 2:00 PM and check-out at 12:00 PM.

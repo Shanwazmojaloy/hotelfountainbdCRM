@@ -262,7 +262,7 @@ export function printDayReport({ dateLabel, collected, dues, reservations }) {
 // with a PAID / BALANCE DUE stamp. Same A4-portrait Warm-Ivory shell as the confirmation.
 const MARKER_RE = /receivable|payment|settlement|advance|refund/i;
 export function printInvoice(res, rooms, guestName, folios) {
-  const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
+  const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo-crest.png';
   const gn = guestName || res.guest_name || 'Guest';
   const invNo = 'INV-' + String(res.id || Date.now()).slice(-8).toUpperCase();
   const issued = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -308,8 +308,8 @@ export function printInvoice(res, rooms, guestName, folios) {
   html,body{background:#FBF8F1;color:#1F1B16;font-family:'Inter',sans-serif;font-size:12px;line-height:1.55;font-variant-numeric:tabular-nums}
   .page{max-width:820px;margin:0 auto;padding:44px 52px;background:#FBF8F1}
   .hdr{display:flex;justify-content:space-between;align-items:center;gap:24px;border-bottom:2px solid #C8A96E;padding-bottom:24px;margin-bottom:28px}
-  .brand{display:flex;align-items:center;gap:20px}
-  .brand img{width:72px;height:72px;object-fit:contain}
+  .brand{display:flex;align-items:center;gap:18px}
+  .brand img{width:94px;height:94px;object-fit:contain;display:block;flex:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.12))}
   .brand h1{font-size:23px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1.1}
   .brand h1 em{font-style:normal;color:#C8A96E;font-weight:500}
   .brand .tag{font-style:italic;font-size:11px;letter-spacing:1.5px;color:#C8A96E;margin-top:2px}
