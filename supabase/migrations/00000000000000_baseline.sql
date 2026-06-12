@@ -7129,7 +7129,7 @@ CREATE OR REPLACE VIEW public.high_risk_accounts AS  SELECT account_id,
   ORDER BY sentiment_slope, churn_score DESC;
 
 -- TRIGGERS
-CREATE TRIGGER "Send Confirmation Email" AFTER INSERT OR UPDATE ON public.reservations FOR EACH ROW EXECUTE FUNCTION supabase_functions.http_request('https://hotel-fountain-app.vercel.app/api/webhook-confirm-booking', 'POST', '{"Content-Type":"application/json"}', '{}', '5000');
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'supabase_functions') THEN CREATE TRIGGER "Send Confirmation Email" AFTER INSERT OR UPDATE ON public.reservations FOR EACH ROW EXECUTE FUNCTION supabase_functions.http_request('https://hotel-fountain-app.vercel.app/api/webhook-confirm-booking', 'POST', '{"Content-Type":"application/json"}', '{}', '5000'); END IF; END $$;
 CREATE TRIGGER audit_trg AFTER INSERT OR DELETE OR UPDATE ON public.council_sessions FOR EACH ROW EXECUTE FUNCTION audit_table_change();
 CREATE TRIGGER audit_trg AFTER INSERT OR DELETE OR UPDATE ON public.tenant_users FOR EACH ROW EXECUTE FUNCTION audit_table_change();
 CREATE TRIGGER audit_trg AFTER INSERT OR DELETE OR UPDATE ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION audit_table_change();
