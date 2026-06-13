@@ -1,11 +1,12 @@
 // POST /api/crm/close-day — Night-audit "Closing Complete". Session-gated, service-role.
-// Snapshots the day's figures into night_audit_log (one canonical row per tenant/day, upserted
-// so re-closing refreshes the snapshot + closed_at). The browser NEVER writes this table
-// (no INSERT RLS policy) — only this route does, via the service role. The report reads it back
-// (tenant-scoped SELECT) and uses closed_at as the cutoff for its post-close "fresh" delta view.
+// SINGLE SOURCE OF TRUTH: this route is now a thin orchestrator. It resolves the OPEN
+// business day and delegates ALL computation + the night_audit_log upsert to the
+// execute_nightly_audit() RPC, which carries the canonical methodology (collections
+// excl. BCF, rooms.status occupancy, all-status date counts/dues) PLUS the integer
+// guest_ledger tax split (VAT/SC/net) and discrepancy flags. The browser never writes
+// this table — only this route does, via the service role.
 //
-// All money math is derived server-side from canonical columns — the client is not trusted.
-// Body: { audit_date?: 'YYYY-MM-DD', notes?: string }. Defaults to today (Asia/Dhaka).
+// Body: { audit_date?: 'YYYY-MM-DD', notes?: string }. Defaults to the open business day.
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
@@ -20,10 +21,6 @@ const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ec
 
 const dhakaToday = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-const day = (s: unknown) => (typeof s === 'string' ? s.slice(0, 10) : '');
-const notBCF = (t: { type?: string | null }) => !/balance carried forward/i.test(t.type ?? '');
-const dueOf = (r: { total_amount?: number; discount_amount?: number; discount?: number; paid_amount?: number }) =>
-  Math.max(0, (+(r.total_amount || 0)) - (+(r.discount_amount || r.discount || 0)) - (+(r.paid_amount || 0)));
 
 export async function POST(req: NextRequest) {
   if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
@@ -43,56 +40,36 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { /* empty */ }
   const notes = typeof body.notes === 'string' ? body.notes.slice(0, 500) : null;
 
-  // ── pull canonical data (tenant-scoped) ──
-  const [{ data: txs }, { data: res }, { data: rooms }, { data: closes }] = await Promise.all([
-    supabase.from('transactions').select('amount, type, fiscal_day, created_at').eq('tenant_id', TENANT),
-    supabase.from('reservations').select('check_in, check_out, total_amount, discount_amount, discount, paid_amount, status').eq('tenant_id', TENANT),
-    supabase.from('rooms').select('status').eq('tenant_id', TENANT),
-    supabase.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT),
-  ]);
-
-  // Close the OPEN business day (latest closed + 1), NOT the calendar date — unless an
-  // explicit audit_date is passed (re-close of a past day).
+  // ── resolve the OPEN business day (latest closed + 1), unless an explicit
+  //    audit_date is passed (re-close of a past day) ──
+  const { data: closes } = await supabase.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT);
   const openDay = openBusinessDay(closes, dhakaToday());
   const auditDate = (typeof body.audit_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.audit_date)) ? body.audit_date : openDay;
 
-  const T = txs || [], R = res || [], RM = rooms || [];
-
-  const collections = T
-    .filter((t: { type?: string; fiscal_day?: string; created_at?: string }) => notBCF(t) && day(t.fiscal_day || t.created_at) === auditDate)
-    .reduce((a: number, t: { amount?: number }) => a + (Number(t.amount) || 0), 0);
-
-  const checkins = R.filter((r: { check_in?: string }) => day(r.check_in) === auditDate).length;
-  const checkouts = R.filter((r: { check_out?: string }) => day(r.check_out) === auditDate).length;
-  const carriedDues = R.reduce((a: number, r: Parameters<typeof dueOf>[0]) => a + dueOf(r), 0);
-
-  const roomsOccupied = RM.filter((r: { status?: string }) => (r.status || '').toUpperCase() === 'OCCUPIED').length;
-  const roomsVacant = RM.filter((r: { status?: string }) => ['AVAILABLE', 'CLEAN', 'VACANT'].includes((r.status || '').toUpperCase())).length;
-
-  const row = {
-    audit_date: auditDate,
-    closed_at: new Date().toISOString(),
-    closed_by: staff.name || 'Staff',
-    total_checkins: checkins,
-    total_checkouts: checkouts,
-    total_collections: collections,
-    carried_over_dues: carriedDues,
-    rooms_occupied: roomsOccupied,
-    rooms_vacant: roomsVacant,
-    notes,
-    tenant_id: TENANT,
-    status: 'closed',
-  };
-
-  const { data: saved, error } = await supabase
-    .from('night_audit_log')
-    .upsert(row, { onConflict: 'tenant_id,audit_date' })
-    .select()
-    .single();
+  // ── delegate all computation + upsert to the canonical RPC (service role) ──
+  const { data: rpc, error } = await supabase.rpc('execute_nightly_audit', {
+    target_tenant_id: TENANT,
+    p_audit_date: auditDate,
+    p_closed_by: staff.name || 'Staff',
+    p_notes: notes,
+  });
 
   if (error) {
-    console.error('[crm/close-day] upsert:', error.message);
+    console.error('[crm/close-day] rpc:', error.message);
     return NextResponse.json({ error: 'Could not close the day.' }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, close: saved });
+  if (rpc && rpc.success === false) {
+    console.error('[crm/close-day] audit failed:', rpc.error, rpc.sqlstate);
+    return NextResponse.json({ error: 'Could not close the day.' }, { status: 500 });
+  }
+
+  // Return the persisted row (preserves the existing { ok, close } response shape).
+  const { data: saved } = await supabase
+    .from('night_audit_log')
+    .select('*')
+    .eq('tenant_id', TENANT)
+    .eq('audit_date', auditDate)
+    .single();
+
+  return NextResponse.json({ ok: true, close: saved, audit: rpc });
 }
