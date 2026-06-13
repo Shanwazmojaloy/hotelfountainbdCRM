@@ -1,5 +1,5 @@
 // agentGuard.ts — Lumea audit-and-fix swarm safety layer
-// Deploy target: src/lib/agentGuard.ts in the live repo (F:\Hotel Fountain\Hotel Fountain Web & CRM).
+// Deploy target: src/lib/agentGuard.ts in the live repo (F:\Hotel Fountain\Hotel Fountain Web CRM).
 // Enforces the merge gate in code so it does not depend on an agent "remembering" it.
 //
 // Policy (locked 2026-06-12): P3 auto-merges after QA green; P1/P2 always HOLD for human approval.

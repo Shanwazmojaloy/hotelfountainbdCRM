@@ -3,8 +3,8 @@
 # the earlier copy. Run from anywhere:  powershell -ExecutionPolicy Bypass -File FIX_MIGRATION_COPY.ps1
 
 $ErrorActionPreference = "Stop"
-$src = "F:\Hotel Fountain\Hotel Fountain Web & CRM\archive\onedrive-workspace\fountainbd-web"
-$dst = "F:\Hotel Fountain\Hotel Fountain Web & CRM"
+$src = "F:\Hotel Fountain\Hotel Fountain Web CRM\archive\onedrive-workspace\fountainbd-web"
+$dst = "F:\Hotel Fountain\Hotel Fountain Web CRM"
 
 Write-Host "Copying marketing components -> src/components/site ..." -ForegroundColor Cyan
 robocopy "$src\src\components" "$dst\src\components\site" *.tsx /NFL /NDL /NJH /NJS | Out-Null
