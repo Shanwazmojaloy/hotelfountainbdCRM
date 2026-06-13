@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cormorant_Garamond } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 import ClientErrorReporter from "./components/ClientErrorReporter";
 import "./globals.css";
 
@@ -60,6 +61,7 @@ export default function RootLayout({
         {children}
         <ClientErrorReporter />
         <SpeedInsights />
+        <Analytics />
         <script
           dangerouslySetInnerHTML={{
             __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}`,
