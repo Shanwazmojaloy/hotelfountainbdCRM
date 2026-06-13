@@ -1,9 +1,22 @@
+"use client";
+
+import { motion } from "framer-motion";
+
 /**
- * Per-navigation page-transition wrapper. Uses a pure CSS opacity fade (not a
- * JS/Framer animation) so a stalled animation frame can never leave the page
- * invisible. Opacity-only (no transform) keeps position:fixed children — the
- * nav and booking bar — anchored to the viewport.
+ * Global page-transition wrapper.
+ * Next.js App Router re-mounts template.tsx on every navigation, so this
+ * enter animation (fade + slide) fires on each route change, giving a seamless
+ * fluid transition. Framer Motion automatically softens transforms under
+ * prefers-reduced-motion; the gentle opacity fade is retained.
  */
 export default function Template({ children }: { children: React.ReactNode }) {
-  return <div className="site-fade-in">{children}</div>;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18, filter: "blur(6px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
 }
