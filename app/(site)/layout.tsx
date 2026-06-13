@@ -31,8 +31,8 @@ const hotelSchema = {
 
 /**
  * Marketing site shell (route group "(site)"). Scoped under `.site-root` so the
- * gold "Liquid Glass" theme never leaks into /crm. Root <html>/<body> stay in
- * app/layout.tsx; this is a nested layout that adds the marketing chrome.
+ * gold "Liquid Glass" theme never leaks into /crm. The Navbar/Footer/FAB are
+ * home-aware (each returns null on "/", which ships its own editorial chrome).
  */
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (

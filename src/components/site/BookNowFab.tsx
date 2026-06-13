@@ -1,12 +1,14 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { openReservation } from "@/lib/reserve";
 
 /**
- * Persistent gold "Book Now" floating action button → opens the reservation modal.
- * Always reachable so the booking path is never lost on scroll.
+ * Persistent gold "Book Now" floating action button. Hidden on "/" (the
+ * editorial landing supplies its own booking CTA).
  */
 export default function BookNowFab() {
+  if (usePathname() === "/") return null;
   return (
     <button
       type="button"
