@@ -102,10 +102,10 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const _movedIds = new Set(_mv.map((m) => m.id));
   const payOnly = res.filter((r) => !_movedIds.has(r.id) && collectedFor(r) > 0).map((r) => ({ ...r, _type: 'PAY' }));
   const _moves = [..._mv, ...payOnly];
-  // Hide already-closed business from Daily Movements: a CHECK-OUT that brought no collection to
-  // THIS open day AND owes nothing is a prior-day settled stay (its payment was recorded to an
-  // earlier report). Keep arrivals, anyone with a balance due, and anyone who paid this period.
-  const moves = _moves.filter((m) => !(m._type === 'OUT' && dueOf(m) <= 0 && collectedFor(m) === 0));
+  // Daily Movements shows only rows that NEED attention or moved money in THIS open day: a live
+  // balance due, OR a collection recorded today. Settled guests with no collection this period
+  // (already reported/settled on a previous day) are hidden so they don't carry into the new day.
+  const moves = _moves.filter((m) => dueOf(m) > 0 || collectedFor(m) > 0);
   // Collection is PER-RESERVATION. A guest who checks in AND out on the same open day appears as
   // two movement rows; attribute the day's collection to the FIRST row only so the Collected
   // column reconciles to Total Collection. (Bug: same payment shown on both rows summed to
