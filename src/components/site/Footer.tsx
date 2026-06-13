@@ -1,12 +1,8 @@
-"use client";
-
-import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { NAV_LINKS, SITE, CONTACT } from "@/lib/site";
 
 export default function Footer() {
-  if (usePathname() === "/") return null;
   return (
     <footer className="section pb-10 pt-20">
       <div className="glass glass-sheen flex flex-col gap-8 p-8 md:flex-row md:items-center md:justify-between">
@@ -42,7 +38,7 @@ export default function Footer() {
       </div>
 
       <p className="mt-6 text-center text-xs text-white/40">
-        &copy; {new Date().getFullYear()} {SITE.name} &middot; {SITE.location} &middot; All Rights Reserved
+        © {new Date().getFullYear()} {SITE.name} · {SITE.location} · All Rights Reserved
       </p>
     </footer>
   );
