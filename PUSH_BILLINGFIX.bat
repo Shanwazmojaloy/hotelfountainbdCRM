@@ -1,6 +1,6 @@
 @echo off
 REM ── Lumea billing fix: derive total = rooms + billable folios ───────────────
-cd /d "F:\Hotel Fountain\Hotel Fountain Web & CRM"
+cd /d "F:\Hotel Fountain\Hotel Fountain Web CRM"
 echo Clearing any stale git lock...
 del /f /q ".git\index.lock" 2>nul
 
