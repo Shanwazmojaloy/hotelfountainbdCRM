@@ -453,3 +453,93 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 @keyframes fade-up { 0% { opacity: 0; transform: translateY(24px); } 100% { opacity: 1; transform: translateY(0); } }
 @keyframes pulse-ring { 0%,100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.6); } }
 @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+
+/* ===== editorial landing styles (moved from editorial.css) ===== */
+/* Editorial landing (maikasui-inspired) — type + fine-detail helpers only.
+   All LAYOUT lives in Tailwind utilities on the component. Scoped under `.ed`
+   so nothing leaks into the dark Liquid-Glass theme on the other (site) routes.
+   Fonts are already loaded via app/globals.css @import. */
+
+.ed { font-family: 'Inter', system-ui, sans-serif; }
+.ed-serif { font-family: 'Playfair Display', Georgia, serif; }
+.ed-cormorant { font-family: 'Cormorant Garamond', Georgia, serif; }
+.ed-sans { font-family: 'Inter', system-ui, sans-serif; }
+.ed-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+/* Vertical metadata labels (maikasui spine text) */
+.ed-vert { writing-mode: vertical-rl; }
+
+/* Hairline animated link underline (teal, sparing) */
+.ed-ul {
+  background-image: linear-gradient(#14b8a6, #14b8a6);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size .45s cubic-bezier(.16, 1, .3, 1);
+}
+.ed-ul:hover { background-size: 100% 1px; }
+
+/* Scroll reveal (toggled by IntersectionObserver) */
+.ed-reveal { opacity: 0; transform: translateY(30px); transition: opacity 1.1s cubic-bezier(.16,1,.3,1), transform 1.1s cubic-bezier(.16,1,.3,1); }
+.ed-reveal.in { opacity: 1; transform: none; }
+.ed-reveal-d1 { transition-delay: .08s; }
+.ed-reveal-d2 { transition-delay: .16s; }
+.ed-reveal-d3 { transition-delay: .24s; }
+
+/* Slow editorial ken-burns for full-bleed plates */
+.ed-kb { animation: edKb 24s ease-in-out infinite alternate; }
+@keyframes edKb { from { transform: scale(1.05); } to { transform: scale(1.13); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ed-reveal { opacity: 1; transform: none; transition: none; }
+  .ed-kb { animation: none; }
+}
+
+/* Booking-bar inputs */
+.ed-bar-input { width: 100%; background: #01241f; color: #f8fafc; border: none; outline: none; padding: 14px; font-family: 'Inter', sans-serif; font-size: 13px; color-scheme: dark; }
+.ed-bar-input:focus { box-shadow: inset 0 -2px 0 #14b8a6; }
+.ed-bar-input option { color: #01241f; }
+
+/* Awwwards-grade micro-texture: fixed SVG-noise grain over the editorial canvas */
+.ed-grain { position: fixed; inset: 0; z-index: 30; pointer-events: none; opacity: .05; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* ===== Material Kit (Material Design) landing helpers ===== */
+.mk-root { font-family: 'Roboto', system-ui, sans-serif; }
+.mk-root h1, .mk-root h2, .mk-root h3 { font-family: 'Roboto', system-ui, sans-serif; }
+.mk-shadow { box-shadow: 0 20px 27px 0 rgba(0,0,0,0.05); }
+.mk-shadow-lg { box-shadow: 0 8px 26px -4px rgba(0,0,0,0.15), 0 8px 9px -5px rgba(0,0,0,0.06); }
+.mk-shadow-teal { box-shadow: 0 4px 12px 0 rgba(0,121,107,0.40); }
+.mk-card { transition: transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .35s ease; }
+.mk-card:hover { transform: translateY(-6px); box-shadow: 0 22px 40px -8px rgba(0,0,0,0.18); }
+.mk-primary { background-image: linear-gradient(195deg, #26A69A, #00796B); }
+
+/* When the Material landing is present, the (site) dark wrapper must yield to a light canvas */
+.site-root:has(.mk-root) { background: #F4F6F9 !important; color: #344767; }
+.site-root:has(.mk-root)::before, .site-root:has(.mk-root)::after { display: none !important; }
+
+/* Page-transition fade — CSS-only so it can never stall and hide the page */
+.site-fade-in { animation: siteFadeIn 0.5s ease both; }
+@keyframes siteFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .site-fade-in { animation: none; opacity: 1; } }
+
+/* ───────── animate.css entrance layer (curated from animate.css-main, scoped to .ed) ─────────
+   Real animate.css class API (animate__animated + animate__fade*). Keyframes are
+   namespaced an_* to avoid colliding with the CRM's existing @keyframes fadeIn (line ~64).
+   Used for the above-the-fold hero load entrance; scroll sections keep .ed-reveal. */
+.ed .animate__animated { animation-duration: .9s; animation-fill-mode: both; will-change: opacity, transform; }
+.ed .animate__fadeIn      { animation-name: an_fadeIn; }
+.ed .animate__fadeInUp    { animation-name: an_fadeInUp; }
+.ed .animate__fadeInDown  { animation-name: an_fadeInDown; }
+.ed .animate__fadeInRight { animation-name: an_fadeInRight; }
+.ed .animate__fadeInLeft  { animation-name: an_fadeInLeft; }
+.ed .animate__zoomIn      { animation-name: an_zoomIn; }
+@keyframes an_fadeIn      { from { opacity: 0; } to { opacity: 1; } }
+@keyframes an_fadeInUp    { from { opacity: 0; transform: translate3d(0, 48px, 0); }  to { opacity: 1; transform: none; } }
+@keyframes an_fadeInDown  { from { opacity: 0; transform: translate3d(0, -30px, 0); } to { opacity: 1; transform: none; } }
+@keyframes an_fadeInRight { from { opacity: 0; transform: translate3d(60px, 0, 0); }  to { opacity: 1; transform: none; } }
+@keyframes an_fadeInLeft  { from { opacity: 0; transform: translate3d(-60px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes an_zoomIn      { from { opacity: 0; transform: scale3d(.94, .94, .94); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .ed .animate__animated { animation: none !important; opacity: 1 !important; transform: none !important; }
+}

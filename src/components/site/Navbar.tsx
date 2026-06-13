@@ -9,10 +9,8 @@ import { NAV_LINKS, SITE } from "@/lib/site";
 import { openReservation } from "@/lib/reserve";
 
 /**
- * Floating, sticky glassmorphic navbar.
- * - Routing links (not hash anchors) with an animated active indicator.
- * - Condenses + deepens its frost on scroll.
- * - Full-screen glass drawer on mobile.
+ * Floating, sticky glassmorphic navbar. Hidden on "/" (the editorial landing
+ * ships its own chrome); shown on every other (site) route.
  */
 export default function Navbar() {
   const pathname = usePathname();
@@ -26,8 +24,9 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Close the mobile drawer whenever the route changes.
   useEffect(() => setOpen(false), [pathname]);
+
+  if (pathname === "/") return null;
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
@@ -38,7 +37,6 @@ export default function Navbar() {
           transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
           className="glass-nav flex items-center justify-between rounded-full px-4 sm:px-6"
         >
-          {/* Brand */}
           <Link href="/" className="flex items-center gap-2.5">
             <Image
               src="/logo/logo-white.png"
@@ -52,7 +50,6 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop links */}
           <ul className="hidden items-center gap-1 md:flex">
             {NAV_LINKS.map((link) => {
               const active = pathname === link.href;
@@ -88,7 +85,6 @@ export default function Navbar() {
             <button type="button" onClick={() => openReservation()} className="btn-neon !px-5 !py-2.5">
               Book Now
             </button>
-            {/* Mobile toggle */}
             <button
               aria-label="Toggle menu"
               onClick={() => setOpen((v) => !v)}
@@ -100,7 +96,6 @@ export default function Navbar() {
         </motion.nav>
       </div>
 
-      {/* Mobile drawer */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -118,9 +113,7 @@ export default function Navbar() {
                     key={link.href}
                     href={link.href}
                     className={`rounded-xl px-4 py-3 text-sm font-medium transition ${
-                      active
-                        ? "bg-neon-teal/10 text-white"
-                        : "text-white/70 hover:bg-white/5 hover:text-white"
+                      active ? "bg-neon-teal/10 text-white" : "text-white/70 hover:bg-white/5 hover:text-white"
                     }`}
                   >
                     {link.label}
