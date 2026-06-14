@@ -9,6 +9,8 @@ import SectionHeading from "@/components/site/SectionHeading";
 import RoomCard from "@/components/site/RoomCard";
 import MagneticButton from "@/components/site/MagneticButton";
 import AvailabilityWidget from "@/components/site/AvailabilityWidget";
+import BookingBar from "@/components/site/BookingBar";
+import FadeIn from "@/components/site/FadeIn";
 
 export const metadata: Metadata = {
   title: "Hotel Fountain — Dhaka's Finest Luxury Hotel",
@@ -71,11 +73,15 @@ export default function HomePage() {
               </MagneticButton>
             </div>
           </div>
+
+          <FadeIn direction="up" delay={0.2} whileInView={false} className="mt-10 max-w-2xl">
+            <BookingBar />
+          </FadeIn>
         </div>
       </section>
 
       {/* ───────────────── VALUE STATS RIBBON ───────────────── */}
-      <section className="section py-10">
+      <section className="section py-20">
         <ScrollReveal stagger className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {STATS.map((s) => (
             <GlassCard key={s.label} className="p-6 text-center" interactive>
@@ -87,13 +93,15 @@ export default function HomePage() {
       </section>
 
       {/* ───────────────── ROOMS PREVIEW ───────────────── */}
-      <section className="section py-16">
+      <section className="section py-28">
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <SectionHeading
-            eyebrow="Accommodations"
-            title={<>Our <em>Rooms</em> &amp; Suites</>}
-            intro="Every room is designed with meticulous attention to comfort and elegance. Choose from our curated collection of premium accommodations."
-          />
+          <FadeIn>
+            <SectionHeading
+              eyebrow="Accommodations"
+              title={<>Our <em>Rooms</em> &amp; Suites</>}
+              intro="Every room is designed with meticulous attention to comfort and elegance. Choose from our curated collection of premium accommodations."
+            />
+          </FadeIn>
           <Link href="/rooms" className="btn-ghost !py-2.5 text-xs">
             View all rooms →
           </Link>
@@ -107,13 +115,15 @@ export default function HomePage() {
       </section>
 
       {/* ───────────────── AMENITIES OVERVIEW ───────────────── */}
-      <section className="section py-16">
-        <SectionHeading
-          eyebrow="The Experience"
-          title={<>More Than <em>a Stay</em></>}
-          intro="From our rooftop restaurant to the business center, every facility is crafted to exceed expectations."
-          center
-        />
+      <section className="section py-28">
+        <FadeIn>
+          <SectionHeading
+            eyebrow="The Experience"
+            title={<>More Than <em>a Stay</em></>}
+            intro="From our rooftop restaurant to the business center, every facility is crafted to exceed expectations."
+            center
+          />
+        </FadeIn>
         <ScrollReveal stagger className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {AMENITIES.map((a) => (
             <GlassCard key={a.title} className="p-6" interactive>
@@ -133,7 +143,7 @@ export default function HomePage() {
       </section>
 
       {/* ───────────────── CHECK AVAILABILITY ───────────────── */}
-      <section id="availability" className="section scroll-mt-28 py-16">
+      <section id="availability" className="section scroll-mt-28 py-28">
         <GlassCard className="p-7 sm:p-10">
           <div className="mx-auto mb-8 max-w-2xl text-center">
             <p className="eyebrow">Book Your Stay</p>

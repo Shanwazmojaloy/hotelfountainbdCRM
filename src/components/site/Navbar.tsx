@@ -5,14 +5,17 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { NAV_LINKS, SITE } from "@/lib/site";
+import { NAV_LINKS, SITE, CONTACT } from "@/lib/site";
 import { openReservation } from "@/lib/reserve";
 
+// Understated luxury ease-out (matches --ease-regent in globals.css).
+const REGENT_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
 /**
- * Floating, sticky glassmorphic navbar.
- * - Routing links (not hash anchors) with an animated active indicator.
+ * Floating, sticky glassmorphic navbar (Gilded Threshold theme).
+ * - Routing links with an animated active indicator.
  * - Condenses + deepens its frost on scroll.
- * - Full-screen glass drawer on mobile.
+ * - Full-screen right-slide drawer on mobile with staggered serif links.
  */
 export default function Navbar() {
   const pathname = usePathname();
@@ -26,8 +29,21 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Close the mobile drawer whenever the route changes.
+  // Close the drawer whenever the route changes.
   useEffect(() => setOpen(false), [pathname]);
+
+  // Lock body scroll + close on Escape while the full-screen menu is open.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
@@ -90,50 +106,123 @@ export default function Navbar() {
             </button>
             {/* Mobile toggle */}
             <button
-              aria-label="Toggle menu"
-              onClick={() => setOpen((v) => !v)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white md:hidden"
+              type="button"
+              aria-label="Open menu"
+              aria-expanded={open}
+              onClick={() => setOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white transition hover:border-neon-teal/40 md:hidden"
             >
-              <span className="text-lg leading-none">{open ? "✕" : "☰"}</span>
+              <span className="flex flex-col items-center justify-center gap-[5px]">
+                <span className="block h-px w-5 bg-current" />
+                <span className="block h-px w-5 bg-current" />
+              </span>
             </button>
           </div>
         </motion.nav>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Full-screen mobile menu — slides from the right */}
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="section md:hidden"
+            key="mobile-menu"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: REGENT_EASE }}
+            className="fixed inset-0 z-[60] md:hidden"
           >
-            <div className="glass glass-sheen mt-3 flex flex-col gap-1 p-3">
-              {NAV_LINKS.map((link) => {
-                const active = pathname === link.href;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`rounded-xl px-4 py-3 text-sm font-medium transition ${
-                      active
-                        ? "bg-neon-teal/10 text-white"
-                        : "text-white/70 hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
-              <a
-                href={SITE.crmUrl}
-                className="rounded-xl px-4 py-3 text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white"
+            {/* Backdrop */}
+            <button
+              type="button"
+              aria-label="Close menu"
+              onClick={() => setOpen(false)}
+              className="absolute inset-0 bg-abyss/70 backdrop-blur-sm"
+            />
+
+            {/* Panel */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.55, ease: REGENT_EASE }}
+              className="glass-nav absolute inset-y-0 right-0 flex w-[86%] max-w-sm flex-col overflow-y-auto rounded-l-3xl px-7 pb-10 pt-6"
+            >
+              {/* Panel header */}
+              <div className="flex items-center justify-between">
+                <span className="font-display text-lg font-semibold tracking-tight text-white">
+                  Hotel <span className="italic text-neon-teal">Fountain</span>
+                </span>
+                <button
+                  type="button"
+                  aria-label="Close menu"
+                  onClick={() => setOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white transition hover:border-neon-teal/40"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M1 1l14 14M15 1L1 15" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Links — staggered serif reveal */}
+              <nav className="mt-12 flex flex-col">
+                {NAV_LINKS.map((link, i) => {
+                  const active = pathname === link.href;
+                  return (
+                    <motion.div
+                      key={link.href}
+                      initial={{ opacity: 0, x: 28 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.5, ease: REGENT_EASE, delay: 0.12 + i * 0.07 }}
+                    >
+                      <Link
+                        href={link.href}
+                        className={`block border-b border-white/5 py-4 font-display text-3xl tracking-tight transition-colors ${
+                          active ? "text-neon-teal" : "text-white/85 hover:text-white"
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+              </nav>
+
+              {/* Actions */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: REGENT_EASE, delay: 0.12 + NAV_LINKS.length * 0.07 }}
+                className="mt-10 flex flex-col gap-3"
               >
-                Staff Login
-              </a>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    openReservation();
+                  }}
+                  className="btn-neon w-full"
+                >
+                  Book Now
+                </button>
+                <a href={SITE.crmUrl} className="btn-ghost w-full">
+                  Staff Login
+                </a>
+              </motion.div>
+
+              {/* Contact footer */}
+              <div className="mt-auto pt-10 text-xs leading-relaxed text-white/45">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-neon-teal/70">Get in touch</p>
+                <a href={CONTACT.phoneHref} className="mt-3 block transition hover:text-white">
+                  {CONTACT.phone}
+                </a>
+                <a href={CONTACT.emailHref} className="mt-1 block transition hover:text-white">
+                  {CONTACT.email}
+                </a>
+                <p className="mt-3">{CONTACT.address.join(", ")}</p>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
