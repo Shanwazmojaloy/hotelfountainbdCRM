@@ -1,20 +1,6 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type Direction = "up" | "down" | "left" | "right" | "none";
-
-// Understated luxury ease-out (matches --ease-regent in globals.css).
-const REGENT_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
-
-const OFFSET: Record<Direction, { x?: number; y?: number }> = {
-  up: { y: 32 },
-  down: { y: -32 },
-  left: { x: 32 },
-  right: { x: -32 },
-  none: {},
-};
 
 type Props = {
   children: ReactNode;
@@ -25,19 +11,24 @@ type Props = {
   duration?: number;
   /** Slide direction the element travels in from. */
   direction?: Direction;
-  /** Trigger on scroll-into-view (default) or immediately on mount. */
+  /** Retained for API compatibility — the reveal is now an on-mount CSS animation. */
   whileInView?: boolean;
-  /** Only reveal once (scroll mode). */
+  /** Retained for API compatibility. */
   once?: boolean;
 };
 
 /**
- * Reusable directional reveal with the Regent luxury ease.
+ * Directional reveal with the Regent luxury ease — CSS-driven.
  *
- * Complements ScrollReveal (which is up-only + supports child staggering):
- * use FadeIn when you need a single element to enter from any direction, or to
- * animate immediately on mount (whileInView={false}) — e.g. hero elements.
- * Honors prefers-reduced-motion by rendering static content.
+ * The resting state is fully visible (opacity:1); the entrance is a pure CSS
+ * animation (see `.site-root .fade-in` in globals.css) that runs on mount, so
+ * content can NEVER get stuck hidden by stalled/late JS hydration — the failure
+ * that left the previous framer-motion reveal invisible for non-reduced-motion
+ * users. prefers-reduced-motion disables the animation (static visible content).
+ *
+ * `whileInView`/`once` are accepted for call-site compatibility but no longer
+ * gate visibility; everything reveals on mount. Grid staggering still lives in
+ * ScrollReveal.
  */
 export default function FadeIn({
   children,
@@ -45,33 +36,15 @@ export default function FadeIn({
   delay = 0,
   duration = 0.8,
   direction = "up",
-  whileInView = true,
-  once = true,
 }: Props) {
-  const reduce = useReducedMotion();
-  if (reduce) return <div className={className}>{children}</div>;
-
-  const initial = { opacity: 0, ...OFFSET[direction] };
-  const shown = { opacity: 1, x: 0, y: 0 };
-  const transition = { duration, ease: REGENT_EASE, delay };
-
-  if (whileInView) {
-    return (
-      <motion.div
-        className={className}
-        initial={initial}
-        whileInView={shown}
-        viewport={{ once, amount: 0.2 }}
-        transition={transition}
-      >
-        {children}
-      </motion.div>
-    );
-  }
+  const style = {
+    "--fade-delay": `${delay}s`,
+    "--fade-dur": `${duration}s`,
+  } as CSSProperties;
 
   return (
-    <motion.div className={className} initial={initial} animate={shown} transition={transition}>
+    <div className={["fade-in", className].filter(Boolean).join(" ")} data-dir={direction} style={style}>
       {children}
-    </motion.div>
+    </div>
   );
 }

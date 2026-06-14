@@ -454,3 +454,18 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 @keyframes fade-up { 0% { opacity: 0; transform: translateY(24px); } 100% { opacity: 1; transform: translateY(0); } }
 @keyframes pulse-ring { 0%,100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.6); } }
 @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* ── FadeIn component — CSS-driven reveal (NO JS dependency; cannot stall like a framer/rAF reveal).
+   Resting state is fully visible (opacity:1); the entrance animates on mount. If CSS/animation never
+   runs, content stays visible. Reduced-motion disables the animation. Scoped to .site-root so /crm is untouched. */
+@keyframes rgnFade      { from { opacity: 0; }                                to { opacity: 1; } }
+@keyframes rgnFadeUp    { from { opacity: 0; transform: translateY(32px); }  to { opacity: 1; transform: none; } }
+@keyframes rgnFadeDown  { from { opacity: 0; transform: translateY(-32px); } to { opacity: 1; transform: none; } }
+@keyframes rgnFadeLeft  { from { opacity: 0; transform: translateX(32px); }  to { opacity: 1; transform: none; } }
+@keyframes rgnFadeRight { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
+.site-root .fade-in { animation: rgnFadeUp var(--fade-dur, 0.8s) cubic-bezier(0.16, 1, 0.3, 1) var(--fade-delay, 0s) both; }
+.site-root .fade-in[data-dir="none"]  { animation-name: rgnFade; }
+.site-root .fade-in[data-dir="down"]  { animation-name: rgnFadeDown; }
+.site-root .fade-in[data-dir="left"]  { animation-name: rgnFadeLeft; }
+.site-root .fade-in[data-dir="right"] { animation-name: rgnFadeRight; }
+@media (prefers-reduced-motion: reduce) { .site-root .fade-in { animation: none; } }
