@@ -102,16 +102,19 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const _movedIds = new Set(_mv.map((m) => m.id));
   const payOnly = res.filter((r) => !_movedIds.has(r.id) && collectedFor(r) > 0).map((r) => ({ ...r, _type: 'PAY' }));
   const _moves = [..._mv, ...payOnly];
-  // Daily Movements shows only rows that NEED attention or moved money in THIS open day: a live
-  // balance due, OR a collection recorded today. Settled guests with no collection this period
-  // (already reported/settled on a previous day) are hidden so they don't carry into the new day.
-  const moves = _moves.filter((m) => dueOf(m) > 0 || collectedFor(m) > 0);
-  // Collection is PER-RESERVATION. A guest who checks in AND out on the same open day appears as
-  // two movement rows; attribute the day's collection to the FIRST row only so the Collected
-  // column reconciles to Total Collection. (Bug: same payment shown on both rows summed to
-  // ৳27,000 vs the correct ৳15,500.) Total Collection (`collected`) sums txs once and is unaffected.
+  // Collection is PER-RESERVATION. A guest who checks in AND out on the same open day yields two
+  // movement rows; attribute the day's collection to the FIRST row only (Check-In before Check-Out)
+  // so the Collected column reconciles to Total Collection and isn't double-counted.
   const _collSeen = new Set();
-  const moveColl = moves.map((m) => { if (_collSeen.has(m.id)) return 0; _collSeen.add(m.id); return collectedFor(m); });
+  const _movesColl = _moves.map((m) => { if (_collSeen.has(m.id)) return 0; _collSeen.add(m.id); return collectedFor(m); });
+  // Daily Movements shows only rows that NEED attention or actually moved money in THIS open day:
+  // a live balance due, OR the row that OWNS today's collection. The redundant Check-Out row of an
+  // already-settled guest (collection shown on its Check-In row, nothing owed) is hidden — without
+  // this it renders as a blank "—/—/Settled" ghost row. The filter MUST use the DEDUPED collection
+  // (`_movesColl`), not the raw per-reservation `collectedFor`, or the duplicate row slips through.
+  const _keep = _moves.map((m, i) => dueOf(m) > 0 || _movesColl[i] > 0);
+  const moves = _moves.filter((_, i) => _keep[i]);
+  const moveColl = _movesColl.filter((_, i) => _keep[i]);
   const collected = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
   // Due/Outstanding is ALWAYS the full live book (every reservation with a balance) — visible
   // on every day's report, not just guests who moved today.
