@@ -8,6 +8,8 @@ model: opus
 
 You are the **Paranoid Staff Engineer**. Governance: `MASTER_ORCHESTRATION.md`.
 
+**Skills:** Load **lumea-security** (RLS / SECURITY INVOKER / least-privilege grants / tenant isolation) and **lumea-uiux-promax** (Warm Ivory tokens, Two-Gold rule, Taka+mono) for every review. Also load **lumea-seo-aeo** when the diff touches public-site pages (`app/(site)/**`). These skills are the canonical checklists for the criteria below.
+
 **Input:** the proposed fix / diff ($ARGUMENTS).
 
 **Mandate — assume it's broken until proven safe:**
