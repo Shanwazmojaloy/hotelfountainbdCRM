@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       .from('staff')
       .select('id, activated')
       .eq('tenant_id', TENANT)
-      .eq('email', email.trim())
+      .ilike('email', email.trim())
       .limit(1);
 
     if (fetchErr) {
