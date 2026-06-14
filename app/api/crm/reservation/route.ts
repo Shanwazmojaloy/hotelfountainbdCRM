@@ -52,33 +52,74 @@ export async function POST(req: NextRequest) {
   try {
     if (action === 'create') {
       const roomNos: string[] = Array.isArray(body.room_ids) ? (body.room_ids as string[]).filter(Boolean) : [];
+      if (!roomNos.length) return NextResponse.json({ error: 'Select at least one room.' }, { status: 400 });
       const status = String(body.status || 'RESERVED');
       const paid = +(body.paid_amount as number) || 0;
-      const ins: Record<string, unknown> = {
-        guest_ids: body.guest_ids || [], room_ids: roomNos, guest_name: body.guest_name || null,
-        check_in: body.check_in || null, check_out: body.check_out || null, status,
-        total_amount: +(body.total_amount as number) || 0, paid_amount: paid,
-        discount_amount: +(body.discount_amount as number) || 0, payment_method: body.payment_method || null,
+      const wantTotalRaw = +(body.total_amount as number) || 0;
+      const discount = +(body.discount_amount as number) || 0;
+      const checkIn = (body.check_in as string) || null;
+      const checkOut = (body.check_out as string) || null;
+      const pm = (body.payment_method as string) || '';
+      const baseIns: Record<string, unknown> = {
+        guest_ids: body.guest_ids || [], guest_name: body.guest_name || null,
+        check_in: checkIn, check_out: checkOut, status,
+        payment_method: body.payment_method || null,
         special_requests: body.special_requests || null, on_duty_officer: body.on_duty_officer || null,
         stay_type: body.stay_type || null, tenant_id: TENANT,
       };
-      const { data: created, error } = await supabase.from('reservations').insert(ins).select('id').limit(1);
-      if (error) throw error;
-      const newId = created && created[0]?.id;
-      if (status === 'CHECKED_IN') {
-        for (const rn of roomNos) await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('room_number', rn).eq('tenant_id', TENANT);
+
+      // PER-ROOM BOOKINGS (house rule 2026-06-14): a multi-room booking is stored as ONE reservation
+      // PER ROOM, so check-out / billing / room-status are INDEPENDENT per room. Previously a single
+      // multi-room row shared one `status`, so checking out one room checked out all of them
+      // (ABDULLAH BIN SAFAT 405/501/506 incident). Money split rule: each room's gross = its own
+      // rate × nights; the (possibly negotiated) entered total & discount are PRORATED to those
+      // grosses with the rounding remainder on the first room; the paid pool fills each room's net
+      // (total − discount) in order so earliest rooms settle first. Invariant: the children's
+      // totals/discount/paid sum EXACTLY back to the entered figures. Single-room bookings are
+      // mathematically identical to the old single-insert path.
+      const n = nights(String(checkIn || ''), String(checkOut || '')) || 1;
+      const { data: rateRows } = await supabase.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
+      const rates = (rateRows || []) as Array<{ room_number: string | number; price: number }>;
+      const rateOf = (rn: string) => Number(rates.find((r) => String(r.room_number) === String(rn))?.price) || 0;
+      const gross = roomNos.map((rn) => rateOf(rn) * n);
+      const grossSum = gross.reduce((a, b) => a + b, 0);
+      const wantTotal = wantTotalRaw > 0 ? wantTotalRaw : grossSum;
+      // per-room total: prorate the entered total by rate-weight; equal split if rates unknown
+      const totals = roomNos.map((_, i) => {
+        if (wantTotalRaw > 0 && grossSum > 0) return Math.round(wantTotalRaw * gross[i] / grossSum);
+        if (wantTotalRaw > 0) return Math.round(wantTotalRaw / roomNos.length);
+        return gross[i];
+      });
+      totals[0] += wantTotal - totals.reduce((a, b) => a + b, 0); // exact-sum remainder on first
+      // discount prorated to per-room total; remainder on first
+      const disc = roomNos.map((_, i) => wantTotal > 0 ? Math.round(discount * totals[i] / wantTotal) : 0);
+      disc[0] += discount - disc.reduce((a, b) => a + b, 0);
+      // paid pool fills each room's net in order; any overpayment lands on the last room
+      let pool = paid;
+      const paidArr = roomNos.map((_, i) => { const net = Math.max(0, totals[i] - disc[i]); const p = Math.min(pool, net); pool -= p; return p; });
+      if (pool > 0) paidArr[paidArr.length - 1] += pool;
+
+      const ids: string[] = [];
+      for (let i = 0; i < roomNos.length; i++) {
+        const rn = roomNos[i];
+        const { data: created, error } = await supabase.from('reservations').insert({
+          ...baseIns, room_ids: [rn], total_amount: totals[i], paid_amount: paidArr[i], discount_amount: disc[i],
+        }).select('id').limit(1);
+        if (error) throw error;
+        const newId = created && created[0]?.id;
+        if (newId) ids.push(newId);
+        if (status === 'CHECKED_IN') await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('room_number', rn).eq('tenant_id', TENANT);
+        if (paidArr[i] > 0 && newId) {
+          // Method rides in the composite type string — transactions has NO payment_method column.
+          await supabase.from('transactions').insert({
+            room_number: rn, guest_name: body.guest_name || null,
+            type: pm ? `Advance Payment (${pm})` : 'Advance Payment',
+            amount: paidArr[i], fiscal_day: txFiscal, reservation_id: newId,
+            tenant_id: TENANT, idempotency_key: crypto.randomUUID(),
+          });
+        }
       }
-      if (paid > 0 && newId) {
-        // Method rides in the composite type string — transactions has NO payment_method column.
-        const pm = (body.payment_method as string) || '';
-        await supabase.from('transactions').insert({
-          room_number: roomNos[0] || '?', guest_name: body.guest_name || null,
-          type: pm ? `Advance Payment (${pm})` : 'Advance Payment',
-          amount: paid, fiscal_day: txFiscal, reservation_id: newId,
-          tenant_id: TENANT, idempotency_key: (body.idempotency_key as string) || crypto.randomUUID(),
-        });
-      }
-      return NextResponse.json({ ok: true, id: newId });
+      return NextResponse.json({ ok: true, id: ids[0], ids });
     }
 
     if (action === 'update') {
