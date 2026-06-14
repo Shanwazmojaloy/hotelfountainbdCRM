@@ -6,6 +6,7 @@ import BookNowButton from "@/components/site/BookNowButton";
 import ScrollReveal from "@/components/site/ScrollReveal";
 import GlassCard from "@/components/site/GlassCard";
 import SectionHeading from "@/components/site/SectionHeading";
+import FadeIn from "@/components/site/FadeIn";
 
 export const metadata: Metadata = {
   title: "Services & Amenities — Hotel Fountain",
@@ -29,20 +30,22 @@ const LOCALE = [
 export default function ServicesPage() {
   return (
     <>
-      {/* Header */}
-      <section className="section py-12">
-        <ScrollReveal>
-          <SectionHeading
-            eyebrow="The Experience"
-            title={<>More Than <em>a Stay</em></>}
-            intro="Every facility at Hotel Fountain is built around one idea — that hospitality should feel effortless. Here's what's waiting beyond your room."
-            center
-          />
-        </ScrollReveal>
+      {/* ───────────────── PAGE HEADER ───────────────── */}
+      <section className="section pb-16 pt-10">
+        <FadeIn className="mx-auto max-w-2xl text-center" whileInView={false}>
+          <p className="eyebrow">The Experience</p>
+          <h1 className="mt-4 font-display text-4xl font-medium leading-[1.05] text-white sm:text-5xl lg:text-6xl">
+            More Than <span className="italic text-neon-teal">a Stay</span>
+          </h1>
+          <p className="mt-5 text-base leading-relaxed text-white/60">
+            Every facility at Hotel Fountain is built around one idea — that hospitality should feel
+            effortless. Here&apos;s what&apos;s waiting beyond your room.
+          </p>
+        </FadeIn>
       </section>
 
-      {/* Amenity deep-dive */}
-      <section className="section pb-8">
+      {/* ───────────────── AMENITY DEEP-DIVE ───────────────── */}
+      <section className="section pb-24">
         <ScrollReveal stagger className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {AMENITIES.map((a) => (
             <GlassCard key={a.title} className="flex gap-5 p-7" interactive>
@@ -58,12 +61,12 @@ export default function ServicesPage() {
         </ScrollReveal>
       </section>
 
-      {/* Gallery */}
-      <section className="section py-12">
-        <ScrollReveal>
+      {/* ───────────────── GALLERY ───────────────── */}
+      <section className="section py-24">
+        <FadeIn>
           <SectionHeading eyebrow="The Property" title={<>Spaces to <em>remember</em></>} />
-        </ScrollReveal>
-        <ScrollReveal stagger className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        </FadeIn>
+        <ScrollReveal stagger className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {GALLERY.map((g) => (
             <GlassCard key={g.label} className="group overflow-hidden p-0" interactive>
               <div className="relative aspect-[3/4] overflow-hidden rounded-xl2">
@@ -82,16 +85,16 @@ export default function ServicesPage() {
         </ScrollReveal>
       </section>
 
-      {/* Locale / area benefits */}
-      <section className="section py-12">
-        <ScrollReveal>
+      {/* ───────────────── LOCALE / AREA ───────────────── */}
+      <section className="section py-24">
+        <FadeIn>
           <SectionHeading
             eyebrow="Location"
             title={<>The <em>neighbourhood</em></>}
             intro="Nikunja-02, Khilkhet, Dhaka — quiet enough to rest, connected enough to do everything."
           />
-        </ScrollReveal>
-        <ScrollReveal stagger className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
+        </FadeIn>
+        <ScrollReveal stagger className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
           {LOCALE.map((l) => (
             <GlassCard key={l.title} className="p-6" interactive>
               <h3 className="font-display text-lg font-semibold text-neon-teal">{l.title}</h3>
@@ -101,18 +104,20 @@ export default function ServicesPage() {
         </ScrollReveal>
       </section>
 
-      {/* CTA */}
-      <section className="section py-12">
-        <GlassCard className="flex flex-col items-center gap-4 p-10 text-center sm:flex-row sm:justify-between sm:text-left">
-          <div>
-            <h3 className="font-display text-2xl font-semibold text-white">Ready to experience it?</h3>
-            <p className="mt-1 text-sm text-white/60">Reserve a room or ask us anything — the front desk never sleeps.</p>
-          </div>
-          <div className="flex gap-3">
-            <Link href="/rooms" className="btn-ghost shrink-0">View Rooms</Link>
-            <BookNowButton className="btn-neon shrink-0" label="Book Now →" />
-          </div>
-        </GlassCard>
+      {/* ───────────────── CTA ───────────────── */}
+      <section className="section pb-28 pt-4">
+        <FadeIn direction="up">
+          <GlassCard className="flex flex-col items-center gap-4 p-10 text-center sm:flex-row sm:justify-between sm:text-left">
+            <div>
+              <h3 className="font-display text-2xl font-semibold text-white">Ready to experience it?</h3>
+              <p className="mt-1 text-sm text-white/60">Reserve a room or ask us anything — the front desk never sleeps.</p>
+            </div>
+            <div className="flex gap-3">
+              <Link href="/rooms" className="btn-ghost shrink-0">View Rooms</Link>
+              <BookNowButton className="btn-neon shrink-0" label="Book Now →" />
+            </div>
+          </GlassCard>
+        </FadeIn>
       </section>
     </>
   );

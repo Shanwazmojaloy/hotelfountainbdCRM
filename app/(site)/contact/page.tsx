@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { CONTACT } from "@/lib/site";
-import ScrollReveal from "@/components/site/ScrollReveal";
 import GlassCard from "@/components/site/GlassCard";
-import SectionHeading from "@/components/site/SectionHeading";
 import ContactForm from "@/components/site/ContactForm";
 import TermsAccordion from "@/components/site/TermsAccordion";
 import MapEmbed from "@/components/site/MapEmbed";
+import FadeIn from "@/components/site/FadeIn";
 
 export const metadata: Metadata = {
   title: "Contact & Support — Hotel Fountain",
@@ -23,21 +22,25 @@ const InfoRow = ({ label, children }: { label: string; children: React.ReactNode
 export default function ContactPage() {
   return (
     <>
-      <section className="section py-12">
-        <ScrollReveal>
-          <SectionHeading
-            eyebrow="Contact Us"
-            title={<>Get in <em>Touch</em></>}
-            intro="Questions, special requests or group bookings — our front office is available around the clock."
-            center
-          />
-        </ScrollReveal>
+      {/* ───────────────── PAGE HEADER ───────────────── */}
+      <section className="section pb-16 pt-10">
+        <FadeIn className="mx-auto max-w-2xl text-center" whileInView={false}>
+          <p className="eyebrow">Contact Us</p>
+          <h1 className="mt-4 font-display text-4xl font-medium leading-[1.05] text-white sm:text-5xl lg:text-6xl">
+            Get in <span className="italic text-neon-teal">Touch</span>
+          </h1>
+          <p className="mt-5 text-base leading-relaxed text-white/60">
+            Questions, special requests or group bookings — our front office is available around the
+            clock.
+          </p>
+        </FadeIn>
       </section>
 
-      <section className="section pb-12">
+      {/* ───────────────── INFO + FORM / MAP ───────────────── */}
+      <section className="section pb-24">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Left: info + form */}
-          <ScrollReveal>
+          {/* Left: info + form (enters from the left) */}
+          <FadeIn direction="right">
             <GlassCard className="p-7 sm:p-9">
               <InfoRow label="Address">
                 {CONTACT.address.map((line) => (
@@ -62,24 +65,24 @@ export default function ContactPage() {
               </InfoRow>
 
               <div className="mt-7 border-t border-white/8 pt-7">
-                <h3 className="mb-4 font-display text-lg font-semibold text-white">Send us a message</h3>
+                <h2 className="mb-4 font-display text-lg font-semibold text-white">Send us a message</h2>
                 <ContactForm />
               </div>
             </GlassCard>
-          </ScrollReveal>
+          </FadeIn>
 
-          {/* Right: map */}
-          <ScrollReveal delay={0.1}>
+          {/* Right: map (enters from the right) */}
+          <FadeIn direction="left" delay={0.1}>
             <GlassCard className="h-full overflow-hidden p-2">
               <MapEmbed />
             </GlassCard>
-          </ScrollReveal>
+          </FadeIn>
         </div>
       </section>
 
-      {/* Terms */}
-      <section id="terms" className="section py-12 scroll-mt-28">
-        <ScrollReveal>
+      {/* ───────────────── TERMS ───────────────── */}
+      <section id="terms" className="section scroll-mt-28 pb-28">
+        <FadeIn>
           <p className="eyebrow">Legal</p>
           <h2 className="mt-3 font-display text-3xl font-medium text-white sm:text-4xl">
             Terms &amp; <span className="italic text-neon-teal">Conditions</span>
@@ -87,7 +90,7 @@ export default function ContactPage() {
           <GlassCard className="mt-6 p-7">
             <TermsAccordion />
           </GlassCard>
-        </ScrollReveal>
+        </FadeIn>
       </section>
     </>
   );
