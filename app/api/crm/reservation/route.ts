@@ -189,14 +189,20 @@ export async function POST(req: NextRequest) {
 
     if (action === 'confirm') {
       // WEB-BOOKING PIPELINE: PENDING (from /api/book) → RESERVED with rooms assigned.
-      // Does NOT recalc/overwrite a canonical total; sets rate×nights only when the web
-      // booking arrived without a total. Room status is NOT flipped (matrix reserves at
-      // check-in, matching NewReservationModal's future-reservation behaviour).
+      // PER-ROOM FAN-OUT (house rule 2026-06-14): a multi-room web booking becomes ONE
+      // reservation PER ROOM — the existing PENDING row is repurposed for the first room and
+      // a sibling reservation is INSERTed for each additional room — so check-out / billing /
+      // room-status stay INDEPENDENT per room. This mirrors the CRM `create` fan-out and closes
+      // the public-site entry point for the 405/501/506 all-rooms-checkout cascade. PENDING web
+      // rows carry no total/discount/paid and no transactions (see /api/book), so the money
+      // split is rate×nights prorated (entered total honoured when present); a single-room
+      // booking is mathematically identical to the old single-update path. Room status is NOT
+      // flipped (the matrix reserves at check-in, matching NewReservationModal future-bookings).
       const id = body.id as string;
       const roomNos: string[] = Array.isArray(body.room_ids) ? (body.room_ids as string[]).filter(Boolean) : [];
       if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
       if (!roomNos.length) return NextResponse.json({ error: 'Select a room first.' }, { status: 400 });
-      const { data: prevRows } = await supabase.from('reservations').select('id, status, check_in, check_out, total_amount').eq('id', id).eq('tenant_id', TENANT).limit(1);
+      const { data: prevRows } = await supabase.from('reservations').select('*').eq('id', id).eq('tenant_id', TENANT).limit(1);
       const prev = prevRows && prevRows[0];
       if (!prev) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
       if (String(prev.status) !== 'PENDING') return NextResponse.json({ error: `Already ${prev.status}.` }, { status: 409 });
@@ -211,16 +217,57 @@ export async function POST(req: NextRequest) {
       const blocked = roomNos.filter((rn) => taken.has(String(rn)));
       if (blocked.length) return NextResponse.json({ error: `Room ${blocked.join(', ')} is already booked for those dates.` }, { status: 409 });
 
-      const upd: Record<string, unknown> = { room_ids: roomNos, status: 'RESERVED' };
-      if (!(+prev.total_amount > 0)) {
-        const rs = await ratesSumOf(supabase, roomNos);
-        const n = nights(prev.check_in, prev.check_out) || 1;
-        if (rs > 0) upd.total_amount = rs * n;
-      }
-      const { error: cfErr } = await supabase.from('reservations').update(upd).eq('id', id).eq('tenant_id', TENANT);
+      // ---- per-room money split (mirrors `create`) ----
+      const n = nights(String(prev.check_in || ''), String(prev.check_out || '')) || 1;
+      const { data: rateRows } = await supabase.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
+      const rates = (rateRows || []) as Array<{ room_number: string | number; price: number }>;
+      const rateOf = (rn: string) => Number(rates.find((r) => String(r.room_number) === String(rn))?.price) || 0;
+      const gross = roomNos.map((rn) => rateOf(rn) * n);
+      const grossSum = gross.reduce((a, b) => a + b, 0);
+      const wantTotalRaw = +prev.total_amount > 0 ? +prev.total_amount : 0;
+      const wantTotal = wantTotalRaw > 0 ? wantTotalRaw : grossSum;
+      const totals = roomNos.map((_, i) => {
+        if (wantTotalRaw > 0 && grossSum > 0) return Math.round(wantTotalRaw * gross[i] / grossSum);
+        if (wantTotalRaw > 0) return Math.round(wantTotalRaw / roomNos.length);
+        return gross[i];
+      });
+      totals[0] += wantTotal - totals.reduce((a, b) => a + b, 0); // exact-sum remainder on first
+      const discount = +prev.discount_amount || 0;
+      const disc = roomNos.map((_, i) => wantTotal > 0 ? Math.round(discount * totals[i] / wantTotal) : 0);
+      disc[0] += discount - disc.reduce((a, b) => a + b, 0);
+      let pool = +prev.paid_amount || 0; // PENDING web rows have none; defensive for staff-edited drafts
+      const paidArr = roomNos.map((_, i) => { const net = Math.max(0, totals[i] - disc[i]); const p = Math.min(pool, net); pool -= p; return p; });
+      if (pool > 0) paidArr[paidArr.length - 1] += pool;
+
+      // first room → repurpose the existing PENDING row
+      const { error: cfErr } = await supabase.from('reservations').update({
+        room_ids: [roomNos[0]], status: 'RESERVED',
+        total_amount: totals[0], discount_amount: disc[0], paid_amount: paidArr[0],
+      }).eq('id', id).eq('tenant_id', TENANT);
       if (cfErr) throw cfErr;
-      console.log(`[crm/reservation] CONFIRM ${id} rooms=${roomNos.join('/')} by staff ${sess.id} (${staffRole})`);
-      return NextResponse.json({ ok: true });
+      const ids: string[] = [id];
+
+      // additional rooms → sibling reservations cloned from the PENDING row (one per room)
+      if (roomNos.length > 1) {
+        const clone: Record<string, unknown> = {
+          guest_ids: prev.guest_ids || [], guest_name: prev.guest_name || null,
+          email: prev.email || null, phone: prev.phone || null, room_type: prev.room_type || null,
+          guests: prev.guests ?? null, source: prev.source || 'WEBSITE',
+          special_requests: prev.special_requests || null, on_duty_officer: prev.on_duty_officer || null,
+          stay_type: prev.stay_type || null, payment_method: prev.payment_method || null,
+          check_in: prev.check_in, check_out: prev.check_out, created_at: prev.created_at,
+          tenant_id: TENANT, status: 'RESERVED',
+        };
+        for (let i = 1; i < roomNos.length; i++) {
+          const { data: created, error } = await supabase.from('reservations').insert({
+            ...clone, room_ids: [roomNos[i]], total_amount: totals[i], discount_amount: disc[i], paid_amount: paidArr[i],
+          }).select('id').limit(1);
+          if (error) throw error;
+          if (created && created[0]?.id) ids.push(created[0].id);
+        }
+      }
+      console.log(`[crm/reservation] CONFIRM ${id} rooms=${roomNos.join('/')} fanned=${ids.length} by staff ${sess.id} (${staffRole})`);
+      return NextResponse.json({ ok: true, id, ids });
     }
 
     if (action === 'cancel_pending') {
