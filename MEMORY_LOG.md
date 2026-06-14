@@ -1,5 +1,17 @@
 Purpose: Persistent memory of key decisions and technical hurdles.
 
+PUBLIC SITE — REGENT FOUNDATION PASS (2026-06-14, NOT yet committed):
+- Goal: apply the Regent Framer template's structure/motion to the public marketing site (route group `app/(site)`), RECONCILED to the existing dark "Gilded Threshold" brand — NOT a fresh `create-next-app` repo. Owner-chosen: rebuild-in-existing-repo + reconcile-with-existing-brand.
+- Brand reality that made this an extend (not rebuild): `font-display` is already Playfair Display; the `neon-teal` Tailwind token is ALIASED to brand gold `#C8A96E`; `glass-nav`/`glass`/`glass-sheen`/`btn-neon`/`btn-ghost`/`.section`/`.eyebrow` already exist in `app/globals.css`. Stack is Next 15 + React 18 + Tailwind v4 (`@theme`, NO tailwind.config.js) + framer-motion 11. `lucide-react` is NOT installed — use inline SVG.
+- Added ONE token: `--ease-regent: cubic-bezier(0.16,1,0.3,1)` inside the `.site-root` block (CRM untouched). Understated luxury ease-out; mirrored as the JS const `REGENT_EASE:[number,number,number,number]` in components. NOTE: framer `ease` needs a mutable 4-tuple type — do NOT use `as const` (readonly tuple fails TS2345).
+- `src/components/site/Navbar.tsx`: desktop nav unchanged; mobile dropdown REPLACED with a full-screen right-slide Framer menu (staggered Playfair links, body-scroll-lock, Esc-to-close, Book Now + Staff Login + contact block).
+- `src/components/site/Footer.tsx`: elevated to a 12-col editorial footer (brand/tagline, Explore, Get-in-touch, hairline gold dividers, py-24).
+- `src/components/site/FadeIn.tsx` (NEW): directional reveal (up/down/left/right/none) on Regent ease, scroll-in-view OR mount (`whileInView` prop), reduced-motion guard. Intentionally COMPLEMENTS the existing `ScrollReveal` (up-only + child stagger) — not a duplicate; consolidate later if desired.
+- `src/components/site/BookingBar.tsx` (NEW): compact horizontal glass booking bar (check-in/out/guests) reusing `openReservation()` — leaner hero sibling of `AvailabilityWidget` (no own booking logic). Room type chosen in the modal.
+- `app/(site)/page.tsx`: imported FadeIn + BookingBar; BookingBar (wrapped in FadeIn, `whileInView={false}`) inserted below hero CTAs; section spacing bumped to Regent whitespace (stats py-20, rooms/amenities/availability py-28); Rooms + Amenities SectionHeadings wrapped in FadeIn. Grids keep their existing ScrollReveal.
+- `src/components/site/SiteChrome.tsx` is now ORPHANED (belonged to the reverted teal editorial landing, commit 5224e99 reverted a80a8cc; nothing imports it) — safe to delete.
+- VERIFICATION CAVEAT: the Cowork bash sandbox could not run `tsc`/`eslint` against this mount (stale/garbled package.json resolver + cold-tsc timeout). All files verified via the Read tool instead (intact, 0 NUL bytes). Owner must run `npm run typecheck` + `npm run lint` + `npm run dev` locally before the PowerShell push. Nothing committed by this pass.
+
 CANONICAL PROJECT PATH (2026-06-12):
 - The live repo now lives at `F:\Hotel Fountain\Hotel Fountain Web CRM` (root). This is the SINGLE source of truth.
 - DEPRECATED — do NOT reference: `C:\dev\hotelfountainbd` (moved), `C:\dev\hotelfountainbdCRM` + `C:\dev\hf-crm` (stale clones, DELETED), and `C:\Users\ahmed\OneDrive\Desktop\New folder\claude\hotelfountainbd-vercel` (scratch workspace, archived).
@@ -2155,3 +2167,13 @@ GIT/COMMIT SESSION + crm.html LOADER GUARD (2026-06-12, later):
 - ✅ RELIABLE WINDOWS-COMMIT RECIPE (no terminal typing — terminals are tier "click"): write a `.bat` + `.ps1` via the Write tool (host API lands correctly on C:\dev), then run the `.bat` by typing its full path into the FILE EXPLORER ADDRESS BAR and Enter (Run-dialog works too but Chrome kept stealing focus). `.ps1` does: clear index.lock → `git reset -q` → `git add -- <paths>` → show staged + `--diff-filter=D` (deletions must be empty) → `git commit --no-verify` → `git push origin main`. Delete the helper scripts afterward via Explorer (select + Delete) since bash `rm` fails on C:\dev. File Explorer view caches — hit Refresh before scrolling to confirm new/deleted files (item COUNT updates even when the list is stale).
 - ★ crm.html IS A THIN LOADER NOW: `public/crm.html` (146 lines) has NO inline React app — `<div id="root">` + vendor scripts + `/crm-bundle.js?v=...` (the built app, where `ReactDOM.createRoot` actually lives). The OLD CLAUDE.md guard grepping crm.html for `ReactDOM.createRoot` FALSE-FLAGGED it as truncated and blocked a valid commit. FIXED in CLAUDE.md (commit 7419c0d): guard now greps for `crm-bundle.js` + `id="root"` + `</html>`. Do NOT reintroduce the ReactDOM.createRoot check.
 - COMMITS THIS SESSION (both pushed to origin/main, Vercel deploys): `1e0b51d` = public/crm.html cache-bump + added 6 `.claude/commands/*.md` governance slash-commands (autoplan/investigate/plan-ceo-review/qa/review/ship); `7419c0d` = CLAUDE.md truncation-guard rule updated to the loader signature. The landing-redesign MEMORY_LOG entry above was already committed in `bf12b46` (the sandbox "uncommitted" view was a phantom).
+
+## 2026-06-14 — Public site reconciled to Regent system (/rooms /services /contact)
+Foundation pass (`/` + SiteChrome) done earlier; these three pages complete it.
+
+- **rooms/page.tsx** — `<h1>` in FadeIn, price-range subline, `pb-28`, FadeIn CTA. RoomsCatalog/RoomCard untouched (already animated).
+- **services/page.tsx** — `<h1>`, `py-24` rhythm, FadeIn on gallery/locale headings; kept ScrollReveal stagger for grids.
+- **contact/page.tsx** — `<h1>`, editorial left/right split (form←left, map→right via FadeIn), `pb-24`/`pb-28`. Form/Map/Terms untouched.
+
+Consistent: single `<h1>`/page (was `<h2>` via SectionHeading — better SEO); FadeIn for single reveals, ScrollReveal for staggered grids; dropped unused SectionHeading/ScrollReveal imports; all on dark/gold tokens.
+Read-verified intact, NUL=0 each. **NOT committed** — run `npm run typecheck && npm run lint && npm run dev --turbopack`, then push from PowerShell.
