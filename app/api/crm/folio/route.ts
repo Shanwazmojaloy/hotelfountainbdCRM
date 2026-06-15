@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
+import { isAdmin } from '@/lib/permissions';
 import { recalcResTotalServer } from '@/lib/recalcResTotal.server';
 
 export const runtime = 'nodejs';
@@ -36,15 +37,25 @@ export async function POST(req: NextRequest) {
       if (!resId) return NextResponse.json({ error: 'No active reservation.' }, { status: 400 });
       if (!amount || amount <= 0) return NextResponse.json({ error: 'Enter a valid amount.' }, { status: 400 });
       const cat = s(body.category) || 'Room Service';
+      // Attribution — stamp who added the charge. Name is denormalized because the browser
+      // anon key cannot read `staff` (RLS), so the folio row must carry the display name.
+      const { data: who } = await supabase.from('staff').select('name').eq('id', sess.id).limit(1);
+      const addedByName = (who && who[0] && who[0].name) || null;
       const { error } = await supabase.from('folios').insert({
         room_number: s(body.room_number), reservation_id: resId,
         description: s(body.description) || cat, category: cat, amount, tenant_id: TENANT,
+        added_by_id: sess.id, added_by_name: addedByName,
       });
       if (error) throw error;
       await recalcResTotalServer(supabase, resId);
       return NextResponse.json({ ok: true });
     }
     if (action === 'delete') {
+      // Edit/remove of a charge is owner/admin only — receptionist & housekeeping cannot.
+      // Server-authoritative: the role comes from the signed session, not the client.
+      if (!isAdmin(sess.role)) {
+        return NextResponse.json({ error: 'Only an owner or admin can remove a charge.' }, { status: 403 });
+      }
       const id = body.id;
       if (!id) return NextResponse.json({ error: 'Missing folio id.' }, { status: 400 });
       const { error } = await supabase.from('folios').delete().eq('id', id);
