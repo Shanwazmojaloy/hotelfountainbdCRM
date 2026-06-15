@@ -7,6 +7,8 @@
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { recalcResTotal } from '@/lib/recalcResTotal';
+import { useAuth } from './AuthGate';
+import { isAdmin } from '@/lib/permissions';
 import AddChargeModal from './AddChargeModal';
 import RecordPaymentModal from './RecordPaymentModal';
 import CheckActionModal from './CheckActionModal';
@@ -18,8 +20,11 @@ const nightsCount = (ci, co) => { if (!ci || !co) return 0; const n = Math.round
 const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch { return String(d).slice(0, 10); } };
 
 export default function RoomFolioModal({ room, reservations, rooms, guests, onClose, onSaved }) {
+  const { user } = useAuth();
+  const admin = isAdmin(user?.role); // edit/remove of charges = owner/admin only
   const [folios, setFolios] = useState([]);
   const [fLoad, setFLoad] = useState(true);
+  const [reload, setReload] = useState(0);
   const [showCharge, setShowCharge] = useState(false);
   const [showPay, setShowPay] = useState(false);
   const [showCO, setShowCO] = useState(false);
@@ -36,7 +41,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
     supabase.from('folios').select('*').eq('reservation_id', activeRes.id).order('created_at')
       .then(({ data, error }) => { if (error) console.error('[RoomFolio] folio fetch:', error); if (!cancelled) { setFolios((data || []).filter((x) => String(x.reservation_id) === String(activeRes.id))); setFLoad(false); } });
     return () => { cancelled = true; };
-  }, [activeRes?.id]);
+  }, [activeRes?.id, reload]);
 
   const roomRate = +room.price || 0;
   const nights = activeRes ? nightsCount(activeRes.check_in, activeRes.check_out) : 0;
@@ -97,20 +102,31 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
             </div>
 
             <div style={{ marginBottom: 14 }}>
-              <div style={lblS} className="mb-2">Folio Charges</div>
+              <div style={lblS} className="mb-2">Room Charge</div>
               {fLoad && <div className="iv-stat__sub">Loading folio…</div>}
               {!fLoad && nights > 0 && (
                 <div style={row}><span>Room charge <span className="iv-badge" style={{ marginLeft: 6 }}>{nights}×{bdt(roomRate)}</span></span>
                   <span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(roomCharge)}</span></div>
               )}
+              {!fLoad && nights === 0 && <div className="iv-stat__sub">No room charge.</div>}
+            </div>
+
+            {/* Additional Charges — manual Add-Charge line items, shown separately and visible
+                to every staff account. Each is stamped with who added it; edit/remove is
+                owner/admin only (the × is hidden for other roles and re-checked on the server). */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={lblS} className="mb-2">Additional Charges</div>
+              {!fLoad && chargeFolios.length === 0 && <div className="iv-stat__sub">No additional charges.</div>}
               {chargeFolios.map((f) => (
-                <div key={f.id} style={row}>
-                  <span>{f.description} <span className="iv-badge" style={{ marginLeft: 6 }}>{f.category}</span></span>
+                <div key={f.id} style={{ ...row, alignItems: 'flex-start' }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span>{f.description} <span className="iv-badge" style={{ marginLeft: 6 }}>{f.category}</span></span>
+                    <span style={{ fontSize: 10, color: 'var(--iv-ink3)' }}>by {f.added_by_name || '—'} · {fmtDate(f.created_at)}</span>
+                  </span>
                   <span className="flex items-center gap-2"><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(f.amount)}</span>
-                    <button title="Delete charge" onClick={() => deleteCharge(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 15, lineHeight: 1 }}>×</button></span>
+                    {admin && <button title="Delete charge" onClick={() => deleteCharge(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 15, lineHeight: 1 }}>×</button>}</span>
                 </div>
               ))}
-              {!fLoad && chargeFolios.length === 0 && nights === 0 && <div className="iv-stat__sub">No charges.</div>}
             </div>
 
             <div style={{ background: 'rgba(139,105,20,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
@@ -137,7 +153,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
 
       {showCharge && activeRes && (
         <AddChargeModal roomNo={room.room_number} resId={activeRes.id}
-          onClose={() => setShowCharge(false)} onDone={() => { onSaved?.(); }} />
+          onClose={() => setShowCharge(false)} onDone={() => { setReload((r) => r + 1); onSaved?.(); }} />
       )}
       {/* Pass the RAW reservation — RecordPaymentModal derives net = total − discount − paid
           itself. Passing the pre-discounted `total` here double-subtracted the discount

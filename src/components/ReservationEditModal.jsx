@@ -8,6 +8,8 @@
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { recalcResTotal } from '@/lib/recalcResTotal';
+import { useAuth } from './AuthGate';
+import { isAdmin } from '@/lib/permissions';
 import AddChargeModal from './AddChargeModal';
 import RecordPaymentModal from './RecordPaymentModal';
 import { printConfirmation } from '@/lib/printDocs';
@@ -17,10 +19,13 @@ const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const MARKER_RE = /receivable|payment|settlement|advance|refund/i;
 const nightsCount = (ci, co) => { if (!ci || !co) return 0; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : 0; };
 const todayDhaka = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch { return String(d).slice(0, 10); } };
 
 const STATUSES = ['RESERVED', 'PENDING', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'];
 
 export default function ReservationEditModal({ reservation, guests, rooms, onClose, onSaved }) {
+  const { user } = useAuth();
+  const admin = isAdmin(user?.role); // edit/remove of charges = owner/admin only
   const res = reservation;
   const [status, setStatus] = useState(res.status);
   const [paidAmt, setPaidAmt] = useState(String(res.paid_amount || ''));
@@ -29,7 +34,8 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
   const [checkInDate, setCheckInDate] = useState(res.check_in ? String(res.check_in).slice(0, 10) : '');
   const [checkOut, setCheckOut] = useState(res.check_out ? String(res.check_out).slice(0, 10) : '');
   const [roomArr, setRoomArr] = useState((res.room_ids || []).filter(Boolean));
-  const [resFolioExtras, setResFolioExtras] = useState(0);
+  const [chargeRows, setChargeRows] = useState([]); // manual Add-Charge line items
+  const [reload, setReload] = useState(0);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [showCharge, setShowCharge] = useState(false);
@@ -41,15 +47,31 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
     let cancelled = false;
     if (!res?.id) return;
     const supabase = getSupabaseClient();
-    supabase.from('folios').select('amount, category, description').eq('reservation_id', res.id)
+    supabase.from('folios').select('id, amount, category, description, added_by_name, created_at').eq('reservation_id', res.id).order('created_at')
       .then(({ data, error }) => {
         if (error) console.error('[ResEdit] folio fetch:', error);
         if (cancelled) return;
-        const ex = (data || []).filter((f) => !MARKER_RE.test(String(f.category || '') + ' ' + String(f.description || ''))).reduce((a, f) => a + (+f.amount || 0), 0);
-        setResFolioExtras(ex);
+        const rows = (data || []).filter((f) => !MARKER_RE.test(String(f.category || '') + ' ' + String(f.description || '')));
+        setChargeRows(rows);
       });
     return () => { cancelled = true; };
-  }, [res?.id]);
+  }, [res?.id, reload]);
+
+  const resFolioExtras = chargeRows.reduce((a, f) => a + (+f.amount || 0), 0);
+
+  async function deleteCharge(f) {
+    if (!window.confirm('Delete folio charge?')) return;
+    try {
+      const r = await fetch('/api/crm/folio', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: f.id, reservation_id: res.id }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) throw new Error(j.error || 'Could not delete charge.');
+      setChargeRows((p) => p.filter((x) => x.id !== f.id));
+      onSaved?.();
+    } catch (e) { alert(e.message || String(e)); }
+  }
 
   const nights = nightsCount(checkInDate || res.check_in, checkOut || res.check_out);
   const origNights = nightsCount(res.check_in, res.check_out);
@@ -132,6 +154,24 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
 
         <div className="mb-4"><label style={lbl}>Notes / Special Requests</label><input style={field} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
 
+        {/* Additional Charges — manual Add-Charge line items, shown separately and visible to
+            every staff account, each stamped with who added it. Edit/remove is owner/admin
+            only (× hidden for other roles; re-checked on the server). */}
+        <div className="mb-4">
+          <label style={lbl}>Additional Charges</label>
+          {chargeRows.length === 0 && <div className="iv-stat__sub" style={{ fontSize: 12, color: 'var(--iv-ink3)' }}>No additional charges.</div>}
+          {chargeRows.map((f) => (
+            <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '7px 0', borderBottom: '1px solid var(--iv-border2)', fontSize: 13 }}>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span>{f.description} <span className="iv-badge" style={{ marginLeft: 6 }}>{f.category}</span></span>
+                <span style={{ fontSize: 10, color: 'var(--iv-ink3)' }}>by {f.added_by_name || '—'} · {fmtDate(f.created_at)}</span>
+              </span>
+              <span className="flex items-center gap-2"><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(f.amount)}</span>
+                {admin && <button title="Delete charge" onClick={() => deleteCharge(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 15, lineHeight: 1 }}>×</button>}</span>
+            </div>
+          ))}
+        </div>
+
         <div style={{ background: 'rgba(139,105,20,0.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
           <div className="flex justify-between text-sm" style={{ marginBottom: 3 }}><span style={{ color: 'var(--iv-ink3)' }}>Total{_isUserEditing ? ' (recalc)' : ''}</span><span className="iv-mono">{bdt(totalAmt)}</span></div>
           {discountNum > 0 && <div className="flex justify-between text-sm" style={{ color: '#16A34A', marginBottom: 3 }}><span>Discount</span><span className="iv-mono">− {bdt(discountNum)}</span></div>}
@@ -158,7 +198,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
 
       {showCharge && (
         <AddChargeModal roomNo={roomArr[0] || res.room_number} resId={res.id}
-          onClose={() => setShowCharge(false)} onDone={() => { onSaved?.(); }} />
+          onClose={() => setShowCharge(false)} onDone={() => { setReload((r) => r + 1); onSaved?.(); }} />
       )}
       {showPay && (
         <RecordPaymentModal reservation={{ ...res, guest_name: gn, total_amount: totalAmt, discount_amount: discountNum, paid_amount: paidNum }}
