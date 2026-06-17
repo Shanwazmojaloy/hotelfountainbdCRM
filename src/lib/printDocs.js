@@ -12,11 +12,46 @@ const fmt = (n) => '৳' + Number(n || 0).toLocaleString('en-BD');
 const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return String(d).slice(0, 10); } };
 const nightsCount = (ci, co) => { if (!ci || !co) return 0; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : 0; };
 
+// Resolve full guest objects for a reservation from a guests lookup (guest_ids order preserved).
+const resolveGuests = (res, guests) => (res.guest_ids || []).map((id) => (guests || []).find((g) => String(g.id) === String(id))).filter(Boolean);
+// Per-guest detail cards: Full Name, ID Type, ID Number, Nationality, Address. Shared by
+// the confirmation voucher and the tax invoice. Returns '' when no full guest objects exist
+// (e.g. caller passed only a name string) so the documents degrade gracefully.
+const guestDetailsHTML = (guestObjs) => {
+  if (!guestObjs || !guestObjs.length) return '';
+  const cards = guestObjs.map((g, i) => {
+    const addr = [g.address, g.city, g.country].filter(Boolean).join(', ') || '—';
+    const idNum = g.id_number || g.id_card || '—';
+    return `<div class="gd-card">
+      <div class="gd-name">${guestObjs.length > 1 ? (i + 1) + '. ' : ''}${esc(g.name || '—')}</div>
+      <div class="gd-fields">
+        <div><span class="gd-l">ID Type</span><span class="gd-v">${esc(g.id_type || '—')}</span></div>
+        <div><span class="gd-l">ID Number</span><span class="gd-v">${esc(idNum)}</span></div>
+        <div><span class="gd-l">Nationality</span><span class="gd-v">${esc(g.nationality || '—')}</span></div>
+        <div><span class="gd-l">Address</span><span class="gd-v">${esc(addr)}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="gd-sec"><div class="gd-hdr">Guest Details</div>${cards}</div>`;
+};
+const GD_CSS = `
+  .gd-sec{margin-bottom:28px}
+  .gd-hdr{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:10px;font-weight:600}
+  .gd-card{border:2px solid #D9CFB8;background:#FFFDF7;border-radius:3px;padding:14px 18px;margin-bottom:12px}
+  .gd-card:last-child{margin-bottom:0}
+  .gd-name{font-size:14px;font-weight:600;color:#1F1B16;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #F2EEE4}
+  .gd-fields{display:grid;grid-template-columns:1fr 1fr;gap:9px 24px}
+  .gd-fields>div{display:flex;flex-direction:column;min-width:0}
+  .gd-l{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276;margin-bottom:2px}
+  .gd-v{font-size:12.5px;color:#1F1B16;font-weight:500;word-break:break-word}
+  @media print{.gd-card,.gd-sec{page-break-inside:avoid}}`;
+
 export function printConfirmation(res, rooms, guestName, guests) {
   const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
-  // Resolve EVERY guest on the reservation. Prefer guest_ids→guests lookup (shows all
-  // names); fall back to the passed name/array, then the denormalized single guest_name.
-  const idNames = (res.guest_ids || []).map((id) => (guests || []).find((g) => String(g.id) === String(id))?.name).filter(Boolean);
+  // Resolve EVERY guest on the reservation. Prefer guest_ids→guests lookup (full objects);
+  // fall back to the passed name/array, then the denormalized single guest_name.
+  const guestObjs = resolveGuests(res, guests);
+  const idNames = guestObjs.map((g) => g.name).filter(Boolean);
   const names = idNames.length ? idNames : (Array.isArray(guestName) ? guestName.filter(Boolean) : (guestName ? [guestName] : []));
   const gn = names.join(', ') || res.guest_name || 'Guest';
   const guestLbl = names.length > 1 ? 'Guests' : 'Guest';
@@ -91,6 +126,7 @@ export function printConfirmation(res, rooms, guestName, guests) {
     .ftr img{width:68px !important;height:68px !important}
     .ftr,.totals,table tr,.terms,.hdr,.grid{page-break-inside:avoid}
   }
+  ${GD_CSS}
 </style></head><body>
 <div class="page">
   <div class="hdr">
@@ -118,6 +154,7 @@ export function printConfirmation(res, rooms, guestName, guests) {
     <div class="box"><div class="lbl">Nights</div><div class="val mono">${nights || 0}</div></div>
     <div class="box"><div class="lbl">On-Duty Officer</div><div class="val">${esc(res.on_duty_officer || res.officer || '—')}</div></div>
   </div>
+  ${guestDetailsHTML(guestObjs)}
   <table>
     <thead><tr><th>Room</th><th>Type</th><th class="num">Rate / Night</th><th class="num">Nights</th><th class="num">Subtotal</th></tr></thead>
     <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#8A8276;padding:24px">No rooms assigned</td></tr>`}</tbody>
@@ -269,7 +306,8 @@ const MARKER_RE = /receivable|payment|settlement|advance|refund/i;
 export function printInvoice(res, rooms, guestName, folios, guests) {
   const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo-crest.png';
   // Resolve EVERY guest on the reservation (guest_ids→guests lookup), else fall back.
-  const idNames = (res.guest_ids || []).map((id) => (guests || []).find((g) => String(g.id) === String(id))?.name).filter(Boolean);
+  const guestObjs = resolveGuests(res, guests);
+  const idNames = guestObjs.map((g) => g.name).filter(Boolean);
   const names = idNames.length ? idNames : (Array.isArray(guestName) ? guestName.filter(Boolean) : (guestName ? [guestName] : []));
   const gn = names.join(', ') || res.guest_name || 'Guest';
   const billedLbl = names.length > 1 ? 'Billed To (Guests)' : 'Billed To';
@@ -348,6 +386,7 @@ export function printInvoice(res, rooms, guestName, folios, guests) {
   .ftr .wa{text-align:center;flex-shrink:0}
   .ftr .wa .cap{font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:#8A8276;margin-top:3px}
   @media print{html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:0 !important;max-width:none !important}.ftr{page-break-inside:avoid}.ftr img{width:68px !important;height:68px !important}}
+  ${GD_CSS}
 </style></head><body>
 <div class="page">
   <div class="hdr">
@@ -363,6 +402,7 @@ export function printInvoice(res, rooms, guestName, folios, guests) {
     <div class="box"><div class="lbl">Status</div><div class="gname" style="color:${stampColor}">${esc(res.status || '—')}</div>
       <div class="stay">On-duty: ${esc(res.on_duty_officer || res.officer || '—')}</div></div>
   </div>
+  ${guestDetailsHTML(guestObjs)}
   <table>
     <thead><tr><th>Date</th><th>Description</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
     <tbody>${roomRows}${folioRows}${(roomRows || folioRows) ? '' : `<tr><td colspan="4" style="text-align:center;color:#8A8276;padding:22px">No charges</td></tr>`}</tbody>

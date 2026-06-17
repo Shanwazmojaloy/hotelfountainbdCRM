@@ -169,7 +169,7 @@ export default function Billing() {
                       const [{ data: rms, error: e1 }, { data: fol, error: e2 }, { data: gst }] = await Promise.all([
                         supabase.from('rooms').select('room_number, category, price'),
                         supabase.from('folios').select('*').eq('reservation_id', sel.id),
-                        (sel.guest_ids || []).length ? supabase.from('guests').select('id, name').in('id', sel.guest_ids) : Promise.resolve({ data: [] }),
+                        (sel.guest_ids || []).length ? supabase.from('guests').select('id, name, id_type, id_number, nationality, address, city, country, id_card').in('id', sel.guest_ids) : Promise.resolve({ data: [] }),
                       ]);
                       if (e1 || e2) { console.error('[Billing] print fetch error:', e1 || e2); alert('Could not load invoice data — try again.'); return; }
                       printInvoice(sel, rms || [], sel.guest_name, fol || [], gst || []);
