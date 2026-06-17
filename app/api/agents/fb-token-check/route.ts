@@ -17,7 +17,10 @@ const WARN_DAYS     = 30  // alert when < 30 days remain
 export async function GET(req: Request) {
   // Auth check
   const auth = req.headers.get('authorization') || ''
-  if (CRON_SECRET && auth !== `Bearer ${CRON_SECRET}`) {
+  if (!CRON_SECRET) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
+  }
+  if (auth !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
