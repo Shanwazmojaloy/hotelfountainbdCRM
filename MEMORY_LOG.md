@@ -1,5 +1,13 @@
 Purpose: Persistent memory of key decisions and technical hurdles.
 
+MULTI-GUEST RESERVATION MODAL (2026-06-17, NOT yet committed):
+- DECISION: the New Reservation / Check-In modal (`src/components/NewReservationModal.jsx`) now supports attaching MULTIPLE guests to one booking via a `+ Add Guest` button, mirroring the existing `+ Add Room` repeatable-row pattern. Owner-requested.
+- STATE: single `guestId`/`guestName` replaced with `guests: [{id,name}]` array, plus `activeGuest` (the row index whose typeahead dropdown is open). Derived `selectedGuests = f.guests.filter(g=>g.id)` and `primaryGuest = selectedGuests[0]`.
+- UI: each guest is its own row — a name/phone typeahead + `✕` remove (rendered only when `guests.length > 1`). The guest-search dropdown is shared but scoped to the focused row (`activeGuest === idx`), and already-selected guests are filtered out of the hit list to prevent dupes. Label changed `Guest *` → `Guest(s) *`.
+- DATA MODEL: `guest_ids` now carries ALL selected guest UUIDs (`selectedGuests.map(g=>g.id)`); the FIRST guest stays as the denormalized `guest_name` on the reservation + on the payment transaction row, so ledger/billing display is unchanged. Applies to BOTH the primary `/api/crm/reservation` create payload AND the 401 anon-fallback direct insert. Validation now requires `primaryGuest` before save.
+- SCOPE GUARD: per-room fan-out is UNTOUCHED — a multi-room booking is still 1 reservation row per room (per the ABDULLAH BIN SAFAT house rule); the guest array attaches to each room's reservation. No schema change (`reservations.guest_ids` array column already existed).
+- VERIFICATION: 0 NUL bytes; `tsc --noEmit` reports no errors in NewReservationModal. Owner must run `npm run typecheck` from PowerShell, then commit/deploy as usual.
+
 FOLIO CHARGE ATTRIBUTION + ADMIN-ONLY REMOVAL (2026-06-15, NOT yet committed):
 - DECISION: manual "Add Charge" folio line items are now (a) shown to EVERY staff account in their own dedicated "Additional Charges" section, each stamped with who added it + the date; and (b) editable/removable by OWNER/ADMIN only. "Remove" is the only edit op on a charge today (no in-place edit flow exists) — that is what is gated. `isAdmin` = owner/manager/admin, matching the existing delete-capability convention in `src/lib/permissions.js`.
 - SCHEMA (migration `folios_add_attribution_columns` APPLIED to prod `mynwfkg`): `public.folios` +`added_by_id bigint` +`added_by_name text`, BOTH nullable (additive, non-destructive; legacy rows render `by —`). `added_by_name` is DENORMALIZED onto the folio row because the browser anon key cannot read `staff` (RLS) — the folio fetch is client-side via the anon key, so it cannot join to staff for the name.
