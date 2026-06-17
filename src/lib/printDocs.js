@@ -48,13 +48,14 @@ const GD_CSS = `
 
 export function printConfirmation(res, rooms, guestName, guests) {
   const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
-  // Resolve EVERY guest on the reservation. Prefer guest_ids→guests lookup (full objects);
-  // fall back to the passed name/array, then the denormalized single guest_name.
-  const guestObjs = resolveGuests(res, guests);
-  const idNames = guestObjs.map((g) => g.name).filter(Boolean);
-  const names = idNames.length ? idNames : (Array.isArray(guestName) ? guestName.filter(Boolean) : (guestName ? [guestName] : []));
-  const gn = names.join(', ') || res.guest_name || 'Guest';
-  const guestLbl = names.length > 1 ? 'Guests' : 'Guest';
+  // Resolve EVERY guest on the reservation (guest_ids→guests lookup, full objects). When no
+  // lookup is available, fall back to name-only cards from the passed name/array or guest_name
+  // so the Guest Details section is never empty.
+  let guestObjs = resolveGuests(res, guests);
+  if (!guestObjs.length) {
+    const names = Array.isArray(guestName) ? guestName.filter(Boolean) : (guestName ? [guestName] : (res.guest_name ? [res.guest_name] : []));
+    guestObjs = names.map((n) => ({ name: n }));
+  }
   const confNo = 'HF-' + String(res.id || '').slice(0, 8).toUpperCase();
   const issued = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const roomArr = (res.room_ids || []).filter(Boolean);
@@ -146,15 +147,13 @@ export function printConfirmation(res, rooms, guestName, guests) {
   </div>
   <div class="doc-title">Booking Confirmation</div>
   <div class="doc-sub">Reservation Voucher · Not a Tax Invoice</div>
+  ${guestDetailsHTML(guestObjs)}
   <div class="grid">
-    <div class="box"><div class="lbl">${guestLbl}</div><div class="val">${esc(gn)}</div></div>
     <div class="box"><div class="lbl">Confirmation No.</div><div class="val mono">${esc(confNo)}</div></div>
     <div class="box"><div class="lbl">Check-In</div><div class="val mono">${esc(fmtDate(res.check_in))}</div></div>
     <div class="box"><div class="lbl">Check-Out</div><div class="val mono">${esc(fmtDate(res.check_out))}</div></div>
     <div class="box"><div class="lbl">Nights</div><div class="val mono">${nights || 0}</div></div>
-    <div class="box"><div class="lbl">On-Duty Officer</div><div class="val">${esc(res.on_duty_officer || res.officer || '—')}</div></div>
   </div>
-  ${guestDetailsHTML(guestObjs)}
   <table>
     <thead><tr><th>Room</th><th>Type</th><th class="num">Rate / Night</th><th class="num">Nights</th><th class="num">Subtotal</th></tr></thead>
     <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#8A8276;padding:24px">No rooms assigned</td></tr>`}</tbody>
