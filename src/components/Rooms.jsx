@@ -59,7 +59,7 @@ export default function Rooms() {
       const [{ data: rm }, { data: res }, { data: g }] = await Promise.all([
         supabase.from('rooms').select('id, room_number, status, category, price').order('room_number', { ascending: true }),
         supabase.from('reservations').select('*').in('status', ['CHECKED_IN', 'RESERVED']).limit(5000),
-        supabase.from('guests').select('id, name').limit(5000),
+        supabase.from('guests').select('id, name, id_type, id_number, nationality, address, city, country, id_card').limit(5000),
       ]);
       setRooms(rm || []);
       setReservations(res || []);

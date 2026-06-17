@@ -98,7 +98,7 @@ export default function Reservations() {
       const supabase = getSupabaseClient();
       const [{ data: r, error: e1 }, { data: g, error: e2 }, { data: rm, error: e3 }] = await Promise.all([
         supabase.from('reservations').select('id, guest_name, guest_ids, room_ids, check_in, check_out, status, total_amount, paid_amount, discount, discount_amount, on_duty_officer, special_requests, notes').order('check_in', { ascending: false }).limit(5000),
-        supabase.from('guests').select('id, name').limit(5000),
+        supabase.from('guests').select('id, name, id_type, id_number, nationality, address, city, country, id_card').limit(5000),
         supabase.from('rooms').select('id, room_number, status, category, price').order('room_number'),
       ]);
       if (e1 || e2 || e3) console.error('[Reservations] query error:', e1 || e2 || e3);
