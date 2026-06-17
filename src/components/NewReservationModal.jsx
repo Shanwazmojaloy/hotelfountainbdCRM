@@ -14,7 +14,7 @@ const shortDate = (s) => { if (!s) return ''; try { return new Date(s + 'T00:00:
 
 export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   const [f, setF] = useState({
-    guestId: '', guestName: '', roomNos: [''], checkIn: todayStr(), checkOut: '',
+    guests: [{ id: '', name: '' }], roomNos: [''], checkIn: todayStr(), checkOut: '',
     total: '', paid: '', discount: '', method: 'Cash', notes: '', officer: '', stayType: 'CHECK_IN',
   });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -23,6 +23,10 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   const [conflicts, setConflicts] = useState({});
   const [guestQuery, setGuestQuery] = useState('');
   const [guestHits, setGuestHits] = useState([]);
+  const [activeGuest, setActiveGuest] = useState(-1); // row index whose dropdown is open
+
+  const selectedGuests = f.guests.filter((g) => g.id);
+  const primaryGuest = selectedGuests[0] || null;
 
   const winIn = f.checkIn || todayStr();
   const winOut = f.checkOut || (() => { const d = new Date(winIn + 'T00:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
@@ -72,7 +76,8 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   useEffect(() => { if (autoTotal > 0) setF((p) => ({ ...p, total: String(autoTotal) })); }, [autoTotal]);
 
   async function save() {
-    if (!f.guestId) return setErr('Select a guest.');
+    if (!primaryGuest) return setErr('Select a guest.');
+    const guestIds = selectedGuests.map((g) => g.id);
     const sel = f.roomNos.filter(Boolean);
     if (!sel.length) return setErr('Select at least one room.');
     if (!f.checkIn || !f.checkOut) return setErr('Set check-in and check-out dates.');
@@ -85,7 +90,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
       const totalAmt = +f.total || autoTotal;
       const _r = await fetch('/api/crm/reservation', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create', guest_ids: [f.guestId], room_ids: sel, guest_name: f.guestName || null, check_in: f.checkIn, check_out: f.checkOut, status: isCheckIn ? 'CHECKED_IN' : 'RESERVED', total_amount: totalAmt, paid_amount: +f.paid || 0, discount_amount: +f.discount || 0, payment_method: f.method, special_requests: f.notes || null, on_duty_officer: f.officer || null, stay_type: f.stayType, fiscal_day: todayStr(), idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null) }),
+        body: JSON.stringify({ action: 'create', guest_ids: guestIds, room_ids: sel, guest_name: primaryGuest.name || null, check_in: f.checkIn, check_out: f.checkOut, status: isCheckIn ? 'CHECKED_IN' : 'RESERVED', total_amount: totalAmt, paid_amount: +f.paid || 0, discount_amount: +f.discount || 0, payment_method: f.method, special_requests: f.notes || null, on_duty_officer: f.officer || null, stay_type: f.stayType, fiscal_day: todayStr(), idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null) }),
       });
       if (_r.status !== 401) {
         const j = await _r.json().catch(() => ({}));
@@ -95,7 +100,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
       // 401 transition fallback — direct write below (allowed until anon revoke).
       const supabase = getSupabaseClient();
       const { data: newRes, error: resErr } = await supabase.from('reservations').insert({
-        guest_ids: [f.guestId], room_ids: sel, guest_name: f.guestName || null,
+        guest_ids: guestIds, room_ids: sel, guest_name: primaryGuest.name || null,
         check_in: f.checkIn, check_out: f.checkOut, status: isCheckIn ? 'CHECKED_IN' : 'RESERVED',
         total_amount: totalAmt, paid_amount: +f.paid || 0, discount_amount: +f.discount || 0,
         payment_method: f.method, special_requests: f.notes || null, on_duty_officer: f.officer || null,
@@ -111,7 +116,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
       }
       if ((+f.paid || 0) > 0) {
         await supabase.from('transactions').insert({
-          room_number: sel[0], guest_name: f.guestName || '', type: `Room Payment (${f.method})`,
+          room_number: sel[0], guest_name: primaryGuest.name || '', type: `Room Payment (${f.method})`,
           amount: +f.paid, fiscal_day: todayStr(), reservation_id: newRes?.id || null, tenant_id: TENANT,
           idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null),
         });
@@ -134,21 +139,32 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           ))}
         </div>
 
-        <div className="mb-4" style={{ position: 'relative' }}>
-          <label style={lbl}>Guest *</label>
-          <input style={field} placeholder="Type name or phone…"
-            value={f.guestName || guestQuery}
-            onChange={(e) => { setGuestQuery(e.target.value); setF((p) => ({ ...p, guestId: '', guestName: '' })); }} />
-          {guestHits.length > 0 && !f.guestId && (
-            <div className="iv-card" style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, marginTop: 2, padding: 4, maxHeight: 200, overflowY: 'auto' }}>
-              {guestHits.map((g) => (
-                <button key={g.id} onClick={() => { setF((p) => ({ ...p, guestId: g.id, guestName: g.name })); setGuestHits([]); setGuestQuery(''); }}
-                  className="block w-full text-left" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--iv-ink)' }}>
-                  {g.name} <span style={{ color: 'var(--iv-ink3)' }}>{g.phone || ''}</span>
-                </button>
-              ))}
+        <div className="mb-4">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={{ ...lbl, marginBottom: 0 }}>Guest(s) *</label>
+            <button onClick={() => setF((p) => ({ ...p, guests: [...p.guests, { id: '', name: '' }] }))} className="iv-btn iv-btn--ghost" style={{ padding: '3px 10px', fontSize: 11.5, borderRadius: 999 }}>+ Add Guest</button>
+          </div>
+          {f.guests.map((g, idx) => (
+            <div key={idx} style={{ position: 'relative', marginBottom: idx < f.guests.length - 1 ? 8 : 0 }}>
+              <div className="flex gap-2">
+                <input style={{ ...field, flex: 1 }} placeholder={idx === 0 ? 'Type name or phone…' : 'Additional guest…'}
+                  value={g.id ? g.name : (activeGuest === idx ? guestQuery : '')}
+                  onFocus={() => { setActiveGuest(idx); setGuestQuery(''); setGuestHits([]); }}
+                  onChange={(e) => { setActiveGuest(idx); setGuestQuery(e.target.value); setF((p) => { const a = [...p.guests]; a[idx] = { id: '', name: '' }; return { ...p, guests: a }; }); }} />
+                {f.guests.length > 1 && <button onClick={() => setF((p) => ({ ...p, guests: p.guests.filter((_, i) => i !== idx) }))} style={{ color: '#DC2626', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
+              </div>
+              {activeGuest === idx && !g.id && guestHits.length > 0 && (
+                <div className="iv-card" style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, marginTop: 2, padding: 4, maxHeight: 200, overflowY: 'auto' }}>
+                  {guestHits.filter((h) => !f.guests.some((sel) => sel.id === h.id)).map((h) => (
+                    <button key={h.id} onClick={() => { setF((p) => { const a = [...p.guests]; a[idx] = { id: h.id, name: h.name }; return { ...p, guests: a }; }); setGuestHits([]); setGuestQuery(''); setActiveGuest(-1); }}
+                      className="block w-full text-left" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--iv-ink)' }}>
+                      {h.name} <span style={{ color: 'var(--iv-ink3)' }}>{h.phone || ''}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          ))}
         </div>
 
         <div className="mb-4">
