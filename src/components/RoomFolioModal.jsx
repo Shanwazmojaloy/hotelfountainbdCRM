@@ -139,7 +139,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
 
             <div className="flex gap-2 flex-wrap justify-end">
               <button className="iv-btn iv-btn--ghost" onClick={() => setShowCharge(true)}>+ Add Charge</button>
-              <button className="iv-btn iv-btn--ghost" onClick={() => printInvoice({ ...activeRes, guest_name: guestName }, rooms, guestName, folios)}>Invoice</button>
+              <button className="iv-btn iv-btn--ghost" onClick={() => printInvoice({ ...activeRes, guest_name: guestName }, rooms, guestName, folios, guests)}>Invoice</button>
               <button className="iv-btn iv-btn--ghost" onClick={() => setShowPay(true)} disabled={due <= 0}>Collect Payment</button>
               <button className="iv-btn" style={{ background: '#DC2626' }} onClick={() => setShowCO(true)}>Check Out</button>
             </div>

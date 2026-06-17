@@ -12,9 +12,14 @@ const fmt = (n) => '৳' + Number(n || 0).toLocaleString('en-BD');
 const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return String(d).slice(0, 10); } };
 const nightsCount = (ci, co) => { if (!ci || !co) return 0; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : 0; };
 
-export function printConfirmation(res, rooms, guestName) {
+export function printConfirmation(res, rooms, guestName, guests) {
   const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
-  const gn = guestName || res.guest_name || 'Guest';
+  // Resolve EVERY guest on the reservation. Prefer guest_ids→guests lookup (shows all
+  // names); fall back to the passed name/array, then the denormalized single guest_name.
+  const idNames = (res.guest_ids || []).map((id) => (guests || []).find((g) => String(g.id) === String(id))?.name).filter(Boolean);
+  const names = idNames.length ? idNames : (Array.isArray(guestName) ? guestName.filter(Boolean) : (guestName ? [guestName] : []));
+  const gn = names.join(', ') || res.guest_name || 'Guest';
+  const guestLbl = names.length > 1 ? 'Guests' : 'Guest';
   const confNo = 'HF-' + String(res.id || '').slice(0, 8).toUpperCase();
   const issued = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const roomArr = (res.room_ids || []).filter(Boolean);
@@ -106,7 +111,7 @@ export function printConfirmation(res, rooms, guestName) {
   <div class="doc-title">Booking Confirmation</div>
   <div class="doc-sub">Reservation Voucher · Not a Tax Invoice</div>
   <div class="grid">
-    <div class="box"><div class="lbl">Guest</div><div class="val">${esc(gn)}</div></div>
+    <div class="box"><div class="lbl">${guestLbl}</div><div class="val">${esc(gn)}</div></div>
     <div class="box"><div class="lbl">Confirmation No.</div><div class="val mono">${esc(confNo)}</div></div>
     <div class="box"><div class="lbl">Check-In</div><div class="val mono">${esc(fmtDate(res.check_in))}</div></div>
     <div class="box"><div class="lbl">Check-Out</div><div class="val mono">${esc(fmtDate(res.check_out))}</div></div>
@@ -261,9 +266,13 @@ export function printDayReport({ dateLabel, collected, dues, reservations }) {
 // on BillingPage.computeBill). Lists room charge(s) + billable folios, discount, paid, due,
 // with a PAID / BALANCE DUE stamp. Same A4-portrait Warm-Ivory shell as the confirmation.
 const MARKER_RE = /receivable|payment|settlement|advance|refund/i;
-export function printInvoice(res, rooms, guestName, folios) {
+export function printInvoice(res, rooms, guestName, folios, guests) {
   const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo-crest.png';
-  const gn = guestName || res.guest_name || 'Guest';
+  // Resolve EVERY guest on the reservation (guest_ids→guests lookup), else fall back.
+  const idNames = (res.guest_ids || []).map((id) => (guests || []).find((g) => String(g.id) === String(id))?.name).filter(Boolean);
+  const names = idNames.length ? idNames : (Array.isArray(guestName) ? guestName.filter(Boolean) : (guestName ? [guestName] : []));
+  const gn = names.join(', ') || res.guest_name || 'Guest';
+  const billedLbl = names.length > 1 ? 'Billed To (Guests)' : 'Billed To';
   const invNo = 'INV-' + String(res.id || Date.now()).slice(-8).toUpperCase();
   const issued = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const roomArr = (res.room_ids || []).filter(Boolean);
@@ -348,7 +357,7 @@ export function printInvoice(res, rooms, guestName, folios) {
       <div class="lbl">Issued</div><div>${esc(issued)}</div><div><span class="stamp">${isPaid ? 'PAID' : 'BALANCE DUE'}</span></div></div>
   </div>
   <div class="grid">
-    <div class="box"><div class="lbl">Billed To</div><div class="gname">${esc(gn)}</div>
+    <div class="box"><div class="lbl">${billedLbl}</div><div class="gname">${esc(gn)}</div>
       <div class="stay">${esc(fmtDate(res.check_in))} → ${esc(fmtDate(res.check_out))} · ${nights} night${nights !== 1 ? 's' : ''}</div>
       <div class="stay">Room${roomArr.length !== 1 ? 's' : ''}: ${esc(roomArr.join(', ') || '—')}</div></div>
     <div class="box"><div class="lbl">Status</div><div class="gname" style="color:${stampColor}">${esc(res.status || '—')}</div>

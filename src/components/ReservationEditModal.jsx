@@ -187,7 +187,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
             <button className="iv-btn iv-btn--ghost" onClick={() => setShowCharge(true)}>+ Add Charge</button>
             <button className="iv-btn iv-btn--ghost" onClick={() => setShowPay(true)}>Record Payment</button>
             <button className="iv-btn iv-btn--ghost" title="Print booking confirmation voucher"
-              onClick={() => printConfirmation({ ...res, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), total_amount: totalAmt, discount_amount: discountNum, paid_amount: paidNum, notes, status, guest_name: gn }, rooms, gn)}>Print</button>
+              onClick={() => printConfirmation({ ...res, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), total_amount: totalAmt, discount_amount: discountNum, paid_amount: paidNum, notes, status, guest_name: gn }, rooms, gn, guests)}>Print</button>
           </div>
           <div className="flex gap-2">
             <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
