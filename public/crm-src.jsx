@@ -1660,6 +1660,14 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
           if(room) await dbPatch('rooms',room.id,{status:'DIRTY'})
         }
       }
+      // CANCELLED must release the rooms — without this branch a cancelled booking left its
+      // rooms stranded OCCUPIED/RESERVED forever (never re-bookable). Release to AVAILABLE.
+      if(status==='CANCELLED'&&res.status!=='CANCELLED') {
+        for(const rn of newRoomNos) {
+          const room=rooms.find(r=>r.room_number===rn)
+          if(room) await dbPatch('rooms',room.id,{status:'AVAILABLE'})
+        }
+      }
       const _resGuestName = guests.find(g=>g.id===(res.guest_ids||[])[0])?.name || res.guest_name || null
       const updates={status,paid_amount:paidNum,discount_amount:discountNum,notes,check_in:checkInDate,check_out:checkOut,room_ids:newRoomNos,total_amount:totalAmt,guest_name:_resGuestName}
       if(checkOut&&checkOut!==String(res.check_out||'').slice(0,10)){
@@ -2194,30 +2202,61 @@ function NewReservationModal({guests,rooms,toast,onClose,reload,businessDate}) {
     setSaving(true)
     try {
       const isCheckIn=f.stayType==='CHECK_IN'
-      const totalAmt=+f.total||autoTotal
       const selectedRooms=f.roomNos.filter(Boolean)
       const _guestName = guests.find(g=>g.id===f.guestId)?.name || null
-      const [newRes]=await dbPost('reservations',{
-        guest_ids:[f.guestId], room_ids:selectedRooms,
-        guest_name:_guestName,
+      // PER-ROOM FAN-OUT (house rule 2026-06-14): create one reservation PER ROOM so check-out /
+      // billing / room-status stay INDEPENDENT per room. A single multi-room row (room_ids:[a,b,c]
+      // under one status) caused the ABDULLAH BIN SAFAT incident — checking out one room flipped
+      // the whole reservation to CHECKED_OUT and released the others. Mirrors the server create
+      // action (app/api/crm/reservation/route.ts). Money split: each room's gross = its rate ×
+      // nights; the entered (possibly negotiated) total & discount are PRORATED to those grosses
+      // with the rounding remainder on the first room; the paid pool fills each room's net
+      // (total−discount) in order, overpay on the last. Invariant: children's total/discount/paid
+      // sum EXACTLY to the entered figures. Single-room bookings are identical to the old path.
+      const _n=autoNights||1
+      const _rateOf=rn=>+((rooms||[]).find(r=>String(r.room_number)===String(rn))?.price)||0
+      const _wantRaw=+f.total||0
+      const _discTot=+f.discount||0
+      const _paidTot=+f.paid||0
+      const _gross=selectedRooms.map(rn=>_rateOf(rn)*_n)
+      const _grossSum=_gross.reduce((a,b)=>a+b,0)
+      const _wantTotal=_wantRaw>0?_wantRaw:_grossSum
+      const _totals=selectedRooms.map((_,i)=>{
+        if(_wantRaw>0&&_grossSum>0) return Math.round(_wantRaw*_gross[i]/_grossSum)
+        if(_wantRaw>0) return Math.round(_wantRaw/selectedRooms.length)
+        return _gross[i]
+      })
+      _totals[0]+=_wantTotal-_totals.reduce((a,b)=>a+b,0)
+      const _disc=selectedRooms.map((_,i)=>_wantTotal>0?Math.round(_discTot*_totals[i]/_wantTotal):0)
+      _disc[0]+=_discTot-_disc.reduce((a,b)=>a+b,0)
+      let _pool=_paidTot
+      const _paidArr=selectedRooms.map((_,i)=>{const net=Math.max(0,_totals[i]-_disc[i]);const p=Math.min(_pool,net);_pool-=p;return p})
+      if(_pool>0) _paidArr[_paidArr.length-1]+=_pool
+      const _baseRes={
+        guest_ids:[f.guestId], guest_name:_guestName,
         check_in:f.checkIn, check_out:f.checkOut,
         status:isCheckIn?'CHECKED_IN':'RESERVED',
-        total_amount:totalAmt, paid_amount:+f.paid||0,
-        discount_amount:+f.discount||0,
         payment_method:f.method, special_requests:f.notes||null,
         on_duty_officer:f.officer||null, stay_type:f.stayType, tenant_id:TENANT
-      })
-      if(isCheckIn){
-        for(const rn of selectedRooms){
-          const room=rooms.find(r=>r.room_number===rn)
+      }
+      for(let i=0;i<selectedRooms.length;i++){
+        const rn=selectedRooms[i]
+        const [created]=await dbPost('reservations',{
+          ..._baseRes, room_ids:[rn],
+          total_amount:_totals[i], paid_amount:_paidArr[i], discount_amount:_disc[i]
+        })
+        const _newId=created?.id||null
+        if(isCheckIn){
+          const room=rooms.find(r=>String(r.room_number)===String(rn))
           if(room) await dbPatch('rooms',room.id,{status:'OCCUPIED'})
         }
-      }
-      if((+f.paid||0)>0){
-        await dbPost('transactions',{
-          room_number:selectedRooms[0], guest_name:guests.find(g=>g.id===f.guestId)?.name||'',
-          type:`Room Payment (${f.method})`, amount:+f.paid, fiscal_day:businessDate||todayStr(), reservation_id:newRes?.id||null, tenant_id:TENANT
-        })
+        if(_paidArr[i]>0){
+          await dbPost('transactions',{
+            room_number:rn, guest_name:_guestName||'',
+            type:`Room Payment (${f.method})`, amount:_paidArr[i],
+            fiscal_day:businessDate||todayStr(), reservation_id:_newId, tenant_id:TENANT
+          })
+        }
       }
       toast(isCheckIn?`Check-in complete — Rm ${selectedRooms.join(',')} ✓`:'Reservation created ✓')
       await reload()
@@ -3365,7 +3404,10 @@ function BillingPage({transactions,reservations,toast,reload,currentUser,rooms,g
       } catch {}
     }
     const todayList=transactions.filter(t=>t.fiscal_day===today && t.type!=='Balance Carried Forward')
-    const totalAmt=todayList.reduce((acc,t)=>acc+(+t.amount||0),0)
+    // Closing total must equal the BIZ DAY stat the owner sees on screen: cash COLLECTED only.
+    // Previously this summed every non-BCF tx, double-counting charges (Stay Extension, Room
+    // Service, etc.) as collected cash. _bizDayTotalFn counts real payments only (see line 430).
+    const totalAmt=_bizDayTotalFn(todayList)
     const tokenAmount=a||savedToken||0
     const closingAmt=totalAmt-tokenAmount
     const now=new Date().toLocaleString('en-BD',{timeZone:'Asia/Dhaka',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})

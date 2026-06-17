@@ -5,6 +5,24 @@
 // The anon key is the public client key (already embedded in crm.html); it is
 // safe to use here. Override via SUPABASE_URL / SUPABASE_ANON_KEY env vars.
 
+import { NextResponse } from 'next/server';
+
+// Cron auth guard for /api/agents/* forwarder routes. Vercel Cron sends
+// `Authorization: Bearer <CRON_SECRET>` when CRON_SECRET is configured.
+// Fails CLOSED: if CRON_SECRET is unset we return 500 rather than allowing the
+// endpoint to run unauthenticated (the edge functions send real guest
+// WhatsApp/email blasts and run reports).
+export function assertCron(req: Request): NextResponse | null {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  }
+  if (req.headers.get('authorization') !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return null;
+}
+
 const BASE =
   process.env.SUPABASE_URL ?? 'https://mynwfkgksqqwlqowlscj.supabase.co';
 
