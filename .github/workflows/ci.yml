@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - run: npm install
 
       - name: Build CRM bundle
         run: npm run build:crm
