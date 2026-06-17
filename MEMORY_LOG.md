@@ -1,5 +1,13 @@
 Purpose: Persistent memory of key decisions and technical hurdles.
 
+SPEED INSIGHTS SAMPLE RATE — STAY UNDER HOBBY 10K CAP (2026-06-17, NOT yet committed):
+- TRIGGER: Vercel `hotelfountainbd-crm` (Hobby plan) exceeded the free Speed Insights tier — 11K / 10K Data Points for the month. Counter resets monthly but kept re-tripping.
+- DECISION (owner-chosen via option picker — "Throttle sample rate", over disable/disable-CRM-only/upgrade-to-Pro): throttle client-side telemetry instead of dropping monitoring or paying. Keeps real-user perf data, just sampled.
+- CODE (`app/layout.tsx` line ~63): `<SpeedInsights />` → `<SpeedInsights sampleRate={0.25} />`. `sampleRate` (0–1) is a native prop on `@vercel/speed-insights` v2 — NO package change. `<Analytics />` (Web Analytics) left untouched; only Speed Insights is throttled.
+- EFFECT: ~25% of CRM sessions tracked → ~11K projected drops to ~3K/mo, comfortable headroom under the 10K cap. Scope is CRM only.
+- ESCALATION: if 0.25 still trips next month, drop to `0.1`. Alternative levers (not taken): disable on /crm only, remove entirely, or upgrade to Pro.
+- VERIFICATION: single-line surgical edit; prop is type-valid for the installed v2.0.0. Owner commits/pushes from PowerShell (F: git via sandbox bash unreliable): `git add app/layout.tsx && git commit && git push`.
+
 CONFIRMATION LAYOUT — GUEST DETAILS TO TOP, DROP SUMMARY BOXES (2026-06-17, NOT yet committed):
 - DECISION (Booking Confirmation voucher ONLY, `printConfirmation` in `src/lib/printDocs.js`): removed the "Guests" summary box AND the "On-Duty Officer" box; moved the per-guest "Guest Details" section ABOVE the info grid (now directly under the doc subtitle). The info grid is now a 2×2 of Confirmation No. / Check-In / Check-Out / Nights. The Tax Invoice layout is UNCHANGED (still has Billed-To + Status boxes + its own Guest Details section).
 - CODE: the old name-summary vars (`gn`/`guestLbl`/`idNames`/`names`) are gone from printConfirmation — it now only builds `guestObjs` (with a name-only fallback from guestName/guest_name so the Guest Details section is never empty for legacy/no-lookup callers). `printInvoice` still computes `gn`/`billedLbl` for its Billed-To box (untouched).
