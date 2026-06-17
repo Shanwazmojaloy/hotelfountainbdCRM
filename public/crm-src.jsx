@@ -95,8 +95,8 @@ async function recalcResTotal(resId){
 }
 
 const ROLES = {
-  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads','council','settings']},
-  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','leads','council']},
+  owner:        {label:'Founder / Owner',    color:'#C8A96E', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','forecast','leads','council','settings']},
+  manager:      {label:'General Manager',    color:'#2EC4B6', pages:['dashboard','rooms','reservations','guests','housekeeping','billing','reports','forecast','leads','council']},
   receptionist: {label:'Receptionist',       color:'#58A6FF', pages:['dashboard','rooms','reservations','guests','billing']},
   housekeeping: {label:'Housekeeping Staff', color:'#F0A500', pages:['dashboard','rooms','housekeeping','billing']},
   accountant:   {label:'Accountant',         color:'#3FB950', pages:['dashboard','billing','reports']},
@@ -858,6 +858,115 @@ function LoginPage({onLogin, staffList}) {
 }
 
 /* ═══════════════════════ DASHBOARD ══════════════════════════ */
+/* ═══════════════════════ DEMAND FORECAST ══════════════════════════ */
+function crmForecast(reservations,totalRooms,horizon,startDate){
+  const ACTIVE=new Set(['RESERVED','CHECKED_IN','CONFIRMED','PENDING'])
+  const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const start=new Date((startDate||todayStr())+'T00:00:00Z').getTime()
+  const dates=[];for(let i=0;i<horizon;i++)dates.push(new Date(start+i*86400000).toISOString().slice(0,10))
+  const dpart=v=>v==null?'':String(v).slice(0,10)
+  const active=(reservations||[]).map(r=>({ci:dpart(r.check_in),co:dpart(r.check_out),ids:(r.room_ids&&r.room_ids.length)?r.room_ids:(r.room_number!=null?[r.room_number]:[]),status:String(r.status||'').toUpperCase()})).filter(r=>ACTIVE.has(r.status)&&r.ci&&r.co&&r.co>r.ci)
+  const days=dates.map(date=>{
+    const set=new Set()
+    for(const r of active){
+      if(r.ci<=date&&r.co>date){
+        for(const id of r.ids){const s=String(id).trim();if(s)set.add(s)}
+      }
+    }
+    const occupied=Math.min(set.size,totalRooms)
+    const free=Math.max(0,totalRooms-occupied)
+    const occPct=totalRooms>0?Math.round(occupied*100/totalRooms):0
+    const dow=new Date(date+'T00:00:00Z').getUTCDay()
+    return {date,dow:DOW[dow],isWeekend:dow===5||dow===6,occupied,free,occPct,demand:occPct>=75?'HIGH':occPct>=45?'MED':'LOW'}
+  })
+  const n=days.length||1
+  const avgOccPct=Math.round(days.reduce((a,d)=>a+d.occPct,0)/n)
+  const roomNightsFree=days.reduce((a,d)=>a+d.free,0)
+  const avgFree=arr=>arr.length?Math.round(arr.reduce((a,d)=>a+(100-d.occPct),0)/arr.length):0
+  const wk=days.filter(d=>!d.isWeekend),we=days.filter(d=>d.isWeekend)
+  const overallDemand=avgOccPct>=75?'HIGH':avgOccPct>=45?'MED':'LOW'
+  const emphasis=[]
+  if(avgFree(wk)>=55)emphasis.push('corporate','embassy','airlines')
+  if(avgFree(we)>=55)emphasis.push('events','travel')
+  if(!emphasis.length)emphasis.push('corporate','events')
+  return {totalRooms,days,avgOccPct,roomNightsFree,weekdayGapPct:avgFree(wk),weekendGapPct:avgFree(we),overallDemand,emphasis:[...new Set(emphasis)]}
+}
+
+function ForecastPage({reservations,rooms,businessDate,setPage}){
+  const [horizon,setHorizon]=useState(14)
+  const totalRooms=rooms.length
+  const f=useMemo(()=>crmForecast(reservations,totalRooms,horizon,businessDate||todayStr()),[reservations,totalRooms,horizon,businessDate])
+  const dc={HIGH:'var(--rose)',MED:'var(--gold)',LOW:'var(--sky)'}
+  const peak=Math.max(1,...f.days.map(d=>d.occPct))
+  return (
+    <div>
+      <div className="stats-row">
+        <div className="stat" style={{'--ac':'var(--sky)'}}><div className="stat-ico">📈</div><div className="stat-lbl">Avg Occupancy · {horizon}d</div><div className="stat-val">{f.avgOccPct}%</div><div className="stat-sub">{f.overallDemand} demand outlook</div></div>
+        <div className="stat" style={{'--ac':'var(--gold)'}}><div className="stat-ico">🛏</div><div className="stat-lbl">Room-Nights to Fill</div><div className="stat-val" style={{fontFamily:'var(--mono)'}}>{f.roomNightsFree}</div><div className="stat-sub">next {horizon} days · {totalRooms} rooms</div></div>
+        <div className="stat" style={{'--ac':'var(--grn)'}}><div className="stat-ico">💼</div><div className="stat-lbl">Weekday Gap</div><div className="stat-val">{f.weekdayGapPct}%</div><div className="stat-sub">rooms empty Sun–Thu</div></div>
+        <div className="stat" style={{'--ac':'var(--rose)'}}><div className="stat-ico">🎟</div><div className="stat-lbl">Weekend Gap</div><div className="stat-val">{f.weekendGapPct}%</div><div className="stat-sub">rooms empty Fri–Sat</div></div>
+      </div>
+
+      <div className="card mb4">
+        <div className="card-hd">
+          <span className="card-title">Occupancy Forecast — Next {horizon} Days</span>
+          <div className="flex fac gap2">
+            {[7,14,30].map(h=>(<button key={h} className="btn btn-ghost btn-sm" style={{opacity:horizon===h?1:.5,borderColor:horizon===h?'var(--gold)':'var(--br2)'}} onClick={()=>setHorizon(h)}>{h}d</button>))}
+          </div>
+        </div>
+        <div className="card-body">
+          <div style={{display:'flex',alignItems:'flex-end',gap:3,height:170,padding:'8px 0',overflowX:'auto'}}>
+            {f.days.map(d=>(
+              <div key={d.date} title={`${d.dow} ${d.date} — ${d.occupied}/${f.totalRooms} rooms (${d.occPct}%)`} style={{flex:'1 0 20px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',height:'100%'}}>
+                <div style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--tx3)',marginBottom:3}}>{d.occPct}</div>
+                <div style={{width:'68%',height:`${Math.max(2,Math.round(d.occPct/peak*120))}px`,background:dc[d.demand],opacity:d.isWeekend?1:.5,borderRadius:'2px 2px 0 0',transition:'all .3s cubic-bezier(.4,0,.2,1)'}}/>
+                <div style={{fontSize:8,color:d.isWeekend?'var(--gold)':'var(--tx3)',marginTop:4,fontWeight:d.isWeekend?600:400}}>{d.dow}</div>
+                <div style={{fontFamily:'var(--mono)',fontSize:7.5,color:'var(--tx3)'}}>{d.date.slice(8)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="flex fac gap2" style={{marginTop:12,fontSize:9,color:'var(--tx3)'}}>
+            <span><span style={{display:'inline-block',width:9,height:9,background:'var(--sky)',marginRight:4,verticalAlign:'middle'}}/>LOW (&lt;45%)</span>
+            <span><span style={{display:'inline-block',width:9,height:9,background:'var(--gold)',marginRight:4,verticalAlign:'middle'}}/>MED</span>
+            <span><span style={{display:'inline-block',width:9,height:9,background:'var(--rose)',marginRight:4,verticalAlign:'middle'}}/>HIGH (≥75%)</span>
+            <span style={{marginLeft:'auto'}}>Brighter bars = weekend (Fri/Sat)</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="g2">
+        <div className="card">
+          <div className="card-hd"><span className="card-title">AI Lead Prospecting Focus</span></div>
+          <div className="card-body">
+            <p style={{fontSize:12,color:'var(--tx2)',lineHeight:1.7,marginBottom:12}}>The 9 AM AI lead engine reads this same forecast and prioritises the segments below to fill the empty nights:</p>
+            <div className="flex fac gap2" style={{flexWrap:'wrap',marginBottom:14}}>
+              {f.emphasis.map(s=>(<span key={s} className="badge bgold" style={{textTransform:'capitalize'}}>{s}</span>))}
+            </div>
+            <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.8}}>
+              {f.weekdayGapPct>=55&&<div>• Weekdays soft → <strong style={{color:'var(--gold)'}}>corporate, embassy & airlines</strong> (business travel)</div>}
+              {f.weekendGapPct>=55&&<div>• Weekends soft → <strong style={{color:'var(--gold)'}}>events & travel agencies</strong> (weddings, tourism)</div>}
+              {(f.weekdayGapPct<55&&f.weekendGapPct<55)&&<div>• Demand healthy → balanced prospecting across all segments</div>}
+            </div>
+            <button className="btn btn-ghost btn-sm" style={{marginTop:16}} onClick={()=>setPage('leads')}>View Generated Leads →</button>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-hd"><span className="card-title">Daily Breakdown</span></div>
+          <div className="card-body" style={{padding:'4px 0',maxHeight:320,overflowY:'auto'}}>
+            {f.days.map(d=>(
+              <div key={d.date} className="flex fac fjb" style={{padding:'7px 14px',borderBottom:'1px solid var(--br2)'}}>
+                <div className="flex fac gap2"><span style={{width:7,height:7,borderRadius:'50%',background:dc[d.demand],display:'inline-block'}}/><span className="xs" style={{fontFamily:'var(--mono)'}}>{d.dow} {d.date.slice(5)}</span>{d.isWeekend&&<span className="xs gold">wknd</span>}</div>
+                <div className="flex fac gap2"><span className="xs" style={{color:'var(--tx3)'}}>{d.occupied}/{f.totalRooms}</span><span className="xs gold" style={{fontFamily:'var(--mono)',minWidth:34,textAlign:'right'}}>{d.occPct}%</span></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 function Dashboard({rooms,guests,reservations,transactions,setPage,businessDate,dashboardFull=true}) {
   const [chartActive,setChartActive]=useState(13)
   const today=businessDate||todayStr()
@@ -6514,13 +6623,14 @@ function App() {
     {id:'housekeeping',ico:'✦',label:'Housekeeping',    badge:hkUrgent+dirtyRooms, sect:'OPERATIONS'},
     {id:'billing',   ico:'◎', label:'Billing & Invoices'},
     {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
+    {id:'forecast',  ico:'◷', label:'Demand Forecast'},
     {id:'churn',     ico:'⚠', label:'Churn Risk',       url:'/churn'},
     {id:'council',   ico:'⬢', label:'AI Council',       sect:'STRATEGY'},
 
     {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
   ].filter(n=>n.url ? ['owner','manager'].includes(user.role) : allowed.includes(n.id))
 
-  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',council:'AI Advisory Council',settings:'Settings'}
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',forecast:'Demand Forecast',council:'AI Advisory Council',settings:'Settings'}
   const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
   const _p = k => bdParts.find(p=>p.type===k)?.value || ''
   const clockStr=(()=>{
@@ -6736,6 +6846,7 @@ function App() {
                     )}
 
                     {/* HK urgent tasks */}
+                    {hkUrgent>0&&(
                       <div className="notif-item" onClick={()=>{ setPage('housekeeping'); setNotifOpen(false) }}>
                         🧹 {hkUrgent} high-priority housekeeping task{hkUrgent>1?'s':''}
                       </div>
@@ -6771,6 +6882,7 @@ function App() {
             {cur==='housekeeping' &&<HousekeepingPage tasks={data.tasks} rooms={data.rooms} toast={toast} currentUser={user} reload={loadAll}/>}
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
+            {cur==='forecast'     &&<ForecastPage reservations={data.reservations} rooms={data.rooms} businessDate={businessDate} setPage={setPage}/>}
 
             {cur==='council'      &&<CouncilPage reservations={data.reservations} currentUser={user} toast={toast}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests} onSignOut={signOut}/>}
