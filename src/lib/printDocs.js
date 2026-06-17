@@ -44,7 +44,16 @@ const GD_CSS = `
   .gd-fields>div{display:flex;flex-direction:column;min-width:0}
   .gd-l{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276;margin-bottom:2px}
   .gd-v{font-size:12.5px;color:#1F1B16;font-weight:500;word-break:break-word}
-  @media print{.gd-card,.gd-sec{page-break-inside:avoid}}`;
+  @media print{
+    .gd-card,.gd-sec{page-break-inside:avoid}
+    .gd-sec{margin-bottom:12px}
+    .gd-hdr{margin-bottom:6px}
+    .gd-card{padding:8px 14px;margin-bottom:7px}
+    .gd-name{font-size:12px;margin-bottom:6px;padding-bottom:5px}
+    .gd-fields{gap:4px 24px}
+    .gd-l{font-size:8px}
+    .gd-v{font-size:10.5px}
+  }`;
 
 export function printConfirmation(res, rooms, guestName, guests) {
   const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
@@ -125,6 +134,16 @@ export function printConfirmation(res, rooms, guestName, guests) {
     .doc-title{font-size:18px !important}
     .ftr{margin-top:auto !important;padding-top:14px !important;align-items:center !important}
     .ftr img{width:68px !important;height:68px !important}
+    .doc-sub{margin-bottom:14px !important}
+    .grid{gap:12px !important;margin-bottom:12px !important}
+    .box{padding:9px 14px !important}
+    .lbl{margin-bottom:3px !important}
+    .val{font-size:13px !important}
+    table{margin-bottom:12px !important}
+    thead th,tbody td{padding:8px 14px !important}
+    .totals .row{padding:5px 0 !important;font-size:12.5px !important}
+    .totals .row.bal{padding-top:10px !important;margin-top:4px !important}
+    .terms{margin-top:14px !important}
     .ftr,.totals,table tr,.terms,.hdr,.grid{page-break-inside:avoid}
   }
   ${GD_CSS}
