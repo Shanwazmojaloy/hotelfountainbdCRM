@@ -104,7 +104,7 @@ async function fetchLocal(tenant_id: string, scope: Scope) {
 
     out.guest_stay_history = await dbGet(
       'reservations',
-      `guest_id=eq.${scope.guest_id}&tenant_id=eq.${tenant_id}&select=id,check_in,check_out,status,total_amount&order=check_in.desc&limit=10`,
+      `guest_ids=cs.{${scope.guest_id}}&tenant_id=eq.${tenant_id}&select=id,check_in,check_out,status,total_amount&order=check_in.desc&limit=10`,
     );
   }
 
