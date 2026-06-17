@@ -82,7 +82,7 @@ async function buildAnchor(tenant_id: string): Promise<Anchor> {
   // Today's reservations
   const { data: resvs } = await supabase
     .from('reservations')
-    .select('id, status, check_in, check_out, vip, guest_id, total_amount')
+    .select('id, status, check_in, check_out, vip, guest_ids, total_amount')
     .eq('tenant_id', tenant_id)
     .or(`check_in.eq.${today},check_out.eq.${today},and(check_in.lte.${today},check_out.gt.${today})`);
 
