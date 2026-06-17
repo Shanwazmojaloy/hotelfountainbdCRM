@@ -1,6 +1,13 @@
 Purpose: Persistent memory of key decisions and technical hurdles.
 
-MULTI-GUEST RESERVATION MODAL (2026-06-17, NOT yet committed):
+MULTI-GUEST ON PRINTED CONFIRMATION + INVOICE (2026-06-17, commit 9c3... pushed):
+- DECISION: the Booking Confirmation voucher AND the Tax Invoice now print EVERY guest on the reservation, not just the denormalized primary `guest_name`. Follows the multi-guest reservation modal change (same day) — owner-requested after seeing only one name on a confirmation.
+- RESOLUTION (`src/lib/printDocs.js`): both `printConfirmation(res, rooms, guestName, guests)` and `printInvoice(res, rooms, guestName, folios, guests)` gained a trailing optional `guests` param. Each resolves `idNames = res.guest_ids.map(id => guests.find(...).name)`; renders `idNames.join(', ')`. Fallback chain when no guests list: passed `guestName` (string OR array) → `res.guest_name` → 'Guest'. BACKWARD-COMPATIBLE — single-guest bookings and any caller that omits `guests` are unchanged.
+- LABELS: confirmation box label switches `Guest` → `Guests` and invoice `Billed To` → `Billed To (Guests)` when names.length > 1.
+- CALLERS WIRED: `ReservationEditModal.jsx` (Print → printConfirmation, passes `guests` prop), `RoomFolioModal.jsx` (Invoice → printInvoice, passes `guests` prop). `Billing.jsx` had NO guests list and its reservations select OMITTED `guest_ids` — fixed both: added `guest_ids` to the select (line ~65) and the on-click invoice handler now fetches `guests` by `.in('id', sel.guest_ids)` alongside rooms+folios, passing the result as the 5th arg.
+- VERIFICATION: 0 NUL bytes on all 4 files; structure confirmed via host Read (printInvoice signature + closing template literal/function intact). NOTE: sandbox `tsc` threw phantom end-of-file parse errors on the 4 touched files (frozen-mount artifact — it reported a printDocs line 380 that no longer exists post-edit; same stale-mount class warned about repeatedly below). Owner ran `npm run typecheck` from PowerShell before push.
+
+MULTI-GUEST RESERVATION MODAL (2026-06-17, commit 39c7896 pushed + LIVE on prod):
 - DECISION: the New Reservation / Check-In modal (`src/components/NewReservationModal.jsx`) now supports attaching MULTIPLE guests to one booking via a `+ Add Guest` button, mirroring the existing `+ Add Room` repeatable-row pattern. Owner-requested.
 - STATE: single `guestId`/`guestName` replaced with `guests: [{id,name}]` array, plus `activeGuest` (the row index whose typeahead dropdown is open). Derived `selectedGuests = f.guests.filter(g=>g.id)` and `primaryGuest = selectedGuests[0]`.
 - UI: each guest is its own row — a name/phone typeahead + `✕` remove (rendered only when `guests.length > 1`). The guest-search dropdown is shared but scoped to the focused row (`activeGuest === idx`), and already-selected guests are filtered out of the hit list to prevent dupes. Label changed `Guest *` → `Guest(s) *`.
