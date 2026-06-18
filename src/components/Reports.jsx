@@ -119,6 +119,13 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   // Action time per movement: IN→checked_in_at, OUT→checked_out_at, PAY→latest owning tx today.
   const _txTimeFor = (r) => { const l = txs.filter((t) => notBCF(t) && t.reservation_id === r.id && t.created_at && (t.fiscal_day || t.created_at || '').slice(0, 10) === date); return l.length ? l.map((t) => t.created_at).sort().slice(-1)[0] : null; };
   const timeOf = (m) => m._type === 'IN' ? (m.checked_in_at || null) : m._type === 'OUT' ? (m.checked_out_at || null) : _txTimeFor(m);
+  // A row whose check_out DATE is in range is only a real "Check-Out" once the guest is actually
+  // CHECKED_OUT (→ checked_out_at stamped). Until then it's a pending "Due Out" — a blank time is
+  // CORRECT there (no checkout has happened yet). Once staff check out, the trigger stamps the live
+  // time and the label flips to Check-Out automatically.
+  const isDeparted = (m) => String(m.status || '').toUpperCase() === 'CHECKED_OUT';
+  const typeLabel = (m) => m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : (isDeparted(m) ? 'Check-Out' : 'Due Out');
+  const typeTone = (m) => m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : (isDeparted(m) ? 'teal' : 'amber');
   // Keep the attention/money rows, then sort chronologically by action time (nulls last) so staff
   // read today's sequence top-down. Indices keep `moves`/`moveColl` aligned through the sort.
   const _keptIdx = _moves.map((_, i) => i).filter((i) => _keep[i]).sort((a, b) => { const ta = timeOf(_moves[a]), tb = timeOf(_moves[b]); if (!ta && !tb) return 0; if (!ta) return 1; if (!tb) return -1; return new Date(ta) - new Date(tb); });
@@ -206,7 +213,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
                 <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
                   <td style={TD}>{m.guest_name || 'Guest'}</td>
                   <td style={TD}><Badge tone="blue">{roomOf(m)}</Badge></td>
-                  <td style={TD}><Badge tone={m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : 'teal'}>{m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : 'Check-Out'}</Badge></td>
+                  <td style={TD}><Badge tone={typeTone(m)}>{typeLabel(m)}</Badge></td>
                   <td style={{ ...TD, ...MONO, color: C.ink3 }}>{dt}</td>
                   <td style={{ ...TD, ...MONO, color: due > 0 ? C.rose : C.ink3 }}>{due > 0 ? bdt(due) : '—'}</td>
                   <td style={TD}>{due > 0 ? <Badge tone="amber">Balance Due</Badge> : <Badge tone="green">Settled</Badge>}</td>
@@ -278,7 +285,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
               <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
                 <td style={TD}>{m.guest_name || 'Guest'}</td>
                 <td style={TD}><Badge tone="blue">{roomOf(m)}</Badge></td>
-                <td style={TD}><Badge tone={m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : 'teal'}>{m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : 'Check-Out'}</Badge></td>
+                <td style={TD}><Badge tone={typeTone(m)}>{typeLabel(m)}</Badge></td>
                 <td style={{ ...TD, ...MONO, color: C.ink3 }}>{timeOf(m) ? fmtTime(timeOf(m)) : '—'}</td>
                 <td style={{ ...TD, ...MONO, color: moveColl[i] > 0 ? C.grn : C.ink3 }}>{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td>
                 <td style={{ ...TD, ...MONO, color: due > 0 ? C.rose : C.ink3 }}>{due > 0 ? bdt(due) : '—'}</td>
@@ -341,7 +348,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
             <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th className="r">Collected</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
             <tbody>
               {moves.map((m, i) => { const due = dueOf(m); return (
-                <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : 'Check-Out'}{timeOf(m) ? <><br /><span style={{ fontSize: '0.82em', color: '#8a7d6a' }}>{fmtTime(timeOf(m))}</span></> : ''}</td><td className="r">{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
+                <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{typeLabel(m)}{timeOf(m) ? <><br /><span style={{ fontSize: '0.82em', color: '#8a7d6a' }}>{fmtTime(timeOf(m))}</span></> : ''}</td><td className="r">{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
               ); })}
             </tbody>
           </table>
