@@ -276,6 +276,13 @@ async function auditAndPersist(payload: AuditPayload) {
 export async function POST(req: Request) {
   const denied = assertCron(req); if (denied) return denied;
 
+  let payload: AuditPayload;
+  try {
+    payload = await req.json() as AuditPayload;
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
   if (!payload.log_id || !payload.lead_id || !payload.reply_text) {
     return NextResponse.json({ error: 'Missing required fields: log_id, lead_id, reply_text' }, { status: 400 });
   }
