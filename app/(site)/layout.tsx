@@ -3,6 +3,7 @@ import Footer from "@/components/site/Footer";
 import BookNowFab from "@/components/site/BookNowFab";
 import ReservationModal from "@/components/site/ReservationModal";
 import { SITE, CONTACT, AMENITIES } from "@/lib/site";
+import { headers } from "next/headers";
 
 // Hotel JSON-LD for the public marketing pages.
 const hotelSchema = {
@@ -29,15 +30,11 @@ const hotelSchema = {
   amenityFeature: AMENITIES.map((a) => ({ "@type": "LocationFeatureSpecification", name: a.title, value: true })),
 };
 
-/**
- * Marketing site shell (route group "(site)"). Scoped under `.site-root` so the
- * gold "Liquid Glass" theme never leaks into /crm. Root <html>/<body> stay in
- * app/layout.tsx; this is a nested layout that adds the marketing chrome.
- */
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <div className="site-root app-bg">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(hotelSchema) }} />
+      <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(hotelSchema) }} />
       <Navbar />
       <main className="min-h-screen pt-24">{children}</main>
       <Footer />

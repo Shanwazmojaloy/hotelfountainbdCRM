@@ -2,9 +2,9 @@
 
 const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/^https?:\/\//, '');
 
-const cspParts = [
+const baseDirectives = (scriptSrc) => [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  scriptSrc,
   "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
   "font-src 'self' data: fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
@@ -14,10 +14,13 @@ const cspParts = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-];
+].join('; ');
 
+// /crm.html: every script is external same-origin now -> no inline/eval needed.
+const crmCsp = baseDirectives("script-src 'self'");
+
+// App (SSR) pages get a per-request nonce CSP from middleware.ts — NOT here.
 const securityHeaders = [
-  { key: 'Content-Security-Policy', value: cspParts.join('; ') },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -39,6 +42,7 @@ const nextConfig = {
     {
       source: '/crm.html',
       headers: [
+        { key: 'Content-Security-Policy', value: crmCsp },
         ...securityHeaders,
         { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
         { key: 'Pragma', value: 'no-cache' },
