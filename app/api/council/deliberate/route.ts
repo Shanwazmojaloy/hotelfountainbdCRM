@@ -20,6 +20,7 @@
 
 import { NextResponse } from 'next/server';
 import { logEvent } from '@/lib/audit';
+import { requireSession } from '@/lib/session';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 60;
@@ -231,13 +232,16 @@ function buildContextBlock(ctx: {
 
 // ── Handler ───────────────────────────────────────────────────────────
 export async function POST(req: Request) {
+    // C2 fix: require authenticated session before any AI/LLM work
+    const sess = requireSession(req);
+    if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   let sessionId: string | null = null;
   try {
     const body = await req.json();
     const prompt: string = String(body.prompt ?? '').slice(0, 6000);
     const scope_mode: 'hotel' | 'general' = body.scope_mode === 'general' ? 'general' : 'hotel';
     const reservation_id: string | undefined = body.reservation_id;
-    const tenant_id: string = body.tenant_id || process.env.NEXT_PUBLIC_TENANT_ID!;
+        const tenant_id: string = process.env.NEXT_PUBLIC_TENANT_ID!; // C2 fix: env only, not body
     // staff.id is integer in the live schema
     const user_id: number | null =
       body.user_id == null || body.user_id === '' ? null : Number(body.user_id) || null;
