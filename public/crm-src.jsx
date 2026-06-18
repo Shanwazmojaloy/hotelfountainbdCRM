@@ -48,7 +48,7 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms))
 const XTH = (typeof location!=='undefined' && location.host) ? location.host : ''   // host→tenant routing (Step 5 prerequisite)
 const H  = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation', 'x-tenant-host':XTH }
 const H2 = { apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', 'x-tenant-host':XTH }
-const db = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,{headers:H}); if(!r.ok) throw new Error(await r.text()); return r.json() }
+const db = async (t,q='') => { const r=await fetch(`${SB_URL}/rest/v1/${t}${q}`,{headers:H,cache:'no-store'}); if(!r.ok) throw new Error(await r.text()); return r.json() }
 const dbAll = async (t,q='',pageSize=1000) => {
   const out=[]; let from=0
   while(true){
@@ -1525,7 +1525,7 @@ function ReservationsPage({reservations,guests,rooms,toast,currentUser,reload,bu
               <tr><th>Guest</th><th>Rooms</th><th>Check-In</th><th>Check-Out</th><th>Nights</th><th>Total</th><th>Discount</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
-              {res.slice(0,80).map(r=>{
+              {[...res].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,80).map(r=>{
                 const gn=getGN(r.guest_ids)
                 const nights=nightsCount(r.check_in,r.check_out)
                 const balance=resBalance(r)
@@ -1951,11 +1951,10 @@ function ReservationDetail({res,guests,rooms,reservations,toast,onClose,reload,i
         const room=rooms.find(r=>String(r.room_number)===String(rn))
         if(room) await dbPatch('rooms',room.id,{status:'AVAILABLE'})
       }
-      const relTx=(transactions||[]).filter(t=>
-        (res.room_ids||[]).some(rn=>String(t.room_number)===String(rn))&&
-        (!t.guest_name||t.guest_name===gn)
-      )
-      for(const t of relTx) await dbDelete('transactions',t.id)
+      const linkedTx=await db('transactions',`?select=id&tenant_id=eq.${TENANT}&reservation_id=eq.${res.id}`)
+      if(Array.isArray(linkedTx)){
+        for(const t of linkedTx) await dbDelete('transactions',t.id)
+      }
       await dbDelete('reservations',res.id)
       toast(`Reservation deleted · ${relTx.length} transaction(s) removed · Rooms freed ✓`)
       reload()
