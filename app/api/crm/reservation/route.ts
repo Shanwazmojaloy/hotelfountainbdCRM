@@ -43,6 +43,26 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { /* empty */ }
   const action = String(body.action || '');
 
+  // ── Boundary validation: reject malformed writes. There is NO DB CHECK on status (only an
+  // uppercase trigger), and amounts/dates are otherwise unguarded — so validate here.
+  if (action === 'create' || action === 'update') {
+    const ALLOWED_STATUS = new Set(['RESERVED', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'PENDING']);
+    if (body.status != null && !ALLOWED_STATUS.has(String(body.status).toUpperCase())) {
+      return NextResponse.json({ error: 'Invalid reservation status.' }, { status: 400 });
+    }
+    for (const k of ['total_amount', 'paid_amount', 'discount_amount'] as const) {
+      const v = body[k];
+      if (v != null && (!Number.isFinite(+(v as number)) || +(v as number) < 0)) {
+        return NextResponse.json({ error: `${k.replace('_', ' ')} must be a non-negative number.` }, { status: 400 });
+      }
+    }
+    const ci = body.check_in ? new Date(String(body.check_in)) : null;
+    const co = body.check_out ? new Date(String(body.check_out)) : null;
+    if (ci && isNaN(ci.getTime())) return NextResponse.json({ error: 'Invalid check-in date.' }, { status: 400 });
+    if (co && isNaN(co.getTime())) return NextResponse.json({ error: 'Invalid check-out date.' }, { status: 400 });
+    if (ci && co && co.getTime() < ci.getTime()) return NextResponse.json({ error: 'Check-out cannot be before check-in.' }, { status: 400 });
+  }
+
   // Open business day for any TX this request writes (advance / stay-extension / paid-increase).
   // Collections accrue to the open day, not the calendar date, until "Closing Complete".
   const { data: _closes } = await supabase.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT);

@@ -23,7 +23,8 @@ export async function recalcResTotalServer(supabase: SupabaseClient, resId: stri
   const extras = (fol || [])
     .filter((f) => !MARKER.test(String(f.category || '') + ' ' + String(f.description || '')))
     .reduce((a, f) => a + (+f.amount || 0), 0);
-  const total = roomCharge + extras;
+  // Round to paisa (2 dp) so float accumulation can't leave artifacts like 58880.00000001.
+  const total = Math.round((roomCharge + extras) * 100) / 100;
   await supabase.from('reservations').update({ total_amount: total }).eq('id', resId);
   return total;
 }
