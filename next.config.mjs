@@ -4,7 +4,7 @@ const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/^htt
 
 const cspParts = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
   "font-src 'self' data: fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
