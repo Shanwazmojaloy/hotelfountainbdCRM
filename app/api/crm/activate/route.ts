@@ -24,14 +24,25 @@ export async function POST(req: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase: any = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: rows } = await supabase.from('staff').select('id, name, role, session_v, otp_hash, otp_expires').eq('tenant_id', TENANT).ilike('email', email.trim()).limit(1);
+    const { data: rows } = await supabase.from('staff').select('id, name, role, session_v, otp_hash, otp_expires, otp_attempts').eq('tenant_id', TENANT).ilike('email', email.trim()).limit(1);
     const u = rows && rows[0];
     if (!u || !u.otp_hash) return NextResponse.json({ error: 'No pending activation for this email. Request a new code.' }, { status: 404 });
-    if (u.otp_hash !== sha256(otp.trim())) return NextResponse.json({ error: 'Incorrect code.' }, { status: 401 });
+
+    // Brute-force lockout: a 6-digit code has 900k combos; without a cap an attacker could
+    // grind it within the 5-min window. After 5 wrong tries the code is locked until a new
+    // one is requested (send-otp resets otp_attempts to 0). Requires staff.otp_attempts column.
+    const MAX_OTP_ATTEMPTS = 5;
+    if ((u.otp_attempts || 0) >= MAX_OTP_ATTEMPTS) {
+      return NextResponse.json({ error: 'Too many incorrect attempts. Request a new code.' }, { status: 429 });
+    }
+    if (u.otp_hash !== sha256(otp.trim())) {
+      await supabase.from('staff').update({ otp_attempts: (u.otp_attempts || 0) + 1 }).eq('id', u.id);
+      return NextResponse.json({ error: 'Incorrect code.' }, { status: 401 });
+    }
     if (u.otp_expires && new Date(u.otp_expires).getTime() < Date.now()) return NextResponse.json({ error: 'Code expired — request a new one.' }, { status: 401 });
 
     const newSv = (u.session_v || 1);
-    const { error } = await supabase.from('staff').update({ pwh: sha256(password), activated: true, otp_hash: null, otp_expires: null }).eq('id', u.id);
+    const { error } = await supabase.from('staff').update({ pwh: sha256(password), activated: true, otp_hash: null, otp_expires: null, otp_attempts: 0 }).eq('id', u.id);
     if (error) throw error;
 
     const sess = { id: u.id, role: u.role, session_v: newSv };
