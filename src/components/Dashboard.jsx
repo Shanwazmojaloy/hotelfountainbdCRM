@@ -134,16 +134,20 @@ export default function Dashboard() {
     if (!getSnap(SNAP_KEY)) setLoading(true); // first visit shows skeletons; revisits refresh silently
     try {
       const supabase = getSupabaseClient();
-      const [{ data: reservations, error: e1 }, { data: transactions, error: e2 }, { data: rooms, error: e3 }, { data: closes }] = await Promise.all([
-        supabase.from('reservations').select('id, guest_name, room_ids, check_in, check_out, status, total_amount, discount_amount, discount, paid_amount').order('check_in', { ascending: false }),
-        supabase.from('transactions').select('amount, type, fiscal_day, created_at, reservation_id, room_number'),
+      // C3: reservations + transactions via the session-gated route; rooms + night_audit_log
+      // stay on the anon client (not sensitive, anon SELECT retained).
+      const [resR, txR, { data: rooms, error: e3 }, { data: closes }] = await Promise.all([
+        fetch('/api/crm/data?resource=reservations&order=check_in.desc'),
+        fetch('/api/crm/data?resource=transactions'),
         supabase.from('rooms').select('id, room_number, status, category, price'),
         supabase.from('night_audit_log').select('audit_date, status'),
       ]);
-      if (e1 || e2 || e3) console.error('[Dashboard] query error:', e1 || e2 || e3); // money page must never fail silently
+      const resj = await resR.json().catch(() => ({}));
+      const txj = await txR.json().catch(() => ({}));
+      if (!resR.ok || !txR.ok || e3) console.error('[Dashboard] query error:', resj.error || txj.error || e3); // money page must never fail silently
 
-      const res = reservations || [];
-      const txs = transactions || [];
+      const res = resj.rows || [];
+      const txs = txj.rows || [];
       const rms = rooms || [];
       const calToday = getDhakaDate();          // arrivals/guests = operational calendar day
       const today = openBusinessDay(closes);    // revenue/collections = open business day

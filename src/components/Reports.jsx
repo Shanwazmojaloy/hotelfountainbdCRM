@@ -43,15 +43,18 @@ export default function Reports() {
     if (!getSnap('reports')) setLoading(true); // revisits refresh silently behind cached data
     try {
       const supabase = getSupabaseClient();
-      // transactions has NO payment_method column — selecting it 400s the whole query (see Billing).
-      const [{ data: txs, error: txErr }, { data: rooms, error: rmErr }, { data: res, error: resErr }, { data: closes, error: clErr }] = await Promise.all([
-        supabase.from('transactions').select('amount, type, fiscal_day, created_at, reservation_id, room_number, guest_name'),
+      // C3: PII/financial reads (transactions, reservations) via the session-gated route; rooms +
+      // night_audit_log stay on the anon client (not sensitive, anon SELECT retained).
+      const [txR, resR, { data: rooms, error: rmErr }, { data: closes, error: clErr }] = await Promise.all([
+        fetch('/api/crm/data?resource=transactions'),
+        fetch('/api/crm/data?resource=reservations'),
         supabase.from('rooms').select('id, status, category, price'),
-        supabase.from('reservations').select('id, guest_name, room_ids, check_in, check_out, checked_in_at, checked_out_at, total_amount, discount_amount, discount, paid_amount, status'),
         supabase.from('night_audit_log').select('audit_date, closed_at, closed_by, total_checkins, total_checkouts, total_collections, carried_over_dues').order('closed_at', { ascending: false }),
       ]);
-      if (txErr || resErr || rmErr || clErr) console.error('[Reports] query error:', txErr || resErr || rmErr || clErr);
-      const next = { txs: txs || [], rooms: rooms || [], res: res || [], closes: closes || [] };
+      const txj = await txR.json().catch(() => ({}));
+      const resj = await resR.json().catch(() => ({}));
+      if (!txR.ok || !resR.ok || rmErr || clErr) console.error('[Reports] query error:', txj.error || resj.error || rmErr || clErr);
+      const next = { txs: txj.rows || [], rooms: rooms || [], res: resj.rows || [], closes: closes || [] };
       setData(next); setSnap('reports', next);
     } catch (e) { console.error('[Reports] fetch error:', e); } finally { setLoading(false); }
   }, []);
