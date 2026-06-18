@@ -123,7 +123,7 @@ export default function AuthGate({ children }) {
       const r = await fetch('/api/crm/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: actEmail.trim() }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'Could not send code.');
-      setActMsg('A 5-digit code was sent to ' + actEmail.trim() + '. Valid 5 minutes.');
+      setActMsg('A 6-digit code was sent to ' + actEmail.trim() + '. Valid 5 minutes.');
       setActStep(2);
     } catch (e2) { setActErr(e2.message || String(e2)); } finally { setActBusy(false); }
   }
@@ -221,7 +221,7 @@ export default function AuthGate({ children }) {
           </form>
         ) : actStep === 1 ? (
           <div>
-            <p style={subText}>Enter your work email — we&apos;ll send a 5-digit code to verify it&apos;s you.</p>
+            <p style={subText}>Enter your work email — we&apos;ll send a 6-digit code to verify it&apos;s you.</p>
             <div style={fieldWrap}>
               <label style={labelSt}>Work Email</label>
               <input style={inputSt} onFocus={onFocus} onBlur={onBlur} type="email" value={actEmail} onChange={(e) => { setActEmail(e.target.value); setActErr(''); }} placeholder="you@hotelfountain.com" autoFocus />
@@ -239,7 +239,7 @@ export default function AuthGate({ children }) {
             {actMsg && <div style={{ fontSize: 10.5, color: '#15803D', marginBottom: 14, textAlign: 'center', padding: 8, background: 'rgba(21,128,61,.07)', border: '1px solid rgba(21,128,61,.18)', fontFamily: sans, lineHeight: 1.5 }}>{actMsg}</div>}
             <div style={fieldWrap}>
               <label style={labelSt}>Verification Code</label>
-              <input style={{ ...inputSt, letterSpacing: '.5em', fontSize: 20, textAlign: 'center', fontFamily: mono }} onFocus={onFocus} onBlur={onBlur} maxLength={5} inputMode="numeric" value={actOtp} onChange={(e) => { setActOtp(e.target.value.replace(/\D/g, '')); setActErr(''); }} placeholder="12345" />
+              <input style={{ ...inputSt, letterSpacing: '.5em', fontSize: 20, textAlign: 'center', fontFamily: mono }} onFocus={onFocus} onBlur={onBlur} maxLength={6} inputMode="numeric" value={actOtp} onChange={(e) => { setActOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setActErr(''); }} placeholder="123456" />
             </div>
             <div style={fieldWrap}>
               <label style={labelSt}>New Password</label>
