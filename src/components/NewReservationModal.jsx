@@ -10,7 +10,7 @@ const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const todayStr = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const nights = (ci, co) => { if (!ci || !co) return 0; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : 0; };
-const shortDate = (s) => { if (!s) return ''; try { return new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch { return s; } };
+const shortDate = (s) => { if (!s) return ''; const d = String(s).slice(0, 10); const dt = new Date(d + 'T00:00:00'); return isNaN(dt) ? d : dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); };
 
 export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   const [f, setF] = useState({
@@ -42,7 +42,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           .filter((r) => String(r.check_in) < String(winOut) && String(r.check_out) > String(winIn))
           .forEach((r) => (r.room_ids || []).forEach((rid) => {
             const k = String(rid);
-            if (!map[k] || r.check_in < map[k].check_in) map[k] = { check_in: r.check_in, check_out: r.check_out, guest_name: r.guest_name };
+            if (!map[k] || r.check_in < map[k].check_in) map[k] = { check_in: r.check_in, check_out: r.check_out, guest_name: r.guest_name, status: r.status };
           }));
         setConflicts(map);
       }).catch(() => {});
@@ -57,15 +57,25 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   }, [guestQuery]);
 
   const displayRooms = rooms.filter((r) => r.status !== 'OUT_OF_ORDER' && r.status !== 'DIRTY');
+  // A RESERVED/CONFIRMED hold is a SOFT warning — the room isn't physically occupied, so staff may
+  // still check a walk-in in over it. A CHECKED_IN conflict (or an OCCUPIED room) is a HARD block —
+  // you can't double-occupy a physical room.
+  const isOccupied = (c) => /CHECKED_IN|OCCUPIED/i.test(String(c?.status || ''));
+  const isHeld = (c) => !!c && !isOccupied(c);
   const roomBlocked = (r) => {
-    if (conflicts[String(r.room_number)]) return true;
+    const c = conflicts[String(r.room_number)];
+    if (c && isOccupied(c)) return true;            // hard: physically occupied
     return f.stayType === 'CHECK_IN' && r.status === 'OCCUPIED';
   };
   const roomLabel = (r) => {
     const c = conflicts[String(r.room_number)];
-    let suffix = c ? ` — Booked ${shortDate(c.check_in)}→${shortDate(c.check_out)}` : (f.stayType === 'CHECK_IN' && r.status === 'OCCUPIED' ? ' — Occupied' : '');
+    let suffix = '';
+    if (c && isOccupied(c)) suffix = ` — Occupied ${shortDate(c.check_in)}→${shortDate(c.check_out)}`;
+    else if (c) suffix = ` — ⚠ Held ${shortDate(c.check_in)}→${shortDate(c.check_out)}`;
+    else if (f.stayType === 'CHECK_IN' && r.status === 'OCCUPIED') suffix = ' — Occupied';
     return `${r.room_number} — ${r.category} — ${bdt(r.price)}/n${suffix}`;
   };
+  const heldSel = f.roomNos.filter(Boolean).filter((rn) => isHeld(conflicts[String(rn)]));
 
   const nN = nights(f.checkIn, f.checkOut);
   const autoTotal = useMemo(() => f.roomNos.filter(Boolean).reduce((s, rn) => {
@@ -80,8 +90,10 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
     if (!sel.length) return setErr('Select at least one room.');
     if (!f.checkIn || !f.checkOut) return setErr('Set check-in and check-out dates.');
     if (nN <= 0) return setErr('Check-out must be after check-in.');
-    const blocked = sel.filter((rn) => conflicts[String(rn)]);
-    if (blocked.length) { const c = conflicts[String(blocked[0])]; return setErr(`Room ${blocked.join(', ')} already booked ${shortDate(c.check_in)}→${shortDate(c.check_out)}.`); }
+    // Hard block: a physically occupied room cannot be double-booked.
+    const occupied = sel.filter((rn) => isOccupied(conflicts[String(rn)]));
+    if (occupied.length) { const c = conflicts[String(occupied[0])]; return setErr(`Room ${occupied.join(', ')} is occupied ${shortDate(c.check_in)}→${shortDate(c.check_out)} — cannot double-book.`); }
+    // Soft holds (RESERVED/CONFIRMED) are warned about via the banner but allowed to proceed.
     setErr(''); setSaving(true);
     try {
       const isCheckIn = f.stayType === 'CHECK_IN';
@@ -204,6 +216,12 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           <div><label style={lbl}>On-Duty Officer</label><input style={field} value={f.officer} onChange={set('officer')} placeholder="Staff name" /></div>
         </div>
         <div className="mb-4"><label style={lbl}>Notes</label><textarea style={{ ...field, minHeight: 64, resize: 'vertical' }} value={f.notes} onChange={set('notes')} placeholder="Optional" /></div>
+
+        {heldSel.length > 0 && (() => { const c = conflicts[String(heldSel[0])]; return (
+          <div className="mb-3 text-sm" style={{ background: 'rgba(180,120,20,0.08)', border: '1px solid rgba(180,120,20,0.30)', color: '#92600A', padding: '9px 12px', borderRadius: 8 }}>
+            ⚠ Room {heldSel.join(', ')} is held by an existing reservation ({c?.guest_name || 'guest'}, {shortDate(c?.check_in)}→{shortDate(c?.check_out)}). You can still check in — but if this is the same guest, open that reservation instead to keep the advance on one folio.
+          </div>
+        ); })()}
 
         {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
 
