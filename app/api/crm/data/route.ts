@@ -21,7 +21,7 @@ const MAX_LIMIT = 5000;
 const RESOURCES: Record<string, { orderCols: Set<string>; defaultOrder: string }> = {
   reservations: { orderCols: new Set(['created_at', 'check_in', 'check_out']), defaultOrder: 'created_at' },
   transactions: { orderCols: new Set(['created_at', 'fiscal_day']),            defaultOrder: 'created_at' },
-  guests:       { orderCols: new Set(['created_at', 'name']),                  defaultOrder: 'created_at' },
+  guests:       { orderCols: new Set(['name']),                                defaultOrder: 'name' },
 };
 const ALLOWED_STATUS = new Set(['RESERVED', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'PENDING']);
 
