@@ -4,6 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import ClientErrorReporter from "./components/ClientErrorReporter";
 import "./globals.css";
+import { RoleProvider } from "@/context/RoleContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,7 +59,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
+        <RoleProvider>{children}</RoleProvider>
         <ClientErrorReporter />
         <SpeedInsights sampleRate={0.25} />
         <Analytics />
