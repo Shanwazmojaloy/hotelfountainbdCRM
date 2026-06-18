@@ -25,7 +25,6 @@ const BCRYPT_ROUNDS = 12;
 // email (instant 401) must take ~the same time as a wrong password (slow bcrypt compare), or the
 // timing difference leaks which emails are valid. Throwaway value — never matches any password.
 const DUMMY_BCRYPT_HASH = bcrypt.hashSync('lumea-login-timing-equalizer', BCRYPT_ROUNDS);
-const MAX_LOGIN_FAILS = 8;
 
 function sha256(text: string): string {
     return crypto.createHash('sha256').update(text).digest('hex');
