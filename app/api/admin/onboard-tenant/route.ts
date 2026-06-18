@@ -11,11 +11,12 @@
 //   brevo_api_key?, gmail_user?, gmail_app_password?,
 //   facebook_page_token?, facebook_page_id?, anthropic_api_key?
 //
-// Returns: { ok: true, tenant_id, slug, cron_secret, subdomain }
+// Returns: { ok: true, tenant_id, slug, subdomain }  (cron_secret is NOT returned — fetch from the tenants table)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { invalidateTenantCache } from '@/lib/tenant';
 import { logEvent } from '@/lib/audit';
@@ -34,9 +35,16 @@ export async function POST(req: NextRequest) {
   if (!adminSecret) {
     return NextResponse.json({ error: 'ADMIN_SECRET not configured on this deployment' }, { status: 500 });
   }
-  const auth = req.headers.get('authorization');
+  const auth = req.headers.get('authorization') || '';
   const requestId = req.headers.get('x-request-id');
-  if (auth !== `Bearer ${adminSecret}`) {
+  // Constant-time compare via equal-length SHA-256 digests so the admin token can't be
+  // recovered through response-timing (plain !== short-circuits at the first wrong byte).
+  const expectedAuth = `Bearer ${adminSecret}`;
+  const authOk = crypto.timingSafeEqual(
+    crypto.createHash('sha256').update(auth).digest(),
+    crypto.createHash('sha256').update(expectedAuth).digest(),
+  );
+  if (!authOk) {
     void logEvent({
       event_type:    'admin_onboard_tenant',
       action_target: 'POST /api/admin/onboard-tenant',
@@ -112,7 +120,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await sb
     .from('tenants')
     .insert(insertData)
-    .select('id, slug, cron_secret')
+    .select('id, slug')
     .single();
 
   if (error) {
@@ -144,12 +152,11 @@ export async function POST(req: NextRequest) {
     ok:           true,
     tenant_id:    data.id,
     slug:         data.slug,
-    cron_secret:  data.cron_secret,
     subdomain:    `${slug}.${apexDomain}`,
     next_steps: [
       `1. Add wildcard domain *.${apexDomain} to Vercel project (if not done)`,
       `2. Add DNS CNAME: ${slug}.${apexDomain} → cname.vercel-dns.com`,
-      `3. Set CRON_SECRET=${data.cron_secret} in Vercel env for this tenant's crons`,
+      `3. Retrieve this tenant's cron_secret from the tenants table (Supabase) and set CRON_SECRET in Vercel env — it is intentionally NOT returned here to keep secrets out of HTTP responses/logs`,
       `4. Seed rooms: run db/01_setup_and_rooms.sql with tenant_id='${data.id}'`,
     ],
   }, { status: 201 });
