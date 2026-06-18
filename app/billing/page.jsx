@@ -49,14 +49,13 @@ function BillingPageInner() {
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
-      const { data: reservations } = await supabase
-        .from("reservations")
-        .select("*")
-        .order("check_in", { ascending: false });
-
-      const { data: transactions } = await supabase
-        .from("transactions")
-        .select("*");
+      // C3: reservations + transactions via the session-gated route; rooms stays on anon.
+      const [resR, txR] = await Promise.all([
+        fetch('/api/crm/data?resource=reservations&order=check_in.desc&limit=5000'),
+        fetch('/api/crm/data?resource=transactions'),
+      ]);
+      const reservations = ((await resR.json().catch(() => ({}))).rows) || [];
+      const transactions = ((await txR.json().catch(() => ({}))).rows) || [];
 
       const { data: rooms } = await supabase
         .from("rooms")

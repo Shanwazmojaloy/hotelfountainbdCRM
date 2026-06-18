@@ -50,13 +50,11 @@ export function NotificationBell({ onRefresh }: Props) {
     setLoading(true);
     try {
       // Canonical: landing inserts status='PENDING' (UPPERCASE). Match exactly.
-      const { data, error } = await supabase
-        .from('reservations')
-        .select('*')
-        .eq('status', 'PENDING')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setPending(data || []);
+      // C3: read PENDING reservations via the session-gated route (anon SELECT revoked).
+      const resp = await fetch('/api/crm/data?resource=reservations&status=PENDING&order=created_at.desc');
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(j.error || 'load failed');
+      setPending((j.rows || []) as PendingReservation[]);
     } catch (err) {
       console.error('[fetchPending]', err);
       setPending([]);
