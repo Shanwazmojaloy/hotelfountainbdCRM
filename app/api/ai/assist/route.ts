@@ -18,6 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { logEvent } from '@/lib/audit';
+import { requireSession } from '@/lib/session';
 
 export const runtime  = 'nodejs';
 export const maxDuration = 30;
@@ -166,10 +167,18 @@ export async function POST(req: Request) {
   const requestId = req.headers.get('x-request-id');
   let tenant_id_for_audit: string | null = null;
   try {
-    const body = await req.json();
-    const tenant_id: string = body.tenant_id || process.env.NEXT_PUBLIC_TENANT_ID!;
-    tenant_id_for_audit = tenant_id ?? null;
-    const scope: Scope = body.scope ?? {};
+    // C2 fix: require authenticated session; tenant from env, not body
+            const sess = requireSession(req);
+            if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+            const tenant_id: string = process.env.NEXT_PUBLIC_TENANT_ID!;
+            tenant_id_for_audit = tenant_id;
+            const body = await req.json();
+            const scope: Scope = body.scope ?? {};
+            // Validate UUID fields to prevent PostgREST injection
+            const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (scope.reservation_id && !UUID_RE.test(scope.reservation_id)) return NextResponse.json({ error: 'Invalid reservation_id' }, { status: 400 });
+            if (scope.guest_id && !UUID_RE.test(scope.guest_id)) return NextResponse.json({ error: 'Invalid guest_id' }, { status: 400 });
+            if (scope.room_number) scope.room_number = encodeURIComponent(scope.room_number.slice(0, 20));
     const user_request: string = String(body.user_request ?? '').slice(0, 4000);
 
     if (!user_request) {
