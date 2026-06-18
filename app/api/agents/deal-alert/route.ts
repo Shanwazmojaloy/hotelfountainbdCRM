@@ -178,6 +178,10 @@ function buildAlertText(p: DealAlertPayload): string {
 
 export async function POST(req: Request) {
   const denied = assertCron(req); if (denied) return denied;
+
+  let payload: DealAlertPayload;
+  try {
+    payload = await req.json() as DealAlertPayload;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }

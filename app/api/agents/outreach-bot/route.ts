@@ -196,6 +196,11 @@ async function runOutreachBot(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const denied = assertCron(req); if (denied) return denied;
   
+  const result = await runOutreachBot(req);
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
+  return NextResponse.json(result);
+}
+
 // POST — CRM manual trigger (requires CRON_SECRET)
 export async function POST(req: NextRequest) {
   const denied = assertCron(req); if (denied) return denied;
