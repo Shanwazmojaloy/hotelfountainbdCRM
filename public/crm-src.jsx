@@ -3571,7 +3571,7 @@ ${dueRows}
   }
 
   function downloadPDF() {
-    const realList = filteredTx.filter(t => t.type !== 'Balance Carried Forward')
+    const realList = filteredTx.filter(t => _isRealPayment(t))
     const parsePM = tx => {
       const s = String(tx?.type||'')
       const m = s.match(/\(([^)]+)\)/)
