@@ -21,6 +21,11 @@ const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqow
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const BCRYPT_ROUNDS = 12;
+// Precomputed bcrypt hash used ONLY to equalize response time on the user-miss path: a missing
+// email (instant 401) must take ~the same time as a wrong password (slow bcrypt compare), or the
+// timing difference leaks which emails are valid. Throwaway value — never matches any password.
+const DUMMY_BCRYPT_HASH = bcrypt.hashSync('lumea-login-timing-equalizer', BCRYPT_ROUNDS);
+const MAX_LOGIN_FAILS = 8;
 
 function sha256(text: string): string {
     return crypto.createHash('sha256').update(text).digest('hex');
@@ -54,7 +59,7 @@ export async function POST(req: NextRequest) {
 
       const { data: rows, error } = await supabase
             .from('staff')
-            .select('id, name, role, session_v, activated, pwh')
+            .select('id, name, role, session_v, activated, pwh, login_fail_count, login_locked_until')
             .eq('tenant_id', TENANT)
             .ilike('email', email.trim())
             .limit(1);
@@ -66,15 +71,29 @@ export async function POST(req: NextRequest) {
 
       const u = rows && rows[0];
           if (!u || !u.pwh) {
+                  // Equalize timing with the real bcrypt path so a missing account is indistinguishable
+                  // from a wrong password — closes the user-enumeration timing oracle.
+                  await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
                   return NextResponse.json({ error: 'Incorrect email or password.' }, { status: 401 });
+          }
+
+          // Per-account lockout: too many consecutive failures → short cool-off (brute-force throttle).
+          if (u.login_locked_until && new Date(u.login_locked_until).getTime() > Date.now()) {
+                  return NextResponse.json({ error: 'Too many failed attempts. Try again in a few minutes.' }, { status: 429 });
           }
 
       const ok = await verifyPassword(password, u.pwh);
           if (!ok) {
+                  await supabase.rpc('note_login_failure', { p_staff_id: u.id });
                   return NextResponse.json({ error: 'Incorrect email or password.' }, { status: 401 });
           }
           if (u.activated === false) {
                   return NextResponse.json({ error: 'Account not activated yet — activate via the staff portal first.' }, { status: 403 });
+          }
+
+          // Successful auth — clear any failed-attempt / lockout state.
+          if ((u.login_fail_count || 0) > 0 || u.login_locked_until) {
+                  await supabase.from('staff').update({ login_fail_count: 0, login_locked_until: null }).eq('id', u.id);
           }
 
       // Transparent upgrade: if the stored hash is legacy SHA-256, rehash to bcrypt now.

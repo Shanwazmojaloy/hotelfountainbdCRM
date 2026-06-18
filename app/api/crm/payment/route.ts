@@ -62,12 +62,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Could not record payment.' }, { status: 500 });
   }
 
-  // Fresh paid_amount, bump, floored at net so the balance can't go negative.
-  const { data: fresh } = await supabase.from('reservations').select('paid_amount').eq('id', r.id).single();
-  const newPaid = Math.min(net, (+(fresh?.paid_amount || 0)) + a);
-  const { error: upErr } = await supabase.from('reservations').update({ paid_amount: newPaid }).eq('id', r.id);
+  // Atomic increment floored at net — a single UPDATE (LEAST(net, paid+a)) in the DB so two
+  // concurrent payments from different terminals serialize on the row lock instead of both
+  // reading the same paid_amount and clobbering each other (lost-update race). paid_amount
+  // stays the source of truth (not recomputed from the tx sum).
+  const { data: newPaid, error: upErr } = await supabase.rpc('bump_paid_amount', { p_res_id: r.id, p_amount: a, p_net: net });
   if (upErr) {
-    console.error('[crm/payment] paid_amount update:', upErr.message);
+    console.error('[crm/payment] paid_amount bump:', upErr.message);
     return NextResponse.json({ error: 'Payment recorded but balance update failed — check the folio.' }, { status: 500 });
   }
   return NextResponse.json({ ok: true, paid_amount: newPaid });
