@@ -60,7 +60,7 @@ Each command adopts exactly the mindset and task-set below. Full definitions liv
 - **The Sandbox Rule.** Never run mutations or migrations against Live/Production. Verification mutations go to a preview branch only.
 - **State Telemetry.** On a fatal dependency failure, explicitly emit `[EXEC_ERROR]` so the orchestrator halts/rolls back the current phase. Do not silently continue.
 - **Three-Strikes Rule.** If `/investigate` or `/qa` fails **3 consecutive times**, halt, emit a full findings summary, and yield to Human-in-the-Loop (Shan).
-- **Idempotency.** Every generated script, hook, or migration must be safe to run repeatedly — no data duplication or corruption. Guard triggers with `IF EXISTS` / `DO` blocks; use idempotency keys for payment-path writes (see `[[idempotency-key-payments]]`).
+- **Idempotency.** Every generated script, hook, or migration must be safe to run repeatedly — no data duplication or corruption. Guard triggers with `IF EXISTS` / `DO` blocks; use idempotency keys for payment-path writes (see `[[idempotency-key-payments]]`). Canonical example: the movement-timestamp trigger `trg_stamp_movement_times` (2026-06-18) stamps `now()` on the CHECKED_IN/CHECKED_OUT transition via `COALESCE` so re-runs never overwrite an existing stamp — and lives in the DB (not a route) because status flips arrive on multiple write paths. See `MEMORY_LOG.md` + `[[movement-action-timestamps-2026-06-18]]`.
 - **Approval gate (inherited).** P3 fixes may auto-apply after QA green; **P1/P2 always HOLD** for human approval. Mixed severity → HOLD.
 
 ---
