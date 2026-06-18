@@ -49,12 +49,19 @@ export async function GET(req: NextRequest) {
 
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(searchParams.get('limit') || String(MAX_LIMIT), 10) || MAX_LIMIT));
 
-  const { data, error } = await supabase
-    .from(resource)
-    .select('*')
-    .eq('tenant_id', TENANT)
-    .order(orderCol, { ascending })
-    .limit(limit);
+  let query = supabase.from(resource).select('*').eq('tenant_id', TENANT);
+
+  // Optional safe filters. `ids` = UUID CSV → .in('id', …); `fiscal_day` (transactions only) → .eq.
+  const idsParam = searchParams.get('ids');
+  if (idsParam != null) {
+    const ids = idsParam.split(',').map((s) => s.trim()).filter((s) => /^[0-9a-fA-F-]{36}$/.test(s));
+    if (!ids.length) return NextResponse.json({ rows: [] });
+    query = query.in('id', ids);
+  }
+  const fiscalDay = searchParams.get('fiscal_day');
+  if (fiscalDay && resource === 'transactions') query = query.eq('fiscal_day', fiscalDay);
+
+  const { data, error } = await query.order(orderCol, { ascending }).limit(limit);
 
   if (error) {
     console.error(`[crm/data] ${resource} read:`, error.message);

@@ -61,14 +61,19 @@ export default function Billing() {
       // Open business day (latest closed + 1) drives "Today's Collections", not the calendar.
       const { data: closes } = await supabase.from('night_audit_log').select('audit_date, status');
       const openDay = openBusinessDay(closes);
-      const [{ data: r, error: rErr }, { data: t, error: tErr }] = await Promise.all([
-        supabase.from('reservations').select('id, guest_name, guest_ids, room_ids, status, total_amount, discount_amount, discount, paid_amount, check_in, check_out, room_type').order('check_out', { ascending: false }).limit(5000),
-        supabase.from('transactions').select('type, amount').eq('fiscal_day', openDay),
+      // C3: reservations + transactions via session-gated route; night_audit_log stays on anon.
+      const [rR, tR] = await Promise.all([
+        fetch('/api/crm/data?resource=reservations&order=check_out.desc&limit=5000'),
+        fetch(`/api/crm/data?resource=transactions&fiscal_day=${encodeURIComponent(openDay)}`),
       ]);
-      if (rErr || tErr) console.error('[Billing] query error:', rErr || tErr);
-      setReservations(r || []);
-      setTransactions(t || []);
-      setSnap(SNAP_KEY, { reservations: r || [], transactions: t || [] });
+      const rj = await rR.json().catch(() => ({}));
+      const tj = await tR.json().catch(() => ({}));
+      if (!rR.ok || !tR.ok) console.error('[Billing] query error:', rj.error || tj.error);
+      const r = rj.rows || [];
+      const t = tj.rows || [];
+      setReservations(r);
+      setTransactions(t);
+      setSnap(SNAP_KEY, { reservations: r, transactions: t });
     } catch (e) {
       console.error('[Billing] fetch error:', e);
     } finally {
@@ -166,13 +171,14 @@ export default function Billing() {
                       // Invoice needs room rates + this folio's charges — fetched on demand,
                       // STRICTLY reservation_id-scoped (v3.1 anchor rule; room_number is not a join key).
                       const supabase = getSupabaseClient();
-                      const [{ data: rms, error: e1 }, { data: fol, error: e2 }, { data: gst }] = await Promise.all([
+                      const [{ data: rms, error: e1 }, { data: fol, error: e2 }, gR] = await Promise.all([
                         supabase.from('rooms').select('room_number, category, price'),
                         supabase.from('folios').select('*').eq('reservation_id', sel.id),
-                        (sel.guest_ids || []).length ? supabase.from('guests').select('id, name, id_type, id_number, nationality, address, city, country, id_card').in('id', sel.guest_ids) : Promise.resolve({ data: [] }),
+                        (sel.guest_ids || []).length ? fetch(`/api/crm/data?resource=guests&ids=${encodeURIComponent((sel.guest_ids || []).join(','))}`) : Promise.resolve(null),
                       ]);
                       if (e1 || e2) { console.error('[Billing] print fetch error:', e1 || e2); alert('Could not load invoice data — try again.'); return; }
-                      printInvoice(sel, rms || [], sel.guest_name, fol || [], gst || []);
+                      const gst = gR ? ((await gR.json().catch(() => ({}))).rows || []) : [];
+                      printInvoice(sel, rms || [], sel.guest_name, fol || [], gst);
                     }}>🖨 Print Invoice</button>
                     <button className="iv-btn" style={{ flex: 1, fontSize: 12, padding: '8px' }} disabled={bal <= 0} onClick={() => setPayRes(sel)}>{bal <= 0 ? '✓ Settled' : '✓ Record Payment'}</button>
                   </div>
