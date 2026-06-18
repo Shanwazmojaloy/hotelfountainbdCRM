@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .next/
 .env*
 *.log
@@ -8,7 +8,7 @@ leads/
 hotelfountainbdcrm-493018-a9e9e586dedb.json
 .vercel
 .env*.local
-package.json.bak
+package.json.bak
 
 .claude-flow/
 .swarm/
@@ -31,3 +31,10 @@ supabase/.branches/
 
 # Cowork helper push scripts (local tooling, not source)
 scripts/RUN_PUSH_*.bat
+
+# Secret-bearing files — never commit to repo (C1 audit 2026-06-18)
+# Rotate FB token + staff passwords before running git filter-repo purge
+*.bat
+*payload*.json
+crm_live.html
+static-deploy/crm_live.html
