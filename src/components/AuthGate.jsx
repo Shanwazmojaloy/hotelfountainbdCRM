@@ -1,0 +1,262 @@
+'use client';
+
+// AuthGate — staff login gate for /crm. Rendered in the Hotel Fountain Design System
+// "Warm Ivory Editorial" login (centered ivory card on a walnut field, gold-italic serif
+// titles, OTP digits). Auth is server-side:
+//   Sign In   -> POST /api/crm/login   (verifies pwh on the service role, sets HttpOnly cookie)
+//   Activate  -> POST /api/crm/send-otp then /api/crm/activate (sets password, signs in)
+// Session persisted as localStorage {id, session_v}; session_v match honours Logout-All.
+import { useState, useEffect, createContext, useContext } from 'react';
+import { clearSnaps } from '@/lib/snap';
+
+const AuthContext = createContext({ user: null, signOut: () => {} });
+export const useAuth = () => useContext(AuthContext);
+
+// Modern SaaS palette (literals — AuthGate renders outside .crm-root).
+const PARCH = '#FFFFFF', WALNUT = '#0F172A', WHITE = '#FFFFFF';
+const GOLD = '#8B6914', GOLD2 = '#6B4E0A', GOLDL = '#C8A96E';
+const TX = '#0F172A', TX2 = '#475569', TX3 = '#94A3B8', BR = '#E2E8F0';
+const serif = "'DM Sans', system-ui, -apple-system, sans-serif";
+const sans = "'DM Sans', system-ui, -apple-system, sans-serif";
+const mono = "'IBM Plex Mono', ui-monospace, monospace";
+
+// Persists the verified session across route re-mounts so switching tabs is instant
+// (no LOADING flash / re-fetch). Cleared on sign-out.
+let _authCache = null;
+
+export default function AuthGate({ children }) {
+  const [status, setStatus] = useState(_authCache ? 'in' : 'checking'); // checking | in | out
+  const [user, setUser] = useState(_authCache);
+
+  const [mode, setMode] = useState('signin'); // signin | activate
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // activate flow
+  const [actStep, setActStep] = useState(1);
+  const [actEmail, setActEmail] = useState('');
+  const [actOtp, setActOtp] = useState('');
+  const [actPw, setActPw] = useState('');
+  const [actErr, setActErr] = useState('');
+  const [actMsg, setActMsg] = useState('');
+  const [actBusy, setActBusy] = useState(false);
+
+  // Optimistic restore: if a saved session exists, paint the app IMMEDIATELY (no blocking
+  // network gate / LOADING screen) and verify against Supabase in the background. This is what
+  // keeps tab switches and reloads from flashing a black "checking" screen.
+  useEffect(() => {
+    if (_authCache) return;
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('lumea_session') || 'null'); } catch { /* ignore */ }
+    if (saved?.id) {
+      const optimistic = { id: saved.id, name: saved.name, role: saved.role };
+      _authCache = optimistic; setUser(optimistic); setStatus('in');
+      validateSession(saved);
+    } else {
+      setStatus('out');
+    }
+  }, []);
+
+  // Sliding session: keep the HttpOnly lumea_sess cookie fresh while the app is open so staff
+  // are never logged out mid-shift. Re-issues on mount, every 20 min, and on tab focus.
+  // A 401 here means the session is truly revoked/idle-expired -> sign out cleanly to login.
+  useEffect(() => {
+    if (status !== 'in') return;
+    let alive = true;
+    const ping = async () => {
+      try {
+        const r = await fetch('/api/crm/session', { method: 'GET', cache: 'no-store' });
+        if (r.status === 401 && alive) signOut();
+      } catch { /* offline/transient - keep the session */ }
+    };
+    ping();
+    const iv = setInterval(ping, 20 * 60 * 1000);
+    const onVis = () => { if (typeof document !== 'undefined' && document.visibilityState === 'visible') ping(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onVis);
+    return () => { alive = false; clearInterval(iv); document.removeEventListener('visibilitychange', onVis); window.removeEventListener('focus', onVis); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
+  async function validateSession(saved) {
+    try {
+      // Server-authoritative session check on the service role — the browser anon key cannot
+      // read `staff` (RLS revoked). 200 = session_v still valid; 401 = revoked/rotated
+      // (Logout-All) -> sign out cleanly. Mirrors the sliding-session ping() below.
+      const r = await fetch('/api/crm/session', { method: 'GET', cache: 'no-store' });
+      if (r.status === 401) {
+        try { localStorage.removeItem('lumea_session'); } catch { /* ignore */ }
+        _authCache = null; setUser(null); setStatus('out');
+        return;
+      }
+      if (r.ok) {
+        const u = { id: saved.id, name: saved.name, role: saved.role, session_v: saved.session_v };
+        _authCache = u; setUser(u);
+      }
+    } catch { /* transient/offline — keep the optimistic session, don't bounce the user to login */ }
+  }
+
+  function applySession(s) {
+    localStorage.setItem('lumea_session', JSON.stringify({ id: s.id, session_v: s.session_v || 1, name: s.name, role: s.role }));
+    _authCache = s; setUser(s); setStatus('in'); setPw(''); setActPw(''); setActOtp('');
+  }
+
+  async function login(e) {
+    e?.preventDefault?.();
+    if (!email || !pw) return setErr('Enter your email and password.');
+    setBusy(true); setErr('');
+    try {
+      const r = await fetch('/api/crm/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), password: pw }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.error || 'Sign-in failed.');
+      applySession(j.session);
+    } catch (e2) { setErr(e2.message || String(e2)); } finally { setBusy(false); }
+  }
+
+  async function requestOtp() {
+    if (!actEmail) return setActErr('Enter your work email.');
+    setActBusy(true); setActErr(''); setActMsg('');
+    try {
+      const r = await fetch('/api/crm/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: actEmail.trim() }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Could not send code.');
+      setActMsg('A 6-digit code was sent to ' + actEmail.trim() + '. Valid 5 minutes.');
+      setActStep(2);
+    } catch (e2) { setActErr(e2.message || String(e2)); } finally { setActBusy(false); }
+  }
+
+  async function activate() {
+    if (!actOtp || !actPw) return setActErr('Enter the code and a new password.');
+    setActBusy(true); setActErr('');
+    try {
+      const r = await fetch('/api/crm/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: actEmail.trim(), otp: actOtp.trim(), password: actPw }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.error || 'Activation failed.');
+      applySession(j.session);
+    } catch (e2) { setActErr(e2.message || String(e2)); } finally { setActBusy(false); }
+  }
+
+  function signOut() { try { localStorage.removeItem('lumea_session'); } catch {} clearSnaps(); _authCache = null; setUser(null); setStatus('out'); }
+
+  if (status === 'checking') {
+    // Ivory (never near-black) so the split-second before the optimistic flip is seamless.
+    return <div style={{ minHeight: '100vh', background: PARCH, display: 'flex', alignItems: 'center', justifyContent: 'center', color: TX3, fontFamily: mono, letterSpacing: '.2em', fontSize: 12 }} />;
+  }
+  if (status === 'in') {
+    return <AuthContext.Provider value={{ user, signOut }}>{children}</AuthContext.Provider>;
+  }
+
+  // ── logged-out: design-system ivory login on a walnut field ──
+  const eyebrow = mode === 'signin' ? 'Staff Portal' : 'Staff Activation';
+  const title = mode === 'signin' ? ['Welcome', 'Back']
+    : actStep === 1 ? ['Activate', 'Account'] : ['Verify &', 'Finish'];
+
+  const fieldWrap = { marginBottom: 14 };
+  const labelSt = { display: 'block', fontFamily: sans, fontSize: 9, letterSpacing: '.14em', color: TX3, textTransform: 'uppercase', fontWeight: 600, marginBottom: 5 };
+  const inputSt = { width: '100%', background: WHITE, border: `1px solid ${BR}`, color: TX, fontFamily: sans, fontSize: 13, padding: '10px 12px', outline: 'none', boxSizing: 'border-box', borderRadius: 8 };
+  const onFocus = (e) => (e.target.style.borderColor = GOLD);
+  const onBlur = (e) => (e.target.style.borderColor = BR);
+  const goldBtn = (disabled) => ({ width: '100%', justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: sans, fontWeight: 600, letterSpacing: 0, textTransform: 'none', cursor: disabled ? 'not-allowed' : 'pointer', borderRadius: 8, padding: '12px 24px', fontSize: 14, marginTop: 8, background: GOLDL, color: '#1C1510', border: `1px solid ${GOLDL}`, opacity: disabled ? 0.5 : 1, transition: 'background .15s cubic-bezier(.4,0,.2,1)' });
+  const linkBtn = { background: 'none', border: 'none', cursor: 'pointer', fontFamily: sans, fontSize: 12, letterSpacing: 0, color: GOLD, textTransform: 'none', fontWeight: 600, padding: 0 };
+  const subText = { textAlign: 'center', fontSize: 12, color: TX2, lineHeight: 1.5, margin: '8px 0 20px' };
+  const errBox = (t) => <div style={{ marginTop: 10, marginBottom: 4, fontSize: 11, color: '#B91C1C', fontFamily: sans }}>{t}</div>;
+
+  return (
+    <div style={{ minHeight: '100vh', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: WALNUT, position: 'relative', overflow: 'hidden', fontFamily: sans }}>
+      {/* radial glow */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 50% at 20% 30%, rgba(200,169,110,.10), transparent 65%), radial-gradient(ellipse 50% 60% at 80% 70%, rgba(200,169,110,.06), transparent 60%)' }} />
+      {/* fine grid texture */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'repeating-linear-gradient(0deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px)' }} />
+
+      <div style={{ background: PARCH, border: '1px solid rgba(148,163,184,.2)', borderRadius: 16, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(2,6,23,.55)' }}>
+        {/* logo */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+          <img src="/fountain-logo.png" alt="Hotel Fountain" style={{ width: 96, height: 'auto', objectFit: 'contain' }} />
+        </div>
+        {/* eyebrow divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, justifyContent: 'center' }}>
+          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,transparent,#E2E8F0)' }} />
+          <span style={{ fontSize: 8, color: TX3, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 500, whiteSpace: 'nowrap' }}>{eyebrow}</span>
+          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,#E2E8F0,transparent)' }} />
+        </div>
+
+        {/* step dots (activation) */}
+        {mode === 'activate' && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginBottom: 12 }}>
+            {[1, 2].map((s) => {
+              const on = s <= actStep;
+              return <span key={s} style={{ width: on ? 20 : 7, height: 4, background: on ? GOLD : BR, transition: 'all .2s cubic-bezier(.4,0,.2,1)' }} />;
+            })}
+          </div>
+        )}
+
+        {/* title */}
+        <div style={{ fontFamily: serif, fontSize: 24, fontWeight: 700, color: TX, textAlign: 'center', lineHeight: 1.1, letterSpacing: '-.01em' }}>
+          {title[0]} <em style={{ fontStyle: 'normal', color: GOLD, fontWeight: 700 }}>{title[1]}</em>
+        </div>
+
+        {mode === 'signin' ? (
+          <form onSubmit={login} autoComplete="off">
+            <p style={subText}>Sign in with your email and password.</p>
+            <div style={fieldWrap}>
+              <label style={labelSt}>Work Email</label>
+              <input style={inputSt} onFocus={onFocus} onBlur={onBlur} type="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(''); }} placeholder="you@hotelfountain.com" autoComplete="username" />
+            </div>
+            <div style={fieldWrap}>
+              <label style={labelSt}>Password</label>
+              <div style={{ position: 'relative' }}>
+                <input style={{ ...inputSt, paddingRight: 34 }} onFocus={onFocus} onBlur={onBlur} type={showPw ? 'text' : 'password'} value={pw} onChange={(e) => { setPw(e.target.value); setErr(''); }} placeholder="••••••••" autoComplete="current-password" />
+                <span onClick={() => setShowPw((p) => !p)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 13, color: TX3, userSelect: 'none' }}>{showPw ? '🙈' : '👁'}</span>
+              </div>
+            </div>
+            {err && errBox(err)}
+            <button type="submit" style={goldBtn(busy)} disabled={busy}>{busy ? 'Signing in…' : 'Sign In'}</button>
+            <div style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: TX3 }}>
+              First time here?{' '}
+              <button type="button" style={linkBtn} onClick={() => { setMode('activate'); setErr(''); setActStep(1); setActErr(''); setActMsg(''); }}>Activate account</button>
+            </div>
+          </form>
+        ) : actStep === 1 ? (
+          <div>
+            <p style={subText}>Enter your work email — we&apos;ll send a 6-digit code to verify it&apos;s you.</p>
+            <div style={fieldWrap}>
+              <label style={labelSt}>Work Email</label>
+              <input style={inputSt} onFocus={onFocus} onBlur={onBlur} type="email" value={actEmail} onChange={(e) => { setActEmail(e.target.value); setActErr(''); }} placeholder="you@hotelfountain.com" autoFocus />
+            </div>
+            {actErr && errBox(actErr)}
+            <button style={goldBtn(actBusy)} disabled={actBusy} onClick={requestOtp}>{actBusy ? 'Sending…' : 'Send Code'}</button>
+            <div style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: TX3 }}>
+              Already activated?{' '}
+              <button type="button" style={linkBtn} onClick={() => { setMode('signin'); setActErr(''); }}>Sign in</button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p style={subText}>Enter the code sent to<br /><strong style={{ color: TX, fontFamily: mono, fontSize: 12 }}>{actEmail}</strong> and choose a password.</p>
+            {actMsg && <div style={{ fontSize: 10.5, color: '#15803D', marginBottom: 14, textAlign: 'center', padding: 8, background: 'rgba(21,128,61,.07)', border: '1px solid rgba(21,128,61,.18)', fontFamily: sans, lineHeight: 1.5 }}>{actMsg}</div>}
+            <div style={fieldWrap}>
+              <label style={labelSt}>Verification Code</label>
+              <input style={{ ...inputSt, letterSpacing: '.5em', fontSize: 20, textAlign: 'center', fontFamily: mono }} onFocus={onFocus} onBlur={onBlur} maxLength={6} inputMode="numeric" value={actOtp} onChange={(e) => { setActOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setActErr(''); }} placeholder="123456" />
+            </div>
+            <div style={fieldWrap}>
+              <label style={labelSt}>New Password</label>
+              <input style={inputSt} onFocus={onFocus} onBlur={onBlur} type="password" value={actPw} onChange={(e) => { setActPw(e.target.value); setActErr(''); }} placeholder="At least 6 characters" autoComplete="new-password" />
+            </div>
+            {actErr && errBox(actErr)}
+            <button style={goldBtn(actBusy)} disabled={actBusy} onClick={activate}>{actBusy ? 'Activating…' : 'Set Password & Enter'}</button>
+            <div style={{ textAlign: 'center', marginTop: 14 }}>
+              <button onClick={() => { setActStep(1); setActErr(''); setActMsg(''); }} style={{ ...linkBtn, fontSize: 10, color: TX3 }}>← Change email</button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ textAlign: 'center', fontSize: 9, letterSpacing: '.16em', color: TX3, textTransform: 'uppercase', marginTop: 24 }}>
+          Dhaka, Bangladesh · Est. 2019
+        </div>
+      </div>
+    </div>
+  );
+}

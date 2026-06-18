@@ -1,48 +1,58 @@
 'use client';
 
-export default function ProgressRing({ progress = 0, size = 64, strokeWidth = 6, className = "" }) {
+// Warm Ivory ProgressRing — ink track + configurable accent (default gold).
+// `color` accepts any CSS color; label rendered in IBM Plex Mono.
+export default function ProgressRing({
+  progress = 0,
+  size = 64,
+  strokeWidth = 6,
+  color = '#8B6914',
+  trackColor = '#D9E2EC',
+  className = '',
+}) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (progress / 100) * circumference;
+  const pct = Math.max(0, Math.min(100, Number(progress) || 0));
+  const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <div className={`progress-ring w-[${size}px] h-[${size}px] flex items-center justify-center ${className}`}>
+    <div
+      className={`relative flex items-center justify-center ${className}`}
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} className="rotate-[-90deg]">
-        {/* Background track */}
         <circle
           r={radius}
           cx={size / 2}
           cy={size / 2}
           fill="none"
-          stroke="url(#gradient)"
+          stroke={trackColor}
           strokeWidth={strokeWidth}
-          className="opacity-30"
         />
-        {/* Progress arc */}
         <circle
           r={radius}
           cx={size / 2}
           cy={size / 2}
           fill="none"
-          stroke="currentColor"
+          stroke={color}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={offset}
-          className="transition-all duration-1000 origin-center"
-          pathLength={1}
+          style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1)' }}
         />
-        <defs>
-          <radialGradient id="gradient" cx="50%" cy="50%">
-            <stop offset="0%" stopColor="var(--neon-cyan)" />
-            <stop offset="100%" stopColor="var(--neon-teal)" />
-          </radialGradient>
-        </defs>
       </svg>
-      <span className="absolute text-xl font-mono font-bold text-neon-cyan drop-shadow-lg">
-        {progress}%
+      <span
+        className="absolute font-bold"
+        style={{
+          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+          fontSize: size * 0.26,
+          color: 'var(--iv-ink)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {Math.round(pct)}%
       </span>
     </div>
   );
 }
-

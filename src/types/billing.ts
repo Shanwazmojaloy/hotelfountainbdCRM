@@ -244,6 +244,10 @@ export interface PostPaymentPayload {
   invoice_id?: string;
   notes?: string;
   metadata?: Record<string, unknown>;
+  /** Stable per-attempt UUID. Reused on retries so a double-submit is rejected by
+   *  the DB partial-unique index uq_payment_tx_idempotency (WHERE status='COMPLETED').
+   *  Generate once when the payment modal opens; pass the same value on every retry. */
+  idempotency_key?: string;
 }
 
 export interface VoidEntryPayload {

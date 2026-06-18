@@ -1,0 +1,23 @@
+# Lumea — editor-agnostic encoding/EOL enforcement (VS Code, Cursor, JetBrains, etc.)
+# Root cause fix: stops editors saving files as UTF-16/CRLF, which repeatedly
+# corrupted public/crm.html and public/crm-src.jsx. Pairs with .gitattributes
+# and the pre-commit guard.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+# The corruption-prone CRM files — never anything but UTF-8 + LF.
+[public/crm.html]
+charset = utf-8
+end_of_line = lf
+
+[public/crm-src.jsx]
+charset = utf-8
+end_of_line = lf
+
+[public/crm-bundle.js]
+charset = utf-8
+end_of_line = lf

@@ -1,38 +1,85 @@
 'use client';
 
-import { Home, Building2, DollarSign, Users } from 'lucide-react';
+// Sidebar — Hotel Fountain Design System (walnut rail, brand crest, 4 nav sections + badges,
+// user footer). Matches the handoff mockup. Extra app routes live under a "More" section.
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useAuth } from './AuthGate';
+import { canAccess } from '@/lib/permissions';
 
-const navItems = [
-  { id: 'dashboard', icon: Home, label: 'Dashboard' },
-  { id: 'rooms', icon: Building2, label: 'Rooms' },
-  { id: 'billing', icon: DollarSign, label: 'Billing' },
-  { id: 'guests', icon: Users, label: 'Guests' },
+const NAV = [
+  { sect: 'Overview' },
+  { href: '/crm', icon: '⬡', label: 'Dashboard', exact: true },
+  { href: '/crm/rooms', icon: '▦', label: 'Room Management' },
+  { href: '/crm/reservations', icon: '◈', label: 'Reservations' },
+  { href: '/crm/guests', icon: '◉', label: 'Guests & CRM' },
+  { sect: 'Operations' },
+  { href: '/crm/housekeeping', icon: '✦', label: 'Housekeeping' },
+  { href: '/crm/billing', icon: '◎', label: 'Billing & Invoices' },
+  { sect: 'Analytics' },
+  { href: '/crm/reports', icon: '▣', label: 'Reports' },
+  { sect: 'System' },
+  { href: '/crm/settings', icon: '◌', label: 'Settings' },
+  { sect: 'More' },
+  { href: '/crm/ai', icon: '✦', label: 'AI Agents' },
+  { href: '/crm/council', icon: '◉', label: 'Council' },
+  { href: '/crm/pipeline', icon: '▣', label: 'Pipeline' },
+  { href: '/leads', icon: '◉', label: 'Leads' },
+  { href: '/suppliers', icon: '▦', label: 'Suppliers' },
+  { href: '/churn', icon: '▣', label: 'Follow-up' },
 ];
 
-export default function Sidebar({ activePage, setActivePage }) {
+const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase() || '?';
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const { user, signOut } = useAuth();
+  const role = user?.role;
+
+  // RBAC: keep only links this role may open, then drop any section header left empty.
+  const visibleNav = NAV.filter((n) => n.sect || canAccess(role, n.href)).filter((n, i, arr) => {
+    if (!n.sect) return true;
+    const next = arr[i + 1];
+    return next && !next.sect; // section kept only if a real link follows it
+  });
+
   return (
-    <aside className="glass hidden md:flex flex-col w-64 border-r border-teal-800/30">
-      <div className="p-6 border-b border-teal-800/20">
-        <h2 className="text-lg font-light tracking-tight">
-          Navigation
-        </h2>
+    <aside className="iv-sidebar hidden md:flex flex-col w-64 h-screen sticky top-0" style={{ overflow: 'hidden' }}>
+      {/* Brand crest */}
+      <div style={{ padding: '22px 20px 18px', borderBottom: '1px solid rgba(200,169,110,.15)', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+        <img src="/logo-crest.png" alt="Hotel Fountain" style={{ width: 'auto', height: 58, objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.35))' }} />
+        <div style={{ minWidth: 0 }}>
+          <div className="iv-brand">Hotel <em>Fountain</em></div>
+          <div className="iv-side-tag" style={{ marginTop: 5 }}>Management CRM</div>
+        </div>
       </div>
-      <nav className="flex-1 p-4 space-y-2">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            className={`glass w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 hover:neon-glow hover:scale-[1.02] ${
-              activePage === item.id
-                ? 'border-neon-cyan/50 bg-neon-cyan/10 neon-glow ring-2 ring-neon-cyan/30'
-                : ''
-            }`}
-            onClick={() => setActivePage(item.id)}
-          >
-<item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-            <span className="font-medium text-left">{item.label}</span>
-          </button>
-        ))}
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {visibleNav.map((n, i) =>
+          n.sect ? (
+            <div key={i} style={{ fontSize: 10, letterSpacing: '.14em', color: 'rgba(200,169,110,.5)', padding: '14px 12px 5px', textTransform: 'uppercase', fontWeight: 600 }}>{n.sect}</div>
+          ) : (
+            <Link key={n.href} href={n.href} className={`iv-nav-item ${(n.exact ? pathname === n.href : pathname === n.href || pathname.startsWith(n.href + '/')) ? 'on' : ''}`}>
+              <span className="iv-nav-ic" style={{ width: 18, textAlign: 'center', fontSize: 13, flexShrink: 0 }}>{n.icon}</span>
+              <span style={{ flex: 1 }}>{n.label}</span>
+              {n.badge && <span style={{ fontFamily: 'var(--iv-body)', fontSize: 9, fontWeight: 700, color: '#fff', background: n.badgeColor || 'var(--iv-rose-fg)', borderRadius: 999, padding: '1px 7px', minWidth: 18, textAlign: 'center' }}>{n.badge}</span>}
+            </Link>
+          )
+        )}
       </nav>
+
+      {/* User footer */}
+      <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(200,169,110,.15)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 32, height: 32, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#C8A96E,#8B6914)', color: '#fff', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials(user?.name)}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || 'Staff'}</div>
+            <div style={{ fontSize: 8, color: '#E0C585', letterSpacing: '.1em', textTransform: 'uppercase', marginTop: 1 }}>{user?.role || ''}</div>
+          </div>
+          <span onClick={signOut} title="Sign out" style={{ fontSize: 14, color: 'rgba(148,163,184,.6)', cursor: 'pointer', padding: 4 }}>⎋</span>
+        </div>
+      </div>
     </aside>
   );
 }

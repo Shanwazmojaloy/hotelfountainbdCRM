@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist:wght@200;300;400;500&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist:wght@200;300;400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Roboto:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500;1,600;1,700&family=Inter:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 
@@ -22,9 +22,36 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* ─── Marketing (landing) tokens — consumed ONLY by .site-root pages ─── */
+  --color-abyss: #07090E;
+  --color-deep: #0B0E15;
+  --color-teal950: #11141C;
+  --color-teal900: #171B24;
+  --color-teal800: #1E2330;
+  --color-neon-teal: #C8A96E;
+  --color-neon-cyan: #D9C08A;
+  --color-neon-aqua: #E4CFA0;
+  --color-gold: #C8A96E;
+  --color-gold-soft: #E4CFA0;
+  --color-gold-deep: #8B6914;
+  --color-glass-line: rgba(200,169,110,0.16);
+  --color-glass-fill: rgba(255,255,255,0.035);
+  --radius-xl2: 1.25rem;
+  --radius-xl3: 1.75rem;
+  --shadow-glass: 0 8px 40px -12px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-glow-teal: 0 0 0 1px rgba(200,169,110,0.40), 0 0 32px -4px rgba(200,169,110,0.40);
+  --shadow-glow-soft: 0 0 48px -8px rgba(200,169,110,0.22);
+  --font-display: 'Playfair Display', Georgia, serif;
+  --ease-fluid: cubic-bezier(0.4, 0, 0.2, 1);
+  --animate-fade-up: fade-up 0.7s cubic-bezier(0.4,0,0.2,1) both;
+  --animate-pulse-ring: pulse-ring 2.4s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+}
 html { scroll-behavior: smooth; }
 body { background: var(--dark); color: var(--tx); overflow-x: hidden; }
 
@@ -95,3 +122,350 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   to   { opacity: 1; transform: translateY(0); }
 }
 .bell-drop-item:hover { background: rgba(200, 169, 110, .04) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LUMEA CRM — Modern SaaS theme (slate + indigo, 2026-06-10; was Warm Ivory Editorial)
+   Scoped under .crm-root so it never affects the public site or /churn.
+   All text: DM Sans · Data/Numbers: Roboto (--iv-mono). Token names keep the iv-/gold
+   prefixes from the Ivory system on purpose — values flipped, ~90% of components retheme
+   automatically. --iv-gold IS the indigo accent now.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.crm-root {
+  /* Lumea — Modern SaaS × BRAND theme (2026-06-10): slate neutrals + Hotel Fountain gold
+     (landing palette: #C8A96E gold / #0D1117 dark). Token NAMES kept from the Ivory system. */
+  --iv-bg:#EEF2F7; --iv-card:#FFFFFF; --iv-border:#D9E2EC;
+  --iv-border2:#E4EAF1; --iv-sunken:#F8FAFC; --iv-hover:#F1F5F9;
+  --iv-ink:#0F172A; --iv-ink2:#475569; --iv-ink3:#94A3B8;
+  --iv-gold:#8B6914; --iv-gold2:#6B4E0A; --iv-gold-light:#C8A96E; /* BRAND gold (landing) */
+  --iv-side:#0D1117; /* sidebar — landing dark2 */
+  --iv-bar:0px; /* modern flat cards — no signature top-border */
+  --iv-shadow-stat:0 8px 22px rgba(15,23,42,.10);
+  --iv-card-shadow:0 1px 2px rgba(15,23,42,.05), 0 2px 8px rgba(15,23,42,.07);
+  --iv-in-fg:#16A34A;  --iv-in-bg:rgba(22,163,74,.09);  --iv-in-gl:rgba(22,163,74,.16);
+  --iv-due-fg:#D97706; --iv-due-bg:rgba(217,119,6,.09); --iv-due-gl:rgba(217,119,6,.16);
+  --iv-rose-fg:#DC2626; --iv-rose-bg:rgba(220,38,38,.08); --iv-rose-gl:rgba(220,38,38,.16);
+  --iv-ease:cubic-bezier(0.4,0,0.2,1);
+  --iv-head:'DM Sans', system-ui, sans-serif;
+  --iv-body:'DM Sans', system-ui, sans-serif;
+  --iv-mono:'Roboto', system-ui, -apple-system, sans-serif;
+  min-height:100vh; background:var(--iv-bg); color:var(--iv-ink);
+  font-family:var(--iv-body); font-weight:400; -webkit-font-smoothing:antialiased;
+}
+.crm-root h1,.crm-root h2,.crm-root h3,.crm-root h4 { font-family:var(--iv-head); font-weight:700; letter-spacing:-.01em; color:var(--iv-ink); }
+.crm-root em { font-style:normal; color:var(--iv-gold); } /* two-tone titles: accent, not italic */
+.crm-root .iv-mono { font-family:var(--iv-mono); font-variant-numeric:tabular-nums; }
+.crm-root .iv-eyebrow { font-family:var(--iv-body); font-size:10px; font-weight:500; letter-spacing:.18em; text-transform:uppercase; color:var(--iv-ink3); }
+
+/* Cards — flat, rounded, soft shadow */
+.crm-root .iv-card { background:var(--iv-card); border:1px solid var(--iv-border); border-radius:12px; padding:1.75rem; box-shadow:var(--iv-card-shadow); transition:box-shadow .2s var(--iv-ease); }
+.crm-root .iv-card--hover:hover { box-shadow:var(--iv-shadow-stat); }
+
+/* Stat block */
+.crm-root .iv-stat__lbl { font-size:10px; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--iv-ink3); margin-bottom:10px; }
+.crm-root .iv-stat__val { font-family:var(--iv-mono); font-size:29px; font-weight:700; color:var(--iv-ink); font-variant-numeric:tabular-nums; line-height:1.1; letter-spacing:-.01em; }
+.crm-root .iv-stat__sub { font-size:12px; color:var(--iv-ink2); margin-top:6px; }
+
+/* ── Smoothness: route fade-in, count-up host, skeleton shimmer ── */
+@keyframes ivFade { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+.iv-fade { animation: ivFade .26s var(--iv-ease, cubic-bezier(.4,0,.2,1)); }
+@keyframes ivShimmer { 100% { transform:translateX(100%); } }
+.iv-skel { position:relative; overflow:hidden; display:inline-block; background:#E2E8F0; border-radius:5px; vertical-align:middle; }
+.iv-skel::after { content:''; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent); animation:ivShimmer 1.15s infinite; }
+/* Tab bar: keep horizontal scrollability but hide the (dark) scrollbar track */
+.iv-tabbar { scrollbar-width:none; -ms-overflow-style:none; }
+.iv-tabbar::-webkit-scrollbar { height:0; width:0; display:none; }
+.crm-root .iv-pos { color:var(--iv-in-fg); }
+.crm-root .iv-due { color:var(--iv-due-fg); }
+
+/* Status badges — subtle glow */
+.crm-root .iv-badge { display:inline-flex; align-items:center; gap:6px; font-family:var(--iv-body); font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; border:1px solid transparent; }
+.crm-root .iv-badge--in   { color:var(--iv-in-fg);   background:var(--iv-in-bg);   border-color:rgba(63,106,75,.22);  box-shadow:0 0 0 3px var(--iv-in-gl); }
+.crm-root .iv-badge--due  { color:var(--iv-due-fg);  background:var(--iv-due-bg);  border-color:rgba(138,106,30,.24); box-shadow:0 0 0 3px var(--iv-due-gl); }
+.crm-root .iv-badge--paid { color:var(--iv-in-fg);   background:var(--iv-in-bg);   border-color:rgba(63,106,75,.22); }
+.crm-root .iv-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.crm-root .iv-dot--in { background:var(--iv-in-fg); box-shadow:0 0 0 3px var(--iv-in-gl); }
+.crm-root .iv-dot--due { background:var(--iv-due-fg); box-shadow:0 0 0 3px var(--iv-due-gl); }
+.crm-root .iv-dot--paid { background:var(--iv-ink3); }
+
+/* Buttons — landing-style brand primary: gold field, dark ink (mirrors public .gb) */
+.crm-root .iv-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; font-family:var(--iv-body); font-size:13px; font-weight:600; letter-spacing:0; text-transform:none; padding:9px 16px; border-radius:8px; cursor:pointer; background:var(--iv-gold-light); color:#1C1510; border:1px solid var(--iv-gold-light); transition:background .15s var(--iv-ease), border-color .15s var(--iv-ease), color .15s var(--iv-ease); }
+.crm-root .iv-btn:hover { background:#E0C585; border-color:#E0C585; color:#1C1510; }
+.crm-root .iv-btn:disabled { opacity:.45; cursor:not-allowed; }
+.crm-root .iv-btn--ghost { background:#fff; color:var(--iv-ink2); border:1px solid var(--iv-border); }
+.crm-root .iv-btn--ghost:hover { background:var(--iv-hover); color:var(--iv-ink); border-color:#CBD5E1; }
+.crm-root .iv-btn--danger { background:var(--iv-rose-bg); color:var(--iv-rose-fg); border:1px solid rgba(220,38,38,.25); }
+.crm-root .iv-btn--danger:hover { background:rgba(220,38,38,.14); border-color:rgba(220,38,38,.25); color:var(--iv-rose-fg); }
+
+/* Activity rows */
+.crm-root .iv-row { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border:1px solid var(--iv-border); border-radius:10px; background:var(--iv-card); }
+.crm-root .iv-row--in  { border-left:3px solid var(--iv-in-fg); }
+.crm-root .iv-row--due { border-left:3px solid var(--iv-due-fg); background:var(--iv-due-bg); }
+
+/* Sidebar (dark ink) — fixed 232px, no shrink; desktop-only (overrides Tailwind md: utils). */
+.crm-root .iv-sidebar { background:var(--iv-side); display:none; flex-direction:column; flex-shrink:0; width:232px; }
+@media (min-width:768px){ .crm-root .iv-sidebar { display:flex; } }
+.crm-root .iv-brand { font-family:var(--iv-head); font-size:18px; font-weight:700; color:#EEE9E2; letter-spacing:-.01em; line-height:1.1; }
+.crm-root .iv-brand em { font-style:normal; font-weight:700; color:#C8A96E; }
+.crm-root .iv-side-tag { font-family:var(--iv-body); font-size:8px; color:rgba(200,169,110,.55); letter-spacing:.2em; text-transform:uppercase; margin-top:5px; }
+.crm-root .iv-nav-item { display:flex; align-items:center; gap:11px; padding:10px 12px; cursor:pointer; font-family:var(--iv-body); font-size:13px; font-weight:500; color:rgba(238,233,226,.6); border-radius:8px; text-decoration:none; transition:all .15s var(--iv-ease); letter-spacing:.01em; }
+.crm-root .iv-nav-item:hover { background:rgba(200,169,110,.08); color:#EEE9E2; }
+.crm-root .iv-nav-item.on { background:rgba(200,169,110,.16); color:#E0C585; font-weight:600; }
+
+/* Topbar */
+.crm-root .iv-topbar { background:var(--iv-card); border-bottom:1px solid var(--iv-border); }
+.crm-root .iv-divider { border-bottom:1px solid var(--iv-border); }
+
+/* Mobile bottom nav */
+.crm-root .iv-bottom-nav { position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; background:var(--iv-side); border-top:1px solid rgba(200,169,110,.2); }
+@media (min-width:768px){ .crm-root .iv-bottom-nav { display:none; } }
+.crm-root .iv-bottom-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:10px 4px; color:rgba(238,233,226,.55); text-decoration:none; font-size:10px; font-weight:500; }
+.crm-root .iv-bottom-item.on { color:#E0C585; }
+
+/* Form inputs / labels */
+.crm-root .iv-input { width:100%; background:var(--iv-card); border:1px solid var(--iv-border); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--iv-ink); font-family:var(--iv-body); outline:none; transition:border-color .15s var(--iv-ease); }
+.crm-root .iv-input:focus { border-color:var(--iv-gold); }
+.crm-root .iv-input::placeholder { color:var(--iv-ink3); }
+.crm-root .iv-label { display:block; font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--iv-ink3); margin-bottom:6px; }
+
+/* Chip */
+.crm-root .iv-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; background:var(--iv-sunken); color:var(--iv-ink2); border:1px solid var(--iv-border); }
+
+/* Table — airy modern rows, sentence-case headers */
+.crm-root .iv-table { width:100%; border-collapse:collapse; }
+.crm-root .iv-table thead th { font-size:12px; font-weight:600; letter-spacing:.01em; text-transform:none; color:#64748B; text-align:left; padding:12px 20px; background:var(--iv-sunken); border-bottom:1px solid var(--iv-border); }
+.crm-root .iv-table tbody td { padding:13px 20px; font-size:13px; color:var(--iv-ink); border-bottom:1px solid var(--iv-border2); }
+.crm-root .iv-table tbody tr:last-child td { border-bottom:none; }
+.crm-root .iv-table tbody tr:hover { background:var(--iv-hover); }
+
+/* Form controls — 8px radius, indigo focus */
+.crm-root .iv-input, .crm-root .iv-select, .crm-root .iv-textarea { border-radius:8px; }
+
+/* Responsive stat / chart grids (design-system screens use inline 4-col / 3fr-2fr). */
+@media (max-width:900px){
+  .crm-root .iv-stat-grid { grid-template-columns:repeat(2,1fr) !important; }
+  .crm-root .iv-chart-grid { grid-template-columns:1fr !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOTION LAYER — Ivory × Gilded Threshold hybrid (2026-06-10)
+   Pure-CSS micro-interactions; zero logic. All durations ≤ 400ms, all easing
+   on --iv-ease. Gold glow = the Gilded accent over the Warm Ivory base.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.crm-root {
+  --iv-glow:rgba(200,169,110,.35);            /* brand gold focus/hover ring */
+  --iv-shadow-lift:0 10px 30px rgba(15,23,42,.10), 0 2px 8px rgba(200,169,110,.10);
+  --iv-shadow-modal:0 24px 70px rgba(15,23,42,.26), 0 0 0 1px rgba(226,232,240,.7);
+}
+
+/* Route transition — page body slides up & settles; gold bar sweeps the viewport top */
+@keyframes ivFadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+@keyframes ivPageIn { 0% { opacity:0; transform:translateY(18px) scale(.994); } 60% { opacity:1; } 100% { opacity:1; transform:none; } }
+/* fill-mode MUST be backwards, not both: a filled transform (even identity) makes .iv-fade
+   the containing block for position:fixed — modals then anchor to the PAGE (5,000px tall on
+   big tables) instead of the viewport and render below the fold. Live-audit bug 2026-06-10. */
+.iv-fade { animation: ivPageIn .42s cubic-bezier(.22,.9,.36,1) backwards; }
+@keyframes ivRouteBar { 0% { transform:scaleX(0); opacity:1; } 65% { transform:scaleX(1); opacity:1; } 100% { transform:scaleX(1); opacity:0; } }
+.iv-route-bar { position:fixed; top:0; left:0; right:0; height:2.5px; z-index:80; pointer-events:none; transform-origin:left;
+  background:linear-gradient(90deg,#C8A96E,#8B6914,#E0C585); animation:ivRouteBar .75s cubic-bezier(.3,.6,.3,1) both; }
+
+/* Staggered entrances — wrap any grid/list in .iv-stagger; children cascade in */
+.crm-root .iv-stagger > * { animation: ivFadeUp .38s var(--iv-ease) backwards; }
+.crm-root .iv-stagger > *:nth-child(1) { animation-delay:.03s; }
+.crm-root .iv-stagger > *:nth-child(2) { animation-delay:.07s; }
+.crm-root .iv-stagger > *:nth-child(3) { animation-delay:.11s; }
+.crm-root .iv-stagger > *:nth-child(4) { animation-delay:.15s; }
+.crm-root .iv-stagger > *:nth-child(5) { animation-delay:.19s; }
+.crm-root .iv-stagger > *:nth-child(6) { animation-delay:.23s; }
+.crm-root .iv-stagger > *:nth-child(7) { animation-delay:.27s; }
+.crm-root .iv-stagger > *:nth-child(8) { animation-delay:.31s; }
+.crm-root .iv-stagger > *:nth-child(n+9) { animation-delay:.35s; }
+
+/* Table rows cascade subtly on mount + smooth hover (.iv-tbody = dskit Table) */
+@keyframes ivRowIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+.crm-root .iv-table tbody tr, .crm-root .iv-tbody tr { transition:background .18s var(--iv-ease); animation:ivRowIn .3s var(--iv-ease) backwards; }
+.crm-root .iv-table tbody tr:nth-child(1), .crm-root .iv-tbody tr:nth-child(1) { animation-delay:.02s; }
+.crm-root .iv-table tbody tr:nth-child(2), .crm-root .iv-tbody tr:nth-child(2) { animation-delay:.05s; }
+.crm-root .iv-table tbody tr:nth-child(3), .crm-root .iv-tbody tr:nth-child(3) { animation-delay:.08s; }
+.crm-root .iv-table tbody tr:nth-child(4), .crm-root .iv-tbody tr:nth-child(4) { animation-delay:.11s; }
+.crm-root .iv-table tbody tr:nth-child(5), .crm-root .iv-tbody tr:nth-child(5) { animation-delay:.14s; }
+.crm-root .iv-table tbody tr:nth-child(n+6), .crm-root .iv-tbody tr:nth-child(n+6) { animation-delay:.17s; }
+.crm-root .iv-table tbody tr:hover { background:var(--iv-hover); }
+
+/* Modals — banded dialog: dark gilded header, white body, sunken footer. Backdrop blurs deep. */
+@keyframes ivOvIn { from { opacity:0; } to { opacity:1; } }
+@keyframes ivModalIn { from { opacity:0; transform:translateY(14px) scale(.965); } to { opacity:1; transform:none; } }
+.crm-root .iv-modal-ov, .iv-modal-ov { animation:ivOvIn .22s ease both; backdrop-filter:blur(6px) saturate(1.05); }
+.iv-modal-ov > * { animation:ivModalIn .3s cubic-bezier(.34,1.2,.4,1) backwards; box-shadow:0 30px 80px rgba(2,6,23,.45), 0 0 0 1px rgba(200,169,110,.28); } /* backwards: filled transform would re-anchor NESTED fixed modals (AddCharge inside ReservationEdit) */
+/* Panel: padding moves to bands; body keeps 28px gutters */
+.crm-root .iv-modal-ov > .iv-card { padding:0 28px 24px; border-radius:14px; border:1px solid rgba(200,169,110,.3); }
+/* Header band — full-bleed dark brand strip (only modals whose first element is the <h3> title) */
+.crm-root .iv-modal-ov > .iv-card > h3:first-child {
+  margin:0 -28px 22px; padding:17px 28px 15px; background:linear-gradient(135deg,#0D1117 0%,#1C2433 100%);
+  color:#EEE9E2; font-size:17px; letter-spacing:-.01em; border-radius:13px 13px 0 0;
+  border-bottom:2px solid rgba(200,169,110,.45); position:sticky; top:0; z-index:2;
+}
+/* Detail modals (ReservationEdit/RoomFolio) open with a flex header div instead — give the body its top gutter */
+.crm-root .iv-modal-ov > .iv-card > div:first-child { padding-top:22px; }
+/* Footer band — full-bleed sunken action strip */
+.crm-root .iv-foot { margin:24px -28px -24px; padding:14px 28px 16px; background:var(--iv-sunken); border-top:1px solid var(--iv-border); border-radius:0 0 13px 13px; }
+
+/* Cards — gentle lift */
+.crm-root .iv-card { transition:box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease), border-color .25s var(--iv-ease); }
+.crm-root .iv-card--hover:hover { box-shadow:var(--iv-shadow-lift); transform:translateY(-2px); }
+
+/* Buttons — press feedback + gold bloom */
+.crm-root .iv-btn { transition:background .2s var(--iv-ease), border-color .2s var(--iv-ease), color .2s var(--iv-ease), transform .15s var(--iv-ease), box-shadow .2s var(--iv-ease); }
+.crm-root .iv-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 4px 14px var(--iv-glow); }
+.crm-root .iv-btn:active:not(:disabled) { transform:translateY(0) scale(.97); box-shadow:none; }
+.crm-root .iv-btn:focus-visible { outline:none; box-shadow:0 0 0 3px var(--iv-glow); }
+
+/* Inputs — indigo focus ring (replaces bare border swap) */
+.crm-root .iv-input, .crm-root .iv-select, .crm-root .iv-textarea,
+.crm-root select, .crm-root input:not([type=checkbox]):not([type=radio]), .crm-root textarea {
+  transition:border-color .2s var(--iv-ease), box-shadow .2s var(--iv-ease);
+}
+.crm-root .iv-input:focus, .crm-root .iv-select:focus, .crm-root .iv-textarea:focus,
+.crm-root select:focus, .crm-root input:focus:not([type=checkbox]):not([type=radio]), .crm-root textarea:focus {
+  border-color:var(--iv-gold); box-shadow:0 0 0 3px var(--iv-glow); outline:none;
+}
+
+/* Sidebar nav — icon nudge on hover (pill bg comes from .on) */
+.crm-root .iv-nav-item { transition:background .2s var(--iv-ease), color .2s var(--iv-ease), padding-left .2s var(--iv-ease); }
+.crm-root .iv-nav-item:hover { padding-left:15px; }
+.crm-root .iv-nav-item .iv-nav-ic { transition:transform .2s var(--iv-ease); }
+.crm-root .iv-nav-item:hover .iv-nav-ic { transform:scale(1.18); }
+
+/* Bottom nav (mobile) — tap feedback + active gold dot */
+.crm-root .iv-bottom-item { transition:color .2s var(--iv-ease), transform .12s var(--iv-ease); position:relative; }
+.crm-root .iv-bottom-item:active { transform:scale(.9); }
+.crm-root .iv-bottom-item.on::after { content:''; position:absolute; top:4px; width:4px; height:4px; border-radius:50%; background:#C8A96E; box-shadow:0 0 6px #C8A96E; }
+
+/* Tabs — smooth color shift (sliding indicator handled in dskit) */
+.crm-root .iv-tabbar button { transition:color .2s var(--iv-ease), background .2s var(--iv-ease), border-color .2s var(--iv-ease); }
+
+/* Badges & chips breathe on hover */
+.crm-root .iv-badge, .crm-root .iv-chip { transition:box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease); }
+
+/* Activity rows slide on hover */
+.crm-root .iv-row { transition:transform .2s var(--iv-ease), box-shadow .2s var(--iv-ease), border-color .2s var(--iv-ease); }
+.crm-root .iv-row:hover { transform:translateX(3px); border-color:#CBD5E1; }
+
+/* Light scrollbar (overrides the global dark one inside the CRM) */
+.crm-root ::-webkit-scrollbar { width:8px; height:8px; }
+.crm-root ::-webkit-scrollbar-track { background:var(--iv-sunken); }
+.crm-root ::-webkit-scrollbar-thumb { background:#CBD5E1; border-radius:4px; }
+.crm-root ::-webkit-scrollbar-thumb:hover { background:var(--iv-ink3); }
+
+/* Charts — bars grow up on mount (staggered), meters sweep in from the left */
+@keyframes ivGrowY { from { transform:scaleY(0); } to { transform:scaleY(1); } }
+.crm-root .iv-bars > * > div:first-child { transform-origin:bottom; animation:ivGrowY .55s var(--iv-ease) backwards; }
+.crm-root .iv-bars > *:nth-child(1) > div:first-child { animation-delay:.02s; }
+.crm-root .iv-bars > *:nth-child(2) > div:first-child { animation-delay:.05s; }
+.crm-root .iv-bars > *:nth-child(3) > div:first-child { animation-delay:.08s; }
+.crm-root .iv-bars > *:nth-child(4) > div:first-child { animation-delay:.11s; }
+.crm-root .iv-bars > *:nth-child(5) > div:first-child { animation-delay:.14s; }
+.crm-root .iv-bars > *:nth-child(6) > div:first-child { animation-delay:.17s; }
+.crm-root .iv-bars > *:nth-child(7) > div:first-child { animation-delay:.20s; }
+.crm-root .iv-bars > *:nth-child(8) > div:first-child { animation-delay:.23s; }
+.crm-root .iv-bars > *:nth-child(9) > div:first-child { animation-delay:.26s; }
+.crm-root .iv-bars > *:nth-child(10) > div:first-child
+/* ════════════════════════════════════════════════════════════════════════
+   MARKETING SITE (landing) — scoped under .site-root so /crm is untouched.
+   Ported from fountainbd-web (Tailwind v3) → v4. Tokens live in @theme above.
+   ════════════════════════════════════════════════════════════════════════ */
+.site-root {
+  --bg: #07090e;
+  --bg-2: #05060a;
+  --ink: #f4efe6;
+  --ink-dim: rgba(244, 239, 230, 0.6);
+  --neon: #c8a96e;
+  --ease-fluid: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-regent: cubic-bezier(0.16, 1, 0.3, 1); /* understated luxury ease-out (Regent) */
+  color: var(--ink);
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Ambient near-black + warm gold glow field (fixed, behind marketing only) */
+.site-root.app-bg::before {
+  content: ""; position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(1100px 700px at 12% -8%, rgba(200,169,110,0.12), transparent 58%),
+    radial-gradient(900px 700px at 102% 6%, rgba(139,105,20,0.10), transparent 52%),
+    radial-gradient(800px 900px at 50% 120%, rgba(20,17,10,0.6), transparent 60%),
+    linear-gradient(180deg, #05060a 0%, #07090e 45%, #0a0c12 100%);
+}
+.site-root.app-bg::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; opacity: 0.035; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.site-root .glass {
+  position: relative; border-radius: 1.25rem; border: 1px solid rgba(200,169,110,0.16);
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(12px) saturate(120%); -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: 0 8px 40px -12px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.site-root .glass-sheen::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(135deg, rgba(228,207,160,0.08) 0%, rgba(255,255,255,0.015) 38%, rgba(255,255,255,0) 100%);
+}
+.site-root .glass-nav {
+  background: rgba(7,9,14,0.7); border: 1px solid rgba(200,169,110,0.18);
+  backdrop-filter: blur(22px) saturate(125%); -webkit-backdrop-filter: blur(22px) saturate(125%);
+  box-shadow: 0 10px 40px -16px rgba(0,0,0,0.75);
+}
+.site-root .pill {
+  display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 9999px;
+  padding: 0.25rem 0.75rem; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em;
+  background: rgba(200,169,110,0.1); border: 1px solid rgba(200,169,110,0.3); color: var(--neon);
+}
+.site-root .btn-neon {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  overflow: hidden; border-radius: 9999px; padding: 0.875rem 1.75rem; font-size: 0.75rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.16em; color: #1a1407; cursor: pointer;
+  background: linear-gradient(120deg,#c8a96e,#e4cfa0);
+  transition: transform 0.35s var(--ease-fluid), box-shadow 0.35s var(--ease-fluid);
+  box-shadow: 0 0 0 1px rgba(200,169,110,0.45), 0 12px 30px -10px rgba(200,169,110,0.55);
+}
+.site-root .btn-neon:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(200,169,110,0.7), 0 18px 40px -10px rgba(200,169,110,0.65); }
+.site-root .btn-ghost {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  border-radius: 9999px; padding: 0.875rem 1.75rem; font-size: 0.75rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink); cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(200,169,110,0.35);
+  transition: transform 0.35s var(--ease-fluid), background 0.35s var(--ease-fluid), border-color 0.35s var(--ease-fluid);
+}
+.site-root .btn-ghost:hover { transform: translateY(-2px); background: rgba(200,169,110,0.1); border-color: rgba(200,169,110,0.6); }
+.site-root .field {
+  width: 100%; border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.875rem; outline: none;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(200,169,110,0.18); color: var(--ink);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.site-root .field::placeholder { color: rgba(244,239,230,0.4); }
+.site-root .field:focus { border-color: rgba(200,169,110,0.6); box-shadow: 0 0 0 3px rgba(200,169,110,0.18); }
+.site-root .field option { color: #07090e; }
+.site-root .section { margin-left: auto; margin-right: auto; width: 100%; max-width: min(1320px, 94vw); padding-left: 1.25rem; padding-right: 1.25rem; }
+@media (min-width: 640px) { .site-root .section { padding-left: 2rem; padding-right: 2rem; } }
+.site-root .eyebrow { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.25em; color: rgba(200,169,110,0.8); }
+.site-root .font-display { letter-spacing: -0.01em; font-feature-settings: "liga" 1, "kern" 1; font-optical-sizing: auto; }
+.site-root :focus-visible { outline: 2px solid rgba(200,169,110,0.75); outline-offset: 2px; border-radius: 6px; }
+
+@keyframes fade-up { 0% { opacity: 0; transform: translateY(24px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes pulse-ring { 0%,100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.6); } }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* ── FadeIn component — CSS-driven reveal (NO JS dependency; cannot stall like a framer/rAF reveal).
+   Resting state is fully visible (opacity:1); the entrance animates on mount. If CSS/animation never
+   runs, content stays visible. Reduced-motion disables the animation. Scoped to .site-root so /crm is untouched. */
+@keyframes rgnFade      { from { opacity: 0; }                                to { opacity: 1; } }
+@keyframes rgnFadeUp    { from { opacity: 0; transform: translateY(32px); }  to { opacity: 1; transform: none; } }
+@keyframes rgnFadeDown  { from { opacity: 0; transform: translateY(-32px); } to { opacity: 1; transform: none; } }
+@keyframes rgnFadeLeft  { from { opacity: 0; transform: translateX(32px); }  to { opacity: 1; transform: none; } }
+@keyframes rgnFadeRight { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
+.site-root .fade-in { animation: rgnFadeUp var(--fade-dur, 0.8s) cubic-bezier(0.16, 1, 0.3, 1) var(--fade-delay, 0s) both; }
+.site-root .fade-in[data-dir="none"]  { animation-name: rgnFade; }
+.site-root .fade-in[data-dir="down"]  { animation-name: rgnFadeDown; }
+.site-root .fade-in[data-dir="left"]  { animation-name: rgnFadeLeft; }
+.site-root .fade-in[data-dir="right"] { animation-name: rgnFadeRight; }
+@media (prefers-reduced-motion: reduce) { .site-root .fade-in { animation: none; } }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
+import { activeOpsTenants } from '../_tenants';
 
-const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const BASE   = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1`;
 
 export const runtime = 'nodejs';
@@ -57,151 +57,173 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const results: Record<string, unknown> = {};
   const { today } = dhakaDay();
+  // Per-hotel operations: run revenue-manager + automated-marketer once per
+  // active tenant, each using its own settings/FB credentials (env fallback).
+  const tenants = await activeOpsTenants();
+  const perTenant: Array<Record<string, unknown>> = [];
 
-  // ── REVENUE MANAGER ──────────────────────────────────────────────
-  try {
-    const txns = await dbGet(
-      'transactions',
-      `select=amount,type&tenant_id=eq.${TENANT}&fiscal_day=eq.${today}`
-    );
-    // Exclude Balance Carried Forward — these are accounting entries, not real cash.
-    // Matches the CRM BillingPage _bizDayTotalFn logic exactly.
-    const txnTotal = (txns ?? [])
-      .filter((r: Record<string, unknown>) => !/balance carried forward/i.test(String(r.type ?? '')))
-      .reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
+  for (const t of tenants) {
+    const TENANT = t.id;
+    const results: Record<string, unknown> = { tenant_id: TENANT };
 
-    let closingTotal = 0;
+    // ── REVENUE MANAGER ──────────────────────────────────────────────
     try {
-      const closing = await dbGet(
-        'daily_closing',
-        `select=total_revenue&tenant_id=eq.${TENANT}&date=eq.${today}&limit=1`
+      const txns = await dbGet(
+        'transactions',
+        `select=amount,type&tenant_id=eq.${TENANT}&fiscal_day=eq.${today}`
       );
-      closingTotal = Number(closing?.[0]?.total_revenue ?? 0);
-    } catch { /* no closing record yet */ }
+      // Exclude Balance Carried Forward — these are accounting entries, not real cash.
+      // Matches the CRM BillingPage _bizDayTotalFn logic exactly.
+      const txnTotal = (txns ?? [])
+        .filter((r: Record<string, unknown>) => !/balance carried forward/i.test(String(r.type ?? '')))
+        .reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
 
-    const variance = Math.abs(txnTotal - closingTotal);
-
-    const checkedIn = await dbGet(
-      'reservations',
-      `select=id&tenant_id=eq.${TENANT}&status=eq.CHECKED_IN`
-    );
-    const roomCount = Number(process.env.HOTEL_ROOM_COUNT || 24);
-    const occupancy = ((checkedIn?.length ?? 0) / roomCount) * 100;
-
-    const alerts: { severity: string; body: string }[] = [];
-
-    if (variance > 500) {
-      alerts.push({ severity: 'HIGH', body: `Revenue variance ৳${variance.toFixed(0)} exceeds ৳500 threshold. Transactions: ৳${txnTotal.toFixed(0)}, Closing: ৳${closingTotal.toFixed(0)}` });
-    }
-    if (occupancy < 40) {
-      alerts.push({ severity: 'MEDIUM', body: `Occupancy ${occupancy.toFixed(0)}% below 40% threshold (${checkedIn?.length ?? 0}/${roomCount} rooms)` });
-    }
-    if (txnTotal < 20000) {
-      alerts.push({ severity: 'LOW', body: `Daily revenue ৳${txnTotal.toFixed(0)} below ৳20,000 threshold` });
-    }
-
-    for (const alert of alerts) {
+      let closingTotal = 0;
       try {
-        await dbPost('notifications_log', {
-          tenant_id: TENANT,
-          workflow: 'revenue-manager',
-          body: alert.body,
-          status: alert.severity.toLowerCase(),
-          triggered_by: 'cron:daily-ops',
-        });
-      } catch { /* non-fatal */ }
-    }
-
-    try {
-      await dbUpsert('daily_closing', {
-        tenant_id: TENANT,
-        date: today,
-        total_revenue: txnTotal,
-        agent_verified: true,
-        updated_at: new Date().toISOString(),
-      }, 'tenant_id,date');
-    } catch { /* non-fatal */ }
-
-    results.revenue_manager = {
-      alerts: alerts.length,
-      occupancy: `${occupancy.toFixed(0)}%`,
-      revenue: `৳${txnTotal.toFixed(0)}`,
-      dhaka_date: today,
-    };
-  } catch (e) {
-    results.revenue_manager = { error: String(e) };
-  }
-
-  // ── AUTOMATED MARKETER ───────────────────────────────────────────
-  try {
-    const waDefault = (process.env.HOTEL_WHATSAPP || '8801322840799').replace(/[^0-9]/g, '');
-    let waNumber = waDefault;
-    try {
-      const waSetting = await dbGet(
-        'hotel_settings',
-        `select=value&tenant_id=eq.${TENANT}&key=eq.whatsapp_number&limit=1`
-      );
-      waNumber = (waSetting?.[0]?.value ?? waDefault).replace(/[^0-9]/g, '');
-    } catch { /* use default */ }
-    const waLink = `https://wa.me/${waNumber}`;
-
-    let postBody = '';
-
-    try {
-      const approvedContent = await dbGet(
-        'marketing_content',
-        `select=*&tenant_id=eq.${TENANT}&status=eq.approved&scheduled_date=eq.${today}&order=priority.asc&limit=1`
-      );
-      if (approvedContent?.length > 0) postBody = approvedContent[0].content;
-    } catch { /* fall through to room-of-day */ }
-
-    if (!postBody) {
-      try {
-        const rooms = await dbGet(
-          'rooms',
-          `select=name,room_type,rate,features&tenant_id=eq.${TENANT}&status=eq.AVAILABLE&limit=1`
+        const closing = await dbGet(
+          'daily_closing',
+          `select=total_revenue&tenant_id=eq.${TENANT}&date=eq.${today}&limit=1`
         );
-        if (rooms?.length > 0) {
-          const room = rooms[0];
-          const hotelName = process.env.HOTEL_NAME || 'Hotel Fountain BD';
-          const hotelCity = process.env.HOTEL_CITY || 'Dhaka';
-          postBody = `🏨 Room of the Day — ${room.name}\n\n✨ ${room.room_type} | ৳${room.rate}/night\n\n📞 Book now via WhatsApp: ${waLink}\n\n#${hotelName.replace(/\s+/g,'')} #${hotelCity} #HotelBD`;
-        }
-      } catch { /* no rooms */ }
-    }
+        closingTotal = Number(closing?.[0]?.total_revenue ?? 0);
+      } catch { /* no closing record yet */ }
 
-    if (postBody) {
-      const fbRes = await fetch(
-        `https://graph.facebook.com/v19.0/${process.env.FACEBOOK_PAGE_ID}/feed`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: postBody, access_token: process.env.FACEBOOK_PAGE_TOKEN }),
-        }
+      const variance = Math.abs(txnTotal - closingTotal);
+
+      const checkedIn = await dbGet(
+        'reservations',
+        `select=id&tenant_id=eq.${TENANT}&status=eq.CHECKED_IN`
       );
-      const fbData = await fbRes.json();
+      const roomCount = Number(t.hotel_room_count ?? process.env.HOTEL_ROOM_COUNT ?? 24);
+      const occupancy = ((checkedIn?.length ?? 0) / roomCount) * 100;
+
+      const alerts: { severity: string; body: string }[] = [];
+
+      if (variance > 500) {
+        alerts.push({ severity: 'HIGH', body: `Revenue variance ৳${variance.toFixed(0)} exceeds ৳500 threshold. Transactions: ৳${txnTotal.toFixed(0)}, Closing: ৳${closingTotal.toFixed(0)}` });
+      }
+      if (occupancy < 40) {
+        alerts.push({ severity: 'MEDIUM', body: `Occupancy ${occupancy.toFixed(0)}% below 40% threshold (${checkedIn?.length ?? 0}/${roomCount} rooms)` });
+      }
+      if (txnTotal < 20000) {
+        alerts.push({ severity: 'LOW', body: `Daily revenue ৳${txnTotal.toFixed(0)} below ৳20,000 threshold` });
+      }
+
+      for (const alert of alerts) {
+        try {
+          await dbPost('notifications_log', {
+            tenant_id: TENANT,
+            workflow: 'revenue-manager',
+            body: alert.body,
+            status: alert.severity.toLowerCase(),
+            triggered_by: 'cron:daily-ops',
+          });
+        } catch { /* non-fatal */ }
+      }
 
       try {
-        await dbPost('notifications_log', {
+        await dbUpsert('daily_closing', {
           tenant_id: TENANT,
-          workflow: 'automated-marketer',
-          body: fbData.id
-            ? `Facebook post published: ${fbData.id}`
-            : `Facebook post failed: ${JSON.stringify(fbData)}`,
-          status: fbData.id ? 'success' : 'error',
-          triggered_by: 'cron:daily-ops',
-        });
+          date: today,
+          total_revenue: txnTotal,
+          agent_verified: true,
+          updated_at: new Date().toISOString(),
+        }, 'tenant_id,date');
       } catch { /* non-fatal */ }
 
-      results.automated_marketer = { published: !!fbData.id, post_id: fbData.id ?? null };
-    } else {
-      results.automated_marketer = { skipped: 'no content or available rooms' };
+      results.revenue_manager = {
+        alerts: alerts.length,
+        occupancy: `${occupancy.toFixed(0)}%`,
+        revenue: `৳${txnTotal.toFixed(0)}`,
+        dhaka_date: today,
+      };
+    } catch (e) {
+      results.revenue_manager = { error: String(e) };
     }
-  } catch (e) {
-    results.automated_marketer = { error: String(e) };
+
+    // ── AUTOMATED MARKETER ───────────────────────────────────────────
+    try {
+      const waDefault = (t.hotel_whatsapp || process.env.HOTEL_WHATSAPP || '8801322840799').replace(/[^0-9]/g, '');
+      let waNumber = waDefault;
+      try {
+        const waSetting = await dbGet(
+          'hotel_settings',
+          `select=value&tenant_id=eq.${TENANT}&key=eq.whatsapp_number&limit=1`
+        );
+        waNumber = (waSetting?.[0]?.value ?? waDefault).replace(/[^0-9]/g, '');
+      } catch { /* use default */ }
+      const waLink = `https://wa.me/${waNumber}`;
+
+      let postBody = '';
+
+      try {
+        const approvedContent = await dbGet(
+          'marketing_content',
+          `select=*&tenant_id=eq.${TENANT}&status=eq.approved&scheduled_date=eq.${today}&order=priority.asc&limit=1`
+        );
+        if (approvedContent?.length > 0) postBody = approvedContent[0].content;
+      } catch { /* fall through to room-of-day */ }
+
+      if (!postBody) {
+        try {
+          const rooms = await dbGet(
+            'rooms',
+            `select=name,room_type,rate,features&tenant_id=eq.${TENANT}&status=eq.AVAILABLE&limit=1`
+          );
+          if (rooms?.length > 0) {
+            const room = rooms[0];
+            const hotelName = t.hotel_name || process.env.HOTEL_NAME || 'Hotel Fountain BD';
+            const hotelCity = t.hotel_city || process.env.HOTEL_CITY || 'Dhaka';
+            postBody = `🏨 Room of the Day — ${room.name}\n\n✨ ${room.room_type} | ৳${room.rate}/night\n\n📞 Book now via WhatsApp: ${waLink}\n\n#${hotelName.replace(/\s+/g,'')} #${hotelCity} #HotelBD`;
+          }
+        } catch { /* no rooms */ }
+      }
+
+      // Per-tenant Facebook credentials (fall back to env for the home tenant).
+      const fbPageId = t.facebook_page_id || process.env.FACEBOOK_PAGE_ID;
+      const fbToken  = t.facebook_page_token || process.env.FACEBOOK_PAGE_TOKEN;
+
+      if (postBody && fbPageId && fbToken) {
+        const fbRes = await fetch(
+          `https://graph.facebook.com/v19.0/${fbPageId}/feed`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: postBody, access_token: fbToken }),
+          }
+        );
+        const fbData = await fbRes.json();
+
+        try {
+          await dbPost('notifications_log', {
+            tenant_id: TENANT,
+            workflow: 'automated-marketer',
+            body: fbData.id
+              ? `Facebook post published: ${fbData.id}`
+              : `Facebook post failed: ${JSON.stringify(fbData)}`,
+            status: fbData.id ? 'success' : 'error',
+            triggered_by: 'cron:daily-ops',
+          });
+        } catch { /* non-fatal */ }
+
+        results.automated_marketer = { published: !!fbData.id, post_id: fbData.id ?? null };
+      } else {
+        results.automated_marketer = {
+          skipped: postBody ? 'no facebook credentials for tenant' : 'no content or available rooms',
+        };
+      }
+    } catch (e) {
+      results.automated_marketer = { error: String(e) };
+    }
+
+    perTenant.push(results);
   }
 
-  return NextResponse.json({ ok: true, date: new Date().toISOString(), dhaka_date: today, results });
+  return NextResponse.json({
+    ok: true,
+    date: new Date().toISOString(),
+    dhaka_date: today,
+    tenant_count: perTenant.length,
+    tenants: perTenant,
+  });
 }

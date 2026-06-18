@@ -2,28 +2,146 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Lumea — Hotel Fountain CRM</title>
+  <meta name="theme-color" content="#1C1510"/>
+  <link rel="manifest" href="/manifest.webmanifest"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Lumea"/>
+  <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
   <link rel="icon" href="/favicon.ico" sizes="any"/>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>" type="image/svg+xml"/>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
   <style>
-        html,body,#root{height:100%;background:#1C1510;overflow:hidden;margin:0}
+    html,body,#root{height:100%;height:100dvh;background:#1C1510;overflow:hidden;margin:0}
     #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#1C1510;flex-direction:column;gap:16px;z-index:9999}
     #loading h1{font-family:'Libre Baskerville',Georgia,serif;font-size:36px;color:#C8A96E;font-weight:700;letter-spacing:.02em}
     #loading h1 em{font-style:italic;font-weight:400}
     #loading p{color:rgba(200,169,110,.45);font-size:9px;letter-spacing:.22em;text-transform:uppercase;font-family:'DM Sans',system-ui,sans-serif}
     .spin{width:20px;height:20px;border:2px solid rgba(200,169,110,.2);border-top-color:#C8A96E;border-radius:50%;animation:spin .8s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes bellRing{0%,55%,100%{transform:rotate(0)}8%{transform:rotate(15deg)}16%{transform:rotate(-13deg)}24%{transform:rotate(10deg)}32%{transform:rotate(-7deg)}40%{transform:rotate(4deg)}48%{transform:rotate(-2deg)}}
+    /* ── Mobile responsive shell (lives here so it is always fresh, no-cache) ── */
+    .lm-scrim{display:none}
+    @media(max-width:768px){
+      .sidebar{position:fixed!important;top:0;left:0;bottom:0;z-index:1200!important;width:266px!important;max-width:86vw;padding-top:env(safe-area-inset-top);transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:6px 0 44px rgba(0,0,0,.6)}
+      body.nav-open .sidebar{transform:translateX(0)!important}
+      .lm-scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100;opacity:0;pointer-events:none;transition:opacity .28s}
+      body.nav-open .lm-scrim{opacity:1;pointer-events:auto}
+      .main{width:100%!important;min-width:0}
+      .topbar{height:auto!important;min-height:calc(54px + env(safe-area-inset-top))!important;padding:calc(env(safe-area-inset-top) + 4px) 12px 4px 56px!important;gap:8px!important;align-items:center!important}
+      .tb-title{font-size:15px!important;line-height:1.1!important}
+      .tb-meta{display:none!important}
+      .content{padding:14px 12px calc(14px + env(safe-area-inset-bottom))!important;overscroll-behavior-y:contain!important}
+      .stats,.stats-row{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+      .grid{grid-template-columns:1fr!important;gap:14px!important}
+      .rooms-grid{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+      .tbl-wrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+      .tbl{min-width:640px}
+      #lmBurger{top:calc(env(safe-area-inset-top) + 8px)!important}
+      .actions{top:calc(env(safe-area-inset-top) + 12px)!important}
+      .modal-bg{padding:8px!important;align-items:flex-start!important;overflow-y:auto!important;overscroll-behavior:contain!important}
+      .modal-w{max-width:100%!important;width:100%!important}
+      .modal{max-width:100%!important;width:calc(100% - 16px)!important;max-height:88dvh!important;margin:auto}
+      .modal-body{padding:14px!important}
+      .card-hd{padding:12px 14px!important}
+      .sec-hdr{font-size:13px!important}
+    }
   </style>
 </head>
 <body>
   <div id="loading"><h1><em>Lumea</em></h1><div class="spin"></div><p>Hotel Fountain CRM</p></div>
   <div id="root" style="height:100%"></div>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="/vendor/react.production.min.js"></script>
+  <script src="/vendor/react-dom.production.min.js"></script>
+  <script src="/vendor/gsap.min.js"></script>
   <script src="/crm-config.js"></script>
-  <script src="/crm-bundle.js?v=20260527145413b"></script>
+  <script src="/vendor/supabase.js"></script>
+  <script src="/crm-bundle.js?v=20260618054158"></script>
+  <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
+  <script>
+    /* Lightweight client-error reporter -> /api/client-error -> audit_logs (no third party).
+       Best-effort: deduped, capped, never throws, never blocks the page. */
+    (function(){
+      var sent = {}, count = 0, MAX = 12;
+      function report(kind, message, source, stack){
+        try{
+          if(count >= MAX) return;
+          var key = kind + '|' + (message||'') + '|' + (source||'');
+          if(sent[key]) return; sent[key] = 1; count++;
+          var body = JSON.stringify({
+            kind: kind, message: String(message||'').slice(0,4000),
+            stack: stack ? String(stack).slice(0,4000) : null,
+            source: source ? String(source).slice(0,512) : null,
+            url: location.href, appVersion: (window.__CRM_VERSION__||null),
+            ts_client: new Date().toISOString()
+          });
+          if(navigator.sendBeacon){
+            navigator.sendBeacon('/api/client-error', new Blob([body],{type:'application/json'}));
+          } else {
+            fetch('/api/client-error',{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}).catch(function(){});
+          }
+        }catch(_){/* telemetry must never break the app */}
+      }
+      window.addEventListener('error', function(e){
+        report('error', e && e.message, (e && e.filename ? e.filename+':'+e.lineno+':'+e.colno : null), e && e.error && e.error.stack);
+      });
+      window.addEventListener('unhandledrejection', function(e){
+        var r = e && e.reason;
+        report('unhandledrejection', (r && r.message) || r, null, r && r.stack);
+      });
+    })();
+  </script>
+  <script>
+    /* PWA install button (Android/Chrome only; iOS uses Share > Add to Home Screen) */
+    (function(){
+      if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
+      var deferred = null;
+      window.addEventListener('beforeinstallprompt', function(e){
+        e.preventDefault(); deferred = e;
+        var b = document.createElement('button');
+        b.textContent = 'Install Lumea App';
+        b.setAttribute('aria-label','Install Lumea as an app');
+        b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99999;padding:12px 20px;background:#C8A96E;color:#1C1510;border:none;border-radius:10px;font:600 12px/1 "DM Sans",system-ui,sans-serif;letter-spacing:.04em;box-shadow:0 8px 28px rgba(0,0,0,.45);cursor:pointer';
+        b.onclick=function(){ if(!deferred) return; deferred.prompt(); deferred.userChoice.finally(function(){ deferred=null; b.remove(); }); };
+        document.body.appendChild(b);
+      });
+      window.addEventListener('appinstalled', function(){ deferred=null; });
+    })();
+  </script>
+  <script>
+    /* Mobile nav drawer: burger shows ONLY when the app sidebar exists AND screen is narrow */
+    (function(){
+      var burger, scrim;
+      function ensure(){
+        if(burger) return;
+        scrim=document.createElement('div'); scrim.className='lm-scrim';
+        burger=document.createElement('button'); burger.id='lmBurger';
+        burger.setAttribute('aria-label','Menu'); burger.innerHTML='☰';
+        burger.style.cssText='position:fixed;top:8px;left:10px;z-index:1300;width:36px;height:36px;border:1px solid rgba(200,169,110,.32);background:rgba(20,17,13,.92);color:#C8A96E;font-size:18px;line-height:1;border-radius:7px;cursor:pointer;padding:0;box-shadow:0 4px 14px rgba(0,0,0,.4);display:none;align-items:center;justify-content:center';
+        document.body.appendChild(scrim); document.body.appendChild(burger);
+        burger.addEventListener('click',function(){ document.body.classList.toggle('nav-open'); });
+        scrim.addEventListener('click',function(){ document.body.classList.remove('nav-open'); });
+        document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.closest('.nav-item'); if(t) document.body.classList.remove('nav-open'); });
+      }
+      function update(){
+        ensure();
+        var show = !!document.querySelector('.sidebar') && window.innerWidth<=768;
+        burger.style.display = show ? 'flex' : 'none';
+        if(!show) document.body.classList.remove('nav-open');
+      }
+      function start(){
+        update();
+        window.addEventListener('resize',update);
+        window.addEventListener('orientationchange',update);
+        var root=document.getElementById('root');
+        if(root && window.MutationObserver){ new MutationObserver(update).observe(root,{childList:true,subtree:true}); }
+        else { setInterval(update,1200); }
+      }
+      if(document.readyState!=='loading') start(); else document.addEventListener('DOMContentLoaded',start);
+    })();
+  </script>
 </body>
 </html>

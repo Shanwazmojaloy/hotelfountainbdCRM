@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://mynwfkgksqqwlqowlscj.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_v2XOonwuDa2gi-Z4-o40Og_1ig4AKec
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+
+      - name: Build CRM bundle
+        run: npm run build:crm
+
+      - name: Guard — file integrity (shared with pre-commit hook)
+        # Single source of truth: the same script the local pre-commit hook runs.
+        # Covers crm-src.jsx (createRoot/tail/braces), crm-bundle.js (parses), route.ts
+        # EOFs, AND public/crm.html (no NUL, ends </html>) — the gap that let the
+        # corrupt crm.html reach production before this was wired up.
+        run: bash scripts/guard-onedrive-truncation.sh
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Next build
+        run: npm run vercel-build

@@ -6,7 +6,9 @@ import { createClient } from '@supabase/supabase-js';
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 if (!SB_URL || !SB_KEY) console.error('[NotificationBell] Missing NEXT_PUBLIC_SUPABASE_* env vars');
-const supabase = createClient(SB_URL, SB_KEY);
+const supabase = createClient(SB_URL, SB_KEY, {
+  global: { headers: { 'x-tenant-host': typeof window !== 'undefined' ? window.location.host : '' } },
+});
 
 const fmtDate = (d: string) => d ? String(d).slice(0, 10) : '—';
 

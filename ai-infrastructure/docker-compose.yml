@@ -1,0 +1,40 @@
+# Local dev stack for the two AI-infrastructure blueprints.
+#   docker compose up fraud   -> scoring worker against real Redis
+#   docker compose up churn   -> churn worker (mock LLM unless ANTHROPIC_API_KEY set)
+#
+# Both workers run their mock demo by default; override `command` for prod loops.
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  fraud:
+    build:
+      context: .
+      dockerfile: Dockerfile.fraud
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      MODEL_ENABLED: "0"          # set to 1 + wire Triton for the real model path
+    # command: ["python", "fraud_ingestion_worker.py"]
+
+  churn:
+    build:
+      context: .
+      dockerfile: Dockerfile.churn
+    # Optional secrets — pass through from host or `docker compose --env-file .env`.
+    # Falls back to the deterministic stub LLM when ANTHROPIC_API_KEY is unset.
+    environment:
+      PYTHONUNBUFFERED: "1"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+    # command: ["celery", "-A", "churn_worker", "worker", "--loglevel=info"]

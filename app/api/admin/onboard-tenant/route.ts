@@ -18,6 +18,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { invalidateTenantCache } from '@/lib/tenant';
+import { logEvent } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -34,7 +35,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ADMIN_SECRET not configured on this deployment' }, { status: 500 });
   }
   const auth = req.headers.get('authorization');
+  const requestId = req.headers.get('x-request-id');
   if (auth !== `Bearer ${adminSecret}`) {
+    void logEvent({
+      event_type:    'admin_onboard_tenant',
+      action_target: 'POST /api/admin/onboard-tenant',
+      status_code:   401,
+      result:        'denied',
+      role:          'anon',
+      request_id:    requestId,
+      ip:            (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null,
+      user_agent:    req.headers.get('user-agent'),
+      payload_summary: { reason: 'bad_admin_secret' },
+    });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -115,6 +128,17 @@ export async function POST(req: NextRequest) {
   invalidateTenantCache(slug);
 
   const apexDomain = process.env.NEXT_PUBLIC_APEX_DOMAIN || 'lumea.app';
+
+  void logEvent({
+    event_type:    'admin_onboard_tenant',
+    action_target: `tenants:${data.id}`,
+    status_code:   201,
+    result:        'success',
+    role:          'admin',
+    tenant_id:     data.id,
+    request_id:    requestId,
+    payload_summary: { slug: data.slug, plan_tier: body.plan_tier, hotel_name: body.hotel_name },
+  });
 
   return NextResponse.json({
     ok:           true,

@@ -1,36 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Header from "./Header";
 import BottomNav from "./BottomNav";
 import Sidebar from "./Sidebar";
+import AuthGate, { useAuth } from "./AuthGate";
+import { canAccess } from '@/lib/permissions';
 
+// RBAC route guard — runs inside AuthGate so `user` is resolved. A role that deep-links
+// (or is redirected back) to a page outside its department is bounced to the Dashboard.
+// This is the in-app guard; the API routes re-check independently (server is authoritative).
+function RouteGuard({ children }) {
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  useEffect(() => {
+    if (user && pathname && !canAccess(user.role, pathname)) router.replace('/crm');
+  }, [user, pathname, router]);
+  if (user && pathname && !canAccess(user.role, pathname)) {
+    return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iv-ink3)', fontSize: 13 }}>Redirecting…</div>;
+  }
+  return children;
+}
+
+// App shell — Hotel Fountain Design System: walnut sidebar | (topbar + scrolling content).
 export default function Layout({ children }) {
-  const [activePage, setActivePage] = useState("dashboard");
-
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-slate-900 via-teal-950 to-black">
-      {/* Mobile Bottom Nav */}
-      <BottomNav activePage={activePage} setActivePage={setActivePage} />
-      
-      {/* Sidebar - Desktop Only */}
-      <div className="hidden md:block glass w-64 border-r border-teal-800/30 flex-shrink-0">
-        <Sidebar activePage={activePage} setActivePage={setActivePage} />
-      </div>
-      
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden md:ml-0 md:pl-4 md:pb-0">
-        {/* Header */}
-        <Header />
+    <AuthGate>
+      <div className="crm-root flex flex-col md:flex-row" style={{ height: '100vh', overflow: 'hidden' }}>
+        {/* Sidebar — desktop only */}
+        <Sidebar />
 
-        
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
+        {/* Main column: fixed topbar + scrolling content */}
+        <div className="flex-1 flex flex-col min-w-0" style={{ height: '100vh' }}>
+          <Header />
+          <main className="flex-1 overflow-y-auto pb-24 md:pb-8" style={{ padding: '24px 28px', background: 'var(--iv-bg)' }}>
+            <RouteGuard>{children}</RouteGuard>
+          </main>
+        </div>
+
+        {/* Mobile bottom nav */}
+        <BottomNav />
       </div>
-    </div>
+    </AuthGate>
   );
 }
