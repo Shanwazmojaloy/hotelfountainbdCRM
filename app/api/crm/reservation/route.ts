@@ -13,7 +13,7 @@ export const maxDuration = 20;
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 const nights = (ci: string, co: string) => { if (!ci || !co) return 0; const n = Math.round((+new Date(co) - +new Date(ci)) / 86400000); return n > 0 ? n : 0; };
 const todayDhaka = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -38,10 +38,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
   const staffRole = String(srow[0].role || '').toLowerCase();
+  // Tenant is bound to the SIGNED session (not env/header/body) — non-spoofable. Env fallback
+  // only for legacy cookies minted before tenant binding shipped.
+  const TENANT = sess.tenant_id || ENV_TENANT;
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty */ }
   const action = String(body.action || '');
+  if (body.tenant_id != null && String(body.tenant_id) !== TENANT) {
+    return NextResponse.json({ error: 'Tenant mismatch.' }, { status: 400 });
+  }
 
   // ── Boundary validation: reject malformed writes. There is NO DB CHECK on status (only an
   // uppercase trigger), and amounts/dates are otherwise unguarded — so validate here.

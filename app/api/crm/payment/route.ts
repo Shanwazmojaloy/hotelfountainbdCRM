@@ -13,7 +13,7 @@ export const maxDuration = 15;
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 export async function POST(req: NextRequest) {
   if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
@@ -26,6 +26,9 @@ export async function POST(req: NextRequest) {
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
+  // Tenant is bound to the SIGNED session (not env/header/body) — non-spoofable. Env fallback
+  // only for legacy cookies minted before tenant binding shipped.
+  const TENANT = sess.tenant_id || ENV_TENANT;
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty */ }

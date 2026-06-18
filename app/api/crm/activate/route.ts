@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const supabase: any = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-          const { data: rows } = await supabase.from('staff').select('id, name, role, session_v, otp_hash, otp_expires, otp_attempts').eq('tenant_id', TENANT).ilike('email', email.trim()).limit(1);
+          const { data: rows } = await supabase.from('staff').select('id, name, role, session_v, otp_hash, otp_expires, otp_attempts, tenant_id').eq('tenant_id', TENANT).ilike('email', email.trim()).limit(1);
           const u = rows && rows[0];
           if (!u || !u.otp_hash) return NextResponse.json({ error: 'No pending activation for this email. Request a new code.' }, { status: 404 });
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
           const { error } = await supabase.from('staff').update({ pwh, activated: true, otp_hash: null, otp_expires: null, otp_attempts: 0 }).eq('id', u.id);
           if (error) throw error;
 
-      const sess = { id: u.id, role: u.role, session_v: newSv };
+      const sess = { id: u.id, role: u.role, session_v: newSv, tenant_id: u.tenant_id };
           const res = NextResponse.json({ ok: true, session: { ...sess, name: u.name } });
           res.headers.set('Set-Cookie', sessionCookieHeader(signSession(sess)));
           return res;

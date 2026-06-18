@@ -12,13 +12,13 @@ const SECRET = process.env.SESSION_SECRET || '';
 const MAX_AGE_S = 60 * 60 * 24 * 7; // 7-day SLIDING window - re-issued on activity via /api/crm/session, so active staff never re-login
 export const SESSION_COOKIE = 'lumea_sess';
 
-export type Session = { id: number; role: string; session_v: number };
+export type Session = { id: number; role: string; session_v: number; tenant_id?: string };
 
 const b64u = (s: string | Buffer) => Buffer.from(s).toString('base64url');
 
 export function signSession(p: Session): string {
   if (!SECRET) throw new Error('SESSION_SECRET is not configured — refusing to mint an unverifiable session');
-  const body = b64u(JSON.stringify({ id: p.id, role: p.role, session_v: p.session_v, iat: Date.now() }));
+  const body = b64u(JSON.stringify({ id: p.id, role: p.role, session_v: p.session_v, tenant_id: p.tenant_id, iat: Date.now() }));
   const sig = crypto.createHmac('sha256', SECRET).update(body).digest('base64url');
   return `${body}.${sig}`;
 }
@@ -34,7 +34,7 @@ export function verifySession(token?: string | null): Session | null {
   try {
     const p = JSON.parse(Buffer.from(body, 'base64url').toString());
     if (typeof p.iat === 'number' && Date.now() - p.iat > MAX_AGE_S * 1000) return null;
-    return { id: p.id, role: p.role, session_v: p.session_v };
+    return { id: p.id, role: p.role, session_v: p.session_v, tenant_id: p.tenant_id };
   } catch { return null; }
 }
 

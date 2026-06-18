@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
       const { data: rows, error } = await supabase
             .from('staff')
-            .select('id, name, role, session_v, activated, pwh, login_fail_count, login_locked_until')
+            .select('id, name, role, session_v, activated, pwh, login_fail_count, login_locked_until, tenant_id')
             .eq('tenant_id', TENANT)
             .ilike('email', email.trim())
             .limit(1);
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
               await supabase.from('staff').update({ pwh: upgraded }).eq('id', u.id);
       }
 
-      const sess = { id: u.id, role: u.role, session_v: u.session_v || 1 };
+      const sess = { id: u.id, role: u.role, session_v: u.session_v || 1, tenant_id: u.tenant_id };
           const res = NextResponse.json({ ok: true, session: { ...sess, name: u.name } });
           res.headers.set('Set-Cookie', sessionCookieHeader(signSession(sess)));
           return res;
