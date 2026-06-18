@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+import { assertCron } from '@/lib/workflow-trigger';
 // TENANT sourced per-request via getTenantFromHeaders() — no module-level constant needed
 const DEAL_THRESHOLD = 7;
 
@@ -273,14 +274,7 @@ async function auditAndPersist(payload: AuditPayload) {
 
 // ── POST: called by reply-intake ──────────────────────────────────────────────
 export async function POST(req: Request) {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  let payload: AuditPayload;
-  try { payload = await req.json() as AuditPayload; }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  const denied = assertCron(req); if (denied) return denied;
 
   if (!payload.log_id || !payload.lead_id || !payload.reply_text) {
     return NextResponse.json({ error: 'Missing required fields: log_id, lead_id, reply_text' }, { status: 400 });
@@ -303,11 +297,8 @@ export async function POST(req: Request) {
 
 // ── GET: manually re-audit a specific log entry ───────────────────────────────
 export async function GET(req: Request) {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+  const denied = assertCron(req); if (denied) return denied;
+  
   const { searchParams } = new URL(req.url);
   const logId = searchParams.get('log_id');
   if (!logId) return NextResponse.json({ error: 'log_id required' }, { status: 400 });
