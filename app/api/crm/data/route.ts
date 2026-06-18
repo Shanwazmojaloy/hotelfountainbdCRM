@@ -23,6 +23,7 @@ const RESOURCES: Record<string, { orderCols: Set<string>; defaultOrder: string }
   transactions: { orderCols: new Set(['created_at', 'fiscal_day']),            defaultOrder: 'created_at' },
   guests:       { orderCols: new Set(['created_at', 'name']),                  defaultOrder: 'created_at' },
 };
+const ALLOWED_STATUS = new Set(['RESERVED', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'PENDING']);
 
 export async function GET(req: NextRequest) {
   if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
@@ -60,6 +61,21 @@ export async function GET(req: NextRequest) {
   }
   const fiscalDay = searchParams.get('fiscal_day');
   if (fiscalDay && resource === 'transactions') query = query.eq('fiscal_day', fiscalDay);
+
+  // status filters (reservations): ?status=PENDING (eq) or ?status_in=A,B,C (in). Validated.
+  const statusEq = searchParams.get('status');
+  if (statusEq && ALLOWED_STATUS.has(statusEq.toUpperCase())) query = query.eq('status', statusEq.toUpperCase());
+  const statusIn = searchParams.get('status_in');
+  if (statusIn) {
+    const ss = statusIn.split(',').map((s) => s.trim().toUpperCase()).filter((s) => ALLOWED_STATUS.has(s));
+    if (ss.length) query = query.in('status', ss);
+  }
+  // guest autocomplete: ?q=text → ilike name/phone (sanitized to keep PostgREST or-syntax intact).
+  const q = searchParams.get('q');
+  if (q && resource === 'guests') {
+    const safe = q.replace(/[^a-zA-Z0-9 @.+_-]/g, '').slice(0, 40);
+    if (safe) query = query.or(`name.ilike.%${safe}%,phone.ilike.%${safe}%`);
+  }
 
   const { data, error } = await query.order(orderCol, { ascending }).limit(limit);
 

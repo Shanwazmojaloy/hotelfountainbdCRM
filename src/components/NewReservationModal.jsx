@@ -34,28 +34,26 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   // overlap guard — flag rooms with an existing booking in [winIn, winOut)
   useEffect(() => {
     if (!winIn || !winOut || winIn >= winOut) { setConflicts({}); return; }
-    const supabase = getSupabaseClient();
-    supabase.from('reservations')
-      .select('room_ids, check_in, check_out, guest_name')
-      .in('status', ['RESERVED', 'CHECKED_IN', 'CONFIRMED'])
-      .lt('check_in', winOut).gt('check_out', winIn)
-      .then(({ data }) => {
+    // C3: active reservations via the session-gated route; date-overlap filtered client-side.
+    fetch('/api/crm/data?resource=reservations&status_in=RESERVED,CHECKED_IN,CONFIRMED')
+      .then((r) => r.json()).then((j) => {
         const map = {};
-        (data || []).forEach((r) => (r.room_ids || []).forEach((rid) => {
-          const k = String(rid);
-          if (!map[k] || r.check_in < map[k].check_in) map[k] = { check_in: r.check_in, check_out: r.check_out, guest_name: r.guest_name };
-        }));
+        (j.rows || [])
+          .filter((r) => String(r.check_in) < String(winOut) && String(r.check_out) > String(winIn))
+          .forEach((r) => (r.room_ids || []).forEach((rid) => {
+            const k = String(rid);
+            if (!map[k] || r.check_in < map[k].check_in) map[k] = { check_in: r.check_in, check_out: r.check_out, guest_name: r.guest_name };
+          }));
         setConflicts(map);
-      });
+      }).catch(() => {});
   }, [winIn, winOut]);
 
   // guest search
   useEffect(() => {
     const q = guestQuery.trim();
     if (q.length < 2) { setGuestHits([]); return; }
-    const supabase = getSupabaseClient();
-    supabase.from('guests').select('id, name, phone').or(`name.ilike.%${q}%,phone.ilike.%${q}%`).limit(8)
-      .then(({ data }) => setGuestHits(data || []));
+    fetch(`/api/crm/data?resource=guests&q=${encodeURIComponent(q)}&limit=8`)
+      .then((r) => r.json()).then((j) => setGuestHits(j.rows || [])).catch(() => {});
   }, [guestQuery]);
 
   const displayRooms = rooms.filter((r) => r.status !== 'OUT_OF_ORDER' && r.status !== 'DIRTY');

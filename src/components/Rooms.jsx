@@ -56,15 +56,18 @@ export default function Rooms() {
     if (!getSnap('rooms')) setLoading(true); // revisits refresh silently behind cached tiles
     try {
       const supabase = getSupabaseClient();
-      const [{ data: rm }, { data: res }, { data: g }] = await Promise.all([
+      // C3: reservations + guests via session-gated route; rooms stays on anon.
+      const [{ data: rm }, resR, gR] = await Promise.all([
         supabase.from('rooms').select('id, room_number, status, category, price').order('room_number', { ascending: true }),
-        supabase.from('reservations').select('*').in('status', ['CHECKED_IN', 'RESERVED']).limit(5000),
-        supabase.from('guests').select('id, name, id_type, id_number, nationality, address, city, country, id_card').limit(5000),
+        fetch('/api/crm/data?resource=reservations&status_in=CHECKED_IN,RESERVED&limit=5000'),
+        fetch('/api/crm/data?resource=guests&limit=5000'),
       ]);
+      const res = (await resR.json().catch(() => ({}))).rows || [];
+      const g = (await gR.json().catch(() => ({}))).rows || [];
       setRooms(rm || []);
-      setReservations(res || []);
-      setGuests(g || []);
-      setSnap('rooms', { rooms: rm || [], reservations: res || [], guests: g || [] });
+      setReservations(res);
+      setGuests(g);
+      setSnap('rooms', { rooms: rm || [], reservations: res, guests: g });
     } catch (e) {
       console.error('[Rooms] fetch error:', e);
     } finally {

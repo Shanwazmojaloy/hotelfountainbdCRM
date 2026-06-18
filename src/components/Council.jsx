@@ -4,7 +4,6 @@
 // via the existing Next.js API route /api/council/deliberate. Hotel-context (optionally
 // scoped to a reservation) or general-strategy mode, with session history.
 import { useState, useEffect } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const ROLES = [
@@ -28,9 +27,8 @@ export default function Council() {
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    getSupabaseClient().from('reservations').select('id, room_ids, total_amount, status')
-      .in('status', ['CHECKED_IN', 'CONFIRMED', 'RESERVED']).limit(50)
-      .then(({ data }) => setReservations(data || []));
+    fetch('/api/crm/data?resource=reservations&status_in=CHECKED_IN,CONFIRMED,RESERVED&limit=50')
+      .then((r) => r.json()).then((j) => setReservations(j.rows || [])).catch(() => {});
   }, []);
 
   useEffect(() => {

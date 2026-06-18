@@ -57,12 +57,14 @@ export default function Header() {
   async function loadNotifs() {
     try {
       const supabase = getSupabaseClient();
-      const [{ data: p }, { data: rms }, { data: act }] = await Promise.all([
-        supabase.from('reservations').select('id, guest_name, email, phone, room_type, guests, check_in, check_out, total_amount, source, created_at').eq('status', 'PENDING').order('created_at', { ascending: false }).limit(20),
+      const [pR, { data: rms }, aR] = await Promise.all([
+        fetch('/api/crm/data?resource=reservations&status=PENDING&order=created_at.desc&limit=20'),
         supabase.from('rooms').select('room_number, category, price, status').order('room_number'),
-        supabase.from('reservations').select('room_ids, check_in, check_out').in('status', ['RESERVED', 'CHECKED_IN', 'CONFIRMED']),
+        fetch('/api/crm/data?resource=reservations&status_in=RESERVED,CHECKED_IN,CONFIRMED'),
       ]);
-      setPending(p || []); setNotifRooms(rms || []); setClashes(act || []);
+      const p = (await pR.json().catch(() => ({}))).rows || [];
+      const act = (await aR.json().catch(() => ({}))).rows || [];
+      setPending(p); setNotifRooms(rms || []); setClashes(act);
     } catch (e) { console.error('[Header] notif fetch:', e); }
   }
   useEffect(() => { loadNotifs(); const t = setInterval(loadNotifs, 60000); return () => clearInterval(t); }, []);
