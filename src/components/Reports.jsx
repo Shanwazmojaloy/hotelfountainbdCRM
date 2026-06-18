@@ -47,7 +47,7 @@ export default function Reports() {
       const [{ data: txs, error: txErr }, { data: rooms, error: rmErr }, { data: res, error: resErr }, { data: closes, error: clErr }] = await Promise.all([
         supabase.from('transactions').select('amount, type, fiscal_day, created_at, reservation_id, room_number, guest_name'),
         supabase.from('rooms').select('id, status, category, price'),
-        supabase.from('reservations').select('id, guest_name, room_ids, check_in, check_out, total_amount, discount_amount, discount, paid_amount, status'),
+        supabase.from('reservations').select('id, guest_name, room_ids, check_in, check_out, checked_in_at, checked_out_at, total_amount, discount_amount, discount, paid_amount, status'),
         supabase.from('night_audit_log').select('audit_date, closed_at, closed_by, total_checkins, total_checkouts, total_collections, carried_over_dues').order('closed_at', { ascending: false }),
       ]);
       if (txErr || resErr || rmErr || clErr) console.error('[Reports] query error:', txErr || resErr || rmErr || clErr);
@@ -113,8 +113,14 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   // this it renders as a blank "—/—/Settled" ghost row. The filter MUST use the DEDUPED collection
   // (`_movesColl`), not the raw per-reservation `collectedFor`, or the duplicate row slips through.
   const _keep = _moves.map((m, i) => dueOf(m) > 0 || _movesColl[i] > 0);
-  const moves = _moves.filter((_, i) => _keep[i]);
-  const moveColl = _movesColl.filter((_, i) => _keep[i]);
+  // Action time per movement: IN→checked_in_at, OUT→checked_out_at, PAY→latest owning tx today.
+  const _txTimeFor = (r) => { const l = txs.filter((t) => notBCF(t) && t.reservation_id === r.id && t.created_at && (t.fiscal_day || t.created_at || '').slice(0, 10) === date); return l.length ? l.map((t) => t.created_at).sort().slice(-1)[0] : null; };
+  const timeOf = (m) => m._type === 'IN' ? (m.checked_in_at || null) : m._type === 'OUT' ? (m.checked_out_at || null) : _txTimeFor(m);
+  // Keep the attention/money rows, then sort chronologically by action time (nulls last) so staff
+  // read today's sequence top-down. Indices keep `moves`/`moveColl` aligned through the sort.
+  const _keptIdx = _moves.map((_, i) => i).filter((i) => _keep[i]).sort((a, b) => { const ta = timeOf(_moves[a]), tb = timeOf(_moves[b]); if (!ta && !tb) return 0; if (!ta) return 1; if (!tb) return -1; return new Date(ta) - new Date(tb); });
+  const moves = _keptIdx.map((i) => _moves[i]);
+  const moveColl = _keptIdx.map((i) => _movesColl[i]);
   const collected = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
   // Due/Outstanding is ALWAYS the full live book (every reservation with a balance) — visible
   // on every day's report, not just guests who moved today.
@@ -260,9 +266,9 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       </div>
 
       <Card title="Daily" titleAccent="Movements" bodyStyle={{ padding: 0 }}>
-        <Table head={['Guest', 'Room', 'Type', 'Collected', 'Balance', 'Status']}>
-          {loading && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>Loading…</td></tr>}
-          {!loading && moves.length === 0 && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No movements or collections on {fmtLong(date)}.</td></tr>}
+        <Table head={['Guest', 'Room', 'Type', 'Time', 'Collected', 'Balance', 'Status']}>
+          {loading && <tr><td colSpan={7} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>Loading…</td></tr>}
+          {!loading && moves.length === 0 && <tr><td colSpan={7} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No movements or collections on {fmtLong(date)}.</td></tr>}
           {moves.map((m, i) => {
             const due = dueOf(m);
             return (
@@ -270,6 +276,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
                 <td style={TD}>{m.guest_name || 'Guest'}</td>
                 <td style={TD}><Badge tone="blue">{roomOf(m)}</Badge></td>
                 <td style={TD}><Badge tone={m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : 'teal'}>{m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : 'Check-Out'}</Badge></td>
+                <td style={{ ...TD, ...MONO, color: C.ink3 }}>{timeOf(m) ? fmtTime(timeOf(m)) : '—'}</td>
                 <td style={{ ...TD, ...MONO, color: moveColl[i] > 0 ? C.grn : C.ink3 }}>{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td>
                 <td style={{ ...TD, ...MONO, color: due > 0 ? C.rose : C.ink3 }}>{due > 0 ? bdt(due) : '—'}</td>
                 <td style={TD}>{due > 0 ? <Badge tone="amber">Balance Due</Badge> : <Badge tone="green">Settled</Badge>}</td>
@@ -331,7 +338,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
             <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th className="r">Collected</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
             <tbody>
               {moves.map((m, i) => { const due = dueOf(m); return (
-                <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : 'Check-Out'}</td><td className="r">{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
+                <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : 'Check-Out'}{timeOf(m) ? <><br /><span style={{ fontSize: '0.82em', color: '#8a7d6a' }}>{fmtTime(timeOf(m))}</span></> : ''}</td><td className="r">{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
               ); })}
             </tbody>
           </table>
