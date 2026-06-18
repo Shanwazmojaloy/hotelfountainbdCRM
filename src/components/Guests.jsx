@@ -3,7 +3,6 @@
 // Guests & CRM — Hotel Fountain Design System table (avatar + contact + outstanding balance).
 // Searchable, paginated. Add/Edit via GuestFormModal. Live data.
 import { useState, useEffect, useMemo } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
 import GuestFormModal from './GuestFormModal';
 import { Card, Table, Badge, Avatar, TD, MONO, C, bdt } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
@@ -31,15 +30,20 @@ export default function Guests() {
   async function fetchData() {
     if (!getSnap('guests')) setLoading(true); // revisits refresh silently behind cached rows
     try {
-      const supabase = getSupabaseClient();
-      const [{ data: g, error: e1 }, { data: r, error: e2 }] = await Promise.all([
-        supabase.from('guests').select('id, name, phone, email, city, vip, id_type, id_number, id_card').order('name').limit(5000),
-        supabase.from('reservations').select('guest_ids, guest_name, total_amount, discount_amount, discount, paid_amount'),
+      // C3: read via the session-gated server route (service role) — guest PII is no longer
+      // exposed to the public anon key.
+      const [gr, rr] = await Promise.all([
+        fetch('/api/crm/data?resource=guests&order=name.asc&limit=5000'),
+        fetch('/api/crm/data?resource=reservations'),
       ]);
-      if (e1 || e2) console.error('[Guests] query error:', e1 || e2);
-      setGuests(g || []);
-      setReservations(r || []);
-      setSnap('guests', { guests: g || [], reservations: r || [] });
+      const gj = await gr.json().catch(() => ({}));
+      const rj = await rr.json().catch(() => ({}));
+      if (!gr.ok || !rr.ok) console.error('[Guests] query error:', gj.error || rj.error);
+      const g = gj.rows || [];
+      const r = rj.rows || [];
+      setGuests(g);
+      setReservations(r);
+      setSnap('guests', { guests: g, reservations: r });
     } catch (e) {
       console.error('[Guests] fetch error:', e);
     } finally {
