@@ -13,6 +13,7 @@ import { getTenantFromHeaders } from '@/lib/tenant';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+import { assertCron } from '@/lib/workflow-trigger';
 const MAX_PER_RUN = 10;
 
 // Build functions now accept tenant config instead of reading module-level constants
@@ -193,21 +194,11 @@ async function runOutreachBot(req: NextRequest) {
 
 // GET — Vercel cron (requires CRON_SECRET)
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const result = await runOutreachBot(req);
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
-  return NextResponse.json(result);
-}
-
+  const denied = assertCron(req); if (denied) return denied;
+  
 // POST — CRM manual trigger (requires CRON_SECRET)
 export async function POST(req: NextRequest) {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const denied = assertCron(req); if (denied) return denied;
   const result = await runOutreachBot(req);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);
