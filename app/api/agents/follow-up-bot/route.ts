@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+import { assertCron } from '@/lib/workflow-trigger';
 const TENANT       = process.env.NEXT_PUBLIC_TENANT_ID    || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const SENDER_NAME  = process.env.HOTEL_SENDER_NAME        || 'Shan Ahmed — Hotel Fountain BD';
 const SENDER_EMAIL = process.env.HOTEL_SENDER_EMAIL       || 'hotellfountainbd@gmail.com';
@@ -156,20 +157,14 @@ async function runFollowUpBot() {
 }
 
 export async function GET(req: Request) {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const denied = assertCron(req); if (denied) return denied;
   const result = await runFollowUpBot();
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);
 }
 
 export async function POST(req: Request) {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const denied = assertCron(req); if (denied) return denied;
   const result = await runFollowUpBot();
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);
