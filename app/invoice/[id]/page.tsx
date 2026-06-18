@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 
-const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-const SB_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_v2XOonwuDa2gi-Z4-o40Og_1ig4AKec';
-const supabase = createClient(SB_URL, SB_KEY, {
-  global: { headers: { 'x-tenant-host': typeof window !== 'undefined' ? window.location.host : '' } },
-});
+// C3: the public invoice reads its reservation via the service-role /api/invoice/[id] route
+// (capability URL — UUID is the access token), so anon SELECT on `reservations` can be revoked.
 
 type Res = {
   id: string; guest_name?: string; email?: string; phone?: string;
@@ -31,9 +27,10 @@ export default function InvoicePage() {
     let alive = true;
     (async () => {
       try {
-        const { data } = await supabase.from('reservations').select('*').eq('id', id).maybeSingle();
+        const resp = await fetch(`/api/invoice/${encodeURIComponent(id)}`);
+        const j = await resp.json().catch(() => ({}));
         if (!alive) return;
-        if (data) { setRes(data as Res); setState('ok'); } else { setState('missing'); }
+        if (j && j.reservation) { setRes(j.reservation as Res); setState('ok'); } else { setState('missing'); }
       } catch { if (alive) setState('missing'); }
     })();
     return () => { alive = false; };
