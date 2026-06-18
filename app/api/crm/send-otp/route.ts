@@ -3,10 +3,11 @@
 //
 // Called during staff account activation:
 //   1. Verify email exists in staff table and is not yet activated
-//   2. Generate 5-digit code, SHA-256 hash it, store in DB with 5-min expiry
+//   2. Generate 6-digit code, SHA-256 hash it, store in DB with 5-min expiry
 //   3. Send code to staff's registered email via Brevo
 //
-// No auth required — rate-limited by requiring a valid staff email in DB.
+// No auth required, but resend-throttled: a fresh code can only be requested once
+// per minute per account (prevents email spam + repeatedly resetting a victim's code).
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
@@ -61,9 +62,7 @@ async function sendEmail(to: string, code: string) {
 
   if (!res.ok) {
     const rawBody = await res.text().catch(() => String(res.status));
-    console.error('[send-otp] Brevo HTTP', res.status, rawBody,
-      '| key_len:', BREVO_API_KEY.length,
-      '| key_start:', BREVO_API_KEY.slice(0, 12));
+    console.error('[send-otp] Brevo HTTP', res.status, rawBody);
     let msg: string = String(res.status);
     try { msg = (JSON.parse(rawBody) as { message?: string }).message || rawBody; } catch { msg = rawBody; }
     throw new Error('Email send failed [' + res.status + ']: ' + msg);
@@ -88,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     const { data: rows, error: fetchErr } = await supabase
       .from('staff')
-      .select('id, activated')
+      .select('id, activated, otp_expires')
       .eq('tenant_id', TENANT)
       .ilike('email', email.trim())
       .limit(1);
@@ -102,19 +101,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No pending account found for this email' }, { status: 404 });
     }
 
-    const staff = rows[0] as { id: number; activated: boolean };
+    const staff = rows[0] as { id: number; activated: boolean; otp_expires: string | null };
 
     if (staff.activated) {
       return NextResponse.json({ error: 'Account already activated. Use the Sign In tab.' }, { status: 409 });
     }
 
-    const code = String(Math.floor(10000 + Math.random() * 90000));
+    // Resend throttle: codes expire 5 min after issue, so >4 min remaining means one was
+    // issued <60s ago — reject to cap email sends and stop attackers churning a victim's code.
+    if (staff.otp_expires && new Date(staff.otp_expires).getTime() - Date.now() > 4 * 60 * 1000) {
+      return NextResponse.json({ error: 'A code was just sent. Please wait a minute before requesting another.' }, { status: 429 });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
     const codeHash = sha256(code);
     const codeExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     const { error: patchErr } = await supabase
       .from('staff')
-      .update({ otp_hash: codeHash, otp_expires: codeExpires })
+      .update({ otp_hash: codeHash, otp_expires: codeExpires, otp_attempts: 0 })
       .eq('id', staff.id);
 
     if (patchErr) {
