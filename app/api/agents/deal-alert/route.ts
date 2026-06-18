@@ -15,6 +15,7 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
+import { assertCron } from '@/lib/workflow-trigger';
 const TENANT        = process.env.NEXT_PUBLIC_TENANT_ID    || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const SHAN_EMAIL    = process.env.ALERT_EMAIL              || 'ahmedshanwaz5@gmail.com';
 const SHAN_NAME     = process.env.ALERT_NAME               || 'Hotel Owner';
@@ -176,14 +177,7 @@ function buildAlertText(p: DealAlertPayload): string {
 }
 
 export async function POST(req: Request) {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  let payload: DealAlertPayload;
-  try {
-    payload = await req.json() as DealAlertPayload;
+  const denied = assertCron(req); if (denied) return denied;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
