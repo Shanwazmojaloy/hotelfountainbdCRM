@@ -30,7 +30,7 @@ export function canAccess(role, path) {
 //   viewGuestDetails  — see guest names/contact on the Dashboard (hidden from housekeeping)
 //   recordPayment     — take payments in Billing
 //   closeDay          — run the Reports closing report
-//   adminTools        — Settings, Suppliers, AI Agents, Council, Pipeline, Leads, Follow-up
+//   adminTools        — Settings
 export function can(role, capability) {
   const r = norm(role);
   if (isAdmin(r)) return true;

@@ -5,36 +5,6 @@ import { useRole } from '@/context/RoleContext';
 import { getVisibleTabs, SETTINGS_TABS } from '@/lib/roles';
 import { UserRole } from '@/types';
 
-function AIAgentsPanel({ readOnly }: { readOnly: boolean }) {
-  const agents = [
-    { name: 'Agent A – Prospector', status: 'active', description: 'Scours the web for corporate & lodging event leads.', metrics: { leads_today: 12, conversion_rate: '18%' } },
-    { name: 'Agent B – Closer', status: 'active', description: 'Sends personalised pitches and stay emails via Gemini.', metrics: { emails_sent: 47, replies: 9 } },
-    { name: 'Agent C – Analyst', status: 'active', description: 'Aggregates Check-In/Out data into admin reports.', metrics: { reports_generated: 3, last_run: 'Today 06:00' } },
-  ];
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">AI Sales Agents</h3>
-        {!readOnly && <button className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm rounded-xl font-medium hover:opacity-90 transition-opacity">+ New Agent</button>}
-      </div>
-      {agents.map((agent) => (
-        <div key={agent.name} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <div className="flex items-start justify-between mb-3">
-            <div><h4 className="font-semibold text-white">{agent.name}</h4><p className="text-sm text-neutral-400 mt-0.5">{agent.description}</p></div>
-            <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 text-xs rounded-full border border-emerald-500/20 shrink-0 ml-4">● {agent.status}</span>
-          </div>
-          <div className="flex gap-3 flex-wrap">
-            {Object.entries(agent.metrics).map(([k, v]) => (
-              <div key={k} className="bg-white/5 rounded-lg px-3 py-1.5 text-xs"><span className="text-neutral-500 capitalize">{k.replace(/_/g, ' ')}: </span><span className="text-cyan-300 font-medium">{v}</span></div>
-            ))}
-          </div>
-          {!readOnly && <div className="flex gap-2 mt-4"><button className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white transition-colors">Configure</button><button className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white transition-colors">Run Now</button><button className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs text-red-300 transition-colors">Pause</button></div>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function B2BPartnersPanel({ readOnly }: { readOnly: boolean }) {
   const partners = [
     { name: 'Dhaka Corporate Hub', type: 'Corporate Events', status: 'Active', contact: 'events@dchub.com', revenue: 'Tk. 2,40,000' },
@@ -176,7 +146,6 @@ export default function SettingsPage() {
 
   const renderPanel = () => {
     switch (safeActive) {
-      case 'ai_agents':    return <AIAgentsPanel readOnly={isReadOnly} />;
       case 'b2b_partners': return <B2BPartnersPanel readOnly={isReadOnly} />;
       case 'front_desk':   return <FrontDeskPanel />;
       case 'financials':   return <FinancialsPanel />;

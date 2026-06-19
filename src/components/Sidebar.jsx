@@ -20,13 +20,6 @@ const NAV = [
   { href: '/crm/reports', icon: '▣', label: 'Reports' },
   { sect: 'System' },
   { href: '/crm/settings', icon: '◌', label: 'Settings' },
-  { sect: 'More' },
-  { href: '/crm/ai', icon: '✦', label: 'AI Agents' },
-  { href: '/crm/council', icon: '◉', label: 'Council' },
-  { href: '/crm/pipeline', icon: '▣', label: 'Pipeline' },
-  { href: '/leads', icon: '◉', label: 'Leads' },
-  { href: '/suppliers', icon: '▦', label: 'Suppliers' },
-  { href: '/churn', icon: '▣', label: 'Follow-up' },
 ];
 
 const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase() || '?';

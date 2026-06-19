@@ -120,7 +120,6 @@ export interface RolePermissions {
   canViewFinancials: boolean;
   canViewStaffManagement: boolean;
   canViewGeneralSettings: boolean;
-  canViewAIAgents: boolean;
   canViewB2BPartners: boolean;
   canViewFrontDeskSales: boolean;
   canConfirmReservations: boolean;

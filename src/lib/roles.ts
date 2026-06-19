@@ -5,7 +5,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canViewFinancials: true,
     canViewStaffManagement: true,
     canViewGeneralSettings: true,
-    canViewAIAgents: true,
     canViewB2BPartners: true,
     canViewFrontDeskSales: true,
     canConfirmReservations: true,
@@ -16,7 +15,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canViewFinancials: true,
     canViewStaffManagement: true,
     canViewGeneralSettings: false,
-    canViewAIAgents: true,
     canViewB2BPartners: true,
     canViewFrontDeskSales: true,
     canConfirmReservations: true,
@@ -27,19 +25,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canViewFinancials: false,
     canViewStaffManagement: false,
     canViewGeneralSettings: false,
-    canViewAIAgents: false,
     canViewB2BPartners: false,
     canViewFrontDeskSales: true,
     canConfirmReservations: true,
     canAssignRooms: true,
     isReadOnly: false,
   },
-  // Front Desk – Sales Lead: AI Agents + B2B Partners ONLY
+  // Front Desk – Sales Lead: B2B Partners ONLY
   front_desk_sales_lead: {
     canViewFinancials: false,
     canViewStaffManagement: false,
     canViewGeneralSettings: false,
-    canViewAIAgents: true,
     canViewB2BPartners: true,
     canViewFrontDeskSales: false,
     canConfirmReservations: false,
@@ -70,7 +66,6 @@ export interface SettingsTab {
 }
 
 export const SETTINGS_TABS: SettingsTab[] = [
-  { key: 'ai_agents',    label: 'AI Agents',               permission: 'canViewAIAgents',        icon: '🤖' },
   { key: 'b2b_partners', label: 'B2B Partners',            permission: 'canViewB2BPartners',     icon: '🤝' },
   { key: 'front_desk',   label: 'Front Desk & Sales',      permission: 'canViewFrontDeskSales',  icon: '🏨' },
   { key: 'financials',   label: 'Financials',              permission: 'canViewFinancials',      icon: '💰' },
