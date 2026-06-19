@@ -36,7 +36,7 @@ export default function RoomsPage() {
 
       {/* ───────────────── FRONT-OFFICE CTA ───────────────── */}
       <FadeIn direction="up" className="mt-20">
-        <div className="glass glass-sheen flex flex-col items-center gap-4 p-8 text-center sm:flex-row sm:justify-between sm:text-left">
+        <div className="glass glass-sheen glass-clip flex flex-col items-center gap-4 p-8 text-center sm:flex-row sm:justify-between sm:text-left">
           <div>
             <h3 className="font-display text-xl font-semibold text-white">Not sure which room?</h3>
             <p className="mt-1 text-sm text-white/60">
@@ -44,7 +44,7 @@ export default function RoomsPage() {
             </p>
           </div>
           <Link href="/contact" className="btn-neon shrink-0">
-            Talk to Front Office →
+            Talk to Front Office <span className="cta-arrow">→</span>
           </Link>
         </div>
       </FadeIn>

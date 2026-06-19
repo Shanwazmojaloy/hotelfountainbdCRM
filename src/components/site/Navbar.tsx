@@ -76,7 +76,7 @@ export default function Navbar() {
                 <li key={link.href} className="relative">
                   <Link
                     href={link.href}
-                    className={`relative rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.15em] transition-colors ${
+                    className={`nav-underline relative rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.15em] transition-colors ${
                       active ? "text-white" : "text-white/65 hover:text-white"
                     }`}
                   >

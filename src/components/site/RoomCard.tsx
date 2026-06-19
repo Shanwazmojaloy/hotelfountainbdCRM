@@ -16,7 +16,7 @@ export default function RoomCard({ room }: { room: Room }) {
       variants={revealItem}
       whileHover={{ y: -8 }}
       transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className="glass glass-sheen group flex h-full flex-col overflow-hidden transition-[box-shadow,border-color] duration-300 ease-fluid hover:border-neon-teal/45 hover:shadow-glow-teal"
+      className="glass glass-sheen glass-clip group flex h-full flex-col overflow-hidden transition-[box-shadow,border-color] duration-300 ease-fluid hover:border-neon-teal/45 hover:shadow-glow-teal"
     >
       <div className="relative aspect-[4/3] overflow-hidden">
         <Image

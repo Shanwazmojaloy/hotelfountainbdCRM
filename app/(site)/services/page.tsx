@@ -48,7 +48,7 @@ export default function ServicesPage() {
       <section className="section pb-24">
         <ScrollReveal stagger className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {AMENITIES.map((a) => (
-            <GlassCard key={a.title} className="flex gap-5 p-7" interactive>
+            <GlassCard key={a.title} className="glass-clip flex gap-5 p-7" interactive>
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-3xl">
                 {a.icon}
               </div>
@@ -68,7 +68,7 @@ export default function ServicesPage() {
         </FadeIn>
         <ScrollReveal stagger className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {GALLERY.map((g) => (
-            <GlassCard key={g.label} className="group overflow-hidden p-0" interactive>
+            <GlassCard key={g.label} className="glass-clip group overflow-hidden p-0" interactive>
               <div className="relative aspect-[3/4] overflow-hidden rounded-xl2">
                 <Image
                   src={g.src}
@@ -96,7 +96,7 @@ export default function ServicesPage() {
         </FadeIn>
         <ScrollReveal stagger className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
           {LOCALE.map((l) => (
-            <GlassCard key={l.title} className="p-6" interactive>
+            <GlassCard key={l.title} className="glass-clip p-6" interactive>
               <h3 className="font-display text-lg font-semibold text-neon-teal">{l.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-white/60">{l.body}</p>
             </GlassCard>

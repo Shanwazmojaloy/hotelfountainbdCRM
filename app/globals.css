@@ -469,3 +469,61 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .site-root .fade-in[data-dir="left"]  { animation-name: rgnFadeLeft; }
 .site-root .fade-in[data-dir="right"] { animation-name: rgnFadeRight; }
 @media (prefers-reduced-motion: reduce) { .site-root .fade-in { animation: none; } }
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOTION LAYER v2 (2026-06-19) — "noticeable & lively" pass, scoped .site-root.
+   Button shine-sweep · animated nav underline · CTA-arrow nudge · glass hover
+   sheen · hero line-reveal · scroll-progress bar. Reduced-motion guard at end.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Top scroll-progress bar (scaleX driven by ScrollProgress.tsx) */
+.site-root .site-progress {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 70;
+  transform-origin: 0 50%; transform: scaleX(0);
+  background: linear-gradient(90deg, #8B6914, #c8a96e, #E0C585);
+  box-shadow: 0 0 12px rgba(200,169,110,0.55);
+}
+
+/* Gold shine sweep across primary buttons on hover (btn-neon clips via overflow:hidden) */
+.site-root .btn-neon::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,0.5) 50%, transparent 62%);
+  transform: translateX(-130%); transition: transform 0.7s var(--ease-regent);
+}
+.site-root .btn-neon:hover::after { transform: translateX(130%); }
+
+/* Animated gold underline for desktop nav links */
+.site-root .nav-underline::after {
+  content: ""; position: absolute; left: 14px; right: 14px; bottom: 5px; height: 1px;
+  background: linear-gradient(90deg, transparent, #c8a96e, transparent);
+  transform: scaleX(0); transition: transform 0.4s var(--ease-regent);
+}
+.site-root .nav-underline:hover::after { transform: scaleX(1); }
+
+/* Trailing-arrow nudge — wrap a "→" in <span class="cta-arrow"> */
+.site-root .cta-arrow { display: inline-block; transition: transform 0.35s var(--ease-regent); }
+.site-root a:hover .cta-arrow,
+.site-root button:hover .cta-arrow,
+.site-root .group:hover .cta-arrow { transform: translateX(5px); }
+
+/* Glass card hover sheen sweep (clipped via .glass-clip overflow:hidden) */
+.site-root .glass-clip { overflow: hidden; }
+.site-root .glass-clip::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1;
+  background: linear-gradient(115deg, transparent 42%, rgba(228,207,160,0.12) 50%, transparent 58%);
+  transform: translateX(-160%); transition: transform 0.9s var(--ease-regent);
+}
+.site-root .glass-clip:hover::after { transform: translateX(160%); }
+
+/* Hero line reveal — mask-up; set --i on each line for stagger */
+@keyframes rgnRise { from { opacity: 0; transform: translateY(110%); } to { opacity: 1; transform: none; } }
+.site-root .reveal-line { display: block; overflow: hidden; }
+.site-root .reveal-line > * { display: inline-block; animation: rgnRise 0.85s var(--ease-regent) both; animation-delay: calc(var(--i, 0) * 0.09s + 0.05s); }
+
+@media (prefers-reduced-motion: reduce) {
+  .site-root .btn-neon::after,
+  .site-root .glass-clip::after,
+  .site-root .site-progress { display: none; }
+  .site-root .nav-underline::after { transition: none; }
+  .site-root .reveal-line > * { animation: none; }
+}

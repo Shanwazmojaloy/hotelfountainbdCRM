@@ -11,6 +11,7 @@ import MagneticButton from "@/components/site/MagneticButton";
 import AvailabilityWidget from "@/components/site/AvailabilityWidget";
 import BookingBar from "@/components/site/BookingBar";
 import FadeIn from "@/components/site/FadeIn";
+import Parallax from "@/components/site/Parallax";
 
 export const metadata: Metadata = {
   title: "Hotel Fountain — Dhaka's Finest Luxury Hotel",
@@ -23,14 +24,16 @@ export default function HomePage() {
       <section className="relative -mt-24 flex min-h-[100svh] items-center overflow-hidden pt-24">
         {/* Full-bleed exterior image — right edge on desktop, full backdrop on mobile */}
         <div className="absolute inset-0 lg:left-auto lg:right-0 lg:w-[58%]">
-          <Image
-            src="/images/hero-exterior.webp"
-            alt="Hotel Fountain front view"
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 58vw"
-            className="object-cover lg:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_22%,#000_50%)] lg:[mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_22%,#000_50%)]"
-          />
+          <Parallax className="absolute inset-0" distance={50}>
+            <Image
+              src="/images/hero-exterior.webp"
+              alt="Hotel Fountain front view"
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 58vw"
+              className="scale-110 object-cover lg:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_22%,#000_50%)] lg:[mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_22%,#000_50%)]"
+            />
+          </Parallax>
           {/* Mobile: darken behind the copy for legibility (desktop uses the image mask above) */}
           <div className="absolute inset-0 bg-gradient-to-r from-abyss via-abyss/60 to-abyss/30 lg:hidden" />
           {/* Soft bottom fade for depth (both breakpoints) */}
@@ -84,7 +87,7 @@ export default function HomePage() {
       <section className="section py-20">
         <ScrollReveal stagger className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {STATS.map((s) => (
-            <GlassCard key={s.label} className="p-6 text-center" interactive>
+            <GlassCard key={s.label} className="glass-clip p-6 text-center" interactive>
               <p className="font-mono text-3xl font-semibold text-neon-teal sm:text-4xl">{s.value}</p>
               <p className="mt-2 text-xs uppercase tracking-wide text-white/55">{s.label}</p>
             </GlassCard>
@@ -103,7 +106,7 @@ export default function HomePage() {
             />
           </FadeIn>
           <Link href="/rooms" className="btn-ghost !py-2.5 text-xs">
-            View all rooms →
+            View all rooms <span className="cta-arrow">→</span>
           </Link>
         </div>
 
@@ -126,7 +129,7 @@ export default function HomePage() {
         </FadeIn>
         <ScrollReveal stagger className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {AMENITIES.map((a) => (
-            <GlassCard key={a.title} className="p-6" interactive>
+            <GlassCard key={a.title} className="glass-clip p-6" interactive>
               <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-2xl">
                 {a.icon}
               </div>
@@ -137,7 +140,7 @@ export default function HomePage() {
         </ScrollReveal>
         <div className="mt-8 text-center">
           <Link href="/services" className="btn-ghost !py-2.5 text-xs">
-            Explore the full experience →
+            Explore the full experience <span className="cta-arrow">→</span>
           </Link>
         </div>
       </section>
