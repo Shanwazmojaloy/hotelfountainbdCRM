@@ -12,7 +12,6 @@ import AvailabilityWidget from "@/components/site/AvailabilityWidget";
 import BookingBar from "@/components/site/BookingBar";
 import FadeIn from "@/components/site/FadeIn";
 import Parallax from "@/components/site/Parallax";
-import Parallax from "@/components/site/Parallax";
 
 export const metadata: Metadata = {
   title: "Hotel Fountain — Dhaka's Finest Luxury Hotel",
