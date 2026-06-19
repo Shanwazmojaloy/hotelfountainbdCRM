@@ -3,6 +3,7 @@ import Footer from "@/components/site/Footer";
 import BookNowFab from "@/components/site/BookNowFab";
 import ReservationModal from "@/components/site/ReservationModal";
 import ScrollProgress from "@/components/site/ScrollProgress";
+import ScrollProgress from "@/components/site/ScrollProgress";
 import { SITE, CONTACT, AMENITIES } from "@/lib/site";
 import { headers } from "next/headers";
 
@@ -36,6 +37,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   return (
     <div className="site-root app-bg">
       <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(hotelSchema) }} />
+      <ScrollProgress />
       <ScrollProgress />
       <Navbar />
       <main className="min-h-screen pt-24">{children}</main>

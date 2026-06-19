@@ -6,15 +6,13 @@ import { motion, useScroll, useTransform, useReducedMotion } from "framer-motion
 type Props = {
   children: ReactNode;
   className?: string;
-  /** Travel distance in px across the element's scroll pass (positive = drifts up). */
   distance?: number;
 };
 
 /**
- * Scroll-tied vertical parallax. Wraps any block (typically an Image) and drifts
- * it as it passes through the viewport. Falls back to a static container under
- * prefers-reduced-motion. Use a slightly oversized child (e.g. scale-110) so the
- * drift never exposes an edge.
+ * Scroll-tied vertical parallax. Falls back to a static container under
+ * prefers-reduced-motion. Use a slightly oversized child so drift never
+ * exposes an edge.
  */
 export default function Parallax({ children, className, distance = 60 }: Props) {
   const reduce = useReducedMotion();
