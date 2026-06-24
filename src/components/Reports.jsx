@@ -139,11 +139,10 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const totalDue = allDue.reduce((a, r) => a + dueOf(r), 0);
   const tok = parseInt(token || '0', 10) || 0;
   const payout = parseInt(payouts || '0', 10) || 0;
-  // Closing Balance = physical cash drawer to hand to next shift = opening float + cash collected − cash payouts.
-  // "Cash" = the day's collection minus explicitly-digital methods (bKash/Nagad/Card/Bank/transfer); untagged
-  // types (e.g. "Stay Extension") default to cash on this cash-first property, reconciling to the Cash line.
-  const DIGITAL = /bkash|nagad|card|bank|account|transfer/i;
-  const cashIn = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date && !DIGITAL.test(t.type || '')).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+  // Closing Balance = Opening Token (float) + Cash Collection − Payouts (owner spec 2026-06-24).
+  // "Cash Collection" = the day's FULL collection — the sum of ALL payment methods (cash, bKash, card, …),
+  // i.e. it equals Total Collection. No digital-method exclusion.
+  const cashIn = collected;
   const closing = tok + cashIn - payout;
   // Payment-method split derived from the composite `type` (no payment_method column exists).
   const PM = [['Cash', /cash/i], ['bKash', /bkash/i], ['Nagad', /nagad/i], ['Card', /card/i], ['Bank', /bank|account|transfer/i]];
@@ -327,7 +326,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, fontFamily: 'var(--iv-head)', paddingTop: 8 }}>
           <span>Closing Balance</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(closing)}</span>
         </div>
-        <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Opening Token + Cash Collected − Payouts (the physical cash drawer to hand over). Cash excludes digital methods (bKash/Nagad/Card/Bank). Collections accrue to this open day until “Closing Complete” locks it and opens the next. Outstanding dues carry across every day.</div>
+        <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Opening Token + Cash Collection − Payouts. Cash Collection = the full day’s collection (sum of all payment methods, = Total Collection). Collections accrue to this open day until “Closing Complete” locks it and opens the next. Outstanding dues carry across every day.</div>
       </Card>
 
       {/* ── PRINT-ONLY: one-page A4 condensed report (Download → window.print) ── */}
