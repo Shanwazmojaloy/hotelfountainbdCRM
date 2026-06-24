@@ -88,6 +88,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const setDate = setPicked;
   const onOpenDay = date === openDay;
   const [token, setToken] = useState('');
+  const [payouts, setPayouts] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -137,7 +138,13 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const allDue = outstandingList(res); // receivables only (CHECKED_IN/CHECKED_OUT) - owner decision 2026-06-12
   const totalDue = allDue.reduce((a, r) => a + dueOf(r), 0);
   const tok = parseInt(token || '0', 10) || 0;
-  const closing = collected - tok;
+  const payout = parseInt(payouts || '0', 10) || 0;
+  // Closing Balance = physical cash drawer to hand to next shift = opening float + cash collected − cash payouts.
+  // "Cash" = the day's collection minus explicitly-digital methods (bKash/Nagad/Card/Bank/transfer); untagged
+  // types (e.g. "Stay Extension") default to cash on this cash-first property, reconciling to the Cash line.
+  const DIGITAL = /bkash|nagad|card|bank|account|transfer/i;
+  const cashIn = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date && !DIGITAL.test(t.type || '')).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+  const closing = tok + cashIn - payout;
   // Payment-method split derived from the composite `type` (no payment_method column exists).
   const PM = [['Cash', /cash/i], ['bKash', /bkash/i], ['Nagad', /nagad/i], ['Card', /card/i], ['Bank', /bank|account|transfer/i]];
   const paySplit = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((acc, t) => { const hit = PM.find(([, re]) => re.test(t.type || '')); const k = hit ? hit[0] : 'Other'; acc[k] = (acc[k] || 0) + (Number(t.amount) || 0); return acc; }, {});
@@ -154,6 +161,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       await onClosed();
       setPicked(nextDay(date)); // jump to the freshly-opened next business day
       setToken('');
+      setPayouts('');
     } catch (e) { setErr(e.message || String(e)); } finally { setBusy(false); }
   }
 
@@ -261,7 +269,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         {Stepper}
         <div className="flex items-center gap-2">
-          <input className="iv-input" type="number" placeholder="Opening token ৳" value={token} onChange={(e) => setToken(e.target.value)} style={{ padding: '7px 10px', width: 170 }} />
+          <input className="iv-input" type="number" placeholder="Opening token ৳" value={token} onChange={(e) => setToken(e.target.value)} style={{ padding: '7px 10px', width: 150 }} />
+          <input className="iv-input" type="number" placeholder="Payouts ৳" value={payouts} onChange={(e) => setPayouts(e.target.value)} style={{ padding: '7px 10px', width: 130 }} />
           <button className="iv-btn iv-btn--ghost" onClick={() => window.print()} style={{ fontSize: 12, padding: '7px 12px' }}>⬇ Download</button>
           <button className="iv-btn" onClick={handleClose} disabled={busy || loading} style={{ fontSize: 12, padding: '7px 12px' }}>{busy ? 'Closing…' : '✓ Closing Complete'}</button>
         </div>
@@ -271,7 +280,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       <div className="iv-stat-grid iv-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
         <StatCard label="Movements" value={loading ? '—' : moves.length} accent={C.walnut} sub={fmtLong(date)} />
         <StatCard label="Total Collection" value={loading ? '—' : bdt(collected)} accent={C.gold} />
-        <StatCard label="Closing Balance" value={loading ? '—' : bdt(closing)} accent={C.grn} sub="collection − token" />
+        <StatCard label="Closing Balance" value={loading ? '—' : bdt(closing)} accent={C.grn} sub="token + cash − payouts" />
         <StatCard label="Total Due" value={loading ? '—' : bdt(totalDue)} accent={C.rose} sub={`${allDue.length} reservation${allDue.length === 1 ? '' : 's'} outstanding`} />
       </div>
 
@@ -312,12 +321,13 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       </Card>
 
       <Card title="Closing" titleAccent="Ledger" accent={C.gold}>
-        <FRow label="Total Collection" value={bdt(collected)} />
-        <FRow label="Less — Opening Token / Float" value={'− ' + bdt(tok)} />
+        <FRow label="Opening Token / Float" value={bdt(tok)} />
+        <FRow label="Add — Cash Collected" value={'+ ' + bdt(cashIn)} />
+        <FRow label="Less — Payouts" value={'− ' + bdt(payout)} />
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, fontFamily: 'var(--iv-head)', paddingTop: 8 }}>
           <span>Closing Balance</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(closing)}</span>
         </div>
-        <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Total Collection − Opening Token. Collections accrue to this open day until “Closing Complete” locks it and opens the next. Outstanding dues above carry across every day.</div>
+        <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Opening Token + Cash Collected − Payouts (the physical cash drawer to hand over). Cash excludes digital methods (bKash/Nagad/Card/Bank). Collections accrue to this open day until “Closing Complete” locks it and opens the next. Outstanding dues carry across every day.</div>
       </Card>
 
       {/* ── PRINT-ONLY: one-page A4 condensed report (Download → window.print) ── */}
@@ -330,6 +340,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
           <div className="pr-card"><h4>Financial</h4>
             <div className="pr-row"><span>Total Collection</span><b>{bdt(collected)}</b></div>
             <div className="pr-row"><span>Opening Token</span><b>{bdt(tok)}</b></div>
+            <div className="pr-row"><span>Cash Collected</span><b>{bdt(cashIn)}</b></div>
+            <div className="pr-row"><span>Payouts</span><b>{bdt(payout)}</b></div>
             <div className="pr-row pr-tot"><span>Closing Balance</span><b>{bdt(closing)}</b></div>
           </div>
           <div className="pr-card"><h4>Payment Method</h4>
