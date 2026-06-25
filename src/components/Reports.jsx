@@ -405,17 +405,97 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   );
 }
 
-function RevBars({ bars, gap, lastGold, fontSize }) {
+const REV_CSS = `
+.rev-chart{position:relative;padding:14px 0 0 48px}
+.rev-plot{position:relative;height:165px}
+.rev-gl{position:absolute;left:0;right:0;border-top:1px dashed var(--iv-border2)}
+.rev-gl>span{position:absolute;left:-48px;top:-6px;width:42px;text-align:right;font:600 8px var(--iv-mono,monospace);color:var(--iv-ink3)}
+.rev-bars{position:absolute;inset:0;display:flex;align-items:flex-end;gap:var(--rev-gap,4px);z-index:1}
+.rev-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.rev-bar{width:80%;max-width:26px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,#C8A96E,#8B6914);transition:filter .15s ease}
+.rev-bar--gold{background:linear-gradient(180deg,#EBD3A0,#A9801F);box-shadow:0 0 0 1px rgba(139,105,20,.22)}
+.rev-col:hover .rev-bar{filter:brightness(1.1)}
+.rev-val{font:600 8px var(--iv-mono,monospace);color:var(--iv-gold2,#6B4E0A);margin-bottom:3px;white-space:nowrap}
+.rev-xlabels{display:flex;gap:var(--rev-gap,4px);padding-left:48px;margin-top:6px}
+.rev-xlabels>span{flex:1;text-align:center;font:8px var(--iv-mono,monospace);color:var(--iv-ink3)}
+`;
+
+const revK = (v) => v >= 1000 ? '৳' + (v / 1000).toFixed(v % 1000 ? 1 : 0) + 'k' : '৳' + (v || 0);
+
+function RevBars({ bars, gap, showValues }) {
   const max = Math.max(1, ...bars.map((b) => b.v));
+  const H = 150, ticks = 4;
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap, height: 188, padding: '4px 0' }}>
-      {bars.map((b, i) => (
-        <div key={i} title={`${b.lbl} · ${bdt(b.v)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-          <div style={{ width: '100%', height: b.v > 0 ? Math.max(2, Math.round((b.v / max) * 160)) : 0, background: (lastGold && i === bars.length - 1) ? 'var(--iv-gold)' : 'var(--iv-side)', borderRadius: '3px 3px 0 0' }} />
-          <span style={{ fontFamily: 'var(--iv-mono)', fontSize, color: 'var(--iv-ink3)' }}>{b.lbl}</span>
+    <>
+      <style>{REV_CSS}</style>
+      <div className="rev-chart" style={{ '--rev-gap': (gap || 4) + 'px' }}>
+        <div className="rev-plot">
+          {Array.from({ length: ticks + 1 }).map((_, i) => (
+            <div className="rev-gl" key={i} style={{ top: `${(i / ticks) * 100}%` }}><span>{revK(Math.round(max * (1 - i / ticks)))}</span></div>
+          ))}
+          <div className="rev-bars">
+            {bars.map((b, i) => {
+              const h = b.v > 0 ? Math.max(2, Math.round((b.v / max) * H)) : 0;
+              const gold = b.v > 0 && b.v === max;
+              return (
+                <div className="rev-col" key={i} title={`${b.lbl} · ${bdt(b.v)}`}>
+                  {showValues && b.v > 0 ? <span className="rev-val">{revK(b.v)}</span> : null}
+                  <div className={'rev-bar' + (gold ? ' rev-bar--gold' : '')} style={{ height: h }} />
+                </div>
+              );
+            })}
+          </div>
         </div>
-      ))}
-    </div>
+        <div className="rev-xlabels">{bars.map((b, i) => <span key={i}>{b.lbl}</span>)}</div>
+      </div>
+    </>
+  );
+}
+
+// Branded, printable revenue report (Monthly / Yearly). Reuses PRINT_CSS (#print-report).
+function RevReportPrint({ kind, periodLabel, rows, total }) {
+  const active = rows.filter((r) => r.v > 0);
+  const peak = rows.reduce((a, r) => (r.v > a.v ? r : a), { v: 0, lbl: '—' });
+  const avg = active.length ? Math.round(total / active.length) : 0;
+  const unit = kind === 'Monthly' ? 'Day' : 'Month';
+  return (
+    <>
+      <div id="print-report" aria-hidden="true">
+        <div className="pr-head">
+          <div className="pr-brand"><img className="pr-crest" src="/logo-crest.png" alt="Hotel Fountain" /><div><div className="pr-name">Hotel Fountain</div><div className="pr-sub">Management CRM · Powered by Lumea</div></div></div>
+          <div className="pr-meta"><div>{kind} Revenue Report</div><div>Generated: {periodLabel}</div><div className="pr-badge">{kind.toUpperCase()}</div></div>
+        </div>
+        <div className="pr-grid3">
+          <div className="pr-card"><h4>Summary</h4>
+            <div className="pr-row"><span>Total Revenue</span><b>{bdt(total)}</b></div>
+            <div className="pr-row"><span>Active {unit.toLowerCase()}s</span><b>{active.length}</b></div>
+            <div className="pr-row pr-tot"><span>Avg / active {unit.toLowerCase()}</span><b>{bdt(avg)}</b></div>
+          </div>
+          <div className="pr-card"><h4>Peak {unit}</h4>
+            <div className="pr-row"><span>{unit}</span><b>{peak.lbl}</b></div>
+            <div className="pr-row pr-tot"><span>Revenue</span><b className="pr-due">{bdt(peak.v)}</b></div>
+          </div>
+          <div className="pr-card"><h4>Scope</h4>
+            <div className="pr-row"><span>Report</span><b>{kind}</b></div>
+            <div className="pr-row"><span>Period</span><b>{periodLabel}</b></div>
+          </div>
+        </div>
+        <div className="pr-panel">
+          <div className="pr-panel-h"><span className="pr-panel-t">{kind} Breakdown</span><span className="pr-panel-s">{active.length} active {unit.toLowerCase()}s · {bdt(total)}</span></div>
+          <table className="pr-tbl">
+            <thead><tr><th>{unit}</th><th className="r">Revenue</th><th className="r">Share</th></tr></thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}><td>{r.lbl}</td><td className="r">{r.v > 0 ? bdt(r.v) : '—'}</td><td className="r">{total > 0 && r.v > 0 ? ((r.v / total) * 100).toFixed(1) + '%' : '—'}</td></tr>
+              ))}
+              <tr className="pr-tot-row"><td>Total</td><td className="r">{bdt(total)}</td><td className="r">100%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="pr-foot"><span>Hotel Fountain · Lumea CRM · /crm/reports</span><span>Generated {periodLabel}</span></div>
+      </div>
+      <style>{PRINT_CSS}</style>
+    </>
   );
 }
 
@@ -429,13 +509,22 @@ function Monthly({ txs }) {
     return { v, lbl: String(i + 1) };
   });
   const total = bars.reduce((a, b) => a + b.v, 0);
+  const periodLabel = new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   return (
-    <Card title="Monthly" titleAccent="Revenue" accent={C.gold} action={<input type="month" className="iv-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: '6px 10px', width: 160 }} />}>
-      <RevBars bars={bars} gap={2} lastGold fontSize={7} />
-      <div className="flex justify-between" style={{ fontSize: 11, color: 'var(--iv-ink3)', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--iv-border2)' }}>
-        <span>Month total</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(total)}</span>
-      </div>
-    </Card>
+    <>
+      <Card title="Monthly" titleAccent="Revenue" accent={C.gold} action={
+        <div className="flex items-center gap-2">
+          <input type="month" className="iv-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: '6px 10px', width: 160 }} />
+          <button className="iv-btn iv-btn--ghost" onClick={() => window.print()} style={{ fontSize: 12, padding: '7px 12px' }}>⬇ Download</button>
+        </div>
+      }>
+        <RevBars bars={bars} gap={3} showValues={false} />
+        <div className="flex justify-between" style={{ fontSize: 11, color: 'var(--iv-ink3)', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--iv-border2)' }}>
+          <span>Month total</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(total)}</span>
+        </div>
+      </Card>
+      <RevReportPrint kind="Monthly" periodLabel={periodLabel} rows={bars} total={total} />
+    </>
   );
 }
 
@@ -449,11 +538,19 @@ function Yearly({ txs }) {
   });
   const total = bars.reduce((a, b) => a + b.v, 0);
   return (
-    <Card title="Yearly" titleAccent="Revenue" accent={C.gold} action={<input className="iv-input" type="number" value={year} onChange={(e) => setYear(e.target.value)} style={{ padding: '6px 10px', width: 110 }} />}>
-      <RevBars bars={bars} gap={6} lastGold={false} fontSize={8} />
-      <div className="flex justify-between" style={{ fontSize: 11, color: 'var(--iv-ink3)', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--iv-border2)' }}>
-        <span>Year total</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(total)}</span>
-      </div>
-    </Card>
+    <>
+      <Card title="Yearly" titleAccent="Revenue" accent={C.gold} action={
+        <div className="flex items-center gap-2">
+          <input className="iv-input" type="number" value={year} onChange={(e) => setYear(e.target.value)} style={{ padding: '6px 10px', width: 110 }} />
+          <button className="iv-btn iv-btn--ghost" onClick={() => window.print()} style={{ fontSize: 12, padding: '7px 12px' }}>⬇ Download</button>
+        </div>
+      }>
+        <RevBars bars={bars} gap={8} showValues />
+        <div className="flex justify-between" style={{ fontSize: 11, color: 'var(--iv-ink3)', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--iv-border2)' }}>
+          <span>Year total</span><span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{bdt(total)}</span>
+        </div>
+      </Card>
+      <RevReportPrint kind="Yearly" periodLabel={String(year)} rows={bars} total={total} />
+    </>
   );
 }
