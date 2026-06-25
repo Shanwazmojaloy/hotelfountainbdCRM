@@ -40,6 +40,9 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty */ }
   const notes = typeof body.notes === 'string' ? body.notes.slice(0, 500) : null;
+  // Manual cash-drawer inputs from the closing form (RPC doesn't compute these).
+  const opening_token = Math.max(0, Number(body.opening_token) || 0);
+  const payouts = Math.max(0, Number(body.payouts) || 0);
 
   // ── resolve the OPEN business day (latest closed + 1), unless an explicit
   //    audit_date is passed (re-close of a past day) ──
@@ -63,6 +66,11 @@ export async function POST(req: NextRequest) {
     console.error('[crm/close-day] audit failed:', rpc.error, rpc.sqlstate);
     return NextResponse.json({ error: 'Could not close the day.' }, { status: 500 });
   }
+
+  // Persist the manual cash-drawer inputs so closed-day re-downloads reconstruct the exact
+  // Closing Balance (Opening Token + Cash - Payouts). The RPC owns every computed column;
+  // this UPDATE only touches the two manual ones.
+  await supabase.from('night_audit_log').update({ opening_token, payouts }).eq('tenant_id', TENANT).eq('audit_date', auditDate);
 
   // Return the persisted row (preserves the existing { ok, close } response shape).
   const { data: saved } = await supabase

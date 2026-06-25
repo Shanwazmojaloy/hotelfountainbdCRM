@@ -51,7 +51,7 @@ export default function Reports() {
         fetch('/api/crm/data?resource=transactions'),
         fetch('/api/crm/data?resource=reservations'),
         supabase.from('rooms').select('id, status, category, price'),
-        supabase.from('night_audit_log').select('audit_date, closed_at, closed_by, total_checkins, total_checkouts, total_collections, carried_over_dues').order('closed_at', { ascending: false }),
+        supabase.from('night_audit_log').select('audit_date, closed_at, closed_by, total_checkins, total_checkouts, total_collections, carried_over_dues, opening_token, payouts').order('closed_at', { ascending: false }),
       ]);
       const txj = await txR.json().catch(() => ({}));
       const resj = await resR.json().catch(() => ({}));
@@ -153,7 +153,13 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   // Shared A4 print report — full day detail (used by BOTH the live and the closed-day Download).
   // Uses the day's own computed figures (collected/moves/paySplit/allDue), so a closed/historical
   // day prints that day's complete report, NOT the post-close "new activity" view.
-  const renderPrint = (badgeText) => (
+  const renderPrint = (badgeText, o = {}) => {
+    const _collected = o.collected ?? collected;
+    const _tok = o.tok ?? tok;
+    const _cashIn = o.cashIn ?? cashIn;
+    const _payout = o.payout ?? payout;
+    const _closing = o.closing ?? closing;
+    return (
     <div id="print-report" aria-hidden="true">
       <div className="pr-head">
         <div className="pr-brand"><img className="pr-crest" src="/logo-crest.png" alt="Hotel Fountain" /><div><div className="pr-name">Hotel Fountain</div><div className="pr-sub">Management CRM · Powered by Lumea</div></div></div>
@@ -161,11 +167,11 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       </div>
       <div className="pr-grid3">
         <div className="pr-card"><h4>Financial</h4>
-          <div className="pr-row"><span>Total Collection</span><b>{bdt(collected)}</b></div>
-          <div className="pr-row"><span>Opening Token</span><b>{bdt(tok)}</b></div>
-          <div className="pr-row"><span>Cash Collected</span><b>{bdt(cashIn)}</b></div>
-          <div className="pr-row"><span>Payouts</span><b>{bdt(payout)}</b></div>
-          <div className="pr-row pr-tot"><span>Closing Balance</span><b>{bdt(closing)}</b></div>
+          <div className="pr-row"><span>Total Collection</span><b>{bdt(_collected)}</b></div>
+          <div className="pr-row"><span>Opening Token</span><b>{bdt(_tok)}</b></div>
+          <div className="pr-row"><span>Cash Collected</span><b>{bdt(_cashIn)}</b></div>
+          <div className="pr-row"><span>Payouts</span><b>{bdt(_payout)}</b></div>
+          <div className="pr-row pr-tot"><span>Closing Balance</span><b>{bdt(_closing)}</b></div>
         </div>
         <div className="pr-card"><h4>Payment Method</h4>
           {['Cash', 'bKash', 'Nagad', 'Card', 'Bank'].map((k) => (<div className="pr-row" key={k}><span>{k}</span><b>{bdt(paySplit[k] || 0)}</b></div>))}
@@ -178,7 +184,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         </div>
       </div>
       <div className="pr-panel">
-        <div className="pr-panel-h"><span className="pr-panel-t">Daily Movements</span><span className="pr-panel-s">{moves.length} movement{moves.length === 1 ? '' : 's'} · {bdt(collected)} collected</span></div>
+        <div className="pr-panel-h"><span className="pr-panel-t">Daily Movements</span><span className="pr-panel-s">{moves.length} movement{moves.length === 1 ? '' : 's'} · {bdt(_collected)} collected</span></div>
         <table className="pr-tbl">
           <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th className="r">Collected</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
           <tbody>
@@ -202,7 +208,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       </div>
       <div className="pr-foot"><span>Hotel Fountain · Lumea CRM · /crm/reports</span><span>Generated {fmtLong(date)} · Page 1 of 1</span></div>
     </div>
-  );
+    );
+  };
 
   async function handleClose() {
     setErr('');
@@ -210,7 +217,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
     if (!ok) return;
     setBusy(true);
     try {
-      const r = await fetch('/api/crm/close-day', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audit_date: date }) });
+      const r = await fetch('/api/crm/close-day', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audit_date: date, opening_token: tok, payouts: payout }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.ok) throw new Error(j.error || 'Could not close the day.');
       await onClosed();
@@ -316,7 +323,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         </Card>
 
                 {/* ── PRINT-ONLY: full day-closing detail report (same template as the live report) ── */}
-        {renderPrint('CLOSED · ' + fmtTime(closeRow.closed_at))}
+        {renderPrint('CLOSED · ' + fmtTime(closeRow.closed_at), { tok: (+closeRow.opening_token || 0), payout: (+closeRow.payouts || 0), closing: (+closeRow.opening_token || 0) + collected - (+closeRow.payouts || 0) })}
         <style>{PRINT_CSS}</style>
       </>
     );
