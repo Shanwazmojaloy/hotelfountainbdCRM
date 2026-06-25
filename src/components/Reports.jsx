@@ -33,6 +33,8 @@ function FRow({ label, value, color }) {
   );
 }
 
+const PRINT_CSS = `#print-report{display:none}@media print{@page{size:A4 portrait;margin:0.7in}html,body{background:#fff!important}body *{visibility:hidden!important}#print-report,#print-report *{visibility:visible!important}#print-report{display:block;position:absolute;left:0;top:0;width:100%;color:#000;font-family:'DM Sans',system-ui,sans-serif;font-size:8.5px;line-height:1.18;text-rendering:geometricPrecision;font-feature-settings:'tnum' 1,'lnum' 1;-webkit-print-color-adjust:exact;print-color-adjust:exact}#print-report .pr-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #C5A059;padding-bottom:6px;margin-bottom:8px}#print-report .pr-brand{display:flex;gap:8px;align-items:center}#print-report .pr-crest{width:30px;height:30px;object-fit:contain;flex:none}#print-report .pr-name{font-family:Georgia,'Libre Baskerville',serif;font-size:15px;font-weight:700;color:#2D2A26}#print-report .pr-sub{font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:#7A7268;margin-top:1px}#print-report .pr-meta{text-align:right;font-size:8.5px;line-height:1.5;color:#2D2A26}#print-report .pr-badge{display:inline-block;margin-top:2px;background:#E9F3EE;color:#2F7D5B;border:1px solid #cfe5d9;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:600}#print-report .pr-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:8px}#print-report .pr-card{border:1px solid #EAE6DD;border-radius:5px;padding:4px 7px;background:#fcfbf8}#print-report .pr-card h4{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#8B6914;margin:0 0 4px;border-bottom:1px solid #EAE6DD;padding-bottom:3px}#print-report .pr-row{display:flex;justify-content:space-between;align-items:baseline;padding:1px 0;font-size:8.5px;color:#2D2A26}#print-report .pr-row span{color:#7A7268}#print-report .pr-row b{font-family:'IBM Plex Mono',monospace;font-weight:600}#print-report .pr-row.pr-tot{border-top:1px dashed #EAE6DD;margin-top:3px;padding-top:4px}#print-report .pr-row.pr-tot b{font-size:11px;color:#8B6914}#print-report .pr-due{color:#9A6A12!important}#print-report .pr-sec{font-family:Georgia,serif;font-size:9.5px;font-weight:700;color:#2D2A26;margin:5px 0 3px}#print-report .pr-panel{border:1px solid #E2DCCE;border-radius:6px;overflow:hidden;margin-bottom:11px;background:#fff}#print-report .pr-panel-h{display:flex;justify-content:space-between;align-items:baseline;padding:5px 9px;background:#F7F3EA;border-bottom:1.5px solid #C5A059}#print-report .pr-panel-h--due{background:#FBF1DD;border-bottom-color:#D9A441}#print-report .pr-panel-t{font-family:Georgia,'Libre Baskerville',serif;font-size:11px;font-weight:700;color:#2D2A26}#print-report .pr-panel-s{font-family:'IBM Plex Mono',monospace;font-size:8px;color:#8B6914;letter-spacing:.04em}#print-report .pr-panel .pr-tbl th,#print-report .pr-panel .pr-tbl td{padding-left:9px;padding-right:9px}#print-report .pr-panel .pr-tbl thead tr{background:#FCFBF8}#print-report .pr-panel .pr-tbl tbody tr:last-child td{border-bottom:none}#print-report .pr-tbl{width:100%;border-collapse:collapse}#print-report .pr-tbl th{font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:.06em;text-transform:uppercase;color:#7A7268;text-align:left;border-bottom:1.5px solid #2D2A26;padding:2.5px 5px}#print-report .pr-tbl td{font-size:8px;padding:1.5px 5px;border-bottom:1px solid #EAE6DD;font-family:'IBM Plex Mono',monospace}#print-report .pr-tbl td:first-child,#print-report .pr-tbl th:first-child{font-family:'DM Sans',sans-serif}#print-report .pr-tbl .r{text-align:right}#print-report .pr-tbl tr{page-break-inside:avoid;break-inside:avoid}#print-report .pr-tbl tr.pr-tot-row td{border-top:1.5px solid #2D2A26;font-weight:700;color:#9A6A12;padding-top:5px;font-family:'IBM Plex Mono',monospace}#print-report .pr-dues{margin-top:8px;border:1px solid #EAE6DD;border-radius:5px}#print-report .pr-dues-h{display:flex;justify-content:space-between;align-items:center;background:#FBF1DD;border-bottom:1px solid #ecdcb8;padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;text-transform:uppercase;letter-spacing:.08em;color:#9A6A12;font-weight:600}#print-report .pr-dues-h b{font-size:12px}#print-report .pr-dues-b{display:flex;flex-wrap:wrap;gap:4px 14px;padding:6px 8px}#print-report .pr-di{font-size:9px;color:#2D2A26}#print-report .pr-di i{font-style:normal;color:#7A7268;font-size:7.5px;font-family:'IBM Plex Mono',monospace}#print-report .pr-di u{text-decoration:none;color:#9A6A12;font-weight:600;font-family:'IBM Plex Mono',monospace}#print-report .pr-more{font-size:8.5px;color:#7A7268;align-self:center}#print-report .pr-foot{display:flex;justify-content:space-between;margin-top:7px;border-top:1px solid #EAE6DD;padding-top:5px;font-family:'IBM Plex Mono',monospace;font-size:7.5px;color:#7A7268}#print-report .pr-grid3,#print-report .pr-card,#print-report .pr-tbl,#print-report .pr-dues,#print-report .pr-head{page-break-inside:avoid;break-inside:avoid}}`;
+
 export default function Reports() {
   const _cached = getSnap('reports');
   const [data, setData] = useState(_cached || { txs: [], rooms: [], res: [], closes: [] });
@@ -258,6 +260,69 @@ function Daily({ txs, res, closes, loading, onClosed }) {
             ))}
           </Table>
         </Card>
+
+        {/* ── PRINT-ONLY: closed-day snapshot in the same A4 report template ── */}
+        <div id="print-report" aria-hidden="true">
+          <div className="pr-head">
+            <div className="pr-brand"><img className="pr-crest" src="/logo-crest.png" alt="Hotel Fountain" /><div><div className="pr-name">Hotel Fountain</div><div className="pr-sub">Management CRM · Powered by Lumea</div></div></div>
+            <div className="pr-meta"><div>Daily Performance Report</div><div>Generated: {fmtLong(date)}</div><div className="pr-badge">CLOSED · {fmtTime(closeRow.closed_at)}</div></div>
+          </div>
+          <div className="pr-grid3">
+            <div className="pr-card"><h4>Collection</h4>
+              <div className="pr-row"><span>Closed Collection</span><b>{bdt(closeRow.total_collections)}</b></div>
+              <div className="pr-row"><span>New (after close)</span><b>{bdt(newCollected)}</b></div>
+              <div className="pr-row pr-tot"><span>Total Collected</span><b>{bdt((+closeRow.total_collections || 0) + newCollected)}</b></div>
+            </div>
+            <div className="pr-card"><h4>Operational</h4>
+              <div className="pr-row"><span>New Movements</span><b>{newMoves.length}</b></div>
+              <div className="pr-row"><span>New Collections</span><b>{newCollTx.length}</b></div>
+              <div className="pr-row pr-tot"><span>Outstanding Dues</span><b className="pr-due">{outstanding.length} resv.</b></div>
+            </div>
+            <div className="pr-card"><h4>Close Audit</h4>
+              <div className="pr-row"><span>Audit Date</span><b>{date}</b></div>
+              <div className="pr-row"><span>Closed By</span><b>{closeRow.closed_by || 'Staff'}</b></div>
+              <div className="pr-row pr-tot"><span>Total Due</span><b className="pr-due">{bdt(totalOutstanding)}</b></div>
+            </div>
+          </div>
+          <div className="pr-panel">
+            <div className="pr-panel-h"><span className="pr-panel-t">New Movements</span><span className="pr-panel-s">{newMoves.length} after close</span></div>
+            <table className="pr-tbl">
+              <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th>Date</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
+              <tbody>
+                {newMoves.length === 0 && <tr><td colSpan={6}>No new check-ins or check-outs after close.</td></tr>}
+                {newMoves.map((m, i) => { const due = dueOf(m); const dt = (m._type === 'IN' ? m.check_in : m.check_out || '').slice(0, 10); return (
+                  <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{typeLabel(m)}</td><td>{dt}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
+                ); })}
+              </tbody>
+            </table>
+          </div>
+          <div className="pr-panel">
+            <div className="pr-panel-h"><span className="pr-panel-t">New Collections</span><span className="pr-panel-s">{newCollTx.length} · {bdt(newCollected)}</span></div>
+            <table className="pr-tbl">
+              <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th>Recorded</th><th className="r">Amount</th></tr></thead>
+              <tbody>
+                {newCollTx.length === 0 && <tr><td colSpan={5}>No new collections since close.</td></tr>}
+                {newCollTx.map((t, i) => (
+                  <tr key={i}><td>{t.guest_name || '—'}</td><td>{t.room_number || '—'}</td><td>{t.type || '—'}</td><td>{fmtTime(t.created_at)}</td><td className="r">{bdt(t.amount)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="pr-panel">
+            <div className="pr-panel-h pr-panel-h--due"><span className="pr-panel-t">Outstanding Dues</span><span className="pr-panel-s">{outstanding.length} reservation{outstanding.length === 1 ? '' : 's'} · {bdt(totalOutstanding)} due</span></div>
+            <table className="pr-tbl">
+              <thead><tr><th>Guest</th><th>Room</th><th>Status</th><th className="r">Balance Due</th></tr></thead>
+              <tbody>
+                {outstanding.map((r, i) => (
+                  <tr key={i}><td>{r.guest_name || 'Guest'}</td><td>{roomOf(r)}</td><td>{r.status || '—'}</td><td className="r">{bdt(dueOf(r))}</td></tr>
+                ))}
+                <tr className="pr-tot-row"><td colSpan={3}>Total Outstanding</td><td className="r">{bdt(totalOutstanding)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="pr-foot"><span>Hotel Fountain · Lumea CRM · /crm/reports</span><span>Closed {fmtTime(closeRow.closed_at)} · {closeRow.closed_by || 'Staff'}</span></div>
+        </div>
+        <style>{PRINT_CSS}</style>
       </>
     );
   }
@@ -333,7 +398,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       <div id="print-report" aria-hidden="true">
         <div className="pr-head">
           <div className="pr-brand"><img className="pr-crest" src="/logo-crest.png" alt="Hotel Fountain" /><div><div className="pr-name">Hotel Fountain</div><div className="pr-sub">Management CRM · Powered by Lumea</div></div></div>
-          <div className="pr-meta"><div>Daily Performance Report</div><div>Generated: {fmtLong(date)}</div><div className="pr-badge">LIVE — OPEN DAY</div></div>
+          <div className="pr-meta"><div>Daily Performance Report</div><div>Generated: {fmtLong(date)}</div><div className="pr-badge">{onOpenDay ? 'LIVE — OPEN DAY' : 'HISTORICAL'}</div></div>
         </div>
         <div className="pr-grid3">
           <div className="pr-card"><h4>Financial</h4>
@@ -378,7 +443,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         </div>
         <div className="pr-foot"><span>Hotel Fountain · Lumea CRM · /crm/reports</span><span>Generated {fmtLong(date)} · Page 1 of 1</span></div>
       </div>
-      <style>{`#print-report{display:none}@media print{@page{size:A4 portrait;margin:0.7in}html,body{background:#fff!important}body *{visibility:hidden!important}#print-report,#print-report *{visibility:visible!important}#print-report{display:block;position:absolute;left:0;top:0;width:100%;color:#000;font-family:'DM Sans',system-ui,sans-serif;font-size:8.5px;line-height:1.18;text-rendering:geometricPrecision;font-feature-settings:'tnum' 1,'lnum' 1;-webkit-print-color-adjust:exact;print-color-adjust:exact}#print-report .pr-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #C5A059;padding-bottom:6px;margin-bottom:8px}#print-report .pr-brand{display:flex;gap:8px;align-items:center}#print-report .pr-crest{width:30px;height:30px;object-fit:contain;flex:none}#print-report .pr-name{font-family:Georgia,'Libre Baskerville',serif;font-size:15px;font-weight:700;color:#2D2A26}#print-report .pr-sub{font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:#7A7268;margin-top:1px}#print-report .pr-meta{text-align:right;font-size:8.5px;line-height:1.5;color:#2D2A26}#print-report .pr-badge{display:inline-block;margin-top:2px;background:#E9F3EE;color:#2F7D5B;border:1px solid #cfe5d9;border-radius:3px;padding:1px 6px;font-size:8px;font-weight:600}#print-report .pr-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:8px}#print-report .pr-card{border:1px solid #EAE6DD;border-radius:5px;padding:4px 7px;background:#fcfbf8}#print-report .pr-card h4{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#8B6914;margin:0 0 4px;border-bottom:1px solid #EAE6DD;padding-bottom:3px}#print-report .pr-row{display:flex;justify-content:space-between;align-items:baseline;padding:1px 0;font-size:8.5px;color:#2D2A26}#print-report .pr-row span{color:#7A7268}#print-report .pr-row b{font-family:'IBM Plex Mono',monospace;font-weight:600}#print-report .pr-row.pr-tot{border-top:1px dashed #EAE6DD;margin-top:3px;padding-top:4px}#print-report .pr-row.pr-tot b{font-size:11px;color:#8B6914}#print-report .pr-due{color:#9A6A12!important}#print-report .pr-sec{font-family:Georgia,serif;font-size:9.5px;font-weight:700;color:#2D2A26;margin:5px 0 3px}#print-report .pr-panel{border:1px solid #E2DCCE;border-radius:6px;overflow:hidden;margin-bottom:11px;background:#fff}#print-report .pr-panel-h{display:flex;justify-content:space-between;align-items:baseline;padding:5px 9px;background:#F7F3EA;border-bottom:1.5px solid #C5A059}#print-report .pr-panel-h--due{background:#FBF1DD;border-bottom-color:#D9A441}#print-report .pr-panel-t{font-family:Georgia,'Libre Baskerville',serif;font-size:11px;font-weight:700;color:#2D2A26}#print-report .pr-panel-s{font-family:'IBM Plex Mono',monospace;font-size:8px;color:#8B6914;letter-spacing:.04em}#print-report .pr-panel .pr-tbl th,#print-report .pr-panel .pr-tbl td{padding-left:9px;padding-right:9px}#print-report .pr-panel .pr-tbl thead tr{background:#FCFBF8}#print-report .pr-panel .pr-tbl tbody tr:last-child td{border-bottom:none}#print-report .pr-tbl{width:100%;border-collapse:collapse}#print-report .pr-tbl th{font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:.06em;text-transform:uppercase;color:#7A7268;text-align:left;border-bottom:1.5px solid #2D2A26;padding:2.5px 5px}#print-report .pr-tbl td{font-size:8px;padding:1.5px 5px;border-bottom:1px solid #EAE6DD;font-family:'IBM Plex Mono',monospace}#print-report .pr-tbl td:first-child,#print-report .pr-tbl th:first-child{font-family:'DM Sans',sans-serif}#print-report .pr-tbl .r{text-align:right}#print-report .pr-tbl tr{page-break-inside:avoid;break-inside:avoid}#print-report .pr-tbl tr.pr-tot-row td{border-top:1.5px solid #2D2A26;font-weight:700;color:#9A6A12;padding-top:5px;font-family:'IBM Plex Mono',monospace}#print-report .pr-dues{margin-top:8px;border:1px solid #EAE6DD;border-radius:5px}#print-report .pr-dues-h{display:flex;justify-content:space-between;align-items:center;background:#FBF1DD;border-bottom:1px solid #ecdcb8;padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;text-transform:uppercase;letter-spacing:.08em;color:#9A6A12;font-weight:600}#print-report .pr-dues-h b{font-size:12px}#print-report .pr-dues-b{display:flex;flex-wrap:wrap;gap:4px 14px;padding:6px 8px}#print-report .pr-di{font-size:9px;color:#2D2A26}#print-report .pr-di i{font-style:normal;color:#7A7268;font-size:7.5px;font-family:'IBM Plex Mono',monospace}#print-report .pr-di u{text-decoration:none;color:#9A6A12;font-weight:600;font-family:'IBM Plex Mono',monospace}#print-report .pr-more{font-size:8.5px;color:#7A7268;align-self:center}#print-report .pr-foot{display:flex;justify-content:space-between;margin-top:7px;border-top:1px solid #EAE6DD;padding-top:5px;font-family:'IBM Plex Mono',monospace;font-size:7.5px;color:#7A7268}#print-report .pr-grid3,#print-report .pr-card,#print-report .pr-tbl,#print-report .pr-dues,#print-report .pr-head{page-break-inside:avoid;break-inside:avoid}}`}</style>
+      <style>{PRINT_CSS}</style>
     </>
   );
 }
