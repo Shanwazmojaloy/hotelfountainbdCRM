@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
+import { sendCapiEvent } from '@/lib/capi';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
   const fiscalDay = clampFiscalDay(typeof body.fiscal_day === 'string' ? body.fiscal_day : null, openBusinessDay(closes));
 
   // Derive bill math server-side (do not trust the client).
-  const { data: rrows } = await supabase.from('reservations').select('id, guest_name, room_ids, total_amount, discount_amount, discount, paid_amount').eq('id', reservationId).limit(1);
+  const { data: rrows } = await supabase.from('reservations').select('id, guest_name, room_ids, total_amount, discount_amount, discount, paid_amount, source, email, phone, fbp, fbc, fb_purchase_sent_at').eq('id', reservationId).limit(1);
   const r = rrows && rrows[0];
   if (!r) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
   const net = Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0));
@@ -74,5 +75,39 @@ export async function POST(req: NextRequest) {
     console.error('[crm/payment] paid_amount bump:', upErr.message);
     return NextResponse.json({ error: 'Payment recorded but balance update failed — check the folio.' }, { status: 500 });
   }
+
+  // ── Meta CAPI Purchase — fires ONCE, only for website-sourced reservations that carry
+  //    ad-click context (fbp/fbc), when the booking becomes fully settled. Walk-in / desk
+  //    bookings are never sent, so organic revenue isn't mis-attributed to ads. Fail-soft +
+  //    idempotent (fb_purchase_sent_at stamp prevents re-fire on later payments). ──
+  const settled = net > 0 && (+newPaid || 0) >= net;
+  const hasClickCtx = !!(r.fbp || r.fbc);
+  if (settled && hasClickCtx && r.source === 'WEBSITE' && !r.fb_purchase_sent_at) {
+    try {
+      const stamp = await supabase
+        .from('reservations')
+        .update({ fb_purchase_sent_at: new Date().toISOString() })
+        .eq('id', r.id)
+        .is('fb_purchase_sent_at', null)
+        .select('id');
+      // Only emit if THIS request won the idempotent stamp (no row → another request already sent).
+      if (stamp.data && stamp.data.length === 1) {
+        void sendCapiEvent({
+          eventName: 'Purchase',
+          eventId: `${r.id}:purchase`,
+          actionSource: 'website',
+          value: net,
+          currency: 'BDT',
+          user: {
+            email: r.email, phone: r.phone, externalId: r.id,
+            fbp: r.fbp, fbc: r.fbc, country: 'bd',
+          },
+        });
+      }
+    } catch (e) {
+      console.error('[crm/payment] CAPI Purchase skipped:', e);
+    }
+  }
+
   return NextResponse.json({ ok: true, paid_amount: newPaid });
 }

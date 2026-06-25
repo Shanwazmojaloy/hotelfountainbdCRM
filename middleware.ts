@@ -69,11 +69,11 @@ const LUMEA_MARKETING_HOSTS = new Set([
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
+    `script-src 'self' 'nonce-${nonce}' https://connect.facebook.net`,
     "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
     "font-src 'self' data: fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
-    `connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST} https://api.brevo.com`,
+    `connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST} https://api.brevo.com https://www.facebook.com https://connect.facebook.net`,
     "frame-src 'self' https://www.google.com",
     "object-src 'none'",
     "base-uri 'self'",

@@ -6,6 +6,19 @@ import { ROOMS } from "@/lib/rooms";
 import { waLink } from "@/lib/site";
 import { RESERVE_EVENT } from "@/lib/reserve";
 
+declare global {
+  interface Window {
+    fbq?: (...args: unknown[]) => void;
+  }
+}
+
+// Read a cookie value in the browser (used for Meta _fbp/_fbc click attribution).
+function readCookie(name: string): string {
+  if (typeof document === "undefined") return "";
+  const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+  return m ? decodeURIComponent(m[1]) : "";
+}
+
 type Form = {
   name: string;
   phone: string;
@@ -60,6 +73,11 @@ export default function ReservationModal() {
       setError(null);
       setDone(null);
       setOpen(true);
+      // Funnel signal: guest opened the booking form.
+      window.fbq?.("track", "InitiateCheckout", {
+        content_name: d.roomType || ROOMS[0]?.name,
+        content_type: "hotel_room",
+      });
     }
     window.addEventListener(RESERVE_EVENT, onOpen);
     return () => window.removeEventListener(RESERVE_EVENT, onOpen);
@@ -91,10 +109,32 @@ export default function ReservationModal() {
       const res = await fetch("/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          fbp: readCookie("_fbp"),
+          fbc: readCookie("_fbc"),
+        }),
       });
       const data = await res.json().catch(() => ({ ok: false, error: "Unexpected response." }));
       if (!res.ok || !data.ok) throw new Error(data.error || "Could not submit your request.");
+      // Conversion: booking request submitted. event_id = reservationId dedups with the
+      // server-side CAPI Lead fired in /api/book.
+      const room = ROOMS.find((r) => r.name === form.roomType);
+      const nights = Math.max(
+        1,
+        Math.round((new Date(form.checkOut).getTime() - new Date(form.checkIn).getTime()) / 86_400_000),
+      );
+      window.fbq?.(
+        "track",
+        "Lead",
+        {
+          value: (room?.priceBDT ?? 4000) * nights,
+          currency: "BDT",
+          content_name: form.roomType,
+          content_type: "hotel_room",
+        },
+        data.reservationId ? { eventID: data.reservationId } : undefined,
+      );
       setDone(form);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not submit your request.");

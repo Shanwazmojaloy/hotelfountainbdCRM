@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { sendCapiEvent, fbCookiesFrom } from '@/lib/capi';
+import { ROOMS } from '@/lib/rooms';
 
 // Server-side public booking endpoint.
 // Replaces the old client-side direct-Supabase insert that could fail silently
@@ -34,7 +36,19 @@ type BookBody = {
   checkIn?: string;
   checkOut?: string;
   guests?: number | string;
+  fbp?: string;
+  fbc?: string;
 };
+
+// Predicted booking value for ad-platform value optimization: nights × nightly rate (BDT).
+// A website booking is a REQUEST (no payment now), so this is a Lead's predicted value —
+// the settled Purchase value is sent later from the CRM payment path.
+function predictedValueBDT(roomType: string, checkIn: string, checkOut: string): number {
+  const room = ROOMS.find((r) => r.name === roomType);
+  const rate = room?.priceBDT ?? Math.min(...ROOMS.map((r) => r.priceBDT));
+  const nights = Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000));
+  return rate * nights;
+}
 
 function bad(error: string, status = 400) {
   return NextResponse.json({ ok: false, error }, { status });
@@ -60,6 +74,11 @@ export async function POST(req: Request) {
   const checkIn = (body.checkIn || '').trim();
   const checkOut = (body.checkOut || '').trim();
   const guests = parseInt(String(body.guests ?? '2'), 10) || 2;
+
+  // Meta click-attribution cookies: prefer client-forwarded values, fall back to the Cookie header.
+  const cookieFb = fbCookiesFrom(req.headers.get('cookie'));
+  const fbp = (body.fbp || cookieFb.fbp || '').trim() || null;
+  const fbc = (body.fbc || cookieFb.fbc || '').trim() || null;
 
   // ---- validation (mirror of the landing form's own gating, enforced server-side) ----
   if (!name) return bad('Guest name is required.');
@@ -107,6 +126,7 @@ export async function POST(req: Request) {
         guests, status: 'PENDING', source: 'WEBSITE',
         created_at: new Date().toISOString(), room_ids: [],
         guest_ids: guestId ? [guestId] : [], tenant_id: TENANT,
+        fbp, fbc, // captured for later server-side Purchase dedup/attribution
       }]),
     });
     if (!resInsert.ok) {
@@ -114,6 +134,26 @@ export async function POST(req: Request) {
     }
     const rows = (await resInsert.json()) as Array<{ id: string }>;
     const reservationId = rows[0]?.id ?? null;
+
+    // ---- 3. fire Meta CAPI Lead (fail-soft; event_id = reservationId so it dedups with
+    //         the browser Pixel's Lead fired on the confirmation card). ----
+    if (reservationId) {
+      const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null;
+      void sendCapiEvent({
+        eventName: 'Lead',
+        eventId: reservationId,
+        actionSource: 'website',
+        eventSourceUrl: req.headers.get('referer') || 'https://fountainbd.com',
+        value: predictedValueBDT(roomType, checkIn, checkOut),
+        currency: 'BDT',
+        contentName: roomType || undefined,
+        user: {
+          email, phone, externalId: reservationId, fbp, fbc,
+          ip, userAgent: req.headers.get('user-agent'),
+          city: address || null, country: 'bd',
+        },
+      });
+    }
 
     return NextResponse.json({ ok: true, reservationId });
   } catch (e) {
