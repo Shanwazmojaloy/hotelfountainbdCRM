@@ -150,6 +150,60 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const PM = [['Cash', /cash/i], ['bKash', /bkash/i], ['Nagad', /nagad/i], ['Card', /card/i], ['Bank', /bank|account|transfer/i]];
   const paySplit = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((acc, t) => { const hit = PM.find(([, re]) => re.test(t.type || '')); const k = hit ? hit[0] : 'Other'; acc[k] = (acc[k] || 0) + (Number(t.amount) || 0); return acc; }, {});
 
+  // Shared A4 print report — full day detail (used by BOTH the live and the closed-day Download).
+  // Uses the day's own computed figures (collected/moves/paySplit/allDue), so a closed/historical
+  // day prints that day's complete report, NOT the post-close "new activity" view.
+  const renderPrint = (badgeText) => (
+    <div id="print-report" aria-hidden="true">
+      <div className="pr-head">
+        <div className="pr-brand"><img className="pr-crest" src="/logo-crest.png" alt="Hotel Fountain" /><div><div className="pr-name">Hotel Fountain</div><div className="pr-sub">Management CRM · Powered by Lumea</div></div></div>
+        <div className="pr-meta"><div>Daily Performance Report</div><div>Generated: {fmtLong(date)}</div><div className="pr-badge">{badgeText}</div></div>
+      </div>
+      <div className="pr-grid3">
+        <div className="pr-card"><h4>Financial</h4>
+          <div className="pr-row"><span>Total Collection</span><b>{bdt(collected)}</b></div>
+          <div className="pr-row"><span>Opening Token</span><b>{bdt(tok)}</b></div>
+          <div className="pr-row"><span>Cash Collected</span><b>{bdt(cashIn)}</b></div>
+          <div className="pr-row"><span>Payouts</span><b>{bdt(payout)}</b></div>
+          <div className="pr-row pr-tot"><span>Closing Balance</span><b>{bdt(closing)}</b></div>
+        </div>
+        <div className="pr-card"><h4>Payment Method</h4>
+          {['Cash', 'bKash', 'Nagad', 'Card', 'Bank'].map((k) => (<div className="pr-row" key={k}><span>{k}</span><b>{bdt(paySplit[k] || 0)}</b></div>))}
+          {paySplit.Other ? (<div className="pr-row"><span>Other</span><b>{bdt(paySplit.Other)}</b></div>) : null}
+        </div>
+        <div className="pr-card"><h4>Operational</h4>
+          <div className="pr-row"><span>Total Movements</span><b>{moves.length}</b></div>
+          <div className="pr-row"><span>Outstanding Dues</span><b>{allDue.length} resv.</b></div>
+          <div className="pr-row pr-tot"><span>Total Due Sum</span><b className="pr-due">{bdt(totalDue)}</b></div>
+        </div>
+      </div>
+      <div className="pr-panel">
+        <div className="pr-panel-h"><span className="pr-panel-t">Daily Movements</span><span className="pr-panel-s">{moves.length} movement{moves.length === 1 ? '' : 's'} · {bdt(collected)} collected</span></div>
+        <table className="pr-tbl">
+          <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th className="r">Collected</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
+          <tbody>
+            {moves.map((m, i) => { const due = dueOf(m); return (
+              <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{typeLabel(m)}{timeOf(m) ? <><br /><span style={{ fontSize: '0.82em', color: '#8a7d6a' }}>{fmtTime(timeOf(m))}</span></> : ''}</td><td className="r">{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
+            ); })}
+          </tbody>
+        </table>
+      </div>
+      <div className="pr-panel">
+        <div className="pr-panel-h pr-panel-h--due"><span className="pr-panel-t">Outstanding Dues</span><span className="pr-panel-s">{allDue.length} reservation{allDue.length === 1 ? '' : 's'} · {bdt(totalDue)} due</span></div>
+        <table className="pr-tbl">
+          <thead><tr><th>Guest</th><th>Room</th><th>Status</th><th className="r">Balance Due</th></tr></thead>
+          <tbody>
+            {allDue.map((r, i) => (
+              <tr key={i}><td>{r.guest_name || 'Guest'}</td><td>{roomOf(r)}</td><td>{r.status || '—'}</td><td className="r">{bdt(dueOf(r))}</td></tr>
+            ))}
+            <tr className="pr-tot-row"><td colSpan={3}>Total Outstanding</td><td className="r">{bdt(totalDue)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div className="pr-foot"><span>Hotel Fountain · Lumea CRM · /crm/reports</span><span>Generated {fmtLong(date)} · Page 1 of 1</span></div>
+    </div>
+  );
+
   async function handleClose() {
     setErr('');
     const ok = window.confirm(`Close the day for ${fmtLong(date)}?\n\nThis snapshots today's figures and switches Reports to the post-close view (outstanding dues + new check-ins/outs + new collections recorded after now).`);
@@ -261,67 +315,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
           </Table>
         </Card>
 
-        {/* ── PRINT-ONLY: closed-day snapshot in the same A4 report template ── */}
-        <div id="print-report" aria-hidden="true">
-          <div className="pr-head">
-            <div className="pr-brand"><img className="pr-crest" src="/logo-crest.png" alt="Hotel Fountain" /><div><div className="pr-name">Hotel Fountain</div><div className="pr-sub">Management CRM · Powered by Lumea</div></div></div>
-            <div className="pr-meta"><div>Daily Performance Report</div><div>Generated: {fmtLong(date)}</div><div className="pr-badge">CLOSED · {fmtTime(closeRow.closed_at)}</div></div>
-          </div>
-          <div className="pr-grid3">
-            <div className="pr-card"><h4>Collection</h4>
-              <div className="pr-row"><span>Closed Collection</span><b>{bdt(closeRow.total_collections)}</b></div>
-              <div className="pr-row"><span>New (after close)</span><b>{bdt(newCollected)}</b></div>
-              <div className="pr-row pr-tot"><span>Total Collected</span><b>{bdt((+closeRow.total_collections || 0) + newCollected)}</b></div>
-            </div>
-            <div className="pr-card"><h4>Operational</h4>
-              <div className="pr-row"><span>New Movements</span><b>{newMoves.length}</b></div>
-              <div className="pr-row"><span>New Collections</span><b>{newCollTx.length}</b></div>
-              <div className="pr-row pr-tot"><span>Outstanding Dues</span><b className="pr-due">{outstanding.length} resv.</b></div>
-            </div>
-            <div className="pr-card"><h4>Close Audit</h4>
-              <div className="pr-row"><span>Audit Date</span><b>{date}</b></div>
-              <div className="pr-row"><span>Closed By</span><b>{closeRow.closed_by || 'Staff'}</b></div>
-              <div className="pr-row pr-tot"><span>Total Due</span><b className="pr-due">{bdt(totalOutstanding)}</b></div>
-            </div>
-          </div>
-          <div className="pr-panel">
-            <div className="pr-panel-h"><span className="pr-panel-t">New Movements</span><span className="pr-panel-s">{newMoves.length} after close</span></div>
-            <table className="pr-tbl">
-              <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th>Date</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
-              <tbody>
-                {newMoves.length === 0 && <tr><td colSpan={6}>No new check-ins or check-outs after close.</td></tr>}
-                {newMoves.map((m, i) => { const due = dueOf(m); const dt = (m._type === 'IN' ? m.check_in : m.check_out || '').slice(0, 10); return (
-                  <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{typeLabel(m)}</td><td>{dt}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
-                ); })}
-              </tbody>
-            </table>
-          </div>
-          <div className="pr-panel">
-            <div className="pr-panel-h"><span className="pr-panel-t">New Collections</span><span className="pr-panel-s">{newCollTx.length} · {bdt(newCollected)}</span></div>
-            <table className="pr-tbl">
-              <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th>Recorded</th><th className="r">Amount</th></tr></thead>
-              <tbody>
-                {newCollTx.length === 0 && <tr><td colSpan={5}>No new collections since close.</td></tr>}
-                {newCollTx.map((t, i) => (
-                  <tr key={i}><td>{t.guest_name || '—'}</td><td>{t.room_number || '—'}</td><td>{t.type || '—'}</td><td>{fmtTime(t.created_at)}</td><td className="r">{bdt(t.amount)}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="pr-panel">
-            <div className="pr-panel-h pr-panel-h--due"><span className="pr-panel-t">Outstanding Dues</span><span className="pr-panel-s">{outstanding.length} reservation{outstanding.length === 1 ? '' : 's'} · {bdt(totalOutstanding)} due</span></div>
-            <table className="pr-tbl">
-              <thead><tr><th>Guest</th><th>Room</th><th>Status</th><th className="r">Balance Due</th></tr></thead>
-              <tbody>
-                {outstanding.map((r, i) => (
-                  <tr key={i}><td>{r.guest_name || 'Guest'}</td><td>{roomOf(r)}</td><td>{r.status || '—'}</td><td className="r">{bdt(dueOf(r))}</td></tr>
-                ))}
-                <tr className="pr-tot-row"><td colSpan={3}>Total Outstanding</td><td className="r">{bdt(totalOutstanding)}</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="pr-foot"><span>Hotel Fountain · Lumea CRM · /crm/reports</span><span>Closed {fmtTime(closeRow.closed_at)} · {closeRow.closed_by || 'Staff'}</span></div>
-        </div>
+                {/* ── PRINT-ONLY: full day-closing detail report (same template as the live report) ── */}
+        {renderPrint('CLOSED · ' + fmtTime(closeRow.closed_at))}
         <style>{PRINT_CSS}</style>
       </>
     );
@@ -394,55 +389,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         <div style={{ fontSize: 10, color: C.ink3, marginTop: 6, fontStyle: 'italic' }}>Closing Balance = Opening Token + Cash Collection − Payouts. Cash Collection = the full day’s collection (sum of all payment methods, = Total Collection). Collections accrue to this open day until “Closing Complete” locks it and opens the next. Outstanding dues carry across every day.</div>
       </Card>
 
-      {/* ── PRINT-ONLY: one-page A4 condensed report (Download → window.print) ── */}
-      <div id="print-report" aria-hidden="true">
-        <div className="pr-head">
-          <div className="pr-brand"><img className="pr-crest" src="/logo-crest.png" alt="Hotel Fountain" /><div><div className="pr-name">Hotel Fountain</div><div className="pr-sub">Management CRM · Powered by Lumea</div></div></div>
-          <div className="pr-meta"><div>Daily Performance Report</div><div>Generated: {fmtLong(date)}</div><div className="pr-badge">{onOpenDay ? 'LIVE — OPEN DAY' : 'HISTORICAL'}</div></div>
-        </div>
-        <div className="pr-grid3">
-          <div className="pr-card"><h4>Financial</h4>
-            <div className="pr-row"><span>Total Collection</span><b>{bdt(collected)}</b></div>
-            <div className="pr-row"><span>Opening Token</span><b>{bdt(tok)}</b></div>
-            <div className="pr-row"><span>Cash Collected</span><b>{bdt(cashIn)}</b></div>
-            <div className="pr-row"><span>Payouts</span><b>{bdt(payout)}</b></div>
-            <div className="pr-row pr-tot"><span>Closing Balance</span><b>{bdt(closing)}</b></div>
-          </div>
-          <div className="pr-card"><h4>Payment Method</h4>
-            {['Cash', 'bKash', 'Nagad', 'Card', 'Bank'].map((k) => (<div className="pr-row" key={k}><span>{k}</span><b>{bdt(paySplit[k] || 0)}</b></div>))}
-            {paySplit.Other ? (<div className="pr-row"><span>Other</span><b>{bdt(paySplit.Other)}</b></div>) : null}
-          </div>
-          <div className="pr-card"><h4>Operational</h4>
-            <div className="pr-row"><span>Total Movements</span><b>{moves.length}</b></div>
-            <div className="pr-row"><span>Outstanding Dues</span><b>{allDue.length} resv.</b></div>
-            <div className="pr-row pr-tot"><span>Total Due Sum</span><b className="pr-due">{bdt(totalDue)}</b></div>
-          </div>
-        </div>
-        <div className="pr-panel">
-          <div className="pr-panel-h"><span className="pr-panel-t">Daily Movements</span><span className="pr-panel-s">{moves.length} movement{moves.length === 1 ? '' : 's'} · {bdt(collected)} collected</span></div>
-          <table className="pr-tbl">
-            <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th className="r">Collected</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
-            <tbody>
-              {moves.map((m, i) => { const due = dueOf(m); return (
-                <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{typeLabel(m)}{timeOf(m) ? <><br /><span style={{ fontSize: '0.82em', color: '#8a7d6a' }}>{fmtTime(timeOf(m))}</span></> : ''}</td><td className="r">{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
-              ); })}
-            </tbody>
-          </table>
-        </div>
-        <div className="pr-panel">
-          <div className="pr-panel-h pr-panel-h--due"><span className="pr-panel-t">Outstanding Dues</span><span className="pr-panel-s">{allDue.length} reservation{allDue.length === 1 ? '' : 's'} · {bdt(totalDue)} due</span></div>
-          <table className="pr-tbl">
-            <thead><tr><th>Guest</th><th>Room</th><th>Status</th><th className="r">Balance Due</th></tr></thead>
-            <tbody>
-              {allDue.map((r, i) => (
-                <tr key={i}><td>{r.guest_name || 'Guest'}</td><td>{roomOf(r)}</td><td>{r.status || '—'}</td><td className="r">{bdt(dueOf(r))}</td></tr>
-              ))}
-              <tr className="pr-tot-row"><td colSpan={3}>Total Outstanding</td><td className="r">{bdt(totalDue)}</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="pr-foot"><span>Hotel Fountain · Lumea CRM · /crm/reports</span><span>Generated {fmtLong(date)} · Page 1 of 1</span></div>
-      </div>
+            {/* ── PRINT-ONLY: one-page A4 day report (Download → window.print) ── */}
+      {renderPrint(onOpenDay ? 'LIVE — OPEN DAY' : 'HISTORICAL')}
       <style>{PRINT_CSS}</style>
     </>
   );
