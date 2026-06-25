@@ -408,10 +408,10 @@ function Daily({ txs, res, closes, loading, onClosed }) {
 function RevBars({ bars, gap, lastGold, fontSize }) {
   const max = Math.max(1, ...bars.map((b) => b.v));
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap, height: 180, padding: '4px 0' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap, height: 188, padding: '4px 0' }}>
       {bars.map((b, i) => (
         <div key={i} title={`${b.lbl} · ${bdt(b.v)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-          <div style={{ width: '100%', height: `${Math.round((b.v / max) * 100)}%`, minHeight: 2, background: (lastGold && i === bars.length - 1) ? 'var(--iv-gold)' : 'var(--iv-side)' }} />
+          <div style={{ width: '100%', height: b.v > 0 ? Math.max(2, Math.round((b.v / max) * 160)) : 0, background: (lastGold && i === bars.length - 1) ? 'var(--iv-gold)' : 'var(--iv-side)', borderRadius: '3px 3px 0 0' }} />
           <span style={{ fontFamily: 'var(--iv-mono)', fontSize, color: 'var(--iv-ink3)' }}>{b.lbl}</span>
         </div>
       ))}
