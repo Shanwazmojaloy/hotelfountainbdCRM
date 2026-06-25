@@ -139,8 +139,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   // on every day's report, not just guests who moved today.
   const allDue = outstandingList(res); // receivables only (CHECKED_IN/CHECKED_OUT) - owner decision 2026-06-12
   const totalDue = allDue.reduce((a, r) => a + dueOf(r), 0);
-  const tok = parseInt(token || '0', 10) || 0;
-  const payout = parseInt(payouts || '0', 10) || 0;
+  const tok = parseInt(token || (closeRow && closeRow.opening_token) || '0', 10) || 0;
+  const payout = parseInt(payouts || (closeRow && closeRow.payouts) || '0', 10) || 0;
   // Closing Balance = Opening Token (float) + Cash Collection − Payouts (owner spec 2026-06-24).
   // "Cash Collection" = the day's FULL collection — the sum of ALL payment methods (cash, bKash, card, …),
   // i.e. it equals Total Collection. No digital-method exclusion.
@@ -253,6 +253,8 @@ function Daily({ txs, res, closes, loading, onClosed }) {
           {Stepper}
           <div className="flex items-center gap-2">
             <Badge tone="green">✓ Closed {fmtTime(closeRow.closed_at)} · {closeRow.closed_by || 'Staff'}</Badge>
+            <input className="iv-input" type="number" placeholder={`Token ৳${+closeRow.opening_token || 0}`} value={token} onChange={(e) => setToken(e.target.value)} style={{ padding: '7px 10px', width: 120 }} />
+            <input className="iv-input" type="number" placeholder={`Payouts ৳${+closeRow.payouts || 0}`} value={payouts} onChange={(e) => setPayouts(e.target.value)} style={{ padding: '7px 10px', width: 120 }} />
             <button className="iv-btn iv-btn--ghost" onClick={handleClose} disabled={busy} style={{ fontSize: 12, padding: '7px 12px' }}>{busy ? 'Re-closing…' : '↻ Re-close'}</button>
             <button className="iv-btn" onClick={() => window.print()} style={{ fontSize: 12, padding: '7px 12px' }}>⬇ Download</button>
           </div>
@@ -323,7 +325,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         </Card>
 
                 {/* ── PRINT-ONLY: full day-closing detail report (same template as the live report) ── */}
-        {renderPrint('CLOSED · ' + fmtTime(closeRow.closed_at), { tok: (+closeRow.opening_token || 0), payout: (+closeRow.payouts || 0), closing: (+closeRow.opening_token || 0) + collected - (+closeRow.payouts || 0) })}
+        {renderPrint('CLOSED · ' + fmtTime(closeRow.closed_at))}
         <style>{PRINT_CSS}</style>
       </>
     );
