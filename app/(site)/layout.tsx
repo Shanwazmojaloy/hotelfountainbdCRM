@@ -37,7 +37,9 @@ const FB_PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
 // Public-site AI chat widget. Served SAME-ORIGIN from /public/widget.js (a pinned
 // copy we control); its POST /chat is proxied to the bot backend by app/chat/route.ts.
 // No third-party origin, DNS, or cert needed. Scoped to (site) → never loads on /crm.
-const CHAT_WIDGET_SRC = "/widget.js";
+// NOTE: bump the ?v= version whenever public/widget.js changes — /public files are
+// cached hard by the browser/CDN, so the query param is the cache-bust.
+const CHAT_WIDGET_SRC = "/widget.js?v=2";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
