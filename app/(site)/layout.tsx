@@ -33,6 +33,11 @@ const hotelSchema = {
 
 const FB_PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
 
+// Public-site AI chat widget. Served SAME-ORIGIN from /public/widget.js (a pinned
+// copy we control); its POST /chat is proxied to the bot backend by app/chat/route.ts.
+// No third-party origin, DNS, or cert needed. Scoped to (site) → never loads on /crm.
+const CHAT_WIDGET_SRC = "/widget.js";
+
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
@@ -46,6 +51,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           }}
         />
       )}
+      <script src={CHAT_WIDGET_SRC} nonce={nonce} defer />
       <ScrollProgress />
       <Navbar />
       <main className="min-h-screen pt-24">{children}</main>
