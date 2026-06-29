@@ -5,6 +5,7 @@ import ReservationModal from "@/components/site/ReservationModal";
 import ScrollProgress from "@/components/site/ScrollProgress";
 import { SITE, CONTACT, AMENITIES } from "@/lib/site";
 import { headers } from "next/headers";
+import Script from "next/script";
 
 // Hotel JSON-LD for the public marketing pages.
 const hotelSchema = {
@@ -51,7 +52,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           }}
         />
       )}
-      <script src={CHAT_WIDGET_SRC} nonce={nonce} defer />
+      <Script src={CHAT_WIDGET_SRC} strategy="afterInteractive" />
       <ScrollProgress />
       <Navbar />
       <main className="min-h-screen pt-24">{children}</main>
