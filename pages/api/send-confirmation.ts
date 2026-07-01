@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { sendMail, isMailConfigured } from '@/lib/mailer';
 
 // ─────────────────────────────────────────────────────────────
 // Email Confirmation API  –  Pages Router  (root /pages/api/)
@@ -181,13 +182,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'guest_name and guest_email are required' });
   }
 
-  const BREVO_API_KEY = process.env.BREVO_API_KEY;
-
-  if (!BREVO_API_KEY) {
-    console.error('[send-confirmation] BREVO_API_KEY not set');
+  if (!isMailConfigured()) {
+    console.error('[send-confirmation] SMTP not configured (SMTP_USER/SMTP_PASS)');
     return res.status(500).json({
       ok: false,
-      error: 'Email not configured — add BREVO_API_KEY in Vercel Settings → Environment Variables, then Redeploy.',
+      error: 'Email not configured - set SMTP_USER/SMTP_PASS in Vercel Settings, then Redeploy.',
     });
   }
 
@@ -198,32 +197,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
 
   try {
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sender: { name: 'Hotel Fountain', email: 'hotellfountainbd@gmail.com' },
-        to: [{ email: guest_email, name: guest_name }],
-        replyTo: { name: 'Hotel Fountain', email: 'hotellfountainbd@gmail.com' },
-        subject: 'Reservation Confirmed — Hotel Fountain',
-        htmlContent: buildEmailHtml(payload),
-        textContent: buildEmailText(payload),
-      }),
+    await sendMail({
+      to: guest_email,
+      subject: 'Reservation Confirmed - Hotel Fountain',
+      html: buildEmailHtml(payload),
+      text: buildEmailText(payload),
+      replyTo: 'hotellfountainbd@gmail.com',
     });
-
-    if (!response.ok) {
-      const detail = await response.text();
-      console.error('[send-confirmation] Brevo error:', response.status, detail);
-      return res.status(500).json({ ok: false, error: 'Brevo API error', detail });
-    }
 
     return res.status(200).json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[send-confirmation] fetch error:', message);
+    console.error('[send-confirmation] SMTP send error:', message);
     return res.status(500).json({ ok: false, error: 'Failed to send email', detail: message });
   }
 }
