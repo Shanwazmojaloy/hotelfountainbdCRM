@@ -98,6 +98,11 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
 
   async function save() {
     if (saving) return;
+    // Date-edit RBAC mirror (server is authoritative): block non-admins early with a clear message.
+    if (!admin) {
+      if (checkInDate !== _origCheckIn) { setErr('Only management can change the check-in date.'); return; }
+      if (checkOut && _origCheckOut && checkOut < _origCheckOut) { setErr('Check-out can only be extended, not shortened. Ask an admin to reduce it.'); return; }
+    }
     if (status === 'CHECKED_OUT' && res.status !== 'CHECKED_OUT' && balance > 0) {
       if (!window.confirm(`${gn} has an outstanding balance of ${bdt(balance)}. Check out anyway? It will be carried forward as Outstanding Due.`)) return;
     }
@@ -117,7 +122,9 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
   }
 
   const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const fieldLocked = { ...field, background: '#F5F2EC', color: 'var(--iv-ink3)', cursor: 'not-allowed' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
+  const lockHint = { textTransform: 'none', letterSpacing: 0, color: 'var(--iv-gold)', fontWeight: 600 };
 
   return (
     <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(7,9,14,0.58)', zIndex: 90,
@@ -129,10 +136,15 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
             <div className="iv-mono" style={{ fontSize: 20, fontWeight: 700, color: balance > 0 ? '#DC2626' : '#16A34A' }}>{bdt(balance)}</div></div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <div><label style={lbl}>Check-In</label><input type="date" style={field} value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} /></div>
-          <div><label style={lbl}>Check-Out</label><input type="date" style={field} value={checkOut} onChange={(e) => setCheckOut(e.target.value)} /></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
+          <div><label style={lbl}>Check-In{!admin && <span style={lockHint}> · locked</span>}</label>
+            <input type="date" style={admin ? field : fieldLocked} value={checkInDate} disabled={!admin} title={admin ? '' : 'Only management can change the check-in date'} onChange={(e) => admin && setCheckInDate(e.target.value)} /></div>
+          <div><label style={lbl}>Check-Out{!admin && <span style={lockHint}> · extend only</span>}</label>
+            <input type="date" style={field} value={checkOut} min={admin ? undefined : _origCheckOut}
+              onChange={(e) => { const v = e.target.value; if (!admin && v && _origCheckOut && v < _origCheckOut) return; setCheckOut(v); }} /></div>
         </div>
+        {!admin && <div className="mb-4" style={{ fontSize: 11, color: 'var(--iv-ink3)' }}>Check-in is locked and check-out can only be extended. Contact an admin to change these.</div>}
+        {admin && <div className="mb-4" />}
 
         <div className="mb-4">
           <label style={lbl}>Rooms {nights > 0 && <span style={{ textTransform: 'none', letterSpacing: 0, color: 'var(--iv-gold)' }}>· {nights} night{nights !== 1 ? 's' : ''}{extNights > 0 ? ` (+${extNights} ext)` : ''}</span>}</label>

@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { recalcResTotalServer } from '@/lib/recalcResTotal.server';
 import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
+import { notifyReservationChange, notifyReservationDeleted } from '@/lib/changeNotify';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -33,11 +34,13 @@ export async function POST(req: NextRequest) {
 
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  const { data: srow } = await supabase.from('staff').select('session_v, role').eq('id', sess.id).limit(1);
+  const { data: srow } = await supabase.from('staff').select('session_v, role, name').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
   const staffRole = String(srow[0].role || '').toLowerCase();
+  const staffName = String(srow[0].name || '').trim() || `Staff #${sess.id}`;
+  const isAdminRole = ['owner', 'manager', 'admin'].includes(staffRole);
   // Tenant is bound to the SIGNED session (not env/header/body) — non-spoofable. Env fallback
   // only for legacy cookies minted before tenant binding shipped.
   const TENANT = sess.tenant_id || ENV_TENANT;
@@ -164,6 +167,20 @@ export async function POST(req: NextRequest) {
       const checkOut = (body.check_out as string) || prev.check_out;
       const gn = (body.guest_name as string) || prev.guest_name || null;
 
+      // ── Date-edit RBAC (house rule 2026-07-01): non-admin staff CANNOT move the check-in
+      // date, and may only EXTEND check-out (never pull it earlier). Admins (owner/manager/
+      // admin) are unrestricted. Enforced here on the service-role path so the anon-key SPA
+      // cannot bypass it. Compared on the YYYY-MM-DD slice (DB stores date/timestamp).
+      if (!isAdminRole) {
+        const d = (v: unknown) => String(v || '').slice(0, 10);
+        if (d(checkIn) !== d(prev.check_in)) {
+          return NextResponse.json({ error: 'Only management can change the check-in date.' }, { status: 403 });
+        }
+        if (d(checkOut) && d(prev.check_out) && d(checkOut) < d(prev.check_out)) {
+          return NextResponse.json({ error: 'Check-out can only be extended, not shortened. Ask an admin to reduce it.' }, { status: 403 });
+        }
+      }
+
       // removed rooms -> AVAILABLE
       for (const rn of oldRoomNos.filter((rn) => !newRoomNos.includes(rn))) {
         await supabase.from('rooms').update({ status: 'AVAILABLE' }).eq('room_number', rn).eq('tenant_id', TENANT);
@@ -210,6 +227,16 @@ export async function POST(req: NextRequest) {
         || String(checkOut || '').slice(0, 10) !== String(prev.check_out || '').slice(0, 10);
       const roomsChanged = JSON.stringify([...newRoomNos].sort()) !== JSON.stringify([...oldRoomNos].sort());
       if (datesChanged || roomsChanged) await recalcResTotalServer(supabase, id);
+
+      // Admin change-notification (house rule 2026-07-01): email the owner a before/after
+      // diff of this edit. Best-effort — never blocks or faults the save.
+      notifyReservationChange({
+        prev,
+        next: { status, paid_amount: paidNum, discount_amount: discountNum, notes: (body.notes as string) ?? prev.notes, check_in: checkIn, check_out: checkOut, room_ids: newRoomNos, guest_name: gn },
+        actor: { id: sess.id, name: staffName, role: staffRole },
+        resId: id,
+      }).catch(() => { /* fire-and-forget */ });
+
       return NextResponse.json({ ok: true });
     }
 
@@ -315,7 +342,7 @@ export async function POST(req: NextRequest) {
       }
       const id = body.id as string;
       if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
-      const { data: prevRows } = await supabase.from('reservations').select('id, status, room_ids, guest_name').eq('id', id).eq('tenant_id', TENANT).limit(1);
+      const { data: prevRows } = await supabase.from('reservations').select('id, status, room_ids, guest_name, check_in, check_out, paid_amount, discount_amount, notes').eq('id', id).eq('tenant_id', TENANT).limit(1);
       const prev = prevRows && prevRows[0];
       if (!prev) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
 
@@ -329,6 +356,12 @@ export async function POST(req: NextRequest) {
       const { error: delErr } = await supabase.from('reservations').delete().eq('id', id).eq('tenant_id', TENANT);
       if (delErr) throw delErr;
       console.log(`[crm/reservation] DELETE ${id} (${prev.guest_name || '—'}) by staff ${sess.id} (${staffRole})`);
+      // Admin change-notification (house rule 2026-07-01): email the owner who deleted what.
+      notifyReservationDeleted({
+        prev,
+        actor: { id: sess.id, name: staffName, role: staffRole },
+        resId: id,
+      }).catch(() => { /* fire-and-forget */ });
       return NextResponse.json({ ok: true });
     }
 
