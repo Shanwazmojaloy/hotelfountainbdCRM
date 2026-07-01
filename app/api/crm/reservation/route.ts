@@ -229,13 +229,17 @@ export async function POST(req: NextRequest) {
       if (datesChanged || roomsChanged) await recalcResTotalServer(supabase, id);
 
       // Admin change-notification (house rule 2026-07-01): email the owner a before/after
-      // diff of this edit. Best-effort — never blocks or faults the save.
-      notifyReservationChange({
-        prev,
-        next: { status, paid_amount: paidNum, discount_amount: discountNum, notes: (body.notes as string) ?? prev.notes, check_in: checkIn, check_out: checkOut, room_ids: newRoomNos, guest_name: gn },
-        actor: { id: sess.id, name: staffName, role: staffRole },
-        resId: id,
-      }).catch(() => { /* fire-and-forget */ });
+      // diff of this edit. STAFF-ONLY — skip when an admin (owner/manager/admin) made the
+      // change, to cut noise; admins editing their own hotel don't need to notify themselves.
+      // Best-effort — never blocks or faults the save.
+      if (!isAdminRole) {
+        notifyReservationChange({
+          prev,
+          next: { status, paid_amount: paidNum, discount_amount: discountNum, notes: (body.notes as string) ?? prev.notes, check_in: checkIn, check_out: checkOut, room_ids: newRoomNos, guest_name: gn },
+          actor: { id: sess.id, name: staffName, role: staffRole },
+          resId: id,
+        }).catch(() => { /* fire-and-forget */ });
+      }
 
       return NextResponse.json({ ok: true });
     }

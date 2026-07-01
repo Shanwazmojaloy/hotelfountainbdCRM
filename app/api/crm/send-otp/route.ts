@@ -20,7 +20,11 @@ const SB_URL         = process.env.NEXT_PUBLIC_SUPABASE_URL      || 'https://myn
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY     || '';
 const TENANT         = process.env.NEXT_PUBLIC_TENANT_ID         || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const BREVO_API_KEY  = process.env.BREVO_API_KEY                 || '';
-const FROM_EMAIL     = process.env.CRM_FROM_EMAIL                || 'noreply@fountainbd.com';
+// Sender MUST be a Brevo-verified address. `noreply@fountainbd.com` was NOT authenticated in
+// Brevo (no SPF/DKIM for fountainbd.com), so Brevo accepted the API call (2xx) but Gmail
+// dropped/spam-filed the OTP -> staff never received activation codes (Ayon Kishor, 2026-07-01).
+// Align to the SAME verified single-sender every other working Lumea email uses.
+const FROM_EMAIL     = process.env.CRM_FROM_EMAIL || process.env.HOTEL_SENDER_EMAIL || 'hotellfountainbd@gmail.com';
 
 function sha256(text: string): string {
   return crypto.createHash('sha256').update(text).digest('hex');
