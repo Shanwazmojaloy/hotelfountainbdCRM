@@ -1,30 +1,42 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// CRM Email Verification  —  POST /api/crm/send-otp
+// -----------------------------------------------------------------------------
+// CRM Email Verification  -  POST /api/crm/send-otp
 //
-// Called during staff account activation:
-//   1. Verify email exists in staff table and is not yet activated
-//   2. Generate 6-digit code, SHA-256 hash it, store in DB with 5-min expiry
-//   3. Send code to staff's registered email via Brevo
+// Delivery: Google Workspace SMTP (fountainbd.com runs on Google Workspace,
+// MX = smtp.google.com). We send OTPs straight through Google's SMTP relay so
+// codes land in the inbox reliably - no third-party sending-account validation
+// gate. SPF for fountainbd.com already includes _spf.google.com, and Workspace
+// applies DKIM automatically, so From: a real fountainbd.com mailbox aligns.
+//
+//   SMTP_USER : a REAL Workspace mailbox on fountainbd.com (e.g. noreply@ or owner)
+//   SMTP_PASS : a Google *App Password* for that mailbox (needs 2-Step Verification)
+//   SMTP_HOST : smtp.gmail.com (default)
+//   SMTP_PORT : 465 (SSL, default) or 587 (STARTTLS)
+//   CRM_FROM_EMAIL : optional. Only override From if it's a VERIFIED "send mail as"
+//                    alias of SMTP_USER; otherwise it defaults to SMTP_USER.
 //
 // No auth required, but resend-throttled: a fresh code can only be requested once
 // per minute per account (prevents email spam + repeatedly resetting a victim's code).
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
-const SB_URL         = process.env.NEXT_PUBLIC_SUPABASE_URL      || 'https://mynwfkgksqqwlqowlscj.supabase.co';
-const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY     || '';
-const TENANT         = process.env.NEXT_PUBLIC_TENANT_ID         || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const BREVO_API_KEY  = process.env.BREVO_API_KEY                 || '';
-// Sender MUST be a Brevo-verified address. `noreply@fountainbd.com` was NOT authenticated in
-// Brevo (no SPF/DKIM for fountainbd.com), so Brevo accepted the API call (2xx) but Gmail
-// dropped/spam-filed the OTP -> staff never received activation codes (Ayon Kishor, 2026-07-01).
-// Align to the SAME verified single-sender every other working Lumea email uses.
-const FROM_EMAIL     = process.env.CRM_FROM_EMAIL || process.env.HOTEL_SENDER_EMAIL || 'hotellfountainbd@gmail.com';
+const SB_URL         = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://mynwfkgksqqwlqowlscj.supabase.co';
+const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const TENANT         = process.env.NEXT_PUBLIC_TENANT_ID     || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+
+const SMTP_HOST  = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT  = Number(process.env.SMTP_PORT || 465);
+const SMTP_USER  = process.env.SMTP_USER || '';
+const SMTP_PASS  = process.env.SMTP_PASS || '';
+// From defaults to the authenticated mailbox (best deliverability / no rewrite).
+// Only set CRM_FROM_EMAIL to a different address if it is a verified send-as alias.
+const FROM_EMAIL = process.env.CRM_FROM_EMAIL || SMTP_USER;
+const FROM_NAME  = process.env.CRM_FROM_NAME  || 'Hotel Fountain CRM';
 
 function sha256(text: string): string {
   return crypto.createHash('sha256').update(text).digest('hex');
@@ -36,9 +48,22 @@ function getSupabase() {
   });
 }
 
-async function sendEmail(to: string, code: string) {
-  if (!BREVO_API_KEY) throw new Error('Email service not configured');
+let _transporter: nodemailer.Transporter | null = null;
+function getTransporter(): nodemailer.Transporter {
+  if (_transporter) return _transporter;
+  if (!SMTP_USER || !SMTP_PASS) {
+    throw new Error('Email service not configured (missing SMTP_USER/SMTP_PASS)');
+  }
+  _transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465, // true for 465 (SSL); false => STARTTLS on 587
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+  return _transporter;
+}
 
+async function sendEmail(to: string, code: string) {
   const htmlContent = [
     '<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#F9F7F2;border-radius:8px;">',
     '<h2 style="color:#1A1816;font-size:18px;margin-bottom:8px;">Hotel Fountain CRM</h2>',
@@ -50,28 +75,14 @@ async function sendEmail(to: string, code: string) {
     '</div>',
   ].join('');
 
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'api-key': BREVO_API_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      sender: { name: 'Hotel Fountain CRM', email: FROM_EMAIL },
-      to: [{ email: to }],
-      subject: 'Your Account Activation Code',
-      htmlContent,
-    }),
+  const info = await getTransporter().sendMail({
+    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+    to,
+    subject: 'Your Account Activation Code',
+    text: `Your Hotel Fountain CRM activation code is ${code}. It is valid for 5 minutes. Do not share this code.`,
+    html: htmlContent,
   });
-
-  if (!res.ok) {
-    const rawBody = await res.text().catch(() => String(res.status));
-    console.error('[send-otp] Brevo HTTP', res.status, rawBody);
-    let msg: string = String(res.status);
-    try { msg = (JSON.parse(rawBody) as { message?: string }).message || rawBody; } catch { msg = rawBody; }
-    throw new Error('Email send failed [' + res.status + ']: ' + msg);
-  }
-  return res.json();
+  return info;
 }
 
 export async function POST(req: NextRequest) {
@@ -112,7 +123,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Resend throttle: codes expire 5 min after issue, so >4 min remaining means one was
-    // issued <60s ago — reject to cap email sends and stop attackers churning a victim's code.
+    // issued <60s ago - reject to cap email sends and stop attackers churning a victim's code.
     if (staff.otp_expires && new Date(staff.otp_expires).getTime() - Date.now() > 4 * 60 * 1000) {
       return NextResponse.json({ error: 'A code was just sent. Please wait a minute before requesting another.' }, { status: 429 });
     }
