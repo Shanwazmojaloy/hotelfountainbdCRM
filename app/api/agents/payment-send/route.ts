@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // PaymentSend Agent  —  /api/agents/payment-send
 // Called by deal-alert when a lead scores ≥7 (deal_ready)
 //
@@ -9,6 +9,7 @@
 // Auth: CRON_SECRET Bearer token
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from 'next/server';
+import { sendMail } from '@/lib/mailer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -217,19 +218,15 @@ export async function POST(req: Request) {
   const plan    = PLANS[planKey] ?? PLANS.starter;
 
   // ── Send payment instructions email ───────────────────────────────────────
-  const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'api-key': (process.env.BREVO_API_KEY || '').trim(),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      sender:      { name: SENDER_NAME,  email: SENDER_EMAIL },
-      to:          [{ email: contactEmail, name: payload.contact_name ?? payload.company_name }],
-      replyTo:     { name: SENDER_NAME,  email: REPLY_EMAIL },
-      subject:     'Your Lumea CRM is ready — payment details inside',
-      htmlContent: buildPaymentHtml(payload, plan),
-      textContent: [
+  let emailOk = false;
+  try {
+    await sendMail({
+      to: contactEmail,
+      fromName: SENDER_NAME,
+      replyTo: REPLY_EMAIL,
+      subject: 'Your Lumea CRM is ready — payment details inside',
+      html: buildPaymentHtml(payload, plan),
+      text: [
         `Hi ${payload.contact_name?.split(' ')[0] ?? 'there'},`,
         '',
         `Thank you for your interest in Lumea.`,
@@ -251,10 +248,11 @@ export async function POST(req: Request) {
         '',
         `— Shan | Lumea | 01322-840799`,
       ].join('\n'),
-    }),
-  });
-
-  const emailOk = brevoRes.ok;
+    });
+    emailOk = true;
+  } catch (e) {
+    console.error('[payment-send] SMTP send error:', e);
+  }
 
   // ── Update lead status → payment_pending ──────────────────────────────────
   if (emailOk) {
