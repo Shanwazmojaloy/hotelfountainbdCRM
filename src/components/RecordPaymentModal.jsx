@@ -21,6 +21,9 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
   const paid = +r.paid_amount || 0;
   const balance = Math.max(0, net - paid);
   const room = Array.isArray(r.room_ids) ? r.room_ids[0] : r.room_number;
+  // Owner rule 2026-07-01: a payment may never exceed the outstanding balance (no double-count /
+  // overpay). Clamp keystrokes to `balance`; server re-validates as source of truth.
+  const clampAmt = (v) => { if (v === '') return ''; const n = Math.max(0, +v || 0); return balance > 0 ? String(Math.min(n, balance)) : '0'; };
 
   const [amount, setAmount] = useState(balance > 0 ? String(balance) : '');
   const [type, setType] = useState('Room Payment (Cash)');
@@ -34,6 +37,8 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
     if (inFlight.current) return;
     const a = +amount;
     if (!a || a <= 0) return setErr('Enter a valid amount.');
+    if (balance <= 0) return setErr('This reservation is already fully settled.');
+    if (a > balance) return setErr('Amount cannot exceed the outstanding balance of ' + bdt(balance) + '.');
     inFlight.current = true; setErr(''); setSaving(true);
     try {
       // Phase 3 money route (service role). idempotency_key carries through to the dual-write guard.
@@ -66,7 +71,8 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Amount (৳) *</label>
-            <input style={field} type="number" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
+            <input style={field} type="number" inputMode="numeric" min="0" max={balance > 0 ? balance : undefined} value={amount} onChange={(e) => setAmount(clampAmt(e.target.value))} autoFocus />
+            <div style={{ fontSize: 10, color: 'var(--iv-ink3)', marginTop: 4 }}>Max: {bdt(balance)}</div></div>
           <div><label style={lbl}>Date</label>
             <input style={field} type="date" value={fiscalDay} onChange={(e) => setFiscalDay(e.target.value)} /></div>
         </div>
@@ -79,7 +85,7 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Record Payment'}</button>
+          <button className="iv-btn" onClick={save} disabled={saving || balance <= 0}>{saving ? 'Saving…' : 'Record Payment'}</button>
         </div>
       </div>
     </div>

@@ -1,5 +1,11 @@
 Purpose: Persistent memory of key decisions and technical hurdles.
 
+RECORD PAYMENT CANNOT EXCEED OUTSTANDING BALANCE (2026-07-01, CODE EDITED - owner pushes via RUN_PUSH_PAYMENT_CAP.bat):
+- OWNER RULE: a recorded payment must never exceed the reservation's outstanding balance (no overpay / no ledger double-count).
+- WHY IT WAS WRONG: `bump_paid_amount` RPC already floors paid_amount at net (LEAST(net, paid+a)) so the BALANCE never went negative - but the `transactions` INSERT still wrote the FULL entered amount, so an overpay inflated today's collections/revenue (the daily ledger) even though the balance looked right. So capping paid_amount was not enough; the AMOUNT itself must be capped.
+- FIX (defense-in-depth): SERVER `app/api/crm/payment/route.ts` computes balanceDue = max(0, net - paid_amount) from the reservation (source of truth) and REJECTS 400 if amount > balanceDue ("Amount exceeds the outstanding balance ..." / "already fully settled"), placed BEFORE the transactions insert. CLIENT `src/components/RecordPaymentModal.jsx`: new clampAmt() hard-caps keystrokes to balance, input gets min=0 + max=balance, a "Max: <bdt>" helper, save() guards (settled + exceed), Record button disabled when balance<=0. Server is authoritative (anon-key SPA cannot bypass).
+- RESIDUAL EDGE (not addressed, low-risk): two terminals recording distinct payments for the same guest simultaneously can each pass the per-request check and together exceed balance (the TX ledger double-counts; paid_amount still caps at net via bump). Same concurrency class the idempotency key handles only for identical dup-clicks. Move the balance check inside bump_paid_amount RPC if this ever bites.
+
 RESERVATION DATE-EDIT RBAC + ADMIN CHANGE-EMAIL (2026-07-01, ✅ CODE EDITED — NOT yet committed; owner pushes from PowerShell via RUN_PUSH_DATE_RBAC.bat):
 - OWNER RULE 1 (date lock): non-admin staff CANNOT change the check-in date and may ONLY extend (never shorten) the check-out date. Admins (owner/manager/admin) unrestricted.
 - OWNER RULE 2 (audit email): on ANY reservation edit OR delete, email the admin a before/after diff naming the staff who made the change.

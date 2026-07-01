@@ -53,6 +53,21 @@ export async function POST(req: NextRequest) {
   const net = Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0));
   const room = Array.isArray(r.room_ids) ? r.room_ids[0] : r.room_number;
 
+  // Cap the payment at the outstanding balance (owner rule 2026-07-01). bump_paid_amount already
+  // floors paid_amount at net so the balance can't go negative, BUT an over-amount would still be
+  // written to `transactions` and inflate today's collections/revenue (double-count). Reject here
+  // on the service-role path so the anon-key SPA cannot bypass it. balanceDue read fresh from the
+  // reservation's own paid_amount (source of truth).
+  const paidPrev = +r.paid_amount || 0;
+  const balanceDue = Math.max(0, net - paidPrev);
+  if (a > balanceDue) {
+    return NextResponse.json({
+      error: balanceDue > 0
+        ? `Amount exceeds the outstanding balance (৳${balanceDue.toLocaleString('en-US')}).`
+        : 'This reservation is already fully settled — no outstanding balance.',
+    }, { status: 400 });
+  }
+
   const { error: txErr } = await supabase.from('transactions').insert({
     room_number: room, guest_name: r.guest_name, type, amount: a,
     fiscal_day: fiscalDay, reservation_id: r.id, tenant_id: TENANT, idempotency_key: idempotencyKey,
