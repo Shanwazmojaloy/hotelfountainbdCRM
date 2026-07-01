@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // PaymentConfirm Agent  —  GET /api/agents/payment-confirm
 //
 // Shan's ONE-TAP activation link — embedded in the deal-alert email.
@@ -19,6 +19,7 @@
 // Auth: ADMIN_SECRET passed as ?token= query param (one-time magic link)
 // ─────────────────────────────────────────────────────────────────────────────
 import { logEvent } from '@/lib/audit';
+import { sendMail } from '@/lib/mailer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -286,19 +287,13 @@ export async function GET(req: Request) {
   // ── Step 2: Send activation email to client ───────────────────────────────
   let emailOk = false;
   try {
-    const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': (process.env.BREVO_API_KEY || '').trim(),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sender:      { name: SENDER_NAME,  email: SENDER_EMAIL },
-        to:          [{ email: contact_email, name: contact_name || hotel_name }],
-        replyTo:     { name: SENDER_NAME,  email: SENDER_EMAIL },
-        subject:     `✓ Your Lumea dashboard is live — ${hotel_name}`,
-        htmlContent: buildActivationHtml(hotel_name, slug, contact_email, planLabel, contact_name),
-        textContent: [
+    await sendMail({
+      to: contact_email,
+      fromName: SENDER_NAME,
+      replyTo: SENDER_EMAIL,
+      subject: `✓ Your Lumea dashboard is live — ${hotel_name}`,
+      html: buildActivationHtml(hotel_name, slug, contact_email, planLabel, contact_name),
+      text: [
           `Assalamu Alaikum ${contact_name.split(' ')[0] || contact_name || hotel_name},`,
           '',
           `Payment confirmed. Your Lumea dashboard is live:`,
@@ -317,9 +312,8 @@ export async function GET(req: Request) {
           '',
           `— Shan | Lumea | 01322-840799`,
         ].join('\n'),
-      }),
     });
-    emailOk = brevoRes.ok;
+    emailOk = true;
   } catch (e) {
     console.error('[payment-confirm] Brevo email threw:', e);
   }
