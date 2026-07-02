@@ -21,13 +21,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
+import { getTenantFromHeaders } from '@/lib/tenant';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
 const SB_URL         = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TENANT         = process.env.NEXT_PUBLIC_TENANT_ID     || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 const SMTP_HOST  = process.env.SMTP_HOST || 'smtp.gmail.com';
 const SMTP_PORT  = Number(process.env.SMTP_PORT || 465);
@@ -99,6 +99,14 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabase();
+
+    // Tenant from the request host (pre-session route — the host is the tenant authority).
+    let TENANT: string;
+    try {
+      TENANT = (await getTenantFromHeaders(req.headers)).id;
+    } catch {
+      return NextResponse.json({ error: 'Unknown property.' }, { status: 404 });
+    }
 
     const { data: rows, error: fetchErr } = await supabase
       .from('staff')

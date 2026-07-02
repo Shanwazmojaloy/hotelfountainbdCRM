@@ -7,13 +7,13 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import { signSession, sessionCookieHeader } from '@/lib/session';
+import { getTenantFromHeaders } from '@/lib/tenant';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const BCRYPT_ROUNDS = 12;
 const sha256 = (t: string) => crypto.createHash('sha256').update(t).digest('hex');
 
@@ -26,6 +26,14 @@ export async function POST(req: NextRequest) {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const supabase: any = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+
+      // Tenant from the request host (pre-session route — the host is the tenant authority).
+      let TENANT: string;
+      try {
+            TENANT = (await getTenantFromHeaders(req.headers)).id;
+      } catch {
+            return NextResponse.json({ error: 'Unknown property.' }, { status: 404 });
+      }
           const { data: rows } = await supabase.from('staff').select('id, name, role, session_v, otp_hash, otp_expires, otp_attempts, tenant_id').eq('tenant_id', TENANT).ilike('email', email.trim()).limit(1);
           const u = rows && rows[0];
           if (!u || !u.otp_hash) return NextResponse.json({ error: 'No pending activation for this email. Request a new code.' }, { status: 404 });

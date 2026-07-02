@@ -80,9 +80,12 @@ worktree — see "Phase A implementation notes" below)*
    deletion pending (shell unavailable during the session).
 2. G8 option 1: ✅ `src/lib/tenantDb.ts` wrapper added; 10 CRM routes migrated
    (task, room, settings, guest, data, folio, check, payment, close-day, staff,
-   financial-metrics, reservation). login/activate/send-otp intentionally NOT
-   migrated — they resolve tenant from env by necessity (no session exists yet);
-   host-based tenant resolution for them is Phase B.
+   financial-metrics, reservation). login/activate/send-otp: ✅ host-based
+   tenant resolution (pulled forward from Phase B, 2026-07-02) — pre-session
+   routes resolve tenant from the request host via `getTenantFromHeaders()`
+   (subdomain → tenants row; env fallback for the home slug; unknown subdomain
+   → 404 'Unknown property'). Identical behavior single-tenant; per-subdomain
+   login works automatically at tenant #2.
 3. G5: ✅ `supabase/migrations/20260702_tenant_ai_usage.sql` (NOT applied to
    prod — fail-open code works without it) + `src/lib/aiBudget.ts` + wired into
    ceo-auditor (budget exhausted → existing heuristic fallback). Remaining AI
