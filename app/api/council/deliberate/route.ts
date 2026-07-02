@@ -21,6 +21,7 @@
 import { NextResponse } from 'next/server';
 import { logEvent } from '@/lib/audit';
 import { requireSession } from '@/lib/session';
+import { checkAiBudget, recordAiUsage } from '@/lib/aiBudget';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 60;
@@ -187,6 +188,7 @@ async function callClaude(args: {
   });
   if (!res.ok) throw new Error(`anthropic: ${await res.text()}`);
   const j = await res.json();
+  recordAiUsage(undefined, j?.usage); // fire-and-forget daily token accounting (G5)
   const text = j?.content?.[0]?.text ?? '';
   const tokens_in  = j?.usage?.input_tokens  ?? 0;
   const tokens_out = j?.usage?.output_tokens ?? 0;
@@ -235,6 +237,12 @@ export async function POST(req: Request) {
     // C2 fix: require authenticated session before any AI/LLM work
     const sess = requireSession(req);
     if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    // Daily token budget (G5) — the council is the most expensive AI route (N panelists
+    // + chairman per deliberation), so it hard-stops at the cap instead of degrading.
+    const budget = await checkAiBudget();
+    if (!budget.allowed) {
+      return NextResponse.json({ error: `Daily AI budget exhausted (${budget.used}/${budget.cap} tokens). Resets at midnight Dhaka time.` }, { status: 429 });
+    }
   let sessionId: string | null = null;
   try {
     const body = await req.json();
