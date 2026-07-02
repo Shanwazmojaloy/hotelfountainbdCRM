@@ -34,9 +34,18 @@ function secretVerifiesProjectKeys(secret: string): boolean {
     process.env.SUPABASE_ANON_KEY,
   ].filter((k): k is string => !!k && k.split('.').length === 3);
   if (candidates.length === 0) {
-    console.warn('[tenantJwt] no legacy-JWT-shaped project key in env to validate SUPABASE_JWT_SECRET against — proceeding unverified');
-    secretValidated = true;
-    return true;
+    // Project runs the NEW API-key system (sb_secret_*/sb_publishable_*) — there is
+    // no legacy JWT in env to verify against, and PostgREST's keyset most likely no
+    // longer accepts legacy-HS256 tokens at all (observed PGRST301, 2026-07-02).
+    // FAIL SAFE to the service role unless explicitly forced for testing.
+    if (process.env.TENANT_JWT_FORCE === '1') {
+      console.warn('[tenantJwt] TENANT_JWT_FORCE=1 — minting with UNVERIFIED secret (new-key project; expect PGRST301 unless the HS256 secret is active in Dashboard → JWT Keys)');
+      secretValidated = true;
+      return true;
+    }
+    console.error('[tenantJwt] project uses new sb_* API keys and no legacy JWT exists to verify SUPABASE_JWT_SECRET — HS256 minting would 401 (PGRST301). Falling back to service role. To proceed: activate an HS256 shared secret in Supabase Dashboard → Settings → JWT Keys, set it as SUPABASE_JWT_SECRET, and set TENANT_JWT_FORCE=1.');
+    secretValidated = false;
+    return false;
   }
   secretValidated = candidates.some((key) => {
     const parts = key.split('.');

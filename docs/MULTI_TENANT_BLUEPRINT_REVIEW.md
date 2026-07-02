@@ -210,16 +210,35 @@ enablement is one env flag away, rehearse on preview first.**
   demo row, and runtime logs show `[tenantDb] TENANT_JWT_MODE=on but
   SUPABASE_JWT_SECRET or anon key missing — using service role` — i.e. the JWT
   branch executes and degrades gracefully.
-- THE ONE REMAINING STEP (needs the dashboard value): grab the legacy JWT
-  secret from Supabase Dashboard → Settings → API → JWT Settings, then:
-    `npx vercel env add SUPABASE_JWT_SECRET preview jwt-rehearsal`  (paste value)
-    push any commit to `jwt-rehearsal` (or redeploy it) and re-run the pilot
-    test → rows must still be exactly the demo reservation and the fallback
-    warning must be GONE from runtime logs. Green → migrate remaining routes'
-    client creation to `tenantClient(TENANT)` (mechanical), grant night-audit /
-    financial RPCs to `crm_tenant` as those routes move, and only then consider
-    `TENANT_JWT_MODE=on` in production. Never enable in prod before the preview
-    run is green.
+- REHEARSAL RUN 2 (2026-07-02, with SUPABASE_JWT_SECRET provisioned): minted
+  HS256 tokens were REJECTED by PostgREST — `PGRST301 No suitable key or wrong
+  key type` (captured via new error logging on the pilot route). ROOT CAUSE:
+  the project has fully migrated to the NEW Supabase API-key system (verified:
+  both prod and preview Vercel envs carry `sb_secret_*`/`sb_publishable_*`;
+  CLAUDE.md's "legacy HS256 re-enabled" note was stale) — PostgREST's JWT
+  keyset no longer accepts legacy-HS256 tokens, so NO pasted legacy secret can
+  work. `tenantJwt.ts` now FAILS SAFE: on a new-key project with nothing to
+  verify the secret against, it logs loudly and falls back to the service role
+  (no 401s) unless `TENANT_JWT_FORCE=1`.
+- REVISED ENABLEMENT PATH (dashboard decision, then mechanical):
+  1. Supabase Dashboard → Project Settings → **JWT Keys**: check whether an
+     HS256 "shared secret" key can be made ACTIVE (legacy secret re-activated,
+     or a shared-secret signing key created/rotated in). NOTE: changing JWT
+     signing keys affects Supabase-Auth-issued user tokens — staff auth here is
+     custom (lumea_sess cookie), so exposure is limited to anything using
+     Supabase Auth sessions (e.g. tenant_users owner-mapping paths).
+  2. Set that secret as `SUPABASE_JWT_SECRET` + `TENANT_JWT_FORCE=1` on the
+     `jwt-rehearsal` preview branch env; push to the branch; re-run the pilot
+     (login demo owner → /api/crm/data must return the 1 demo row; runtime logs
+     must show NO PGRST301 and no fallback warning).
+  3. Green → migrate remaining routes' client creation to `tenantClient(TENANT)`
+     (mechanical), grant night-audit/financial RPCs to `crm_tenant` as routes
+     move, then consider `TENANT_JWT_MODE=on` in production. Never enable in
+     prod before the preview run is green.
+  If the dashboard offers no HS256 option: custom minting against asymmetric
+  keys is impossible (Supabase holds those private keys) — keep the proven
+  service-role + tenantScoped() model and revisit when Supabase ships
+  first-class custom-claims minting.
 
 **Phase C — post-cutover hardening (after runbook step 5)**
 9. G3: validate FKs, `SET NOT NULL`, drop `IS NULL` policy arms.
