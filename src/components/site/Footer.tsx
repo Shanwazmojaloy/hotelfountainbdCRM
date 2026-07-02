@@ -66,7 +66,10 @@ export default function Footer() {
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-neon-teal/70">Get in touch</p>
           <div className="mt-5 flex flex-col gap-3 text-sm text-white/60">
             <a href={CONTACT.phoneHref} className="w-fit transition hover:text-neon-teal">
-              {CONTACT.phone}
+              Front Office: {CONTACT.phone}
+            </a>
+            <a href={CONTACT.salesPhoneHref} className="w-fit transition hover:text-neon-teal">
+              Sales &amp; Marketing: {CONTACT.salesPhone}
             </a>
             <a href={CONTACT.emailHref} className="w-fit transition hover:text-neon-teal">
               {CONTACT.email}
