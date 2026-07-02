@@ -49,6 +49,35 @@ export interface TenantConfig {
   facebook_page_id:     string | null;
   anthropic_api_key:    string | null;
   cron_secret:          string | null;
+
+  // Per-tenant perimeter overrides (Phase B) — NULL = deployment defaults in middleware.ts
+  office_ips:           string[] | null;
+  remote_roles:         string[] | null;
+}
+
+// Secret keys that may live in Supabase Vault (Phase B). Vault values only fill
+// NULL columns — a plaintext column value always wins, so the legacy path keeps
+// working during the transition and Hotel Fountain (all-NULL secret columns,
+// env-var fallbacks downstream) is unaffected until Vault entries exist.
+const VAULT_SECRET_KEYS = new Set([
+  'brevo_api_key', 'gmail_user', 'gmail_app_password',
+  'facebook_page_token', 'facebook_page_id', 'anthropic_api_key', 'cron_secret',
+]);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function overlayVaultSecrets(sb: any, t: TenantConfig): Promise<TenantConfig> {
+  try {
+    const { data } = await sb.rpc('tenant_secrets_get', { p_tenant_id: t.id });
+    for (const row of (data || []) as Array<{ key?: string; value?: string }>) {
+      if (row?.key && row.value != null && VAULT_SECRET_KEYS.has(row.key)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          && (t as any)[row.key] == null) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (t as any)[row.key] = row.value;
+      }
+    }
+  } catch { /* vault unavailable → column/env values carry (fail-open) */ }
+  return t;
 }
 
 // ── Cache ────────────────────────────────────────────────────────────────────
@@ -94,10 +123,11 @@ export async function getTenantBySlug(slug: string): Promise<TenantConfig | null
     return null;
   }
 
-  const entry = { data: data as TenantConfig, ts: Date.now() };
+  const tenant = await overlayVaultSecrets(sb, data as TenantConfig);
+  const entry = { data: tenant, ts: Date.now() };
   slugCache.set(slug, entry);
-  idCache.set(data.id, entry);
-  return data as TenantConfig;
+  idCache.set(tenant.id, entry);
+  return tenant;
 }
 
 export async function getTenantById(id: string): Promise<TenantConfig | null> {
@@ -117,10 +147,11 @@ export async function getTenantById(id: string): Promise<TenantConfig | null> {
     return null;
   }
 
-  const entry = { data: data as TenantConfig, ts: Date.now() };
+  const tenant = await overlayVaultSecrets(sb, data as TenantConfig);
+  const entry = { data: tenant, ts: Date.now() };
   idCache.set(id, entry);
-  slugCache.set(data.slug, entry);
-  return data as TenantConfig;
+  slugCache.set(tenant.slug, entry);
+  return tenant;
 }
 
 // ── Primary entry point for API routes & Server Components ───────────────────
@@ -176,6 +207,8 @@ function buildEnvFallback(): TenantConfig {
     facebook_page_id:    process.env.FACEBOOK_PAGE_ID        || null,
     anthropic_api_key:   process.env.ANTHROPIC_API_KEY       || null,
     cron_secret:         process.env.CRON_SECRET             || null,
+    office_ips:          null,
+    remote_roles:        null,
   };
 }
 

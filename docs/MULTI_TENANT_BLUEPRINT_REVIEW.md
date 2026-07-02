@@ -115,13 +115,74 @@ worktree — see "Phase A implementation notes" below)*
 - Verification: `npx tsc --noEmit` + `npm run build` must pass before commit
   (was pending on shell availability when this note was written).
 
-**Phase B — at tenant #2 signup (with runbook steps 2–4)**
-5. G2: per-tenant perimeter config columns.
-6. G4: secrets → Vault; split identity/secret fetches.
-7. Runbook step 3 / G8 option 2: per-request `set_config` tenant context so
-   RLS becomes the real backstop.
-8. Smoke-test on a 2-tenant Vercel preview (per runbook warning — Supabase
-   dev branches can't exercise `tenant_users`/auth).
+**Phase B — implemented 2026-07-02 (ahead of tenant #2; all inert single-tenant)**
+5. G2: ✅ `tenants.office_ips` / `tenants.remote_roles` columns (migration
+   `20260702_phase_b_perimeter_vault.sql`, applied to prod); `middleware.ts`
+   reads them per-slug, 60s-cached, FAIL-OPEN to the deployment defaults on any
+   fetch error. NULL columns (current state) = exactly the old behavior.
+6. G4: ✅ secrets → Supabase Vault. RPCs `tenant_secret_set(tenant,key,val)` /
+   `tenant_secrets_get(tenant)` (SECURITY DEFINER, revoked from anon/authed,
+   roundtrip-tested on prod). `/api/admin/onboard-tenant` now writes provided
+   secrets to Vault and leaves the columns NULL; `getTenantBySlug/ById` overlay
+   Vault values into NULL columns at read time — a plaintext column value always
+   wins, so nothing changes for Hotel Fountain (all secret columns NULL,
+   env-var fallbacks downstream) until Vault entries exist.
+7. Runbook step 3 / G8 option 2: ⚙️ DB plumbing shipped — `current_tenant_id()`
+   now also honors a JWT `app_tenant_id` claim (inserted after the GUC branch).
+   The client-side switch (mint per-tenant JWTs, move CRM reads off the
+   RLS-bypassing service role) is DELIBERATELY DEFERRED to the 2-tenant Vercel
+   preview — the runbook's own testing requirement; do not flip it blind on prod.
+8. Runbook step 4: ✅ onboarding completes end-to-end — `onboard-tenant` accepts
+   `rooms[]` (seeds the matrix, status AVAILABLE) and `owner{name,email}`
+   (creates the unactivated owner staff row; global next-id rule). The owner
+   then activates via send-otp/activate ON THEIR OWN SUBDOMAIN — works because
+   auth routes are host-resolved (d03b591).
+9. ⚠️ DISCOVERY (2026-07-02): runbook step 5 is ALREADY DONE in prod — the live
+   `current_tenant_id()` has NO legacy `46bbc3ff` fallback (verified via
+   `pg_get_functiondef`). `MULTI_TENANT_CUTOVER.md`'s step-5 section is stale;
+   the public booking site evidently no longer depends on the fallback.
+10. Still required at tenant #2: smoke-test the full flow on a 2-tenant Vercel
+    preview (Supabase dev branches can't exercise `tenant_users`/auth), and
+    populate that tenant's Vault secrets + FB/WhatsApp columns for the two
+    per-hotel ops agents.
+
+**2-tenant smoke test — run 2026-07-02 against PROD with a synthetic tenant**
+
+A demo tenant unblocked the "needs tenant #2" tests. `lumeademo`
+(id `156da579-073b-4a6e-bd64-e5a26c402d98`, "Lumea Demo Hotel") lives in prod
+with rooms D101–D103, one DEMO GUEST reservation, and an activated owner staff
+row (`demo-owner@lumea.invalid`, staff id 15). It is fully RLS-isolated; leave
+it for future regression tests.
+
+DB-layer results (simulated PostgREST contexts, live policies):
+- anon + JWT claim `app_tenant_id=lumeademo` → sees EXACTLY D101–D103 ✅
+- anon + claim `app_tenant_id=hotelfountainbd` → 28 HF rooms, 0 demo leaks ✅
+- anon + GUC `app.current_tenant_id` → identical scoping ✅ (both
+  `current_tenant_id()` branches verified under real RLS)
+- bare anon, no tenant context → 0 rooms ✅ — also explains why runbook step 5's
+  fallback removal didn't break the booking site: the public site no longer
+  reads rooms via anon PostgREST at all. The `OR tenant_id IS NULL` policy arm
+  currently exposes nothing (no NULL-tenant rows).
+- anon on `reservations` → `permission denied` at the GRANT layer ✅ (C3
+  posture: PII tables are grant-revoked AND RLS'd).
+
+FINDING (blocking the HTTP-layer tests): `NEXT_PUBLIC_APEX_DOMAIN` is NOT set
+in Vercel — `lumeademo.fountainbd.com` resolved to `x-tenant-slug:
+hotelfountainbd`, so subdomain tenancy is dormant in prod. ACTION (dashboard):
+set `NEXT_PUBLIC_APEX_DOMAIN=fountainbd.com` on all envs and redeploy. A
+reserved-subdomain guard (www/hotel/lumea/app/api/mail/admin + multi-level →
+home tenant) was added to `extractSlug()` first so the existing
+`hotel.`/`lumea.` aliases survive the switch. After the env change, verify:
+login at `https://lumeademo.fountainbd.com/crm` with the demo owner → should
+succeed and show ONLY D-rooms; a bogus subdomain's login → 404 Unknown property.
+
+**Service-role→JWT switch — mechanism validated, client switch still gated.**
+The claim branch works under RLS (tests above). The actual switch now has a
+concrete design constraint discovered in testing: `anon`/`authenticated` are
+grant-revoked on PII tables (correctly), so the CRM's JWT client needs a
+DEDICATED PostgREST role (e.g. `crm_tenant`) granted to `authenticator`, with
+table grants mirroring what routes do today, minted into the JWT's `role`
+claim alongside `app_tenant_id`. Do this on the 2-tenant preview, not blind.
 
 **Phase C — post-cutover hardening (after runbook step 5)**
 9. G3: validate FKs, `SET NOT NULL`, drop `IS NULL` policy arms.
