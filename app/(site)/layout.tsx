@@ -20,7 +20,7 @@ const hotelSchema = {
   priceRange: "৳4,000–৳9,000",
   checkinTime: "12:00",
   checkoutTime: "12:00",
-  starRating: { "@type": "Rating", ratingValue: "4.8" },
+  aggregateRating: { "@type": "AggregateRating", ratingValue: "4.1", reviewCount: "349", bestRating: "5", worstRating: "1" },
   address: {
     "@type": "PostalAddress",
     streetAddress: "House-05, Road-02, Nikunja-02",
