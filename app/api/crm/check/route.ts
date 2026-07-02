@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
+import { tenantScoped } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -20,7 +21,8 @@ export async function POST(req: NextRequest) {
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const TENANT = sess.tenant_id || ENV_TENANT; // tenant bound to the SIGNED session (env fallback)
-  const { data: srow } = await supabase.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  const db = tenantScoped(supabase, TENANT);
+  const { data: srow } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
   if (action !== 'checkin' && action !== 'checkout') return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
 
   try {
-    const { data: rrows } = await supabase.from('reservations').select('room_ids').eq('id', resId).limit(1);
+    const { data: rrows } = await db.from('reservations').select('room_ids').eq('id', resId).limit(1);
     const r = rrows && rrows[0];
     if (!r) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
     const rooms: string[] = Array.isArray(r.room_ids) && r.room_ids.length ? r.room_ids.filter(Boolean) : (r.room_number ? [r.room_number] : []);
@@ -43,10 +45,10 @@ export async function POST(req: NextRequest) {
     const resPatch: Record<string, unknown> = { status: resStatus };
     if (action === 'checkin') resPatch.check_in = new Date().toISOString();
 
-    const { error: rErr } = await supabase.from('reservations').update(resPatch).eq('id', resId);
+    const { error: rErr } = await db.from('reservations').update(resPatch).eq('id', resId);
     if (rErr) throw rErr;
     for (const rn of rooms) {
-      await supabase.from('rooms').update({ status: roomStatus }).eq('room_number', rn).eq('tenant_id', TENANT);
+      await db.from('rooms').update({ status: roomStatus }).eq('room_number', rn);
     }
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {

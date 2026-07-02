@@ -125,20 +125,26 @@ export async function getTenantById(id: string): Promise<TenantConfig | null> {
 
 // ── Primary entry point for API routes & Server Components ───────────────────
 
+export class TenantNotFoundError extends Error {
+  constructor(slug: string) {
+    super(`No active tenant for slug "${slug}"`);
+    this.name = 'TenantNotFoundError';
+  }
+}
+
 export async function getTenantFromHeaders(headers: Headers): Promise<TenantConfig> {
-  const slug = headers.get('x-tenant-slug')
-    ?? process.env.NEXT_PUBLIC_TENANT_SLUG
-    ?? 'hotelfountainbd';
+  const defaultSlug = process.env.NEXT_PUBLIC_TENANT_SLUG ?? 'hotelfountainbd';
+  const slug = headers.get('x-tenant-slug') ?? defaultSlug;
 
   const tenant = await getTenantBySlug(slug);
+  if (tenant) return tenant;
 
-  if (!tenant) {
-    // Hard fallback: return Hotel Fountain BD config from env vars so the
-    // existing deployment never breaks even before the migration runs.
-    return buildEnvFallback();
-  }
-
-  return tenant;
+  // Env fallback ONLY for the home tenant (keeps the existing deployment alive even if
+  // the tenants table is unreachable). An UNKNOWN subdomain must never silently resolve
+  // to Hotel Fountain — that would serve one hotel's identity/secrets under another's
+  // hostname. Callers surface this as a 404/500, which is the correct outcome.
+  if (slug === defaultSlug) return buildEnvFallback();
+  throw new TenantNotFoundError(slug);
 }
 
 // ── Env-var fallback (backwards compat) ─────────────────────────────────────

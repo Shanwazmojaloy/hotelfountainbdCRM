@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
 import { sendCapiEvent } from '@/lib/capi';
+import { tenantScoped } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -23,13 +24,14 @@ export async function POST(req: NextRequest) {
 
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  const { data: srow } = await supabase.from('staff').select('session_v').eq('id', sess.id).limit(1);
-  if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
-    return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
-  }
   // Tenant is bound to the SIGNED session (not env/header/body) — non-spoofable. Env fallback
   // only for legacy cookies minted before tenant binding shipped.
   const TENANT = sess.tenant_id || ENV_TENANT;
+  const db = tenantScoped(supabase, TENANT);
+  const { data: srow } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
+    return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
+  }
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty */ }
@@ -43,11 +45,11 @@ export async function POST(req: NextRequest) {
   // fiscal_day is the OPEN business day, not the calendar date — collections accrue to the
   // open day until it's closed. A modal defaulting to "today" snaps back to the open day;
   // an explicit back-date (≤ open) is honored for offline reconciliation.
-  const { data: closes } = await supabase.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT);
+  const { data: closes } = await db.from('night_audit_log').select('audit_date, status');
   const fiscalDay = clampFiscalDay(typeof body.fiscal_day === 'string' ? body.fiscal_day : null, openBusinessDay(closes));
 
   // Derive bill math server-side (do not trust the client).
-  const { data: rrows } = await supabase.from('reservations').select('id, guest_name, room_ids, total_amount, discount_amount, discount, paid_amount, source, email, phone, fbp, fbc, fb_purchase_sent_at').eq('id', reservationId).limit(1);
+  const { data: rrows } = await db.from('reservations').select('id, guest_name, room_ids, total_amount, discount_amount, discount, paid_amount, source, email, phone, fbp, fbc, fb_purchase_sent_at').eq('id', reservationId).limit(1);
   const r = rrows && rrows[0];
   if (!r) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
   const net = Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0));
@@ -68,9 +70,9 @@ export async function POST(req: NextRequest) {
     }, { status: 400 });
   }
 
-  const { error: txErr } = await supabase.from('transactions').insert({
+  const { error: txErr } = await db.from('transactions').insert({
     room_number: room, guest_name: r.guest_name, type, amount: a,
-    fiscal_day: fiscalDay, reservation_id: r.id, tenant_id: TENANT, idempotency_key: idempotencyKey,
+    fiscal_day: fiscalDay, reservation_id: r.id, idempotency_key: idempotencyKey,
   });
   if (txErr) {
     // 23505 -> this exact payment already landed; treat as success, skip the paid_amount bump.
@@ -99,7 +101,7 @@ export async function POST(req: NextRequest) {
   const hasClickCtx = !!(r.fbp || r.fbc);
   if (settled && hasClickCtx && r.source === 'WEBSITE' && !r.fb_purchase_sent_at) {
     try {
-      const stamp = await supabase
+      const stamp = await db
         .from('reservations')
         .update({ fb_purchase_sent_at: new Date().toISOString() })
         .eq('id', r.id)

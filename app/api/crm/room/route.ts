@@ -3,13 +3,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
+import { tenantScoped } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const STATUSES = ['AVAILABLE', 'OCCUPIED', 'DIRTY', 'OUT_OF_ORDER', 'RESERVED'];
 
 export async function POST(req: NextRequest) {
@@ -19,7 +20,9 @@ export async function POST(req: NextRequest) {
 
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  const { data: srow } = await supabase.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  const TENANT = sess.tenant_id || ENV_TENANT; // tenant bound to the SIGNED session (env fallback)
+  const db = tenantScoped(supabase, TENANT);
+  const { data: srow } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
@@ -34,7 +37,7 @@ export async function POST(req: NextRequest) {
       const id = body.id;
       const status = s(body.status);
       if (!id || !status || !STATUSES.includes(status)) return NextResponse.json({ error: 'Invalid room/status.' }, { status: 400 });
-      const { error } = await supabase.from('rooms').update({ status }).eq('id', id);
+      const { error } = await db.from('rooms').update({ status }).eq('id', id);
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
@@ -43,11 +46,11 @@ export async function POST(req: NextRequest) {
       if (!room_number) return NextResponse.json({ error: 'Room number is required.' }, { status: 400 });
       const row: Record<string, unknown> = {
         room_number, category: s(body.category) || 'Standard',
-        price: +(body.price as number) || 0, status: 'AVAILABLE', tenant_id: TENANT,
+        price: +(body.price as number) || 0, status: 'AVAILABLE',
       };
       if (s(body.floor)) row.floor = s(body.floor);
       if (s(body.beds)) row.beds = s(body.beds);
-      const { error } = await supabase.from('rooms').insert(row);
+      const { error } = await db.from('rooms').insert(row);
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }

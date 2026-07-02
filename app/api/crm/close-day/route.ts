@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { openBusinessDay } from '@/lib/businessDay';
+import { tenantScoped } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest) {
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const TENANT = sess.tenant_id || ENV_TENANT; // tenant bound to the SIGNED session (env fallback)
-  const { data: srow } = await supabase.from('staff').select('name, role, session_v').eq('id', sess.id).limit(1);
+  const db = tenantScoped(supabase, TENANT);
+  const { data: srow } = await db.from('staff').select('name, role, session_v').eq('id', sess.id).limit(1);
   const staff = srow && srow[0];
   if (!staff || (staff.session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   // ── resolve the OPEN business day (latest closed + 1), unless an explicit
   //    audit_date is passed (re-close of a past day) ──
-  const { data: closes } = await supabase.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT);
+  const { data: closes } = await db.from('night_audit_log').select('audit_date, status');
   const openDay = openBusinessDay(closes, dhakaToday());
   const auditDate = (typeof body.audit_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.audit_date)) ? body.audit_date : openDay;
 
@@ -70,13 +72,12 @@ export async function POST(req: NextRequest) {
   // Persist the manual cash-drawer inputs so closed-day re-downloads reconstruct the exact
   // Closing Balance (Opening Token + Cash - Payouts). The RPC owns every computed column;
   // this UPDATE only touches the two manual ones.
-  await supabase.from('night_audit_log').update({ opening_token, payouts }).eq('tenant_id', TENANT).eq('audit_date', auditDate);
+  await db.from('night_audit_log').update({ opening_token, payouts }).eq('audit_date', auditDate);
 
   // Return the persisted row (preserves the existing { ok, close } response shape).
-  const { data: saved } = await supabase
+  const { data: saved } = await db
     .from('night_audit_log')
     .select('*')
-    .eq('tenant_id', TENANT)
     .eq('audit_date', auditDate)
     .single();
 

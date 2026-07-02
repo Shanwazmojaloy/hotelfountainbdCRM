@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
+import { tenantScoped } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -21,7 +22,8 @@ export async function POST(req: NextRequest) {
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const TENANT = sess.tenant_id || ENV_TENANT; // tenant bound to the SIGNED session (env fallback)
-  const { data: srow } = await supabase.from('staff').select('session_v, role').eq('id', sess.id).limit(1);
+  const db = tenantScoped(supabase, TENANT);
+  const { data: srow } = await db.from('staff').select('session_v, role').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
@@ -35,19 +37,21 @@ export async function POST(req: NextRequest) {
 
   try {
     if (action === 'list') {
-      const { data, error } = await supabase.from('staff').select('id, name, email, role, activated, device').eq('tenant_id', TENANT).order('role');
+      const { data, error } = await db.from('staff').select('id, name, email, role, activated, device').order('role');
       if (error) throw error;
       return NextResponse.json({ ok: true, staff: data || [] });
     }
     if (action === 'create') {
       const name = s(body.name); const email = s(body.email);
       if (!name || !email) return NextResponse.json({ error: 'Name and email are required.' }, { status: 400 });
+      // Next-id stays GLOBAL (raw client, no tenant scope): staff.id is an integer PK shared
+      // across tenants — a per-tenant max would collide with another tenant's ids.
       const { data: mx } = await supabase.from('staff').select('id').order('id', { ascending: false }).limit(1);
       const nextId = ((mx && mx[0]?.id) || 0) + 1;
-      const { error } = await supabase.from('staff').insert({
+      const { error } = await db.from('staff').insert({
         id: nextId, name, email: email.toLowerCase(), role: s(body.role) || 'receptionist',
         device: s(body.device) || `${name} Terminal`, av: initials(name),
-        tenant_id: TENANT, activated: false, pwh: null, session_v: 1,
+        activated: false, pwh: null, session_v: 1,
       });
       if (error) throw error;
       return NextResponse.json({ ok: true, id: nextId });
@@ -55,25 +59,25 @@ export async function POST(req: NextRequest) {
     if (action === 'update') {
       if (!id) return NextResponse.json({ error: 'Missing id.' }, { status: 400 });
       const patch: Record<string, unknown> = { name: s(body.name), email: s(body.email)?.toLowerCase(), role: s(body.role), device: s(body.device) };
-      const { error } = await supabase.from('staff').update(patch).eq('id', id).eq('tenant_id', TENANT);
+      const { error } = await db.from('staff').update(patch).eq('id', id);
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
     if (action === 'delete') {
       if (!id) return NextResponse.json({ error: 'Missing id.' }, { status: 400 });
-      const { error } = await supabase.from('staff').delete().eq('id', id).eq('tenant_id', TENANT);
+      const { error } = await db.from('staff').delete().eq('id', id);
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
     if (action === 'reset') {
       if (!id) return NextResponse.json({ error: 'Missing id.' }, { status: 400 });
-      const { error } = await supabase.from('staff').update({ pwh: null, activated: false, otp_hash: null, otp_expires: null, session_v: 1 }).eq('id', id).eq('tenant_id', TENANT);
+      const { error } = await db.from('staff').update({ pwh: null, activated: false, otp_hash: null, otp_expires: null, session_v: 1 }).eq('id', id);
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
     if (action === 'logout_all') {
       // Invalidate every non-owner session.
-      const { error } = await supabase.from('staff').update({ session_v: 2 }).eq('tenant_id', TENANT).neq('role', 'owner');
+      const { error } = await db.from('staff').update({ session_v: 2 }).neq('role', 'owner');
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }

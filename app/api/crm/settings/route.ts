@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
+import { tenantScoped } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -20,7 +21,8 @@ export async function POST(req: NextRequest) {
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const TENANT = sess.tenant_id || ENV_TENANT; // tenant bound to the SIGNED session (env fallback)
-  const { data: srow } = await supabase.from('staff').select('session_v, role').eq('id', sess.id).limit(1);
+  const db = tenantScoped(supabase, TENANT);
+  const { data: srow } = await db.from('staff').select('session_v, role').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
@@ -31,10 +33,10 @@ export async function POST(req: NextRequest) {
   const values = (body.values || {}) as Record<string, unknown>;
   const rows = KEYS
     .filter((k) => values[k] !== undefined && values[k] !== null)
-    .map((key) => ({ key, value: String(values[key]), tenant_id: TENANT }));
+    .map((key) => ({ key, value: String(values[key]) }));
   if (rows.length === 0) return NextResponse.json({ error: 'No settings to save.' }, { status: 400 });
 
-  const { error } = await supabase.from('hotel_settings').upsert(rows, { onConflict: 'key,tenant_id' });
+  const { error } = await db.from('hotel_settings').upsert(rows, { onConflict: 'key,tenant_id' });
   if (error) {
     console.error('[crm/settings]', error.message);
     return NextResponse.json({ error: 'Could not save settings.' }, { status: 500 });

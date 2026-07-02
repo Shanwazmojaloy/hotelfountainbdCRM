@@ -14,6 +14,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 import { assertCron } from '@/lib/workflow-trigger';
+import { checkAiBudget, recordAiUsage } from '@/lib/aiBudget';
 // TENANT sourced per-request via getTenantFromHeaders() — no module-level constant needed
 const DEAL_THRESHOLD = 7;
 
@@ -151,6 +152,13 @@ async function runCEOAudit(payload: AuditPayload): Promise<ClaudeAuditResult & {
     return { ...runHeuristicAudit(payload), source: 'heuristic', fallback_reason: 'ANTHROPIC_API_KEY missing' };
   }
 
+  // Daily token budget (G5): when the tenant's cap is exhausted, degrade to the
+  // heuristic audit instead of spending more — the pipeline still completes.
+  const budget = await checkAiBudget();
+  if (!budget.allowed) {
+    return { ...runHeuristicAudit(payload), source: 'heuristic', fallback_reason: `AI budget exhausted (${budget.used}/${budget.cap} tokens today)` };
+  }
+
   const hotelDesc = process.env.HOTEL_DESCRIPTION || 'Hotel Fountain BD, a boutique 24-room hotel in Nikunja 2, Dhaka';
   const prompt = `You are the CEO of ${hotelDesc}. Review this reply from a corporate lead.
 
@@ -206,6 +214,7 @@ Respond ONLY with valid JSON:
     }
 
     const data = await response.json();
+    recordAiUsage(undefined, data.usage); // fire-and-forget token accounting
     const text = data.content?.[0]?.text ?? '{}';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
