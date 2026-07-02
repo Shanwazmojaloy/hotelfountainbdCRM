@@ -166,15 +166,24 @@ DB-layer results (simulated PostgREST contexts, live policies):
 - anon on `reservations` → `permission denied` at the GRANT layer ✅ (C3
   posture: PII tables are grant-revoked AND RLS'd).
 
-FINDING (blocking the HTTP-layer tests): `NEXT_PUBLIC_APEX_DOMAIN` is NOT set
-in Vercel — `lumeademo.fountainbd.com` resolved to `x-tenant-slug:
-hotelfountainbd`, so subdomain tenancy is dormant in prod. ACTION (dashboard):
-set `NEXT_PUBLIC_APEX_DOMAIN=fountainbd.com` on all envs and redeploy. A
-reserved-subdomain guard (www/hotel/lumea/app/api/mail/admin + multi-level →
-home tenant) was added to `extractSlug()` first so the existing
-`hotel.`/`lumea.` aliases survive the switch. After the env change, verify:
-login at `https://lumeademo.fountainbd.com/crm` with the demo owner → should
-succeed and show ONLY D-rooms; a bogus subdomain's login → 404 Unknown property.
+HTTP-layer results (live prod, run after resolving an initial misread):
+`NEXT_PUBLIC_APEX_DOMAIN` IS set — to `lumea.fountainbd.com` — so the tenant
+scheme is `<slug>.lumea.fountainbd.com` (matches the `*.lumea.fountainbd.com`
+wildcard alias). The first probe used the wrong host pattern
+(`lumeademo.fountainbd.com`); on the correct host everything passes:
+- `lumeademo.lumea.fountainbd.com` → `x-tenant-slug: lumeademo` ✅
+- login there with bogus creds → 401 Incorrect email or password ✅ (tenant
+  resolved, staff searched in the DEMO tenant)
+- login on `ghosthotel.lumea.fountainbd.com` → **404 Unknown property** ✅
+  (G1 gate live — unknown subdomains no longer impersonate Hotel Fountain)
+- real demo-owner login → session carries the demo `tenant_id`; `/api/crm/data
+  ?resource=reservations` under that session → exactly 1 row (DEMO GUEST),
+  ZERO of Hotel Fountain's 1,400 reservations ✅ — end-to-end isolation through
+  middleware → host-resolved login → session binding → tenantScoped() wrapper.
+Cross-tenant WRITE probes were deliberately not run against live hotel data;
+write scoping is proven structurally (wrapper stamps/filters) + by the DB
+tests. The reserved-subdomain guard shipped with this round is still correct
+under this scheme (protects `www.lumea.fountainbd.com` etc.).
 
 **Service-role→JWT switch — mechanism validated, client switch still gated.**
 The claim branch works under RLS (tests above). The actual switch now has a
