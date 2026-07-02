@@ -29,7 +29,7 @@
         "gsap": "^3.12.5",
         "imapflow": "^1.0.162",
         "next": "^15.0.4",
-        "nodemailer": "^6.9.14",
+        "nodemailer": "^9.0.3",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "sharp": "^0.34.5"
@@ -41,7 +41,7 @@
         "@tailwindcss/postcss": "^4.0.0",
         "@types/bcryptjs": "^2.4.6",
         "@types/node": "^20.14.0",
-        "@types/nodemailer": "^6.4.15",
+        "@types/nodemailer": "^8.0.1",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
         "eslint": "^9.0.0",
@@ -50,5 +50,8 @@
         "terser": "^5.31.0",
         "typescript": "^5.5.0",
         "vitest": "^1.6.0"
+    },
+    "overrides": {
+        "nodemailer": "^9.0.3"
     }
 }
