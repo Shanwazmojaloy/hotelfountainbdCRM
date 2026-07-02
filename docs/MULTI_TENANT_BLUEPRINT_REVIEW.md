@@ -115,13 +115,36 @@ worktree — see "Phase A implementation notes" below)*
 - Verification: `npx tsc --noEmit` + `npm run build` must pass before commit
   (was pending on shell availability when this note was written).
 
-**Phase B — at tenant #2 signup (with runbook steps 2–4)**
-5. G2: per-tenant perimeter config columns.
-6. G4: secrets → Vault; split identity/secret fetches.
-7. Runbook step 3 / G8 option 2: per-request `set_config` tenant context so
-   RLS becomes the real backstop.
-8. Smoke-test on a 2-tenant Vercel preview (per runbook warning — Supabase
-   dev branches can't exercise `tenant_users`/auth).
+**Phase B — implemented 2026-07-02 (ahead of tenant #2; all inert single-tenant)**
+5. G2: ✅ `tenants.office_ips` / `tenants.remote_roles` columns (migration
+   `20260702_phase_b_perimeter_vault.sql`, applied to prod); `middleware.ts`
+   reads them per-slug, 60s-cached, FAIL-OPEN to the deployment defaults on any
+   fetch error. NULL columns (current state) = exactly the old behavior.
+6. G4: ✅ secrets → Supabase Vault. RPCs `tenant_secret_set(tenant,key,val)` /
+   `tenant_secrets_get(tenant)` (SECURITY DEFINER, revoked from anon/authed,
+   roundtrip-tested on prod). `/api/admin/onboard-tenant` now writes provided
+   secrets to Vault and leaves the columns NULL; `getTenantBySlug/ById` overlay
+   Vault values into NULL columns at read time — a plaintext column value always
+   wins, so nothing changes for Hotel Fountain (all secret columns NULL,
+   env-var fallbacks downstream) until Vault entries exist.
+7. Runbook step 3 / G8 option 2: ⚙️ DB plumbing shipped — `current_tenant_id()`
+   now also honors a JWT `app_tenant_id` claim (inserted after the GUC branch).
+   The client-side switch (mint per-tenant JWTs, move CRM reads off the
+   RLS-bypassing service role) is DELIBERATELY DEFERRED to the 2-tenant Vercel
+   preview — the runbook's own testing requirement; do not flip it blind on prod.
+8. Runbook step 4: ✅ onboarding completes end-to-end — `onboard-tenant` accepts
+   `rooms[]` (seeds the matrix, status AVAILABLE) and `owner{name,email}`
+   (creates the unactivated owner staff row; global next-id rule). The owner
+   then activates via send-otp/activate ON THEIR OWN SUBDOMAIN — works because
+   auth routes are host-resolved (d03b591).
+9. ⚠️ DISCOVERY (2026-07-02): runbook step 5 is ALREADY DONE in prod — the live
+   `current_tenant_id()` has NO legacy `46bbc3ff` fallback (verified via
+   `pg_get_functiondef`). `MULTI_TENANT_CUTOVER.md`'s step-5 section is stale;
+   the public booking site evidently no longer depends on the fallback.
+10. Still required at tenant #2: smoke-test the full flow on a 2-tenant Vercel
+    preview (Supabase dev branches can't exercise `tenant_users`/auth), and
+    populate that tenant's Vault secrets + FB/WhatsApp columns for the two
+    per-hotel ops agents.
 
 **Phase C — post-cutover hardening (after runbook step 5)**
 9. G3: validate FKs, `SET NOT NULL`, drop `IS NULL` policy arms.

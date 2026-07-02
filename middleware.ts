@@ -8,8 +8,42 @@ const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/^htt
 // ── CRM perimeter gate config ────────────────────────────────────────────────
 // On the office IP: any logged-in staff. Off-network: ADMIN-tier sessions only.
 // Perimeter only — Supabase RLS + anon-key revoke remain the real data guard.
+// Phase B: these are DEPLOYMENT DEFAULTS; a tenant row's office_ips/remote_roles
+// columns override them per-property (fetched below, 60s-cached, fail-open).
 const OFFICE_IPS = ['103.113.153.228']; // public WAN IP(s); add every ISP line the property uses
 const REMOTE_ROLES = new Set(['owner', 'admin']); // who may reach CRM off-site (add 'manager' to widen)
+
+// Per-tenant perimeter overrides (Phase B). NULL/empty columns → deployment
+// defaults; any fetch failure → deployment defaults (fail-open keeps the CRM
+// reachable even if Supabase is briefly unreachable from the edge).
+interface Perimeter { ips: string[]; roles: Set<string>; ts: number }
+const perimCache = new Map<string, Perimeter>();
+async function tenantPerimeter(slug: string): Promise<Perimeter> {
+  const hit = perimCache.get(slug);
+  if (hit && Date.now() - hit.ts < 60_000) return hit;
+  let ips = OFFICE_IPS;
+  let roles = REMOTE_ROLES;
+  try {
+    const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (sbUrl && sbKey) {
+      const r = await fetch(
+        `${sbUrl}/rest/v1/tenants?slug=eq.${encodeURIComponent(slug)}&select=office_ips,remote_roles`,
+        { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` }, signal: AbortSignal.timeout(1500) },
+      );
+      if (r.ok) {
+        const t = (await r.json())?.[0];
+        if (Array.isArray(t?.office_ips) && t.office_ips.length) ips = t.office_ips.map(String);
+        if (Array.isArray(t?.remote_roles) && t.remote_roles.length) {
+          roles = new Set(t.remote_roles.map((x: unknown) => String(x).trim().toLowerCase()));
+        }
+      }
+    }
+  } catch { /* fail-open to deployment defaults */ }
+  const entry = { ips, roles, ts: Date.now() };
+  perimCache.set(slug, entry);
+  return entry;
+}
 const SESSION_COOKIE = 'lumea_sess';
 const SESSION_SECRET = process.env.SESSION_SECRET || '';
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // mirrors src/lib/session.ts
@@ -83,13 +117,18 @@ function buildCsp(nonce: string): string {
 }
 
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get('host') || '';
+  const hostname = host.split(':')[0];
+  const slug = extractSlug(host);
+
   // ── CRM perimeter gate (deny-only; allowed requests fall through to CSP/tenant logic) ──
   const gatePath = request.nextUrl.pathname;
   if ((gatePath.startsWith('/crm') || gatePath.startsWith('/api/crm')) && !AUTH_EXEMPT.has(gatePath)) {
+    const perim = await tenantPerimeter(slug); // per-tenant override, deployment defaults on miss
     const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim();
-    if (!OFFICE_IPS.includes(ip)) {
+    if (!perim.ips.includes(ip)) {
       const role = await sessionRole(request.cookies.get(SESSION_COOKIE)?.value);
-      if (!role || !REMOTE_ROLES.has(role)) {
+      if (!role || !perim.roles.has(role)) {
         if (gatePath.startsWith('/api/')) {
           return NextResponse.json({ error: 'Access restricted to the hotel network.' }, { status: 403 });
         }
@@ -99,10 +138,6 @@ export async function middleware(request: NextRequest) {
       }
     }
   }
-
-  const host = request.headers.get('host') || '';
-  const hostname = host.split(':')[0];
-  const slug = extractSlug(host);
   const { pathname } = request.nextUrl;
   const requestId = crypto.randomUUID();
   // /crm.html keeps its own static CSP from next.config.mjs (scripts all external).
