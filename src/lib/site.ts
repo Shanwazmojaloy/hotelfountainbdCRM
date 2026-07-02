@@ -14,6 +14,8 @@ export const CONTACT = {
   address: ["House-05, Road-02, Nikunja-02", "Dhaka 1229, Bangladesh"],
   phone: "+880 1322-840799",
   phoneHref: "tel:+8801322840799",
+  salesPhone: "+880 1622-903734",
+  salesPhoneHref: "tel:+8801622903734",
   whatsapp: "8801322840799", // digits only, for wa.me links
   email: "hotellfountainbd@gmail.com",
   emailHref: "mailto:hotellfountainbd@gmail.com",
