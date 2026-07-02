@@ -34,7 +34,7 @@ export const STATS = [
   { value: "28", label: "Premium Rooms" },
   { value: "৳4,000", label: "Starting Rate / Night" },
   { value: "24/7", label: "Concierge Service" },
-  { value: "4.8★", label: "Guest Rating" },
+  { value: "4.1★", label: "Guest Rating" },
 ] as const;
 
 export const AMENITIES = [
