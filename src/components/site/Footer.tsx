@@ -49,6 +49,9 @@ export default function Footer() {
                 {l.label}
               </Link>
             ))}
+            <Link href="/faq" className="w-fit text-sm text-white/60 transition hover:text-neon-teal">
+              FAQ
+            </Link>
             <Link href="/contact#terms" className="w-fit text-sm text-white/60 transition hover:text-neon-teal">
               Terms &amp; Conditions
             </Link>
