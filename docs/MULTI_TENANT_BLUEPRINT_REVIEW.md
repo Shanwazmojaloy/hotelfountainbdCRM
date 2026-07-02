@@ -220,7 +220,26 @@ enablement is one env flag away, rehearse on preview first.**
   work. `tenantJwt.ts` now FAILS SAFE: on a new-key project with nothing to
   verify the secret against, it logs loudly and falls back to the service role
   (no 401s) unless `TENANT_JWT_FORCE=1`.
-- REVISED ENABLEMENT PATH (dashboard decision, then mechanical):
+- ✅ REHEARSAL RUN 3 — GREEN (2026-07-03, fully automated via the Supabase
+  Management API + Vercel API; no dashboard needed): a FRESH self-generated
+  HS256 shared secret was imported as a **standby** signing key
+  (`ad52818c-7a73-4a48-9109-a3620a9c8503` — verification-trusted, never signs
+  auth tokens, zero impact on existing sessions; the revoked legacy key stays
+  revoked). With it as branch-scoped `SUPABASE_JWT_SECRET` + `TENANT_JWT_FORCE=1`:
+  demo login 200 → `/api/crm/data` 200 (exactly the 1 demo row) → **write probe
+  200** (housekeeping task INSERT under crm_tenant through RLS WITH CHECK).
+  Runtime logs show minting active, zero PGRST301. ALL 10 session-gated CRM
+  data routes now use `tenantClient(TENANT)` (staff keeps a dedicated service
+  client solely for the global next-id query); prod regression (flag off,
+  service-role path) re-verified green.
+- PROD ENABLEMENT (deliberate future step, one env change): add
+  `SUPABASE_JWT_SECRET` (same standby-key secret), `TENANT_JWT_FORCE=1`, and
+  `TENANT_JWT_MODE=on` to the Production environment and redeploy — the CRM
+  then runs RLS-bound end to end. Rollback = remove `TENANT_JWT_MODE`.
+  Remaining before/with that: grant `execute_nightly_audit` /
+  `get_secure_financial_metrics` to crm_tenant and migrate close-day +
+  financial-metrics (kept on service role for now; their RPCs carry own guards).
+- ORIGINAL (superseded) ENABLEMENT NOTES:
   1. Supabase Dashboard → Project Settings → **JWT Keys**: check whether an
      HS256 "shared secret" key can be made ACTIVE (legacy secret re-activated,
      or a shared-secret signing key created/rotated in). NOTE: changing JWT
