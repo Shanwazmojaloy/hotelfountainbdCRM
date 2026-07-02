@@ -19,9 +19,33 @@ const REFRESH_MARGIN_S = 120; // re-mint when <2 min left
 
 const jwtCache = new Map<string, { jwt: string; exp: number }>();
 
+// Sanity-check the configured secret ONCE per process: the anon key is an HS256
+// JWT signed with the same legacy project secret, so if our secret can't
+// reproduce the anon key's signature, it's the WRONG value (e.g. a new-style
+// signing key pasted instead of the legacy JWT secret) — minting would only
+// produce PostgREST 401s. Fail loud in logs, fall back to the service role.
+let secretValidated: boolean | null = null;
+function secretVerifiesAnonKey(secret: string): boolean {
+  if (secretValidated !== null) return secretValidated;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const parts = anon.split('.');
+  if (parts.length !== 3) {
+    // No anon key to check against — assume the secret is fine.
+    secretValidated = true;
+    return true;
+  }
+  const expect = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64url');
+  secretValidated = expect === parts[2];
+  if (!secretValidated) {
+    console.error('[tenantJwt] SUPABASE_JWT_SECRET does NOT verify the anon key signature — wrong secret value (need the LEGACY JWT secret from Supabase Dashboard → Settings → API → JWT Settings). Falling back to service role.');
+  }
+  return secretValidated;
+}
+
 export function mintTenantJwt(tenantId: string): string | null {
   const secret = process.env.SUPABASE_JWT_SECRET;
   if (!secret) return null;
+  if (!secretVerifiesAnonKey(secret)) return null;
 
   const now = Math.floor(Date.now() / 1000);
   const hit = jwtCache.get(tenantId);
