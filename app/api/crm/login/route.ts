@@ -13,13 +13,13 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import { signSession, sessionCookieHeader } from '@/lib/session';
+import { getTenantFromHeaders } from '@/lib/tenant';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const BCRYPT_ROUNDS = 12;
 // Precomputed bcrypt hash used ONLY to equalize response time on the user-miss path: a missing
 // email (instant 401) must take ~the same time as a wrong password (slow bcrypt compare), or the
@@ -55,6 +55,16 @@ export async function POST(req: NextRequest) {
       const supabase = createClient(SB_URL, SB_SERVICE_KEY, {
               auth: { persistSession: false, autoRefreshToken: false },
       });
+
+      // Tenant from the request host (subdomain → tenants row; env fallback for the home
+      // slug only). No session exists yet at login, so the host is the tenant authority.
+      // Unknown subdomain throws → sign-in against a nonexistent property fails cleanly.
+      let TENANT: string;
+      try {
+              TENANT = (await getTenantFromHeaders(req.headers)).id;
+      } catch {
+              return NextResponse.json({ error: 'Unknown property.' }, { status: 404 });
+      }
 
       const { data: rows, error } = await supabase
             .from('staff')
