@@ -19,25 +19,34 @@ const REFRESH_MARGIN_S = 120; // re-mint when <2 min left
 
 const jwtCache = new Map<string, { jwt: string; exp: number }>();
 
-// Sanity-check the configured secret ONCE per process: the anon key is an HS256
-// JWT signed with the same legacy project secret, so if our secret can't
-// reproduce the anon key's signature, it's the WRONG value (e.g. a new-style
-// signing key pasted instead of the legacy JWT secret) — minting would only
-// produce PostgREST 401s. Fail loud in logs, fall back to the service role.
+// Sanity-check the configured secret ONCE per process: the legacy anon and
+// service-role keys are HS256 JWTs signed with the same legacy project secret.
+// If our secret can't reproduce the signature of ANY JWT-shaped key in env
+// (anon keys may be new-format sb_publishable_* with nothing to check), it's
+// the WRONG value — minting would only produce PostgREST 401s (PGRST301).
+// Fail loud in logs, fall back to the service role.
 let secretValidated: boolean | null = null;
-function secretVerifiesAnonKey(secret: string): boolean {
+function secretVerifiesProjectKeys(secret: string): boolean {
   if (secretValidated !== null) return secretValidated;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const parts = anon.split('.');
-  if (parts.length !== 3) {
-    // No anon key to check against — assume the secret is fine.
+  const candidates = [
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.SUPABASE_ANON_KEY,
+  ].filter((k): k is string => !!k && k.split('.').length === 3);
+  if (candidates.length === 0) {
+    console.warn('[tenantJwt] no legacy-JWT-shaped project key in env to validate SUPABASE_JWT_SECRET against — proceeding unverified');
     secretValidated = true;
     return true;
   }
-  const expect = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64url');
-  secretValidated = expect === parts[2];
+  secretValidated = candidates.some((key) => {
+    const parts = key.split('.');
+    const expect = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64url');
+    return expect === parts[2];
+  });
   if (!secretValidated) {
-    console.error('[tenantJwt] SUPABASE_JWT_SECRET does NOT verify the anon key signature — wrong secret value (need the LEGACY JWT secret from Supabase Dashboard → Settings → API → JWT Settings). Falling back to service role.');
+    console.error(`[tenantJwt] SUPABASE_JWT_SECRET does NOT verify any of ${candidates.length} legacy project key signature(s) — wrong secret value (need the LEGACY JWT secret: Supabase Dashboard → Settings → API → JWT Settings → "JWT Secret"). Falling back to service role.`);
+  } else {
+    console.log('[tenantJwt] SUPABASE_JWT_SECRET verified against project key signature — minting enabled');
   }
   return secretValidated;
 }
@@ -45,7 +54,7 @@ function secretVerifiesAnonKey(secret: string): boolean {
 export function mintTenantJwt(tenantId: string): string | null {
   const secret = process.env.SUPABASE_JWT_SECRET;
   if (!secret) return null;
-  if (!secretVerifiesAnonKey(secret)) return null;
+  if (!secretVerifiesProjectKeys(secret)) return null;
 
   const now = Math.floor(Date.now() / 1000);
   const hit = jwtCache.get(tenantId);
