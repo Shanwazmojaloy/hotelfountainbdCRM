@@ -146,6 +146,44 @@ worktree — see "Phase A implementation notes" below)*
     populate that tenant's Vault secrets + FB/WhatsApp columns for the two
     per-hotel ops agents.
 
+**2-tenant smoke test — run 2026-07-02 against PROD with a synthetic tenant**
+
+A demo tenant unblocked the "needs tenant #2" tests. `lumeademo`
+(id `156da579-073b-4a6e-bd64-e5a26c402d98`, "Lumea Demo Hotel") lives in prod
+with rooms D101–D103, one DEMO GUEST reservation, and an activated owner staff
+row (`demo-owner@lumea.invalid`, staff id 15). It is fully RLS-isolated; leave
+it for future regression tests.
+
+DB-layer results (simulated PostgREST contexts, live policies):
+- anon + JWT claim `app_tenant_id=lumeademo` → sees EXACTLY D101–D103 ✅
+- anon + claim `app_tenant_id=hotelfountainbd` → 28 HF rooms, 0 demo leaks ✅
+- anon + GUC `app.current_tenant_id` → identical scoping ✅ (both
+  `current_tenant_id()` branches verified under real RLS)
+- bare anon, no tenant context → 0 rooms ✅ — also explains why runbook step 5's
+  fallback removal didn't break the booking site: the public site no longer
+  reads rooms via anon PostgREST at all. The `OR tenant_id IS NULL` policy arm
+  currently exposes nothing (no NULL-tenant rows).
+- anon on `reservations` → `permission denied` at the GRANT layer ✅ (C3
+  posture: PII tables are grant-revoked AND RLS'd).
+
+FINDING (blocking the HTTP-layer tests): `NEXT_PUBLIC_APEX_DOMAIN` is NOT set
+in Vercel — `lumeademo.fountainbd.com` resolved to `x-tenant-slug:
+hotelfountainbd`, so subdomain tenancy is dormant in prod. ACTION (dashboard):
+set `NEXT_PUBLIC_APEX_DOMAIN=fountainbd.com` on all envs and redeploy. A
+reserved-subdomain guard (www/hotel/lumea/app/api/mail/admin + multi-level →
+home tenant) was added to `extractSlug()` first so the existing
+`hotel.`/`lumea.` aliases survive the switch. After the env change, verify:
+login at `https://lumeademo.fountainbd.com/crm` with the demo owner → should
+succeed and show ONLY D-rooms; a bogus subdomain's login → 404 Unknown property.
+
+**Service-role→JWT switch — mechanism validated, client switch still gated.**
+The claim branch works under RLS (tests above). The actual switch now has a
+concrete design constraint discovered in testing: `anon`/`authenticated` are
+grant-revoked on PII tables (correctly), so the CRM's JWT client needs a
+DEDICATED PostgREST role (e.g. `crm_tenant`) granted to `authenticator`, with
+table grants mirroring what routes do today, minted into the JWT's `role`
+claim alongside `app_tenant_id`. Do this on the 2-tenant preview, not blind.
+
 **Phase C — post-cutover hardening (after runbook step 5)**
 9. G3: validate FKs, `SET NOT NULL`, drop `IS NULL` policy arms.
 10. Per-tenant observability: `tenant_id` already flows through `logEvent()`;
