@@ -267,7 +267,20 @@ enablement is one env flag away, rehearse on preview first.**
   first-class custom-claims minting.
 
 **Phase C — post-cutover hardening (after runbook step 5)**
-9. G3: validate FKs, `SET NOT NULL`, drop `IS NULL` policy arms.
+9. G3: ✅ `IS NULL` policy arms DROPPED (2026-07-03, migration
+   `20260703_phase_c_drop_null_tenant_arm.sql`, applied to prod). Pre-applied
+   census: ZERO NULL-tenant rows across all 32 tenant_isolation tables, so the
+   tightening changed nothing today — it removes the future cross-tenant
+   exposure vector now that prod reads are RLS-bound. Verified after: 0
+   policies retain the arm; claim-scoped reads unchanged (demo=3 rooms); prod
+   HTTP read green; zero production errors. WITH CHECK now also rejects
+   NULL-tenant INSERTs from RLS-bound roles (tenantScoped() always stamps).
+   DELIBERATELY DEFERRED: `SET NOT NULL` + FK VALIDATE (write-path risk for
+   agent/service inserts that rely on RLS-bypass; near-zero marginal value
+   while service paths bypass RLS anyway). FLAGGED: `rate_plans` has a legacy
+   non-standard qual referencing `profiles`/`uid()` that looks self-referencing
+   — untouched, review before the table is ever used multi-tenant.
+   `invoice_line_items` has no tenant_id column (parent-derived isolation).
 10. Per-tenant observability: `tenant_id` already flows through `logEvent()`;
     add it to any future tracing before adopting an OTel stack.
 
