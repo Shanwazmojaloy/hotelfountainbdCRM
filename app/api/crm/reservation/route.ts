@@ -3,17 +3,15 @@
 // ReservationEditModal.save (room-status sync on add/remove/transition, Stay-Extension TX on
 // checkout push-out, Advance-Payment TX on paid increase, authoritative recalc). Session-gated.
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { recalcResTotalServer } from '@/lib/recalcResTotal.server';
 import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
 import { notifyReservationChange, notifyReservationDeleted } from '@/lib/changeNotify';
-import { tenantScoped, type TenantDb } from '@/lib/tenantDb';
+import { tenantScoped, tenantClient, type TenantDb } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
 
-const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
@@ -29,14 +27,13 @@ async function ratesSumOf(db: TenantDb, roomNos: string[]): Promise<number> {
 
 export async function POST(req: NextRequest) {
   if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase: any = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   // Tenant is bound to the SIGNED session (not env/header/body) — non-spoofable. Env fallback
   // only for legacy cookies minted before tenant binding shipped.
   const TENANT = sess.tenant_id || ENV_TENANT;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase: any = tenantClient(TENANT); // crm_tenant JWT when TENANT_JWT_MODE=on, else service role
   const db = tenantScoped(supabase, TENANT);
   const { data: srow } = await db.from('staff').select('session_v, role, name').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
