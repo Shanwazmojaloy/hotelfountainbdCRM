@@ -83,11 +83,17 @@ async function sessionRole(token?: string): Promise<string | null> {
   }
 }
 
+// Subdomains that are NOT tenant slugs — existing aliases (hotel., lumea.) and
+// infrastructure names keep resolving to the home tenant when the apex domain
+// is set (without this, setting NEXT_PUBLIC_APEX_DOMAIN=fountainbd.com would
+// turn hotel.fountainbd.com into an unknown-tenant 404).
+const RESERVED_SUBDOMAINS = new Set(['www', 'hotel', 'lumea', 'app', 'api', 'mail', 'admin']);
+
 function extractSlug(host: string): string {
   const hostname = host.split(':')[0];
   if (hostname.endsWith(`.${APEX_DOMAIN}`)) {
     const subdomain = hostname.slice(0, hostname.length - APEX_DOMAIN.length - 1);
-    if (subdomain && subdomain !== 'www') return subdomain;
+    if (subdomain && !subdomain.includes('.') && !RESERVED_SUBDOMAINS.has(subdomain)) return subdomain;
   }
   return DEFAULT_SLUG;
 }
