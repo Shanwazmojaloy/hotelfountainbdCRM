@@ -22,7 +22,30 @@
 //   client on purpose.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { mintTenantJwt } from './tenantJwt';
+
+const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
+const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SB_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+// Flag-gated client for the service-role→JWT switch. TENANT_JWT_MODE=on (plus
+// SUPABASE_JWT_SECRET) → a crm_tenant-role client that CANNOT bypass RLS; any
+// other state → the plain service-role client, byte-identical to the status
+// quo. Rehearse on a Vercel PREVIEW env before enabling in production.
+export function tenantClient(tenantId: string): SupabaseClient {
+  if (process.env.TENANT_JWT_MODE === 'on') {
+    const jwt = mintTenantJwt(tenantId);
+    if (jwt && SB_ANON_KEY) {
+      return createClient(SB_URL, SB_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: `Bearer ${jwt}` } },
+      });
+    }
+    console.warn('[tenantDb] TENANT_JWT_MODE=on but SUPABASE_JWT_SECRET or anon key missing — using service role');
+  }
+  return createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+}
 
 type Row = Record<string, unknown>;
 
