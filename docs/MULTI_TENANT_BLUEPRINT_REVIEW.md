@@ -199,13 +199,27 @@ enablement is one env flag away, rehearse on preview first.**
   `tenantDb.ts#tenantClient(tenantId)` returns that client when
   `TENANT_JWT_MODE=on`, else the service-role client (byte-identical default).
   Pilot route wired: `/api/crm/data` (read-only, lowest risk).
-- REHEARSAL (when desired): on a Vercel PREVIEW env set `TENANT_JWT_MODE=on` +
-  `SUPABASE_JWT_SECRET` (Dashboard → Settings → API → JWT Settings); hit
-  `/api/crm/data?resource=reservations` as both the demo owner and an HF staff
-  session; expect identical rows to prod. Then migrate remaining routes'
-  client creation to `tenantClient(TENANT)` and grant the night-audit /
-  financial RPCs to `crm_tenant` as those routes move. Never enable in prod
-  before the preview run is green.
+- REHEARSAL RIG BUILT & VALIDATED IN FALLBACK MODE (2026-07-02): branch
+  `jwt-rehearsal` deploys to
+  `hotelfountainbd-crm-git-jwt-rehearsal-shanwaz-ahmeds-projects.vercel.app`
+  with BRANCH-SCOPED preview env (other previews untouched):
+  `TENANT_JWT_MODE=on` + `NEXT_PUBLIC_TENANT_SLUG=lumeademo` (previews on this
+  branch default to the DEMO tenant — cannot touch real hotel data). Validated:
+  demo-owner login 200 on the preview (Vercel deployment protection bypassed
+  via a `_vercel_share` link), pilot `/api/crm/data` returned exactly the 1
+  demo row, and runtime logs show `[tenantDb] TENANT_JWT_MODE=on but
+  SUPABASE_JWT_SECRET or anon key missing — using service role` — i.e. the JWT
+  branch executes and degrades gracefully.
+- THE ONE REMAINING STEP (needs the dashboard value): grab the legacy JWT
+  secret from Supabase Dashboard → Settings → API → JWT Settings, then:
+    `npx vercel env add SUPABASE_JWT_SECRET preview jwt-rehearsal`  (paste value)
+    push any commit to `jwt-rehearsal` (or redeploy it) and re-run the pilot
+    test → rows must still be exactly the demo reservation and the fallback
+    warning must be GONE from runtime logs. Green → migrate remaining routes'
+    client creation to `tenantClient(TENANT)` (mechanical), grant night-audit /
+    financial RPCs to `crm_tenant` as those routes move, and only then consider
+    `TENANT_JWT_MODE=on` in production. Never enable in prod before the preview
+    run is green.
 
 **Phase C — post-cutover hardening (after runbook step 5)**
 9. G3: validate FKs, `SET NOT NULL`, drop `IS NULL` policy arms.
