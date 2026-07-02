@@ -185,13 +185,27 @@ write scoping is proven structurally (wrapper stamps/filters) + by the DB
 tests. The reserved-subdomain guard shipped with this round is still correct
 under this scheme (protects `www.lumea.fountainbd.com` etc.).
 
-**Service-role→JWT switch — mechanism validated, client switch still gated.**
-The claim branch works under RLS (tests above). The actual switch now has a
-concrete design constraint discovered in testing: `anon`/`authenticated` are
-grant-revoked on PII tables (correctly), so the CRM's JWT client needs a
-DEDICATED PostgREST role (e.g. `crm_tenant`) granted to `authenticator`, with
-table grants mirroring what routes do today, minted into the JWT's `role`
-claim alongside `app_tenant_id`. Do this on the 2-tenant preview, not blind.
+**Service-role→JWT switch — BOTH halves built and validated (2026-07-02);
+enablement is one env flag away, rehearse on preview first.**
+- DB half LIVE: `crm_tenant` role (migration `20260702_crm_tenant_role.sql`,
+  applied to prod) — NOLOGIN, granted to `authenticator`, CRUD on the 32
+  tenant-isolated tables, sequences, `current_tenant_id()` + `bump_paid_amount`.
+  Deliberately NOT granted: `tenants`, `tenant_ai_usage`, vault RPCs. Validated
+  on prod under `SET ROLE crm_tenant` + claims: reads scoped to claim ✅,
+  own-tenant write 1 row ✅ (reverted), cross-tenant write 0 rows ✅. The role is
+  inert — only a JWT signed with the project secret can activate it.
+- Client half SHIPPED FLAG-OFF: `src/lib/tenantJwt.ts` mints 10-min HS256 JWTs
+  `{role:'crm_tenant', app_tenant_id}` from `SUPABASE_JWT_SECRET`;
+  `tenantDb.ts#tenantClient(tenantId)` returns that client when
+  `TENANT_JWT_MODE=on`, else the service-role client (byte-identical default).
+  Pilot route wired: `/api/crm/data` (read-only, lowest risk).
+- REHEARSAL (when desired): on a Vercel PREVIEW env set `TENANT_JWT_MODE=on` +
+  `SUPABASE_JWT_SECRET` (Dashboard → Settings → API → JWT Settings); hit
+  `/api/crm/data?resource=reservations` as both the demo owner and an HF staff
+  session; expect identical rows to prod. Then migrate remaining routes'
+  client creation to `tenantClient(TENANT)` and grant the night-audit /
+  financial RPCs to `crm_tenant` as those routes move. Never enable in prod
+  before the preview run is green.
 
 **Phase C — post-cutover hardening (after runbook step 5)**
 9. G3: validate FKs, `SET NOT NULL`, drop `IS NULL` policy arms.
