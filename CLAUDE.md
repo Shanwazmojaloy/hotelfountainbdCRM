@@ -104,17 +104,16 @@ npm run lint
 - **Staged deletions guard**: Before every `git commit`, run `git diff --cached --name-only` and verify no critical files (`.env.local`, `facebook_post.py`, `ADD_FACEBOOK_TOKEN.bat`, `ruflo.config.json`, batch scripts) are staged for deletion. Use `git restore --staged <file>` if caught.
 - **crm.html truncation check**: After any Edit to `public/crm.html`, grep for `crm-bundle.js` AND `id="root"` AND `</html>` before `git add`. Missing any = truncation regression. (crm.html is a thin LOADER — the React `createRoot` bootstrap lives in `crm-bundle.js`, not inline. The old `ReactDOM.createRoot` check is RETIRED: it false-flagged a valid loader on 2026-06-12.)
 
-## Lumea CRM — Active Key Architecture (updated 2026-05-12)
+## Lumea CRM — Active Key Architecture (updated 2026-07-02)
 
 | Var | Format | Location |
 |-----|--------|----------|
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` (legacy HS256 JWT — re-enabled) | Vercel (sensitive) |
-| `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (legacy HS256 JWT — re-enabled) | Vercel (encrypted) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_...` (NEW API key format) | Vercel (all envs) |
+| `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_...` (NEW API key format) | Vercel (all envs) |
 | `BREVO_API_KEY` | `xkeysib-...` | Vercel (encrypted) |
 
-- Legacy HS256 JWT keys were disabled on 2026-05-01 but **re-enabled (Option A) on 2026-05-12** via Supabase Dashboard → Project `mynwfkgksqqwlqowlscj` → Settings → API → Legacy API Keys.
-- If keys fail again (`{"message":"Legacy API keys are disabled"}`): go to Supabase Dashboard and confirm the legacy toggle is still active.
-- Migration to `sb_publishable_*` / `sb_secret_*` format is Option B (not yet done). `createClient(url, key)` works identically with both formats — no code change needed when rotating.
+- **Option B migration is DONE** — verified 2026-07-02: both production and preview Vercel envs carry `sb_publishable_*`/`sb_secret_*`. The 2026-05-12 "legacy HS256 re-enabled" note is OBSOLETE; do not expect `eyJ...` keys.
+- **Consequence for custom JWTs**: PostgREST no longer verifies legacy-HS256 tokens (`PGRST301 No suitable key or wrong key type`). Minting per-tenant JWTs (`TENANT_JWT_MODE`, `src/lib/tenantJwt.ts`) requires an ACTIVE HS256 shared secret in Supabase Dashboard → Settings → JWT Keys plus `TENANT_JWT_FORCE=1`; otherwise tenantJwt fails safe to the service role. See docs/MULTI_TENANT_BLUEPRINT_REVIEW.md.
 - Supabase project ref: `mynwfkgksqqwlqowlscj` (Bridge Booking)
 - Vercel project: `prj_BvTsXnp2GWgXsp6smJOXAm5gLgdr` / team: `team_l1SAECyZJ9giIw4o2SGxjpqd`
 - **ANTHROPIC_API_KEY** still needed in Vercel env vars — CEOAuditor agent will 500 without it.
