@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
-import { tenantScoped } from '@/lib/tenantDb';
+import { tenantScoped, tenantClient } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -17,11 +17,15 @@ const initials = (n: string) => String(n || '').split(' ').map((w) => w[0] || ''
 
 export async function POST(req: NextRequest) {
   if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  const supabase = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  // Service client kept SOLELY for the cross-tenant next-id query below — it must
+  // see ALL tenants' staff ids (integer PK shared across tenants). Everything else
+  // runs on the tenant client.
+  const svcClient = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const TENANT = sess.tenant_id || ENV_TENANT; // tenant bound to the SIGNED session (env fallback)
+  const supabase = tenantClient(TENANT); // crm_tenant JWT when TENANT_JWT_MODE=on, else service role
   const db = tenantScoped(supabase, TENANT);
   const { data: srow } = await db.from('staff').select('session_v, role').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
@@ -44,9 +48,9 @@ export async function POST(req: NextRequest) {
     if (action === 'create') {
       const name = s(body.name); const email = s(body.email);
       if (!name || !email) return NextResponse.json({ error: 'Name and email are required.' }, { status: 400 });
-      // Next-id stays GLOBAL (raw client, no tenant scope): staff.id is an integer PK shared
-      // across tenants — a per-tenant max would collide with another tenant's ids.
-      const { data: mx } = await supabase.from('staff').select('id').order('id', { ascending: false }).limit(1);
+      // Next-id stays GLOBAL (service client, no tenant scope/RLS): staff.id is an integer PK
+      // shared across tenants — a per-tenant max would collide with another tenant's ids.
+      const { data: mx } = await svcClient.from('staff').select('id').order('id', { ascending: false }).limit(1);
       const nextId = ((mx && mx[0]?.id) || 0) + 1;
       const { error } = await db.from('staff').insert({
         id: nextId, name, email: email.toLowerCase(), role: s(body.role) || 'receptionist',
