@@ -5,13 +5,14 @@ import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { isAdmin } from '@/lib/permissions';
 import { recalcResTotalServer } from '@/lib/recalcResTotal.server';
+import { tenantScoped } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 export async function POST(req: NextRequest) {
   if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
@@ -20,7 +21,9 @@ export async function POST(req: NextRequest) {
 
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  const { data: srow } = await supabase.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  const TENANT = sess.tenant_id || ENV_TENANT; // tenant bound to the SIGNED session (env fallback)
+  const db = tenantScoped(supabase, TENANT);
+  const { data: srow } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
@@ -39,11 +42,11 @@ export async function POST(req: NextRequest) {
       const cat = s(body.category) || 'Room Service';
       // Attribution — stamp who added the charge. Name is denormalized because the browser
       // anon key cannot read `staff` (RLS), so the folio row must carry the display name.
-      const { data: who } = await supabase.from('staff').select('name').eq('id', sess.id).limit(1);
+      const { data: who } = await db.from('staff').select('name').eq('id', sess.id).limit(1);
       const addedByName = (who && who[0] && who[0].name) || null;
-      const { error } = await supabase.from('folios').insert({
+      const { error } = await db.from('folios').insert({
         room_number: s(body.room_number), reservation_id: resId,
-        description: s(body.description) || cat, category: cat, amount, tenant_id: TENANT,
+        description: s(body.description) || cat, category: cat, amount,
         added_by_id: sess.id, added_by_name: addedByName,
       });
       if (error) throw error;
@@ -58,7 +61,7 @@ export async function POST(req: NextRequest) {
       }
       const id = body.id;
       if (!id) return NextResponse.json({ error: 'Missing folio id.' }, { status: 400 });
-      const { error } = await supabase.from('folios').delete().eq('id', id);
+      const { error } = await db.from('folios').delete().eq('id', id);
       if (error) throw error;
       if (resId) await recalcResTotalServer(supabase, resId);
       return NextResponse.json({ ok: true });

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
+import { tenantScoped } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -32,11 +33,12 @@ export async function GET(req: NextRequest) {
 
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  const { data: srow } = await supabase.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  const TENANT = sess.tenant_id || ENV_TENANT;
+  const db = tenantScoped(supabase, TENANT);
+  const { data: srow } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
-  const TENANT = sess.tenant_id || ENV_TENANT;
 
   const { searchParams } = new URL(req.url);
   const resource = String(searchParams.get('resource') || '');
@@ -50,7 +52,7 @@ export async function GET(req: NextRequest) {
 
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(searchParams.get('limit') || String(MAX_LIMIT), 10) || MAX_LIMIT));
 
-  let query = supabase.from(resource).select('*').eq('tenant_id', TENANT);
+  let query = db.from(resource).select('*');
 
   // Optional safe filters. `ids` = UUID CSV → .in('id', …); `fiscal_day` (transactions only) → .eq.
   const idsParam = searchParams.get('ids');

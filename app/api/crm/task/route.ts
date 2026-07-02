@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
+import { tenantScoped } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -21,9 +22,10 @@ export async function POST(req: NextRequest) {
   if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
 
   const supabase = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const db = tenantScoped(supabase, TENANT);
 
   // Honour Logout All Devices: the cookie's session_v must still match the DB.
-  const { data: srow } = await supabase.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  const { data: srow } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
@@ -44,10 +46,9 @@ export async function POST(req: NextRequest) {
     notes: s(body.notes),
     status: 'pending',
     department: 'Housekeeping',
-    tenant_id: TENANT,
   };
 
-  const { data, error } = await supabase.from('housekeeping_tasks').insert(insert).select('id').limit(1);
+  const { data, error } = await db.from('housekeeping_tasks').insert(insert).select('id').limit(1);
   if (error) {
     console.error('[crm/task] insert error:', error.message);
     return NextResponse.json({ error: 'Could not create task.' }, { status: 500 });

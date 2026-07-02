@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
     }
   }
   const res = NextResponse.json({ ok: true });
-  res.headers.set('Set-Cookie', sessionCookieHeader(signSession({ id: sess.id, role: sess.role, session_v: sess.session_v })));
+  // Preserve tenant_id on refresh — dropping it silently rebinds the session to the env
+  // fallback tenant on every route (harmless single-tenant, cross-tenant bug at tenant #2).
+  res.headers.set('Set-Cookie', sessionCookieHeader(signSession({ id: sess.id, role: sess.role, session_v: sess.session_v, tenant_id: sess.tenant_id })));
   return res;
 }

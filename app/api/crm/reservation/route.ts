@@ -8,6 +8,7 @@ import { requireSession } from '@/lib/session';
 import { recalcResTotalServer } from '@/lib/recalcResTotal.server';
 import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
 import { notifyReservationChange, notifyReservationDeleted } from '@/lib/changeNotify';
+import { tenantScoped, type TenantDb } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -19,10 +20,9 @@ const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be
 const nights = (ci: string, co: string) => { if (!ci || !co) return 0; const n = Math.round((+new Date(co) - +new Date(ci)) / 86400000); return n > 0 ? n : 0; };
 const todayDhaka = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function ratesSumOf(supabase: any, roomNos: string[]): Promise<number> {
+async function ratesSumOf(db: TenantDb, roomNos: string[]): Promise<number> {
   if (!roomNos.length) return 0;
-  const { data } = await supabase.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
+  const { data } = await db.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
   const arr = (data || []) as Array<{ room_number: string | number; price: number }>;
   return roomNos.reduce((a, rn) => a + (Number(arr.find((r) => String(r.room_number) === String(rn))?.price) || 0), 0);
 }
@@ -34,16 +34,17 @@ export async function POST(req: NextRequest) {
 
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  const { data: srow } = await supabase.from('staff').select('session_v, role, name').eq('id', sess.id).limit(1);
+  // Tenant is bound to the SIGNED session (not env/header/body) — non-spoofable. Env fallback
+  // only for legacy cookies minted before tenant binding shipped.
+  const TENANT = sess.tenant_id || ENV_TENANT;
+  const db = tenantScoped(supabase, TENANT);
+  const { data: srow } = await db.from('staff').select('session_v, role, name').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
   const staffRole = String(srow[0].role || '').toLowerCase();
   const staffName = String(srow[0].name || '').trim() || `Staff #${sess.id}`;
   const isAdminRole = ['owner', 'manager', 'admin'].includes(staffRole);
-  // Tenant is bound to the SIGNED session (not env/header/body) — non-spoofable. Env fallback
-  // only for legacy cookies minted before tenant binding shipped.
-  const TENANT = sess.tenant_id || ENV_TENANT;
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty */ }
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
 
   // Open business day for any TX this request writes (advance / stay-extension / paid-increase).
   // Collections accrue to the open day, not the calendar date, until "Closing Complete".
-  const { data: _closes } = await supabase.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT);
+  const { data: _closes } = await db.from('night_audit_log').select('audit_date, status');
   const openDay = openBusinessDay(_closes, todayDhaka());
   const txFiscal = clampFiscalDay(typeof body.fiscal_day === 'string' ? (body.fiscal_day as string) : null, openDay);
 
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
         check_in: checkIn, check_out: checkOut, status,
         payment_method: body.payment_method || null,
         special_requests: body.special_requests || null, on_duty_officer: body.on_duty_officer || null,
-        stay_type: body.stay_type || null, tenant_id: TENANT,
+        stay_type: body.stay_type || null,
       };
 
       // PER-ROOM BOOKINGS (house rule 2026-06-14): a multi-room booking is stored as ONE reservation
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
       // totals/discount/paid sum EXACTLY back to the entered figures. Single-room bookings are
       // mathematically identical to the old single-insert path.
       const n = nights(String(checkIn || ''), String(checkOut || '')) || 1;
-      const { data: rateRows } = await supabase.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
+      const { data: rateRows } = await db.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
       const rates = (rateRows || []) as Array<{ room_number: string | number; price: number }>;
       const rateOf = (rn: string) => Number(rates.find((r) => String(r.room_number) === String(rn))?.price) || 0;
       const gross = roomNos.map((rn) => rateOf(rn) * n);
@@ -131,20 +132,20 @@ export async function POST(req: NextRequest) {
       const ids: string[] = [];
       for (let i = 0; i < roomNos.length; i++) {
         const rn = roomNos[i];
-        const { data: created, error } = await supabase.from('reservations').insert({
+        const { data: created, error } = await db.from('reservations').insert({
           ...baseIns, room_ids: [rn], total_amount: totals[i], paid_amount: paidArr[i], discount_amount: disc[i],
         }).select('id').limit(1);
         if (error) throw error;
         const newId = created && created[0]?.id;
         if (newId) ids.push(newId);
-        if (status === 'CHECKED_IN') await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('room_number', rn).eq('tenant_id', TENANT);
+        if (status === 'CHECKED_IN') await db.from('rooms').update({ status: 'OCCUPIED' }).eq('room_number', rn);
         if (paidArr[i] > 0 && newId) {
           // Method rides in the composite type string — transactions has NO payment_method column.
-          await supabase.from('transactions').insert({
+          await db.from('transactions').insert({
             room_number: rn, guest_name: body.guest_name || null,
             type: pm ? `Advance Payment (${pm})` : 'Advance Payment',
             amount: paidArr[i], fiscal_day: txFiscal, reservation_id: newId,
-            tenant_id: TENANT, idempotency_key: crypto.randomUUID(),
+            idempotency_key: crypto.randomUUID(),
           });
         }
       }
@@ -154,7 +155,7 @@ export async function POST(req: NextRequest) {
     if (action === 'update') {
       const id = body.id as string;
       if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
-      const { data: prevRows } = await supabase.from('reservations').select('*').eq('id', id).limit(1);
+      const { data: prevRows } = await db.from('reservations').select('*').eq('id', id).limit(1);
       const prev = prevRows && prevRows[0];
       if (!prev) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
 
@@ -183,39 +184,39 @@ export async function POST(req: NextRequest) {
 
       // removed rooms -> AVAILABLE
       for (const rn of oldRoomNos.filter((rn) => !newRoomNos.includes(rn))) {
-        await supabase.from('rooms').update({ status: 'AVAILABLE' }).eq('room_number', rn).eq('tenant_id', TENANT);
+        await db.from('rooms').update({ status: 'AVAILABLE' }).eq('room_number', rn);
       }
       if (status === 'CHECKED_IN') {
-        for (const rn of newRoomNos) await supabase.from('rooms').update({ status: 'OCCUPIED' }).eq('room_number', rn).eq('tenant_id', TENANT);
+        for (const rn of newRoomNos) await db.from('rooms').update({ status: 'OCCUPIED' }).eq('room_number', rn);
       }
       if (status === 'CHECKED_OUT' && prev.status !== 'CHECKED_OUT') {
-        for (const rn of newRoomNos) await supabase.from('rooms').update({ status: 'DIRTY' }).eq('room_number', rn).eq('tenant_id', TENANT);
+        for (const rn of newRoomNos) await db.from('rooms').update({ status: 'DIRTY' }).eq('room_number', rn);
       }
 
       // Stay-Extension TX when checkout pushed out
-      const ratesSum = await ratesSumOf(supabase, newRoomNos);
+      const ratesSum = await ratesSumOf(db, newRoomNos);
       const nNew = nights(checkIn, checkOut);
       const extNights = Math.max(0, nNew - nights(prev.check_in, prev.check_out));
       const fiscal = txFiscal; // open business day (clamped), not calendar date
       if (checkOut && String(checkOut).slice(0, 10) !== String(prev.check_out || '').slice(0, 10) && extNights > 0 && ratesSum > 0) {
-        await supabase.from('transactions').insert({
+        await db.from('transactions').insert({
           room_number: newRoomNos[0] || '?', guest_name: gn,
           type: `Stay Extension (+${extNights} night${extNights !== 1 ? 's' : ''})`,
-          amount: extNights * ratesSum, fiscal_day: fiscal, reservation_id: id, tenant_id: TENANT, idempotency_key: crypto.randomUUID(),
+          amount: extNights * ratesSum, fiscal_day: fiscal, reservation_id: id, idempotency_key: crypto.randomUUID(),
         });
       }
       // Advance-Payment TX when paid_amount increases (method embedded in composite type)
       const payIncrease = paidNum - (+prev.paid_amount || 0);
       if (payIncrease > 0) {
         const pm2 = (body.payment_method as string) || (prev.payment_method as string) || '';
-        await supabase.from('transactions').insert({
+        await db.from('transactions').insert({
           room_number: newRoomNos[0] || '?', guest_name: gn,
           type: pm2 ? `Advance Payment (${pm2})` : 'Advance Payment',
-          amount: payIncrease, fiscal_day: fiscal, reservation_id: id, tenant_id: TENANT, idempotency_key: crypto.randomUUID(),
+          amount: payIncrease, fiscal_day: fiscal, reservation_id: id, idempotency_key: crypto.randomUUID(),
         });
       }
 
-      const { error: upErr } = await supabase.from('reservations').update({
+      const { error: upErr } = await db.from('reservations').update({
         status, paid_amount: paidNum, discount_amount: discountNum, notes: (body.notes as string) ?? prev.notes,
         check_in: checkIn, check_out: checkOut, room_ids: newRoomNos, guest_name: gn,
       }).eq('id', id);
@@ -259,13 +260,14 @@ export async function POST(req: NextRequest) {
       const roomNos: string[] = Array.isArray(body.room_ids) ? (body.room_ids as string[]).filter(Boolean) : [];
       if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
       if (!roomNos.length) return NextResponse.json({ error: 'Select a room first.' }, { status: 400 });
-      const { data: prevRows } = await supabase.from('reservations').select('*').eq('id', id).eq('tenant_id', TENANT).limit(1);
+      const { data: prevRows } = await db.from('reservations').select('*').eq('id', id).limit(1);
       const prev = prevRows && prevRows[0];
       if (!prev) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
       if (String(prev.status) !== 'PENDING') return NextResponse.json({ error: `Already ${prev.status}.` }, { status: 409 });
 
-      // server-side double-booking guard for the requested window
-      const { data: clash } = await supabase.from('reservations')
+      // server-side double-booking guard for the requested window (tenant-scoped: another
+      // hotel's "room 405" must never block this hotel's room 405)
+      const { data: clash } = await db.from('reservations')
         .select('room_ids, guest_name, check_in, check_out')
         .in('status', ['RESERVED', 'CHECKED_IN', 'CONFIRMED'])
         .lt('check_in', prev.check_out).gt('check_out', prev.check_in);
@@ -276,7 +278,7 @@ export async function POST(req: NextRequest) {
 
       // ---- per-room money split (mirrors `create`) ----
       const n = nights(String(prev.check_in || ''), String(prev.check_out || '')) || 1;
-      const { data: rateRows } = await supabase.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
+      const { data: rateRows } = await db.from('rooms').select('room_number, price').in('room_number', roomNos.map(String));
       const rates = (rateRows || []) as Array<{ room_number: string | number; price: number }>;
       const rateOf = (rn: string) => Number(rates.find((r) => String(r.room_number) === String(rn))?.price) || 0;
       const gross = roomNos.map((rn) => rateOf(rn) * n);
@@ -297,10 +299,10 @@ export async function POST(req: NextRequest) {
       if (pool > 0) paidArr[paidArr.length - 1] += pool;
 
       // first room → repurpose the existing PENDING row
-      const { error: cfErr } = await supabase.from('reservations').update({
+      const { error: cfErr } = await db.from('reservations').update({
         room_ids: [roomNos[0]], status: 'RESERVED',
         total_amount: totals[0], discount_amount: disc[0], paid_amount: paidArr[0],
-      }).eq('id', id).eq('tenant_id', TENANT);
+      }).eq('id', id);
       if (cfErr) throw cfErr;
       const ids: string[] = [id];
 
@@ -313,10 +315,10 @@ export async function POST(req: NextRequest) {
           special_requests: prev.special_requests || null, on_duty_officer: prev.on_duty_officer || null,
           stay_type: prev.stay_type || null, payment_method: prev.payment_method || null,
           check_in: prev.check_in, check_out: prev.check_out, created_at: prev.created_at,
-          tenant_id: TENANT, status: 'RESERVED',
+          status: 'RESERVED',
         };
         for (let i = 1; i < roomNos.length; i++) {
-          const { data: created, error } = await supabase.from('reservations').insert({
+          const { data: created, error } = await db.from('reservations').insert({
             ...clone, room_ids: [roomNos[i]], total_amount: totals[i], discount_amount: disc[i], paid_amount: paidArr[i],
           }).select('id').limit(1);
           if (error) throw error;
@@ -330,7 +332,7 @@ export async function POST(req: NextRequest) {
     if (action === 'cancel_pending') {
       const id = body.id as string;
       if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
-      const { error: cnErr } = await supabase.from('reservations').update({ status: 'CANCELLED' }).eq('id', id).eq('tenant_id', TENANT).eq('status', 'PENDING');
+      const { error: cnErr } = await db.from('reservations').update({ status: 'CANCELLED' }).eq('id', id).eq('status', 'PENDING');
       if (cnErr) throw cnErr;
       console.log(`[crm/reservation] CANCEL-PENDING ${id} by staff ${sess.id} (${staffRole})`);
       return NextResponse.json({ ok: true });
@@ -346,7 +348,7 @@ export async function POST(req: NextRequest) {
       }
       const id = body.id as string;
       if (!id) return NextResponse.json({ error: 'Missing reservation id.' }, { status: 400 });
-      const { data: prevRows } = await supabase.from('reservations').select('id, status, room_ids, guest_name, check_in, check_out, paid_amount, discount_amount, notes').eq('id', id).eq('tenant_id', TENANT).limit(1);
+      const { data: prevRows } = await db.from('reservations').select('id, status, room_ids, guest_name, check_in, check_out, paid_amount, discount_amount, notes').eq('id', id).limit(1);
       const prev = prevRows && prevRows[0];
       if (!prev) return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
 
@@ -354,10 +356,10 @@ export async function POST(req: NextRequest) {
       if (['CHECKED_IN', 'RESERVED'].includes(String(prev.status))) {
         const roomNos: string[] = Array.isArray(prev.room_ids) ? prev.room_ids.filter(Boolean) : [];
         for (const rn of roomNos) {
-          await supabase.from('rooms').update({ status: 'AVAILABLE' }).eq('room_number', rn).eq('tenant_id', TENANT);
+          await db.from('rooms').update({ status: 'AVAILABLE' }).eq('room_number', rn);
         }
       }
-      const { error: delErr } = await supabase.from('reservations').delete().eq('id', id).eq('tenant_id', TENANT);
+      const { error: delErr } = await db.from('reservations').delete().eq('id', id);
       if (delErr) throw delErr;
       console.log(`[crm/reservation] DELETE ${id} (${prev.guest_name || '—'}) by staff ${sess.id} (${staffRole})`);
       // Admin change-notification (house rule 2026-07-01): email the owner who deleted what.

@@ -16,6 +16,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { logEvent } from '@/lib/audit';
+import { checkAiBudget, recordAiUsage } from '@/lib/aiBudget';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -128,7 +129,8 @@ async function assess(summary: string, apiKey: string): Promise<Assessment | nul
     signal: AbortSignal.timeout(25_000),
   });
   if (!res.ok) return null;
-  const data: { content?: Array<{ type: string; input?: Assessment }> } = await res.json();
+  const data: { content?: Array<{ type: string; input?: Assessment }>; usage?: { input_tokens?: number; output_tokens?: number } } = await res.json();
+  recordAiUsage(undefined, data.usage); // fire-and-forget daily token accounting (G5)
   const block = (data.content ?? []).find((b) => b.type === 'tool_use');
   return block?.input ?? null;
 }
@@ -153,6 +155,11 @@ export async function GET(req: NextRequest) {
   }
   if (!ANTHROPIC) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
+  }
+  // Daily token budget (G5) — cron agent loops over partners, so gate once up front.
+  const budget = await checkAiBudget();
+  if (!budget.allowed) {
+    return NextResponse.json({ error: `Daily AI budget exhausted (${budget.used}/${budget.cap} tokens); churn scoring skipped this run.` }, { status: 429 });
   }
 
   const svc = {

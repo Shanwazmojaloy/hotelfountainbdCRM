@@ -19,6 +19,7 @@
 import { NextResponse } from 'next/server';
 import { logEvent } from '@/lib/audit';
 import { requireSession } from '@/lib/session';
+import { checkAiBudget, recordAiUsage } from '@/lib/aiBudget';
 
 export const runtime  = 'nodejs';
 export const maxDuration = 30;
@@ -170,6 +171,11 @@ export async function POST(req: Request) {
     // C2 fix: require authenticated session; tenant from env, not body
             const sess = requireSession(req);
             if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+            // Daily token budget (G5) — hard-stop at the cap.
+            const budget = await checkAiBudget();
+            if (!budget.allowed) {
+              return NextResponse.json({ error: `Daily AI budget exhausted (${budget.used}/${budget.cap} tokens). Resets at midnight Dhaka time.` }, { status: 429 });
+            }
             const tenant_id: string = process.env.NEXT_PUBLIC_TENANT_ID!;
             tenant_id_for_audit = tenant_id;
             const body = await req.json();
@@ -225,6 +231,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'anthropic_error', detail: txt }, { status: 502 });
     }
     const j = await aRes.json();
+    recordAiUsage(undefined, j?.usage); // fire-and-forget daily token accounting (G5)
     const answer = j?.content?.[0]?.text ?? '';
 
     void logEvent({
