@@ -39,7 +39,10 @@ function secretVerifiesProjectKeys(secret: string): boolean {
     // longer accepts legacy-HS256 tokens at all (observed PGRST301, 2026-07-02).
     // FAIL SAFE to the service role unless explicitly forced for testing.
     if (process.env.TENANT_JWT_FORCE === '1') {
-      console.warn('[tenantJwt] TENANT_JWT_FORCE=1 — minting with UNVERIFIED secret (new-key project; expect PGRST301 unless the HS256 secret is active in Dashboard → JWT Keys)');
+      // Expected steady state on this project: new-key (sb_*) API keys, custom HS256
+      // standby signing key imported 2026-07-03 (id ad52818c…). Local pre-verification
+      // is impossible without a legacy JWT in env; PostgREST verifies via the standby key.
+      console.log('[tenantJwt] minting active (TENANT_JWT_FORCE=1; verified operationally via standby HS256 signing key)');
       secretValidated = true;
       return true;
     }

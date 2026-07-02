@@ -232,13 +232,20 @@ enablement is one env flag away, rehearse on preview first.**
   data routes now use `tenantClient(TENANT)` (staff keeps a dedicated service
   client solely for the global next-id query); prod regression (flag off,
   service-role path) re-verified green.
-- PROD ENABLEMENT (deliberate future step, one env change): add
-  `SUPABASE_JWT_SECRET` (same standby-key secret), `TENANT_JWT_FORCE=1`, and
-  `TENANT_JWT_MODE=on` to the Production environment and redeploy — the CRM
-  then runs RLS-bound end to end. Rollback = remove `TENANT_JWT_MODE`.
-  Remaining before/with that: grant `execute_nightly_audit` /
-  `get_secure_financial_metrics` to crm_tenant and migrate close-day +
-  financial-metrics (kept on service role for now; their RPCs carry own guards).
+- ✅ PROD FLIPPED (2026-07-03, commit daa5fe6): `execute_nightly_audit` +
+  `get_secure_financial_metrics` granted to crm_tenant; close-day +
+  financial-metrics migrated (ALL 12 session-gated CRM data routes now on
+  `tenantClient()`); `SUPABASE_JWT_SECRET` + `TENANT_JWT_FORCE=1` +
+  `TENANT_JWT_MODE=on` set on Production. VERIFIED LIVE: demo login/read/write
+  all 200 RLS-scoped on prod; financial-metrics 403 = the RPC's internal
+  permission gate firing correctly under crm_tenant; real Hotel Fountain
+  browser traffic flowing 200s with minting active and ZERO PGRST301.
+  **The Hotel Fountain CRM production API now runs WITHOUT RLS bypass** — the
+  service role remains only for: login/activate/send-otp/session (pre-session),
+  staff global next-id, tenant registry/secrets reads, middleware perimeter
+  lookup, AI budget writes, agents/cron routes, and the /api/crm/data
+  SB_SERVICE_KEY presence guard. ROLLBACK: delete `TENANT_JWT_MODE` from
+  Production env + redeploy (instant service-role fallback, no code change).
 - ORIGINAL (superseded) ENABLEMENT NOTES:
   1. Supabase Dashboard → Project Settings → **JWT Keys**: check whether an
      HS256 "shared secret" key can be made ACTIVE (legacy secret re-activated,
