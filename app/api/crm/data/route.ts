@@ -35,7 +35,10 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase: any = tenantClient(TENANT);
   const db = tenantScoped(supabase, TENANT);
-  const { data: srow } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  const { data: srow, error: sErr } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  // Surfaces PostgREST auth errors (e.g. a rejected tenant JWT) that otherwise
+  // masquerade as an expired session — essential while TENANT_JWT_MODE rolls out.
+  if (sErr) console.error('[crm/data] staff check error:', sErr.code, sErr.message, sErr.hint ?? '');
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
