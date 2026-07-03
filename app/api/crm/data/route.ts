@@ -10,7 +10,12 @@ import { requireSession } from '@/lib/session';
 import { tenantScoped, tenantClient } from '@/lib/tenantDb';
 
 export const runtime = 'nodejs';
-export const maxDuration = 20;
+export const maxDuration = 30;
+
+// Bounds worst-case latency: without this, a stalled PostgREST/network call
+// hangs until Vercel kills the function at maxDuration (raw 504, no body).
+// With it, the route fails fast with a clear, retryable JSON error instead.
+const QUERY_TIMEOUT_MS = 15_000;
 
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
@@ -35,10 +40,20 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase: any = tenantClient(TENANT);
   const db = tenantScoped(supabase, TENANT);
-  const { data: srow, error: sErr } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
+
+  const timeoutSignal = () => AbortSignal.timeout(QUERY_TIMEOUT_MS);
+
+  let srow;
+  try {
+    const res = await db.from('staff').select('session_v').eq('id', sess.id).limit(1).abortSignal(timeoutSignal());
+    srow = res.data;
+    if (res.error) console.error('[crm/data] staff check error:', res.error.code, res.error.message, res.error.hint ?? '');
+  } catch (e) {
+    console.error('[crm/data] staff check timed out/failed:', e instanceof Error ? e.message : String(e));
+    return NextResponse.json({ error: 'Database timeout — please retry.' }, { status: 504 });
+  }
   // Surfaces PostgREST auth errors (e.g. a rejected tenant JWT) that otherwise
   // masquerade as an expired session — essential while TENANT_JWT_MODE rolls out.
-  if (sErr) console.error('[crm/data] staff check error:', sErr.code, sErr.message, sErr.hint ?? '');
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
@@ -82,7 +97,13 @@ export async function GET(req: NextRequest) {
     if (safe) query = query.or(`name.ilike.%${safe}%,phone.ilike.%${safe}%`);
   }
 
-  const { data, error } = await query.order(orderCol, { ascending }).limit(limit);
+  let data, error;
+  try {
+    ({ data, error } = await query.order(orderCol, { ascending }).limit(limit).abortSignal(timeoutSignal()));
+  } catch (e) {
+    console.error(`[crm/data] ${resource} read timed out:`, e instanceof Error ? e.message : String(e));
+    return NextResponse.json({ error: 'Database timeout — please retry.' }, { status: 504 });
+  }
 
   if (error) {
     console.error(`[crm/data] ${resource} read:`, error.message);
