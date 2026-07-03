@@ -62,7 +62,9 @@ export default function AuthGate({ children }) {
   }, []);
 
   // Sliding session: keep the HttpOnly lumea_sess cookie fresh while the app is open so staff
-  // are never logged out mid-shift. Re-issues on mount, every 20 min, and on tab focus.
+  // are never logged out mid-shift. Re-issues on mount, every 2 min, and on tab focus.
+  // The 2-min cadence doubles as the PRESENCE heartbeat (server stamps staff.last_seen_at;
+  // Settings→Staff shows "Active" ≤5 min) and makes Logout-All bite within ~2 min.
   // A 401 here means the session is truly revoked/idle-expired -> sign out cleanly to login.
   useEffect(() => {
     if (status !== 'in') return;
@@ -74,7 +76,7 @@ export default function AuthGate({ children }) {
       } catch { /* offline/transient - keep the session */ }
     };
     ping();
-    const iv = setInterval(ping, 20 * 60 * 1000);
+    const iv = setInterval(ping, 2 * 60 * 1000);
     const onVis = () => { if (typeof document !== 'undefined' && document.visibilityState === 'visible') ping(); };
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('focus', onVis);

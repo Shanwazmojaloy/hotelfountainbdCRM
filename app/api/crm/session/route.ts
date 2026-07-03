@@ -21,6 +21,9 @@ export async function GET(req: NextRequest) {
     if (!data || !data[0] || (data[0].session_v || 1) !== sess.session_v) {
       return NextResponse.json({ ok: false, error: 'Session revoked' }, { status: 401 });
     }
+    // Presence heartbeat — Settings→Staff shows "Active" when last_seen_at is fresh (≤5 min).
+    // Best-effort: a failed stamp must never break the session refresh.
+    try { await supabase.from('staff').update({ last_seen_at: new Date().toISOString() }).eq('id', sess.id); } catch { /* non-fatal */ }
   }
   const res = NextResponse.json({ ok: true });
   // Preserve tenant_id on refresh — dropping it silently rebinds the session to the env

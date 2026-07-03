@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (action === 'list') {
-      const { data, error } = await db.from('staff').select('id, name, email, role, activated, device').order('role');
+      const { data, error } = await db.from('staff').select('id, name, email, role, activated, device, last_seen_at').order('role');
       if (error) throw error;
       return NextResponse.json({ ok: true, staff: data || [] });
     }
