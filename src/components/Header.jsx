@@ -137,8 +137,14 @@ export default function Header() {
       <div style={{ fontFamily: 'var(--iv-head)', fontSize: 18, fontWeight: 700, color: 'var(--iv-ink)', flex: 1, letterSpacing: '.01em', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {t0}{t1 && <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}> {t1}</em>}
       </div>
-      <div className="iv-mono" style={{ fontSize: 9, color: 'var(--iv-ink3)', letterSpacing: '.04em', whiteSpace: 'nowrap' }}>{meta}</div>
-      {canBook && <button className="iv-btn" onClick={openNewBooking} style={{ fontSize: 12.5, padding: '7px 14px' }}>+ New Booking</button>}
+      {/* Dhaka clock — desktop/tablet only; on phones it starved the page title into "Op…" */}
+      <div className="iv-mono hidden sm:block" style={{ fontSize: 9, color: 'var(--iv-ink3)', letterSpacing: '.04em', whiteSpace: 'nowrap' }}>{meta}</div>
+      {canBook && (
+        <button className="iv-btn" onClick={openNewBooking} style={{ fontSize: 12.5, padding: '7px 14px', flexShrink: 0 }}>
+          <span className="sm:hidden">+ Book</span>
+          <span className="hidden sm:inline">+ New Booking</span>
+        </button>
+      )}
       {showNew && (
         <NewReservationModal rooms={bkRooms} onClose={() => setShowNew(false)}
           onSaved={() => { setShowNew(false); router.push('/crm/reservations'); }} />

@@ -107,13 +107,20 @@ const LUMEA_MARKETING_HOSTS = new Set([
 // analytics; the nonce covers every inline script (Next hydration, JSON-LD, SW,
 // Vercel's inline init). No 'strict-dynamic' so same-origin third-party stays simple.
 function buildCsp(nonce: string): string {
+  // next dev serves eval-wrapped chunks (source maps / HMR); without 'unsafe-eval' the
+  // CSP throws EvalError before React boots and NO page hydrates locally. Dev only —
+  // production keeps the strict policy.
+  const devEval = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : '';
+  // An unset NEXT_PUBLIC_SUPABASE_URL must not emit bare "https://" — browsers reject the
+  // whole source as invalid and log console errors on every page.
+  const supabaseSrc = SUPABASE_HOST ? ` https://${SUPABASE_HOST} wss://${SUPABASE_HOST}` : '';
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' https://connect.facebook.net`,
+    `script-src 'self' 'nonce-${nonce}'${devEval} https://connect.facebook.net`,
     "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
     "font-src 'self' data: fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
-    `connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST} https://api.brevo.com https://www.facebook.com https://connect.facebook.net`,
+    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net`,
     "frame-src 'self' https://www.google.com",
     "object-src 'none'",
     "base-uri 'self'",

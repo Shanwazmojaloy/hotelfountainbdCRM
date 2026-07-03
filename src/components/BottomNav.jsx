@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from './AuthGate';
@@ -18,6 +18,9 @@ function Icon({ name }) {
     users: <><circle cx="9" cy="8" r="3.2" /><path d="M3.5 20c0-3.2 2.7-5 5.5-5s5.5 1.8 5.5 5" /><path d="M16 5.2a3.2 3.2 0 0 1 0 6" /><path d="M17 15c2.2.4 3.5 2 3.5 4" /></>,
     calendar: <><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9h18M8 2.5v4M16 2.5v4" /></>,
     bed: <><path d="M3 7v11M3 13h18v5M21 18v-4a3 3 0 0 0-3-3h-6v6" /><circle cx="7" cy="10.5" r="1.6" /></>,
+    sparkle: <><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" /></>,
+    gear: <><circle cx="12" cy="12" r="3.2" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" /></>,
+    grid: <><rect x="4" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" /></>,
   };
   return <svg {...p} aria-hidden="true">{paths[name]}</svg>;
 }
@@ -29,22 +32,87 @@ const navItems = [
   { href: '/crm/billing', icon: 'dollar', label: 'Billing' },
 ];
 
+// Sections the 4-slot bar can't hold — reachable on phones via the "More" sheet.
+const moreItems = [
+  { href: '/crm/guests', icon: 'users', label: 'Guests & CRM' },
+  { href: '/crm/housekeeping', icon: 'sparkle', label: 'Housekeeping' },
+  { href: '/crm/reports', icon: 'trend', label: 'Reports' },
+  { href: '/crm/settings', icon: 'gear', label: 'Settings' },
+];
+
 export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const [more, setMore] = useState(false);
   const items = navItems.filter((item) => canAccess(user?.role, item.href));
+  const extras = moreItems.filter((item) => canAccess(user?.role, item.href));
+  const moreActive = extras.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
+
+  // Close the sheet whenever the route changes.
+  useEffect(() => { setMore(false); }, [pathname]);
 
   return (
-    <nav className="iv-bottom-nav md:hidden">
-      {items.map((item) => {
-        const active = pathname === item.href;
-        return (
-          <Link key={item.href} href={item.href} className={`iv-bottom-item ${active ? 'on' : ''}`}>
-            <Icon name={item.icon} />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+    <>
+      {more && extras.length > 0 && (
+        <div className="md:hidden" style={{ position: 'fixed', inset: 0, zIndex: 39 }} onClick={() => setMore(false)}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(7,9,14,.55)' }} />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute', left: 0, right: 0, bottom: 57, background: 'var(--iv-side)',
+              borderTop: '1px solid rgba(200,169,110,.2)', borderRadius: '16px 16px 0 0',
+              padding: '14px 14px 10px', animation: 'ivFade .22s var(--iv-ease) both',
+            }}
+          >
+            <div style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 600, color: 'rgba(200,169,110,.55)', padding: '0 6px 10px' }}>More</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {extras.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(item.href + '/');
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px', borderRadius: 10,
+                      textDecoration: 'none', fontSize: 13, fontWeight: active ? 600 : 500,
+                      color: active ? '#E0C585' : 'rgba(238,233,226,.75)',
+                      background: active ? 'rgba(200,169,110,.16)' : 'rgba(255,255,255,.04)',
+                      border: '1px solid rgba(200,169,110,.12)',
+                    }}
+                  >
+                    <Icon name={item.icon} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      <nav className="iv-bottom-nav md:hidden">
+        {items.map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link key={item.href} href={item.href} className={`iv-bottom-item ${active ? 'on' : ''}`}>
+              <Icon name={item.icon} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+        {extras.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMore((v) => !v)}
+            aria-expanded={more}
+            aria-label="More sections"
+            className={`iv-bottom-item ${more || moreActive ? 'on' : ''}`}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--iv-body)' }}
+          >
+            <Icon name="grid" />
+            <span>More</span>
+          </button>
+        )}
+      </nav>
+    </>
   );
 }
