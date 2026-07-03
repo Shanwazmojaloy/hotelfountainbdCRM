@@ -71,6 +71,9 @@ export default function Footer() {
             <a href={CONTACT.salesPhoneHref} className="w-fit transition hover:text-neon-teal">
               Sales &amp; Marketing: {CONTACT.salesPhone}
             </a>
+            <a href={CONTACT.whatsappHref} target="_blank" rel="noopener noreferrer" className="w-fit transition hover:text-neon-teal">
+              WhatsApp: {CONTACT.whatsappLabel}
+            </a>
             <a href={CONTACT.emailHref} className="w-fit transition hover:text-neon-teal">
               {CONTACT.email}
             </a>
