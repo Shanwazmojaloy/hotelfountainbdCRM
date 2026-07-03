@@ -1,47 +1,80 @@
 // WORKFLOW 2+3 — Checkout Reminders + Overdue Alert
 // WF2: 10:30 AM Dhaka — remind owner of guests checking out today
 // WF3: 12:30 PM Dhaka — alert owner of overdue checkouts
+//
+// Sender switched from Brevo to Resend (2026-07-03): the Brevo account has
+// been rejecting every send since at least 2026-06-28 with "SMTP account is
+// not yet activated" (permission_denied) — an account-level restriction, not
+// a code bug. Resend is already the working sender for the shared send-email
+// function; this mirrors that pattern. NOTE: recipients here are always the
+// owner's own inbox (config.owner_email), so Resend's shared onboarding
+// domain (onboarding@resend.dev) is sufficient — unlike guest-facing sends
+// (e.g. booking-confirmation), which need a verified custom domain and were
+// NOT touched by this change.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SB_URL = Deno.env.get('SUPABASE_URL')!
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const BREVO_KEY = Deno.env.get('BREVO_API_KEY') ?? ''
+const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
 const CORS = { 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,x-client-info,apikey,content-type','Content-Type':'application/json' }
+const FROM_ADDR = 'Hotel Fountain <onboarding@resend.dev>'
 
 function dhakaDateStr(): string {
   return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  if (!BREVO_KEY) return { ok:false, error:'BREVO_API_KEY not set' }
-  const r = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sender: { name: 'Hotel Fountain', email: 'noreply@hotelfountainbd.com' },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html
-    })
-  })
-  const d = await r.json()
-  return r.ok ? { ok:true, id: d.messageId } : { ok:false, error: JSON.stringify(d) }
+async function getResendKey(sb: any): Promise<string> {
+  const envKey = Deno.env.get('RESEND_API_KEY')
+  if (envKey) return envKey
+  const { data } = await sb.rpc('vault_secret', { secret_name: 'RESEND_API_KEY' })
+  if (data) return data
+  throw new Error('RESEND_API_KEY not found')
 }
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
-
-// Log to workflow_runs so the CRM Settings page lights the status dot.
-// workflow_name MUST match the UI workflow id ('checkout-reminder' / 'overdue-alert').
-async function logRun(name: string, status: string, records: number, summary: object) {
-  await fetch(`${SB_URL}/rest/v1/workflow_runs`, {
+async function sendEmail(sb: any, to: string, subject: string, html: string) {
+  let key: string
+  try {
+    key = await getResendKey(sb)
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+  const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify({ workflow_name: name, status, records_processed: records, summary, tenant_id: TENANT }),
-  }).catch(() => {})
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: FROM_ADDR,
+      to: [to],
+      subject,
+      html,
+      text: html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(),
+    })
+  })
+  let d: any = {}
+  try { d = await r.json() } catch (_e) { d = { raw: await r.text().catch(()=>'non-JSON response') } }
+  return r.ok ? { ok:true, id: d.id } : { ok:false, error: d.message || JSON.stringify(d) }
+}
+
+async function logWorkflowRun(sb: any, workflowName: string, status: string, records: number, errorMsg?: string) {
+  // NOTE: the supabase-js query builder is thenable but does not implement
+  // .catch()/.finally() as real Promise methods — chaining .catch() on it
+  // throws synchronously ("...insert(...).catch is not a function"). That
+  // throw was propagating out of every call site and turning otherwise-
+  // successful runs (email sent, DB logged) into a 500 response. Use a
+  // real try/catch instead.
+  try {
+    await sb.from('workflow_runs').insert({
+      workflow_name: workflowName,
+      status,
+      records_processed: records,
+      error_msg: errorMsg || null,
+      tenant_id: TENANT
+    })
+  } catch { /* non-fatal */ }
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method==='OPTIONS') return new Response('ok',{headers:CORS})
+  try {
   const sb = createClient(SB_URL, SB_KEY)
   const body = await req.json().catch(()=>({}))
   const mode = body.mode || 'reminder'
@@ -60,7 +93,7 @@ Deno.serve(async (req: Request) => {
       .lte('check_out', today+'T23:59:59')
 
     if (!checkouts || checkouts.length === 0) {
-      await logRun('checkout-reminder', 'success', 0, { date: today, checkouts: 0, message: 'No checkouts today' })
+      await logWorkflowRun(sb, 'checkout-reminder', 'success', 0)
       return new Response(JSON.stringify({success:true,message:'No checkouts today'}),{headers:CORS})
     }
 
@@ -112,7 +145,7 @@ Deno.serve(async (req: Request) => {
   </td></tr>
 </table></td></tr></table></body></html>`
 
-    const result = await sendEmail(ownerEmail, `🚨 ${checkouts.length} Checkout${checkouts.length>1?'s':''} Today · ${hotelName} · ${today}`, html)
+    const result = await sendEmail(sb, ownerEmail, `🚨 ${checkouts.length} Checkout${checkouts.length>1?'s':''} Today · ${hotelName} · ${today}`, html)
     await sb.from('notifications_log').insert({
       workflow: 'checkout-reminder', recipient_email: ownerEmail,
       subject: `Checkout Reminder ${today}`,
@@ -120,9 +153,9 @@ Deno.serve(async (req: Request) => {
       status: result.ok ? 'sent' : 'failed',
       error_msg: result.error,
       metadata: { count: checkouts.length, total_balance: totalBalance },
-      tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
+      tenant_id: TENANT
     })
-    await logRun('checkout-reminder', result.ok ? 'success' : 'partial', checkouts.length, { date: today, checkouts: checkouts.length, total_balance: totalBalance, email_sent: result.ok })
+    await logWorkflowRun(sb, 'checkout-reminder', result.ok ? 'success' : 'error', checkouts.length, result.error)
     return new Response(JSON.stringify({success:true,workflow:'checkout-reminder',checkouts:checkouts.length,total_balance:totalBalance,email:result}),{headers:CORS})
   }
 
@@ -134,7 +167,7 @@ Deno.serve(async (req: Request) => {
       .lt('check_out', now)
 
     if (!overdues || overdues.length === 0) {
-      await logRun('overdue-alert', 'success', 0, { date: today, overdue: 0, message: 'No overdue checkouts' })
+      await logWorkflowRun(sb, 'overdue-alert', 'success', 0)
       return new Response(JSON.stringify({success:true,message:'No overdue checkouts'}),{headers:CORS})
     }
 
@@ -180,7 +213,7 @@ Deno.serve(async (req: Request) => {
   </td></tr>
 </table></td></tr></table></body></html>`
 
-    const result = await sendEmail(ownerEmail, `⚠️ ${overdues.length} Overdue Checkout${overdues.length>1?'s':''} · ${hotelName}`, html)
+    const result = await sendEmail(sb, ownerEmail, `⚠️ ${overdues.length} Overdue Checkout${overdues.length>1?'s':''} · ${hotelName}`, html)
     await sb.from('notifications_log').insert({
       workflow: 'overdue-checkout-alert', recipient_email: ownerEmail,
       subject: `Overdue Alert ${today}`,
@@ -188,11 +221,15 @@ Deno.serve(async (req: Request) => {
       status: result.ok ? 'sent' : 'failed',
       error_msg: result.error,
       metadata: { count: overdues.length },
-      tenant_id: '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
+      tenant_id: TENANT
     })
-    await logRun('overdue-alert', result.ok ? 'success' : 'partial', overdues.length, { date: today, overdue: overdues.length, email_sent: result.ok })
+    await logWorkflowRun(sb, 'overdue-alert', result.ok ? 'success' : 'error', overdues.length, result.error)
     return new Response(JSON.stringify({success:true,workflow:'overdue-alert',overdue_count:overdues.length,email:result}),{headers:CORS})
   }
 
   return new Response(JSON.stringify({error:'Invalid mode'}),{status:400,headers:CORS})
+  } catch (err: any) {
+    console.error('[wf-checkout-alerts] unhandled error:', err?.message ?? err)
+    return new Response(JSON.stringify({ error: 'Internal server error', detail: err?.message ?? String(err) }), { status: 500, headers: CORS })
+  }
 })
