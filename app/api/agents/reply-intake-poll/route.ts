@@ -21,6 +21,11 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+// The mailbox regularly holds far more unread mail (newsletters, alerts) than
+// tracked-lead replies. Fetching bodyParts for every unread message — not
+// just matched ones — was the source of the recurring 60s timeouts. A hard
+// deadline is a last-resort safety net on top of the two-phase fetch below.
+const DEADLINE_MS = 50_000;
 
 interface LeadRow {
   id:            string;
@@ -124,34 +129,56 @@ async function runReplyPoll() {
   });
 
   const processed: Array<Record<string, unknown>> = [];
+  const t0 = Date.now();
 
   try {
     await client.connect();
     const lock = await client.getMailboxLock('INBOX');
 
     try {
-      const messages = client.fetch({ seen: false }, {
-        envelope: true,
-        bodyStructure: true,
-        bodyParts: ['text'],
-        uid: true,
-      });
+      // PHASE 1 — envelope only for every unread message (cheap). The mailbox
+      // routinely holds far more unread mail than tracked-lead replies, and
+      // fetching bodyParts for ALL of them (the old single-pass approach) is
+      // what blew past the 60s budget. Only messages matching a tracked lead
+      // proceed to phase 2.
+      const envelopes = client.fetch({ seen: false }, { envelope: true, uid: true });
+      const matches: Array<{ uid: number; fromAddr: string; subject: string; lead: LeadRow; date: string }> = [];
+
+      for await (const msg of envelopes) {
+        if (Date.now() - t0 > DEADLINE_MS) break; // leave the rest unread for next run
+        const fromAddr = msg.envelope?.from?.[0]?.address?.toLowerCase() ?? '';
+        const lead = emailToLead.get(fromAddr);
+        if (!lead) continue; // Not a tracked lead — leave unread
+        matches.push({
+          uid: msg.uid,
+          fromAddr,
+          subject: msg.envelope?.subject ?? '(no subject)',
+          lead,
+          date: msg.envelope?.date?.toISOString() ?? new Date().toISOString(),
+        });
+      }
+
+      // PHASE 2 — fetch the body text only for messages that matched a lead.
+      const bodyByUid = new Map<number, string>();
+      if (matches.length > 0) {
+        const bodies = client.fetch(
+          matches.map((m) => m.uid),
+          { bodyParts: ['text'], uid: true },
+          { uid: true },
+        );
+        for await (const msg of bodies) {
+          let body = '';
+          for (const [, part] of msg.bodyParts ?? []) {
+            body += part.toString();
+          }
+          bodyByUid.set(msg.uid, body);
+        }
+      }
 
       const toMark: number[] = [];
 
-      for await (const msg of messages) {
-        const fromAddr = msg.envelope?.from?.[0]?.address?.toLowerCase() ?? '';
-        const subject  = msg.envelope?.subject ?? '(no subject)';
-        const lead     = emailToLead.get(fromAddr);
-
-        if (!lead) continue; // Not a tracked lead — leave unread
-
-        // Extract plain-text body
-        let body = '';
-        for (const [, part] of msg.bodyParts ?? []) {
-          body += part.toString();
-        }
-        const bodyTrimmed = body.slice(0, 4000);
+      for (const { uid, fromAddr, subject, lead, date } of matches) {
+        const bodyTrimmed = (bodyByUid.get(uid) ?? '').slice(0, 4000);
 
         // ATTRIBUTION GUARD: sender matches a lead, but verify this is a
         // reply to a thread WE initiated. Bug surfaced 2026-05-21 when DESCO
@@ -178,7 +205,7 @@ async function runReplyPoll() {
           p_channel:   'email',
           p_subject:   finalSubject,
           p_body:      finalBody,
-          p_sent_at:   msg.envelope?.date?.toISOString() ?? new Date().toISOString(),
+          p_sent_at:   date,
         });
         if (logRes.ok) {
           const logData = await logRes.json().catch(() => null);
@@ -212,7 +239,7 @@ async function runReplyPoll() {
           }
         }
 
-        toMark.push(msg.uid);
+        toMark.push(uid);
         processed.push({
           lead:               lead.company_name,
           from:               fromAddr,

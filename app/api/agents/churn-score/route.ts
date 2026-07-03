@@ -24,6 +24,12 @@ export const maxDuration = 60;
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_PARTNERS = 25;
+const CONCURRENCY = 5;
+// Sequential processing of up to MAX_PARTNERS partners (each up to a 25s AI
+// call + 15s DB upsert) could exceed the 60s function budget by 10x — this is
+// what caused the recurring "Task timed out after 60 seconds" errors. Bound
+// concurrency and stop starting new work once the deadline is close.
+const DEADLINE_MS = 48_000;
 
 type Partner = {
   id: string;
@@ -182,11 +188,11 @@ export async function GET(req: NextRequest) {
     }
     const partners: Partner[] = await pr.json();
 
-    let scored = 0, high = 0, skipped = 0;
+    let scored = 0, high = 0, skipped = 0, deadlineSkipped = 0;
 
-    for (const p of partners) {
-      const a = await assess(signalSummary(p), ANTHROPIC);
-      if (!a || typeof a.churn_score !== 'number') { skipped++; continue; }
+    async function scoreOne(p: Partner): Promise<void> {
+      const a = await assess(signalSummary(p), ANTHROPIC!);
+      if (!a || typeof a.churn_score !== 'number') { skipped++; return; }
 
       const slope = engagementSlope(p);
       const blended = Math.min(1, Math.round((a.churn_score + Math.max(0, -slope) * 0.4) * 1000) / 1000);
@@ -213,7 +219,23 @@ export async function GET(req: NextRequest) {
       else { skipped++; }
     }
 
-    const summary = { scored, high, skipped, partners: partners.length };
+    // Bounded-concurrency worker pool: CONCURRENCY partners in flight at once,
+    // and stop pulling new work once we're inside the deadline margin so
+    // in-flight calls have room to finish before Vercel kills the function.
+    let cursor = 0;
+    async function worker(): Promise<void> {
+      while (cursor < partners.length) {
+        if (Date.now() - t0 > DEADLINE_MS) {
+          deadlineSkipped += partners.length - cursor;
+          return;
+        }
+        const p = partners[cursor++];
+        await scoreOne(p);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, partners.length) }, worker));
+
+    const summary = { scored, high, skipped, deadline_skipped: deadlineSkipped, partners: partners.length };
     void logEvent({
       event_type: 'cron_churn_score',
       action_target: 'GET /api/agents/churn-score',
