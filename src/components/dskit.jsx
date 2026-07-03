@@ -144,7 +144,7 @@ export function Tabs({ tabs, value, onChange, style }) {
   );
 }
 
-export const TH = { fontFamily: 'var(--iv-body)', fontSize: 12, letterSpacing: '.01em', color: '#64748B', textTransform: 'none', padding: '11px 14px', textAlign: 'left', borderBottom: '1px solid var(--iv-border)', background: 'var(--iv-sunken)', fontWeight: 600, whiteSpace: 'nowrap' };
+export const TH = { fontFamily: 'var(--iv-body)', fontSize: 12, letterSpacing: '.01em', color: '#8D8A96', textTransform: 'none', padding: '11px 14px', textAlign: 'left', borderBottom: '1px solid var(--iv-border)', background: 'var(--iv-sunken)', fontWeight: 600, whiteSpace: 'nowrap' };
 export const TD = { padding: '12px 14px', fontSize: 13, color: 'var(--iv-ink)', verticalAlign: 'middle', borderBottom: '1px solid var(--iv-border2)' };
 export const MONO = { fontFamily: 'var(--iv-mono)', fontSize: 11 };
 

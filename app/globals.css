@@ -653,6 +653,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.14); }
 .crm-root ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.24); }
 
+/* Skeletons on dark — the light theme's #E2E8F0 blocks + white shimmer glared on dark cards */
+.crm-root .iv-skel { background:rgba(255,255,255,.07); }
+.crm-root .iv-skel::after { background:linear-gradient(90deg, transparent, rgba(255,255,255,.13), transparent); }
+
 /* Sign out — labeled rose pill, always visible (owner request 2026-07-04) */
 .crm-root .fx-signout { display:inline-flex; align-items:center; gap:7px; height:40px; padding:0 15px; border-radius:999px;
   background:rgba(255,107,107,.1); border:1px solid rgba(255,107,107,.32); color:#FF6B6B;

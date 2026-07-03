@@ -237,7 +237,7 @@ export default function AuthGate({ children }) {
         ) : (
           <div>
             <p style={subText}>Enter the code sent to<br /><strong style={{ color: TX, fontFamily: mono, fontSize: 12 }}>{actEmail}</strong> and choose a password.</p>
-            {actMsg && <div style={{ fontSize: 10.5, color: '#15803D', marginBottom: 14, textAlign: 'center', padding: 8, background: 'rgba(21,128,61,.07)', border: '1px solid rgba(21,128,61,.18)', fontFamily: sans, lineHeight: 1.5 }}>{actMsg}</div>}
+            {actMsg && <div style={{ fontSize: 10.5, color: '#7BE04A', marginBottom: 14, textAlign: 'center', padding: 8, background: 'rgba(123,224,74,.09)', border: '1px solid rgba(123,224,74,.25)', borderRadius: 8, fontFamily: sans, lineHeight: 1.5 }}>{actMsg}</div>}
             <div style={fieldWrap}>
               <label style={labelSt}>Verification Code</label>
               <input style={{ ...inputSt, letterSpacing: '.5em', fontSize: 20, textAlign: 'center', fontFamily: mono }} onFocus={onFocus} onBlur={onBlur} maxLength={6} inputMode="numeric" value={actOtp} onChange={(e) => { setActOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setActErr(''); }} placeholder="123456" />

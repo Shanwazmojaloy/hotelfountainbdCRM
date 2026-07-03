@@ -150,7 +150,7 @@ export default function Settings() {
           <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 4 }}>Logout All Devices</div>
           <div className="iv-stat__sub mb-3">Immediately invalidates all active staff sessions. Everyone (except the owner) is signed out on next sync (≤90s).</div>
           {secMsg && <div className="mb-3 text-sm" style={{ color: secMsg.startsWith('Failed') ? '#FF6B6B' : '#7BE04A' }}>{secMsg}</div>}
-          <button className="iv-btn" style={{ background: '#FF6B6B' }} onClick={logoutAllDevices} disabled={secBusy}>{secBusy ? 'Working…' : '⏻ Logout All Devices'}</button>
+          <button className="iv-btn" style={{ background: '#FF6B6B', borderColor: '#FF6B6B', color: '#2A0B0B' }} onClick={logoutAllDevices} disabled={secBusy}>{secBusy ? 'Working…' : '⏻ Logout All Devices'}</button>
         </div>
       )}
 

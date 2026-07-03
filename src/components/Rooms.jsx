@@ -16,12 +16,13 @@ import { can } from '@/lib/permissions';
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
 // Design-system status hues (RoomTile).
+// Aurora palette (2026-07-04): brighter hues — the old dark-on-light values sank into the dark theme.
 const STATUS = {
-  AVAILABLE:    { c: '#15803D', label: 'Available' },
-  OCCUPIED:     { c: '#1D4ED8', label: 'Occupied' },
-  DIRTY:        { c: '#B45309', label: 'Dirty' },
-  OUT_OF_ORDER: { c: '#B91C1C', label: 'Out of Order' },
-  RESERVED:     { c: '#6D28D9', label: 'Reserved' },
+  AVAILABLE:    { c: '#7BE04A', label: 'Available' },
+  OCCUPIED:     { c: '#6AA5FF', label: 'Occupied' },
+  DIRTY:        { c: '#F5A93B', label: 'Dirty' },
+  OUT_OF_ORDER: { c: '#FF6B6B', label: 'Out of Order' },
+  RESERVED:     { c: '#C08BFF', label: 'Reserved' },
 };
 
 // hex (#RRGGBB) → rgba(...) for the status-tinted glass tiles
@@ -80,10 +81,10 @@ export default function Rooms() {
   const tabs = ['ALL', 'AVAILABLE', 'OCCUPIED', 'DIRTY', 'OUT_OF_ORDER', 'RESERVED'];
 
   const statCards = [
-    { label: 'Available', k: 'AVAILABLE', c: '#15803D' },
-    { label: 'Occupied', k: 'OCCUPIED', c: '#1D4ED8' },
-    { label: 'Needs Cleaning', k: 'DIRTY', c: '#B45309' },
-    { label: 'Out of Order', k: 'OUT_OF_ORDER', c: '#B91C1C' },
+    { label: 'Available', k: 'AVAILABLE', c: '#7BE04A' },
+    { label: 'Occupied', k: 'OCCUPIED', c: '#6AA5FF' },
+    { label: 'Needs Cleaning', k: 'DIRTY', c: '#F5A93B' },
+    { label: 'Out of Order', k: 'OUT_OF_ORDER', c: '#FF6B6B' },
   ];
 
   return (

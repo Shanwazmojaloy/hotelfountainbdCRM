@@ -141,7 +141,7 @@ export default function RoomFolioModal({ room, reservations, rooms, guests, onCl
               <button className="iv-btn iv-btn--ghost" onClick={() => setShowCharge(true)}>+ Add Charge</button>
               <button className="iv-btn iv-btn--ghost" onClick={() => printInvoice({ ...activeRes, guest_name: guestName }, rooms, guestName, folios, guests)}>Invoice</button>
               <button className="iv-btn iv-btn--ghost" onClick={() => setShowPay(true)} disabled={due <= 0}>Collect Payment</button>
-              <button className="iv-btn" style={{ background: '#FF6B6B' }} onClick={() => setShowCO(true)}>Check Out</button>
+              <button className="iv-btn" style={{ background: '#FF6B6B', borderColor: '#FF6B6B', color: '#2A0B0B' }} onClick={() => setShowCO(true)}>Check Out</button>
             </div>
           </>
         )}
