@@ -169,13 +169,13 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Pill nav — desktop */}
-      <nav className="hidden md:flex" style={{ alignItems: 'center', gap: 6, flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', padding: '2px 0' }}>
+      {/* Pill nav — desktop. Text labels (owner request 2026-07-04), no glyph icons. */}
+      <nav className="hidden md:flex" style={{ alignItems: 'center', gap: 5, flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', padding: '2px 0' }}>
         {visiblePills.map((p) => {
           const on = p.exact ? pathname === p.href : pathname === p.href || pathname.startsWith(p.href + '/');
           return (
-            <Link key={p.href} href={p.href} className={`fx-pill${on ? ' on' : ' ic'}`} title={p.label} aria-label={p.label} aria-current={on ? 'page' : undefined}>
-              <span aria-hidden="true">{p.icon}</span>{on && <span>{p.label}</span>}
+            <Link key={p.href} href={p.href} className={`fx-pill${on ? ' on' : ''}`} aria-current={on ? 'page' : undefined}>
+              {p.label}
             </Link>
           );
         })}
@@ -254,15 +254,20 @@ export default function Header() {
         )}
       </div>}
 
-      {/* User chip + sign-out (replaces the old sidebar footer) */}
+      {/* User chip (replaces the old sidebar footer) */}
       <div className="hidden sm:flex" style={{ alignItems: 'center', gap: 9, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 999, padding: '4px 12px 4px 5px', flexShrink: 0 }}>
         <span style={{ width: 28, height: 28, borderRadius: 999, background: 'linear-gradient(135deg,#B384F5,#7C4BC9)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{initials(user?.name)}</span>
         <div style={{ lineHeight: 1.1, minWidth: 0 }}>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--iv-ink)', whiteSpace: 'nowrap', maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || 'Staff'}</div>
           <div style={{ fontSize: 7.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginTop: 1 }}>{user?.role || ''}</div>
         </div>
-        <span onClick={signOut} title="Sign out" style={{ fontSize: 13, color: 'var(--iv-ink3)', cursor: 'pointer', paddingLeft: 2 }}>⎋</span>
       </div>
+
+      {/* Sign out — visible labeled button (owner request 2026-07-04), rose tint so it can't be missed */}
+      <button className="fx-signout" onClick={signOut} title="Sign out" aria-label="Sign out">
+        <span aria-hidden="true" style={{ fontSize: 14 }}>⏻</span>
+        <span className="hidden md:inline">Sign Out</span>
+      </button>
     </div>
   );
 }

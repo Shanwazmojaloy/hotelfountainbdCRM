@@ -84,7 +84,7 @@ export function Avatar({ name = '', size = 32, tone }) {
 
 export function StatCard({ icon, label, value, sub, accent = C.gold }) {
   return (
-    <div className="iv-card--hover" style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', backdropFilter: 'blur(14px)', padding: '16px 18px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease), border-color .25s var(--iv-ease)' }}>
+    <div className="iv-card--hover" style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', padding: '16px 18px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease), border-color .25s var(--iv-ease)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 24 }}>
         <div style={{ fontSize: 12, letterSpacing: '.01em', color: 'var(--iv-ink2)', fontWeight: 500 }}>{label}</div>
         {icon != null && <div style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: accent, background: `${accent}14` }}>{icon}</div>}
@@ -97,7 +97,7 @@ export function StatCard({ icon, label, value, sub, accent = C.gold }) {
 
 export function Card({ title, titleAccent, accent, action, bodyStyle, children, style }) {
   return (
-    <section style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', backdropFilter: 'blur(14px)', overflow: 'hidden', marginBottom: 20, ...style }}>
+    <section style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', overflow: 'hidden', marginBottom: 20, ...style }}>
       {(title || action) && (
         <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexWrap: 'wrap' }}>
           {title != null && (

@@ -544,7 +544,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
    ════════════════════════════════════════════════════════════════════════ */
 .crm-root {
   --iv-bg:transparent;                       /* aurora painted on .crm-root itself */
-  --iv-card:rgba(23,21,28,.78);              /* dark glass panel */
+  --iv-card:rgba(24,22,29,.92);              /* dark glass panel — opaque enough to skip per-card backdrop blur (paint perf) */
   --iv-border:rgba(255,255,255,.09);
   --iv-border2:rgba(255,255,255,.055);
   --iv-sunken:rgba(255,255,255,.035);
@@ -582,8 +582,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root h1,.crm-root h2,.crm-root h3,.crm-root h4 { color:var(--iv-ink); }
 .crm-root em { color:var(--iv-gold); }
 
-/* Cards — dark glass, bigger radius */
-.crm-root .iv-card { background:var(--iv-card); border:1px solid var(--iv-border); border-radius:18px; backdrop-filter:blur(14px) saturate(1.15); -webkit-backdrop-filter:blur(14px) saturate(1.15); }
+/* Cards — dark glass, bigger radius. NO per-card backdrop-filter: dozens of blurred
+   surfaces over the aurora made tab switches janky on big tables (owner: "no lag",
+   2026-07-04). Blur stays only on singletons: topbar, modals, bottom nav, dropdowns. */
+.crm-root .iv-card { background:var(--iv-card); border:1px solid var(--iv-border); border-radius:18px; }
 .crm-root .iv-card--hover:hover { border-color:rgba(223,255,69,.28); }
 
 /* Buttons — lime pill CTA (dark text), dark-glass ghost */
@@ -651,11 +653,25 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.14); }
 .crm-root ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.24); }
 
+/* Sign out — labeled rose pill, always visible (owner request 2026-07-04) */
+.crm-root .fx-signout { display:inline-flex; align-items:center; gap:7px; height:40px; padding:0 15px; border-radius:999px;
+  background:rgba(255,107,107,.1); border:1px solid rgba(255,107,107,.32); color:#FF6B6B;
+  font-family:var(--iv-body); font-size:12.5px; font-weight:700; cursor:pointer; flex-shrink:0; white-space:nowrap;
+  transition:all .25s var(--iv-ease); }
+.crm-root .fx-signout:hover { background:rgba(255,107,107,.18); border-color:rgba(255,107,107,.5); color:#FF8585; transform:translateY(-1px); }
+.crm-root .fx-signout:active { transform:scale(.96); }
+
+/* Snappier page transitions — 420ms felt like lag when switching tabs (owner 2026-07-04).
+   Shorter travel + duration, GPU-only properties. */
+@keyframes fxPageIn { 0% { opacity:0; transform:translateY(8px); } 100% { opacity:1; transform:none; } }
+.iv-fade { animation:fxPageIn .22s cubic-bezier(.22,1,.36,1) backwards; }
+.crm-root .iv-stagger > * { animation-duration:.28s; }
+
 /* ── Orbix motion additions ── */
 @keyframes fxBarGrow { from { transform:scaleY(0); } }
 @keyframes fxCardUp { from { opacity:0; transform:translateY(22px); } }
 .crm-root .fx-in { animation:fxCardUp .55s cubic-bezier(.22,1,.36,1) backwards; }
 @media (prefers-reduced-motion: reduce) {
   .crm-root .fx-in { animation:none !important; }
-  .crm-root .fx-pill, .crm-root .fx-round { transition:none !important; }
+  .crm-root .fx-pill, .crm-root .fx-round, .crm-root .fx-signout { transition:none !important; }
 }

@@ -91,7 +91,7 @@ export default function Rooms() {
       {/* Status stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }} className="iv-stat-grid iv-stagger">
         {statCards.map((s) => (
-          <div key={s.k} style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', backdropFilter: 'blur(14px)', padding: '14px 18px 16px' }}>
+          <div key={s.k} style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', padding: '14px 18px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <span style={{ width: 8, height: 8, borderRadius: 99, background: s.c, boxShadow: `0 0 0 3px ${s.c}22` }} />
               <span style={{ fontSize: 12, letterSpacing: '.01em', color: 'var(--iv-ink2)', fontWeight: 500 }}>{s.label}</span>
@@ -102,7 +102,7 @@ export default function Rooms() {
       </div>
 
       {/* Floor plan card */}
-      <section style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', backdropFilter: 'blur(14px)', overflow: 'hidden' }}>
+      <section style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', overflow: 'hidden' }}>
         <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexWrap: 'wrap' }}>
           <h3 style={{ margin: 0, fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)', letterSpacing: '-.01em' }}>Floor <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}>Plan</em></h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

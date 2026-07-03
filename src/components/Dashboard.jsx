@@ -85,7 +85,7 @@ function StatCard({ icon, label, value, sub, accent, delta, spark, sparkColor, h
     <Tag
       className="iv-card--hover"
       href={href}
-      style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', backdropFilter: 'blur(14px)', padding: '16px 18px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease), border-color .25s var(--iv-ease)', display: 'block', textDecoration: 'none', color: 'inherit', cursor: href ? 'pointer' : 'default' }}
+      style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', padding: '16px 18px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease), border-color .25s var(--iv-ease)', display: 'block', textDecoration: 'none', color: 'inherit', cursor: href ? 'pointer' : 'default' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 24 }}>
         <div style={{ fontSize: 12, letterSpacing: '.01em', color: 'var(--iv-ink2)', fontWeight: 500 }}>{label}</div>
@@ -103,7 +103,7 @@ function StatCard({ icon, label, value, sub, accent, delta, spark, sparkColor, h
 
 function DSCard({ title, titleAccent, accent = 'var(--iv-side)', action, bodyStyle, children, sectionStyle }) {
   return (
-    <section style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', backdropFilter: 'blur(14px)', overflow: 'hidden', ...sectionStyle }}>
+    <section style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', overflow: 'hidden', ...sectionStyle }}>
       <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexShrink: 0 }}>
         <h3 style={{ margin: 0, fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)', letterSpacing: '-.01em' }}>
           {title}{titleAccent && <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}> {titleAccent}</em>}
@@ -292,7 +292,7 @@ export default function Dashboard() {
             { l: 'Dirty', v: loading ? '—' : dirtyCnt, c: AMB },
           ];
           return (
-            <a href="/crm/rooms" className="iv-card--hover" style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', backdropFilter: 'blur(14px)', padding: '16px 18px', textDecoration: 'none', color: 'inherit', display: 'block', transition: 'transform .25s var(--iv-ease), border-color .25s var(--iv-ease)' }}>
+            <a href="/crm/rooms" className="iv-card--hover" style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', padding: '16px 18px', textDecoration: 'none', color: 'inherit', display: 'block', transition: 'transform .25s var(--iv-ease), border-color .25s var(--iv-ease)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--iv-ink)' }}>Rooms</div>
                 <div style={{ display: 'flex', gap: 6 }}>
