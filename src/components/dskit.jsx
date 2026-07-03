@@ -38,21 +38,23 @@ export function CountUp({ value, duration = 650, animateMount = false }) {
 
 const isLoadingVal = (v) => v == null || v === '—' || v === '';
 
+// Aurora/Orbix palette (2026-07-04): lime accent + saturated series colors on dark glass.
+// Token KEYS unchanged — 'gold' now resolves to the lime accent CRM-wide.
 export const C = {
-  grn: '#16A34A', gold: '#8B6914', gold2: '#6B4E0A', goldL: '#C8A96E', sky: '#2563EB',
-  rose: '#DC2626', amb: '#D97706', teal: '#0D9488', pur: '#7C3AED', walnut: '#0F172A',
-  ink: '#0F172A', ink2: '#475569', ink3: '#94A3B8', br: '#E2E8F0', br2: '#EEF2F7', sunken: '#F8FAFC', card: '#FFFFFF',
+  grn: '#7BE04A', gold: '#DFFF45', gold2: '#C3E62E', goldL: '#DFFF45', sky: '#6AA5FF',
+  rose: '#FF6B6B', amb: '#F5A93B', teal: '#3ED3C1', pur: '#C08BFF', walnut: '#0F172A',
+  ink: '#F2F1F5', ink2: '#A7A4B0', ink3: '#716E7B', br: 'rgba(255,255,255,.09)', br2: 'rgba(255,255,255,.055)', sunken: 'rgba(255,255,255,.035)', card: 'rgba(23,21,28,.78)',
 };
 
 const TONES = {
-  neutral: { bg: 'rgba(100,116,139,.09)', fg: '#64748B', bd: 'rgba(100,116,139,.22)' },
-  green: { bg: 'rgba(22,163,74,.09)', fg: C.grn, bd: 'rgba(22,163,74,.2)' },
-  blue: { bg: 'rgba(37,99,235,.08)', fg: C.sky, bd: 'rgba(37,99,235,.2)' },
-  amber: { bg: 'rgba(217,119,6,.09)', fg: C.amb, bd: 'rgba(217,119,6,.2)' },
-  rose: { bg: 'rgba(220,38,38,.08)', fg: C.rose, bd: 'rgba(220,38,38,.2)' },
-  gold: { bg: 'rgba(139,105,20,.08)', fg: C.gold, bd: 'rgba(139,105,20,.22)' },
-  teal: { bg: 'rgba(13,148,136,.08)', fg: C.teal, bd: 'rgba(13,148,136,.2)' },
-  purple: { bg: 'rgba(124,58,237,.08)', fg: C.pur, bd: 'rgba(124,58,237,.2)' },
+  neutral: { bg: 'rgba(148,152,166,.1)', fg: '#A7A4B0', bd: 'rgba(148,152,166,.25)' },
+  green: { bg: 'rgba(123,224,74,.11)', fg: C.grn, bd: 'rgba(123,224,74,.3)' },
+  blue: { bg: 'rgba(106,165,255,.11)', fg: C.sky, bd: 'rgba(106,165,255,.3)' },
+  amber: { bg: 'rgba(245,169,59,.11)', fg: C.amb, bd: 'rgba(245,169,59,.3)' },
+  rose: { bg: 'rgba(255,107,107,.11)', fg: C.rose, bd: 'rgba(255,107,107,.3)' },
+  gold: { bg: 'rgba(223,255,69,.1)', fg: C.gold, bd: 'rgba(223,255,69,.28)' },
+  teal: { bg: 'rgba(62,211,193,.11)', fg: C.teal, bd: 'rgba(62,211,193,.3)' },
+  purple: { bg: 'rgba(192,139,255,.11)', fg: C.pur, bd: 'rgba(192,139,255,.3)' },
 };
 
 export function Badge({ tone = 'neutral', children, style }) {
@@ -65,9 +67,9 @@ export function Badge({ tone = 'neutral', children, style }) {
 }
 
 const AV_TONES = {
-  gold: 'linear-gradient(135deg,#C8A96E,#8B6914)', teal: 'linear-gradient(135deg,#2DD4BF,#0D9488)',
-  walnut: 'linear-gradient(135deg,#475569,#0F172A)', rose: 'linear-gradient(135deg,#F87171,#DC2626)',
-  sky: 'linear-gradient(135deg,#60A5FA,#2563EB)',
+  gold: 'linear-gradient(135deg,#C8A96E,#8B6914)', teal: 'linear-gradient(135deg,#2DD4BF,#3ED3C1)',
+  walnut: 'linear-gradient(135deg,#475569,#0F172A)', rose: 'linear-gradient(135deg,#F87171,#FF6B6B)',
+  sky: 'linear-gradient(135deg,#60A5FA,#6AA5FF)',
 };
 export function Avatar({ name = '', size = 32, tone }) {
   const initials = name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
@@ -82,9 +84,9 @@ export function Avatar({ name = '', size = 32, tone }) {
 
 export function StatCard({ icon, label, value, sub, accent = C.gold }) {
   return (
-    <div className="iv-card--hover" style={{ background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, boxShadow: 'var(--iv-card-shadow)', padding: '16px 18px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease)' }}>
+    <div className="iv-card--hover" style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', backdropFilter: 'blur(14px)', padding: '16px 18px', transition: 'box-shadow .25s var(--iv-ease), transform .25s var(--iv-ease), border-color .25s var(--iv-ease)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 24 }}>
-        <div style={{ fontSize: 12, letterSpacing: '.01em', color: '#64748B', fontWeight: 500 }}>{label}</div>
+        <div style={{ fontSize: 12, letterSpacing: '.01em', color: 'var(--iv-ink2)', fontWeight: 500 }}>{label}</div>
         {icon != null && <div style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: accent, background: `${accent}14` }}>{icon}</div>}
       </div>
       <div style={{ fontFamily: 'var(--iv-mono)', fontSize: 28, fontWeight: 700, color: 'var(--iv-ink)', lineHeight: 1.1, marginTop: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em' }}>{isLoadingVal(value) ? <Skeleton w={84} h={30} /> : <CountUp value={value} />}</div>
@@ -95,7 +97,7 @@ export function StatCard({ icon, label, value, sub, accent = C.gold }) {
 
 export function Card({ title, titleAccent, accent, action, bodyStyle, children, style }) {
   return (
-    <section style={{ background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, boxShadow: 'var(--iv-card-shadow)', overflow: 'hidden', marginBottom: 20, ...style }}>
+    <section style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', backdropFilter: 'blur(14px)', overflow: 'hidden', marginBottom: 20, ...style }}>
       {(title || action) && (
         <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexWrap: 'wrap' }}>
           {title != null && (
@@ -160,7 +162,7 @@ export function Table({ head, children }) {
 export function HoverRow({ children, onClick }) {
   return (
     <tr onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default', transition: 'background .18s var(--iv-ease)' }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = '#F1F5F9')}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
       {children}
     </tr>

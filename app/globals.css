@@ -371,7 +371,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .crm-root .iv-bars > *:nth-child(7) > div:first-child { animation-delay:.20s; }
 .crm-root .iv-bars > *:nth-child(8) > div:first-child { animation-delay:.23s; }
 .crm-root .iv-bars > *:nth-child(9) > div:first-child { animation-delay:.26s; }
-.crm-root .iv-bars > *:nth-child(10) > div:first-child
+.crm-root .iv-bars > *:nth-child(10) > div:first-child { animation-delay:.29s; }
 /* ════════════════════════════════════════════════════════════════════════
    MARKETING SITE (landing) — scoped under .site-root so /crm is untouched.
    Ported from fountainbd-web (Tailwind v3) → v4. Tokens live in @theme above.
@@ -532,4 +532,130 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   .site-root .site-progress { display: none; }
   .site-root .nav-underline::after { transition: none; }
   .site-root .reveal-line > * { animation: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   AURORA / ORBIX THEME (2026-07-04) — CRM dark-glass rebuild, scoped .crm-root.
+   Reference: Orbix Studio "aiTravel" (Dribbble 24726689). Near-black canvas with
+   purple/burnt-orange aurora blooms, dark glass panels (radius 16-20), NEON LIME
+   (#DFFF45) accent with dark text, tinted status pills (lime/purple/red), pill
+   nav, dark inputs. Token NAMES unchanged (house rule) — only values.
+   Appended LAST so it wins the cascade over the light theme above.
+   ════════════════════════════════════════════════════════════════════════ */
+.crm-root {
+  --iv-bg:transparent;                       /* aurora painted on .crm-root itself */
+  --iv-card:rgba(23,21,28,.78);              /* dark glass panel */
+  --iv-border:rgba(255,255,255,.09);
+  --iv-border2:rgba(255,255,255,.055);
+  --iv-sunken:rgba(255,255,255,.035);
+  --iv-hover:rgba(255,255,255,.06);
+  --iv-ink:#F2F1F5; --iv-ink2:#A7A4B0; --iv-ink3:#716E7B;
+  --iv-gold:#DFFF45;                         /* accent = neon lime (title em, focus, links) */
+  --iv-gold2:#C3E62E;
+  --iv-gold-light:#DFFF45;                   /* CTA fill — dark text on lime */
+  --iv-side:#131118;                         /* bottom-nav / dark chrome */
+  --iv-glow:rgba(223,255,69,.22);
+  --iv-shadow-stat:0 12px 34px rgba(0,0,0,.45);
+  --iv-card-shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.30);
+  --iv-shadow-lift:0 16px 40px rgba(0,0,0,.5), 0 2px 8px rgba(223,255,69,.06);
+  --iv-shadow-modal:0 30px 90px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08);
+  --iv-in-fg:#C9F73A;  --iv-in-bg:rgba(201,247,58,.10);  --iv-in-gl:rgba(201,247,58,.14);
+  --iv-due-fg:#F5A93B; --iv-due-bg:rgba(245,169,59,.10); --iv-due-gl:rgba(245,169,59,.14);
+  --iv-rose-fg:#FF6B6B; --iv-rose-bg:rgba(255,107,107,.10); --iv-rose-gl:rgba(255,107,107,.14);
+  --iv-purple-fg:#C08BFF; --iv-purple-bg:rgba(192,139,255,.11); --iv-purple-gl:rgba(192,139,255,.15);
+  background:#0B0A0F;
+  color:var(--iv-ink);
+}
+/* Aurora field — purple top blooms, burnt orange lower corners, fixed behind everything */
+.crm-root::before {
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(1000px 640px at 8% -12%, rgba(124,58,183,.34), transparent 60%),
+    radial-gradient(900px 620px at 96% -4%, rgba(147,72,196,.26), transparent 58%),
+    radial-gradient(1000px 760px at 88% 108%, rgba(178,84,32,.30), transparent 58%),
+    radial-gradient(760px 560px at 18% 112%, rgba(140,58,26,.22), transparent 56%),
+    #0B0A0F;
+}
+.crm-root > * { position:relative; z-index:1; }
+
+/* Headings & accents */
+.crm-root h1,.crm-root h2,.crm-root h3,.crm-root h4 { color:var(--iv-ink); }
+.crm-root em { color:var(--iv-gold); }
+
+/* Cards — dark glass, bigger radius */
+.crm-root .iv-card { background:var(--iv-card); border:1px solid var(--iv-border); border-radius:18px; backdrop-filter:blur(14px) saturate(1.15); -webkit-backdrop-filter:blur(14px) saturate(1.15); }
+.crm-root .iv-card--hover:hover { border-color:rgba(223,255,69,.28); }
+
+/* Buttons — lime pill CTA (dark text), dark-glass ghost */
+.crm-root .iv-btn { background:var(--iv-gold-light); border-color:var(--iv-gold-light); color:#171A05; border-radius:12px; font-weight:700; }
+.crm-root .iv-btn:hover:not(:disabled) { background:#E9FF6B; border-color:#E9FF6B; color:#171A05; box-shadow:0 6px 20px rgba(223,255,69,.28); }
+.crm-root .iv-btn--ghost { background:rgba(255,255,255,.05); color:var(--iv-ink2); border:1px solid var(--iv-border); }
+.crm-root .iv-btn--ghost:hover { background:rgba(255,255,255,.09); color:var(--iv-ink); border-color:rgba(255,255,255,.18); }
+.crm-root .iv-btn--danger { background:var(--iv-rose-bg); color:var(--iv-rose-fg); border:1px solid rgba(255,107,107,.3); }
+.crm-root .iv-btn--danger:hover { background:rgba(255,107,107,.16); color:var(--iv-rose-fg); }
+
+/* Badges — Orbix tinted pills (Completed=lime · Processing=purple · Cancel=red) */
+.crm-root .iv-badge { letter-spacing:.04em; }
+.crm-root .iv-badge--in { border-color:rgba(201,247,58,.28); box-shadow:none; }
+.crm-root .iv-badge--due { border-color:rgba(245,169,59,.3); box-shadow:none; }
+.crm-root .iv-badge--paid { border-color:rgba(201,247,58,.28); }
+.crm-root .iv-badge--purple { color:var(--iv-purple-fg); background:var(--iv-purple-bg); border-color:rgba(192,139,255,.3); }
+
+/* Topbar & chrome */
+.crm-root .iv-topbar { background:rgba(13,11,17,.72); border-bottom:1px solid var(--iv-border2); backdrop-filter:blur(18px) saturate(1.2); -webkit-backdrop-filter:blur(18px) saturate(1.2); }
+.crm-root .iv-divider { border-bottom:1px solid var(--iv-border); }
+
+/* Pill nav (topbar) */
+.crm-root .fx-pill { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 15px; border-radius:999px; font-size:12.5px; font-weight:600; color:var(--iv-ink2); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); cursor:pointer; text-decoration:none; white-space:nowrap; transition:all .25s var(--iv-ease); }
+.crm-root .fx-pill:hover { color:var(--iv-ink); background:rgba(255,255,255,.09); transform:translateY(-1px); }
+.crm-root .fx-pill.on { background:var(--iv-gold-light); border-color:var(--iv-gold-light); color:#171A05; font-weight:700; box-shadow:0 6px 18px rgba(223,255,69,.25); }
+.crm-root .fx-pill.ic { width:38px; padding:0; justify-content:center; font-size:14px; }
+.crm-root .fx-round { width:38px; height:38px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); color:var(--iv-ink2); cursor:pointer; font-size:14px; transition:all .25s var(--iv-ease); }
+.crm-root .fx-round:hover { color:var(--iv-ink); background:rgba(255,255,255,.09); transform:translateY(-1px); }
+
+/* Inputs — dark, lime focus */
+.crm-root .iv-input, .crm-root .iv-select, .crm-root .iv-textarea,
+.crm-root select, .crm-root input:not([type=checkbox]):not([type=radio]), .crm-root textarea {
+  background:rgba(255,255,255,.05); border:1px solid var(--iv-border); color:var(--iv-ink); border-radius:10px; color-scheme:dark;
+}
+.crm-root .iv-input::placeholder, .crm-root input::placeholder, .crm-root textarea::placeholder { color:var(--iv-ink3); }
+.crm-root select option { background:#17151C; color:var(--iv-ink); }
+.crm-root .iv-input:focus, .crm-root .iv-select:focus, .crm-root .iv-textarea:focus,
+.crm-root select:focus, .crm-root input:focus:not([type=checkbox]):not([type=radio]), .crm-root textarea:focus {
+  border-color:var(--iv-gold); box-shadow:0 0 0 3px var(--iv-glow);
+}
+
+/* Tables — dark rows */
+.crm-root .iv-table thead th { background:rgba(255,255,255,.03); color:#8D8A96; border-bottom:1px solid var(--iv-border); }
+.crm-root .iv-table tbody td { border-bottom:1px solid var(--iv-border2); color:var(--iv-ink); }
+.crm-root .iv-table tbody tr:hover { background:var(--iv-hover); }
+
+/* Rows / chips */
+.crm-root .iv-row { background:rgba(255,255,255,.03); border-color:var(--iv-border); }
+.crm-root .iv-row:hover { border-color:rgba(255,255,255,.16); }
+.crm-root .iv-chip { background:rgba(255,255,255,.05); color:var(--iv-ink2); border-color:var(--iv-border); }
+
+/* Modals — dark glass sheet, lime CTA comes from .iv-btn */
+.crm-root .iv-modal-ov, .iv-modal-ov { background:rgba(5,4,8,.66) !important; }
+.crm-root .iv-modal-ov > .iv-card { border:1px solid rgba(255,255,255,.1); background:rgba(20,18,25,.94); }
+.crm-root .iv-modal-ov > .iv-card > h3:first-child { background:linear-gradient(135deg,#161320 0%,#241E2E 100%); color:#F2F1F5; border-bottom:2px solid rgba(223,255,69,.35); }
+.crm-root .iv-foot { background:rgba(255,255,255,.03); border-top:1px solid var(--iv-border); }
+
+/* Bottom nav (mobile) — dark glass, lime active */
+.crm-root .iv-bottom-nav { background:rgba(15,13,19,.9); border-top:1px solid var(--iv-border); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
+.crm-root .iv-bottom-item.on::after { background:var(--iv-gold); box-shadow:0 0 8px rgba(223,255,69,.7); }
+
+/* Route bar + scrollbars */
+.iv-route-bar { background:linear-gradient(90deg,#8C5BD9,#DFFF45,#E2703D); }
+.crm-root ::-webkit-scrollbar-track { background:rgba(255,255,255,.03); }
+.crm-root ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.14); }
+.crm-root ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.24); }
+
+/* ── Orbix motion additions ── */
+@keyframes fxBarGrow { from { transform:scaleY(0); } }
+@keyframes fxCardUp { from { opacity:0; transform:translateY(22px); } }
+.crm-root .fx-in { animation:fxCardUp .55s cubic-bezier(.22,1,.36,1) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .crm-root .fx-in { animation:none !important; }
+  .crm-root .fx-pill, .crm-root .fx-round { transition:none !important; }
 }

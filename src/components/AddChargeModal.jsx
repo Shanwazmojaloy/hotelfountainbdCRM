@@ -33,7 +33,7 @@ export default function AddChargeModal({ roomNo, resId, onClose, onDone }) {
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 10, background: 'rgba(255,255,255,.05)', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
@@ -46,7 +46,7 @@ export default function AddChargeModal({ roomNo, resId, onClose, onDone }) {
         </div>
         <div className="mb-4"><label style={lbl}>Amount (৳) *</label><input type="number" style={field} value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0" autoFocus /></div>
         <div className="mb-4"><label style={lbl}>Description</label><input style={field} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Optional detail" /></div>
-        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#FF6B6B' }}>{err}</div>}
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Adding…' : 'Add Charge'}</button>

@@ -412,8 +412,8 @@ const REV_CSS = `
 .rev-gl>span{position:absolute;left:-48px;top:-6px;width:42px;text-align:right;font:600 8px var(--iv-mono,monospace);color:var(--iv-ink3)}
 .rev-bars{position:absolute;inset:0;display:flex;align-items:flex-end;gap:var(--rev-gap,4px);z-index:1}
 .rev-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
-.rev-bar{width:80%;max-width:26px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,#C8A96E,#8B6914);transition:filter .15s ease}
-.rev-bar--gold{background:linear-gradient(180deg,#EBD3A0,#A9801F);box-shadow:0 0 0 1px rgba(139,105,20,.22)}
+.rev-bar{width:80%;max-width:26px;border-radius:5px 5px 0 0;background:linear-gradient(180deg,#EAFF7A,#B8D62E);transition:filter .15s ease}
+.rev-bar--gold{background:linear-gradient(180deg,#F4FFA6,#DFFF45);box-shadow:0 0 0 1px rgba(223,255,69,.3)}
 .rev-col:hover .rev-bar{filter:brightness(1.1)}
 .rev-val{font:600 8px var(--iv-mono,monospace);color:var(--iv-gold2,#6B4E0A);margin-bottom:3px;white-space:nowrap}
 .rev-xlabels{display:flex;gap:var(--rev-gap,4px);padding-left:48px;margin-top:6px}

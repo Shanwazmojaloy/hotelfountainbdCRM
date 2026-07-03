@@ -81,7 +81,7 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 10, background: 'rgba(255,255,255,.05)', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
@@ -113,13 +113,13 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
           <textarea style={{ ...field, minHeight: 56, resize: 'vertical' }} value={f.address} onChange={set('address')} placeholder="Full address" />
         </div>
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#FF6B6B' }}>{err}</div>}
 
         <div className="flex items-center justify-between gap-3 iv-foot">
           <div>
             {isEdit && (
               <button onClick={doDelete} disabled={saving}
-                style={{ padding: '8px 14px', fontSize: 13, color: '#DC2626', background: 'transparent', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 8 }}>
+                style={{ padding: '8px 14px', fontSize: 13, color: '#FF6B6B', background: 'transparent', border: '1px solid rgba(255,107,107,0.35)', borderRadius: 8 }}>
                 Delete
               </button>
             )}

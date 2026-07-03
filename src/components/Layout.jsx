@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Header from "./Header";
 import BottomNav from "./BottomNav";
-import Sidebar from "./Sidebar";
 import AuthGate, { useAuth } from "./AuthGate";
 import { canAccess } from '@/lib/permissions';
 
@@ -24,14 +23,12 @@ function RouteGuard({ children }) {
   return children;
 }
 
-// App shell — Hotel Fountain Design System: walnut sidebar | (topbar + scrolling content).
+// App shell — Aurora/Orbix (2026-07-04): full-width top pill-nav bar + scrolling content.
+// The old walnut Sidebar is retired; all nav lives in Header pills (desktop) / BottomNav (mobile).
 export default function Layout({ children }) {
   return (
     <AuthGate>
-      <div className="crm-root flex flex-col md:flex-row" style={{ height: '100vh', overflow: 'hidden' }}>
-        {/* Sidebar — desktop only */}
-        <Sidebar />
-
+      <div className="crm-root flex flex-col" style={{ height: '100vh', overflow: 'hidden' }}>
         {/* Main column: fixed topbar + scrolling content */}
         <div className="flex-1 flex flex-col min-w-0" style={{ height: '100vh' }}>
           <Header />

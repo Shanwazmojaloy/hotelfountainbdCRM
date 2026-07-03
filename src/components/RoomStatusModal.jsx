@@ -10,7 +10,7 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 const OPTIONS = [
   { v: 'AVAILABLE', label: 'Available', c: '#4A7C59' },
   { v: 'DIRTY', label: 'Dirty', c: '#D9A441' },
-  { v: 'OUT_OF_ORDER', label: 'Out of Order', c: '#DC2626' },
+  { v: 'OUT_OF_ORDER', label: 'Out of Order', c: '#FF6B6B' },
 ];
 
 export default function RoomStatusModal({ room, onClose, onSaved }) {
@@ -58,7 +58,7 @@ export default function RoomStatusModal({ room, onClose, onSaved }) {
           ))}
         </div>
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#FF6B6B' }}>{err}</div>}
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>

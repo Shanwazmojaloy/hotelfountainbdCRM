@@ -7,7 +7,7 @@ import Layout from '@/components/Layout';
 export default function CrmLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <style>{`html,body{background:#EEF2F7 !important;}`}</style>
+      <style>{`html,body{background:#0B0A0F !important;}`}</style>
       <Layout>{children}</Layout>
     </>
   );
