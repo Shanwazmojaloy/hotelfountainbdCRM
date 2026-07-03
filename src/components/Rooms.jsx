@@ -137,19 +137,19 @@ export default function Rooms() {
                   key={room.id}
                   onClick={() => { if (room.status === 'OCCUPIED' && canFolio) setFolioRoom(room); else setStatusRoom(room); }}
                   style={{
-                    background: `linear-gradient(135deg, ${tint(st.c, 0.13)}, ${tint(st.c, 0.04)}), #ffffff`,
-                    border: `1px solid ${tint(st.c, 0.28)}`,
+                    /* Aurora: tint sits on the DARK card base — the old ", #ffffff" base made
+                       tiles pastel-white and the (now near-white) room number invisible. */
+                    background: `linear-gradient(135deg, ${tint(st.c, 0.16)}, ${tint(st.c, 0.05)}), #17151C`,
+                    border: `1px solid ${tint(st.c, 0.32)}`,
                     borderTop: `3px solid ${st.c}`,
-                    borderRadius: 8,
+                    borderRadius: 12,
                     padding: 12,
                     cursor: 'pointer',
-                    backdropFilter: 'blur(6px)',
-                    WebkitBackdropFilter: 'blur(6px)',
-                    boxShadow: `inset 0 1px 0 rgba(255,255,255,.55), 0 3px 12px ${tint(st.c, 0.12)}`,
+                    boxShadow: `inset 0 1px 0 rgba(255,255,255,.05), 0 3px 12px rgba(0,0,0,.3)`,
                     transition: 'box-shadow .15s var(--iv-ease), transform .15s var(--iv-ease)',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,.6), 0 10px 24px ${tint(st.c, 0.30)}`; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,.55), 0 3px 12px ${tint(st.c, 0.12)}`; e.currentTarget.style.transform = 'none'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,.07), 0 10px 24px ${tint(st.c, 0.25)}`; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,.05), 0 3px 12px rgba(0,0,0,.3)`; e.currentTarget.style.transform = 'none'; }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <span className="iv-mono" style={{ fontSize: 17, fontWeight: 700, color: 'var(--iv-ink)' }}>{room.room_number}</span>

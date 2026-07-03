@@ -160,12 +160,12 @@ export default function Header() {
 
   return (
     <div className="iv-topbar" style={{ height: 62, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 14px', gap: 8, position: 'sticky', top: 0, zIndex: 20 }}>
-      {/* Brand mark */}
+      {/* Brand mark — company gold crest (owner request 2026-07-04) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, marginRight: 4 }}>
-        <span style={{ width: 36, height: 36, borderRadius: 12, background: 'linear-gradient(135deg,#EAFF7A,#B8D62E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, color: '#171A05', boxShadow: '0 4px 14px rgba(223,255,69,.28)', flexShrink: 0 }}>F</span>
+        <img src="/logo-crest.png" alt="Hotel Fountain" style={{ height: 40, width: 'auto', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 8px rgba(200,169,110,.35))' }} />
         <div className="hidden lg:block" style={{ lineHeight: 1.05 }}>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--iv-ink)', whiteSpace: 'nowrap' }}>Hotel Fountain</div>
-          <div style={{ fontSize: 8, letterSpacing: '.18em', color: 'var(--iv-ink3)', textTransform: 'uppercase', marginTop: 2 }}>Management OS</div>
+          <div style={{ fontSize: 8, letterSpacing: '.18em', color: 'var(--iv-ink3)', textTransform: 'uppercase', marginTop: 2 }}>Luxury In Comfort</div>
         </div>
       </div>
 
