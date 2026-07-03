@@ -47,23 +47,23 @@ export default function Navbar() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <div className="section pt-4">
+      <div className="section pt-4 max-[399px]:!px-2">
         <motion.nav
           initial={false}
           animate={{ paddingTop: scrolled ? 10 : 14, paddingBottom: scrolled ? 10 : 14 }}
           transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="glass-nav flex items-center justify-between rounded-full px-4 sm:px-6"
+          className="glass-nav flex items-center justify-between gap-1.5 rounded-full px-2.5 min-[400px]:gap-2 min-[400px]:px-4 sm:px-6"
         >
           {/* Brand */}
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/" className="flex min-w-0 items-center gap-1.5 min-[400px]:gap-2.5">
             <Image
               src="/logo/logo-white.png"
               alt="Hotel Fountain"
               width={34}
               height={34}
-              className="h-8 w-8 object-contain"
+              className="h-6 w-6 shrink-0 object-contain min-[400px]:h-8 min-[400px]:w-8"
             />
-            <span className="font-display text-lg font-semibold tracking-tight text-white">
+            <span className="truncate font-display text-[15px] font-semibold tracking-tight text-white min-[400px]:text-lg">
               Hotel <span className="italic text-neon-teal">Fountain</span>
             </span>
           </Link>
@@ -94,14 +94,18 @@ export default function Navbar() {
             })}
           </ul>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 min-[400px]:gap-2">
             <a
               href={SITE.crmUrl}
               className="hidden rounded-full border border-white/15 px-4 py-2 text-xs font-medium uppercase tracking-[0.15em] text-white/80 transition hover:border-neon-teal/40 hover:text-white sm:inline-block"
             >
               Staff Login
             </a>
-            <button type="button" onClick={() => openReservation()} className="btn-neon !px-5 !py-2.5">
+            <button
+              type="button"
+              onClick={() => openReservation()}
+              className="btn-neon !px-2.5 !py-2 !text-[10px] min-[400px]:!px-5 min-[400px]:!py-2.5 min-[400px]:!text-xs"
+            >
               Book Now
             </button>
             {/* Mobile toggle */}
@@ -110,7 +114,7 @@ export default function Navbar() {
               aria-label="Open menu"
               aria-expanded={open}
               onClick={() => setOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white transition hover:border-neon-teal/40 md:hidden"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 text-white transition hover:border-neon-teal/40 min-[400px]:h-10 min-[400px]:w-10 md:hidden"
             >
               <span className="flex flex-col items-center justify-center gap-[5px]">
                 <span className="block h-px w-5 bg-current" />

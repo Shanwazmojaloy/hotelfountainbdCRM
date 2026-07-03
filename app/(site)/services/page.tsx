@@ -107,12 +107,12 @@ export default function ServicesPage() {
       {/* ───────────────── CTA ───────────────── */}
       <section className="section pb-28 pt-4">
         <FadeIn direction="up">
-          <GlassCard className="flex flex-col items-center gap-4 p-10 text-center sm:flex-row sm:justify-between sm:text-left">
+          <GlassCard className="flex flex-col items-center gap-4 p-7 text-center sm:flex-row sm:justify-between sm:p-10 sm:text-left">
             <div>
               <h3 className="font-display text-2xl font-semibold text-white">Ready to experience it?</h3>
               <p className="mt-1 text-sm text-white/60">Reserve a room or ask us anything — the front desk never sleeps.</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex w-full flex-wrap justify-center gap-3 sm:w-auto sm:flex-nowrap">
               <Link href="/rooms" className="btn-ghost shrink-0">View Rooms</Link>
               <BookNowButton className="btn-neon shrink-0" label="Book Now →" />
             </div>

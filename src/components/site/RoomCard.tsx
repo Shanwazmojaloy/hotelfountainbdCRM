@@ -56,7 +56,7 @@ export default function RoomCard({ room }: { room: Room }) {
           ))}
         </ul>
 
-        <div className="mt-auto flex items-center justify-between pt-6">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-3 pt-6">
           <div>
             <p className="text-[11px] uppercase tracking-wide text-white/40">Starting from</p>
             <p className="font-mono text-lg font-semibold text-white">
