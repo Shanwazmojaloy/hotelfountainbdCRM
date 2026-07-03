@@ -251,7 +251,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       <>
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
           {Stepper}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge tone="green">✓ Closed {fmtTime(closeRow.closed_at)} · {closeRow.closed_by || 'Staff'}</Badge>
             <input className="iv-input" type="number" placeholder={`Token ৳${+closeRow.opening_token || 0}`} value={token} onChange={(e) => setToken(e.target.value)} style={{ padding: '7px 10px', width: 120 }} />
             <input className="iv-input" type="number" placeholder={`Payouts ৳${+closeRow.payouts || 0}`} value={payouts} onChange={(e) => setPayouts(e.target.value)} style={{ padding: '7px 10px', width: 120 }} />
@@ -336,7 +336,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
     <>
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         {Stepper}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <input className="iv-input" type="number" placeholder="Opening token ৳" value={token} onChange={(e) => setToken(e.target.value)} style={{ padding: '7px 10px', width: 150 }} />
           <input className="iv-input" type="number" placeholder="Payouts ৳" value={payouts} onChange={(e) => setPayouts(e.target.value)} style={{ padding: '7px 10px', width: 130 }} />
           <button className="iv-btn iv-btn--ghost" onClick={() => window.print()} style={{ fontSize: 12, padding: '7px 12px' }}>⬇ Download</button>

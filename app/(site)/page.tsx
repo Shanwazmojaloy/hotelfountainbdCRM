@@ -87,9 +87,9 @@ export default function HomePage() {
       <section className="section py-20">
         <ScrollReveal stagger className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {STATS.map((s) => (
-            <GlassCard key={s.label} className="glass-clip p-6 text-center" interactive>
-              <p className="font-mono text-3xl font-semibold text-neon-teal sm:text-4xl">{s.value}</p>
-              <p className="mt-2 text-xs uppercase tracking-wide text-white/55">{s.label}</p>
+            <GlassCard key={s.label} className="glass-clip p-4 text-center min-[420px]:p-6" interactive>
+              <p className="font-mono text-2xl font-semibold text-neon-teal min-[420px]:text-3xl sm:text-4xl">{s.value}</p>
+              <p className="mt-2 text-[11px] uppercase tracking-wide text-white/55 min-[420px]:text-xs">{s.label}</p>
             </GlassCard>
           ))}
         </ScrollReveal>
@@ -110,9 +110,16 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <ScrollReveal stagger className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        {/* Phones: swipeable snap carousel (2-up grid crammed full cards into ~150px columns);
+            sm+ keeps the responsive grid. */}
+        <ScrollReveal
+          stagger
+          className="scrollbar-none -mx-5 mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-5"
+        >
           {ROOMS.map((room) => (
-            <RoomCard key={room.slug} room={room} />
+            <div key={room.slug} className="w-[76%] max-w-[300px] shrink-0 snap-start sm:w-auto sm:max-w-none sm:shrink">
+              <RoomCard room={room} />
+            </div>
           ))}
         </ScrollReveal>
       </section>

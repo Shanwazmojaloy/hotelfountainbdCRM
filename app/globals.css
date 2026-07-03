@@ -112,7 +112,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   .sec             { padding: 70px 24px !important; }
   .nav-links       { display: none !important; }
   .mobile-menu-btn { display: flex !important; }
-  footer           { flex-direction: column !important; gap: 16px !important; text-align: center !important; padding: 24px !important; }
+  /* Scoped to the legacy /lumea landing footer only — a bare `footer` selector
+     also hijacked the marketing-site footer (centered paragraphs, collapsed
+     section padding) on every phone. */
+  footer.footer    { flex-direction: column !important; gap: 16px !important; text-align: center !important; padding: 24px !important; }
   .tnc-cols        { columns: 1 !important; }
 }
 
@@ -450,6 +453,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .site-root .eyebrow { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.25em; color: rgba(200,169,110,0.8); }
 .site-root .font-display { letter-spacing: -0.01em; font-feature-settings: "liga" 1, "kern" 1; font-optical-sizing: auto; }
 .site-root :focus-visible { outline: 2px solid rgba(200,169,110,0.75); outline-offset: 2px; border-radius: 6px; }
+/* Hidden-scrollbar horizontal carousels (mobile room previews etc.) */
+.site-root .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+.site-root .scrollbar-none::-webkit-scrollbar { display: none; }
 
 @keyframes fade-up { 0% { opacity: 0; transform: translateY(24px); } 100% { opacity: 1; transform: translateY(0); } }
 @keyframes pulse-ring { 0%,100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.6); } }
