@@ -215,7 +215,13 @@ export default function Navbar() {
               <div className="mt-auto pt-10 text-xs leading-relaxed text-white/45">
                 <p className="text-[10px] uppercase tracking-[0.25em] text-neon-teal/70">Get in touch</p>
                 <a href={CONTACT.phoneHref} className="mt-3 block transition hover:text-white">
-                  {CONTACT.phone}
+                  Front Office: {CONTACT.phone}
+                </a>
+                <a href={CONTACT.salesPhoneHref} className="mt-1 block transition hover:text-white">
+                  Sales &amp; Marketing: {CONTACT.salesPhone}
+                </a>
+                <a href={CONTACT.whatsappHref} target="_blank" rel="noopener noreferrer" className="mt-1 block transition hover:text-white">
+                  WhatsApp: {CONTACT.whatsappLabel}
                 </a>
                 <a href={CONTACT.emailHref} className="mt-1 block transition hover:text-white">
                   {CONTACT.email}
