@@ -59,12 +59,12 @@ export default function BottomNav() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              position: 'absolute', left: 0, right: 0, bottom: 57, background: 'var(--iv-side)',
-              borderTop: '1px solid rgba(200,169,110,.2)', borderRadius: '16px 16px 0 0',
-              padding: '14px 14px 10px', animation: 'ivFade .22s var(--iv-ease) both',
+              position: 'absolute', left: 0, right: 0, bottom: 57, background: 'rgba(19,17,24,.97)',
+              borderTop: '1px solid rgba(255,255,255,.1)', borderRadius: '20px 20px 0 0',
+              backdropFilter: 'blur(18px)', padding: '14px 14px 10px', animation: 'ivFade .22s var(--iv-ease) both',
             }}
           >
-            <div style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 600, color: 'rgba(200,169,110,.55)', padding: '0 6px 10px' }}>More</div>
+            <div style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 600, color: 'var(--iv-ink3)', padding: '0 6px 10px' }}>More</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {extras.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -75,9 +75,9 @@ export default function BottomNav() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px', borderRadius: 10,
                       textDecoration: 'none', fontSize: 13, fontWeight: active ? 600 : 500,
-                      color: active ? '#E0C585' : 'rgba(238,233,226,.75)',
-                      background: active ? 'rgba(200,169,110,.16)' : 'rgba(255,255,255,.04)',
-                      border: '1px solid rgba(200,169,110,.12)',
+                      color: active ? 'var(--iv-gold)' : 'rgba(242,241,245,.75)',
+                      background: active ? 'rgba(223,255,69,.1)' : 'rgba(255,255,255,.04)',
+                      border: '1px solid rgba(255,255,255,.08)',
                     }}
                   >
                     <Icon name={item.icon} />
@@ -90,7 +90,33 @@ export default function BottomNav() {
         </div>
       )}
       <nav className="iv-bottom-nav md:hidden">
-        {items.map((item) => {
+        {items.slice(0, 2).map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link key={item.href} href={item.href} className={`iv-bottom-item ${active ? 'on' : ''}`}>
+              <Icon name={item.icon} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+        {/* Center lime "+" — global New Booking (handled by Header's event listener) */}
+        {canAccess(user?.role, '/crm/reservations') && (
+          <button
+            type="button"
+            aria-label="New booking"
+            onClick={() => window.dispatchEvent(new CustomEvent('lumea:global-new-booking'))}
+            style={{
+              alignSelf: 'flex-start', marginTop: -20, width: 48, height: 48, borderRadius: 17, border: 'none',
+              background: 'linear-gradient(135deg,#EAFF7A,#C3E62E)', color: '#171A05', fontSize: 24, fontWeight: 800,
+              boxShadow: '0 10px 26px rgba(223,255,69,.4)', cursor: 'pointer', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'transform .3s cubic-bezier(.34,1.56,.64,1)',
+            }}
+            onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(.92)'; }}
+            onTouchEnd={(e) => { e.currentTarget.style.transform = ''; }}
+          >+</button>
+        )}
+        {items.slice(2).map((item) => {
           const active = pathname === item.href;
           return (
             <Link key={item.href} href={item.href} className={`iv-bottom-item ${active ? 'on' : ''}`}>

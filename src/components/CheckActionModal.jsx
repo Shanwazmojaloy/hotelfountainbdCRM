@@ -50,12 +50,12 @@ export default function CheckActionModal({ reservation, action, onClose, onSaved
         </p>
 
         {isOut && balance > 0 && (
-          <div className="mb-4 text-sm" style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '10px 12px', color: '#DC2626' }}>
+          <div className="mb-4 text-sm" style={{ background: 'rgba(255,107,107,0.07)', border: '1px solid rgba(255,107,107,0.25)', borderRadius: 8, padding: '10px 12px', color: '#FF6B6B' }}>
             ⚠ Outstanding balance of <strong>{bdt(balance)}</strong>. You can still check out, but consider collecting payment first (Billing → Collect).
           </div>
         )}
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#FF6B6B' }}>{err}</div>}
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>

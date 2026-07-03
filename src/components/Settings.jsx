@@ -83,7 +83,7 @@ export default function Settings() {
     } catch (e) { setMsg('Save failed: ' + (e.message || String(e))); } finally { setSaving(false); }
   }
 
-  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 10, background: 'rgba(255,255,255,.05)', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
   const TABS = [{ id: 'hotel', label: 'Hotel Info' }, { id: 'users', label: 'Staff' }, { id: 'security', label: 'Security' }, { id: 'system', label: 'System' }];
 
@@ -115,7 +115,7 @@ export default function Settings() {
             <div><label style={lbl}>VAT Rate (%)</label><input type="number" style={field} value={hs.vat} onChange={set('vat')} min="0" max="30" /></div>
             <div><label style={lbl}>Service Charge (%)</label><input type="number" style={field} value={hs.svc} onChange={set('svc')} min="0" max="30" /></div>
           </div>
-          {msg && <div className="mb-3 text-sm" style={{ color: msg.startsWith('Save failed') ? '#DC2626' : '#16A34A' }}>{msg}</div>}
+          {msg && <div className="mb-3 text-sm" style={{ color: msg.startsWith('Save failed') ? '#FF6B6B' : '#7BE04A' }}>{msg}</div>}
           <button className="iv-btn" onClick={saveHotel} disabled={saving}>{saving ? 'Saving…' : 'Save Settings'}</button>
         </div>
       )}
@@ -133,9 +133,9 @@ export default function Settings() {
               <div key={u.id} className="flex items-center justify-between" style={{ border: '1px solid var(--iv-border2)', borderRadius: 8, padding: '10px 14px' }}>
                 <div><div style={{ fontWeight: 600, fontSize: 14 }}>{u.name}</div><div className="iv-mono" style={{ fontSize: 11, color: 'var(--iv-ink3)' }}>{u.email}</div></div>
                 <div className="flex items-center gap-2">
-                  {u.role === 'owner' ? <span className="iv-badge" style={{ background: 'rgba(139,105,20,0.12)', color: 'var(--iv-gold)' }}>★ Owner</span>
+                  {u.role === 'owner' ? <span className="iv-badge" style={{ background: 'rgba(223,255,69,.12)', color: 'var(--iv-gold)' }}>★ Owner</span>
                     : <span className="iv-badge">{ROLE_LABEL[u.role] || u.role}</span>}
-                  {u.activated === false && <span className="iv-badge" style={{ background: 'rgba(220,38,38,0.10)', color: '#DC2626' }}>Pending</span>}
+                  {u.activated === false && <span className="iv-badge" style={{ background: 'rgba(255,107,107,.12)', color: '#FF6B6B' }}>Pending</span>}
                   {u.role !== 'owner' && <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => setStaffModal({ user: u })}>Edit</button>}
                 </div>
               </div>
@@ -149,8 +149,8 @@ export default function Settings() {
           <h3 className="text-lg mb-4 pb-3 iv-divider">Security</h3>
           <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 4 }}>Logout All Devices</div>
           <div className="iv-stat__sub mb-3">Immediately invalidates all active staff sessions. Everyone (except the owner) is signed out on next sync (≤90s).</div>
-          {secMsg && <div className="mb-3 text-sm" style={{ color: secMsg.startsWith('Failed') ? '#DC2626' : '#16A34A' }}>{secMsg}</div>}
-          <button className="iv-btn" style={{ background: '#DC2626' }} onClick={logoutAllDevices} disabled={secBusy}>{secBusy ? 'Working…' : '⏻ Logout All Devices'}</button>
+          {secMsg && <div className="mb-3 text-sm" style={{ color: secMsg.startsWith('Failed') ? '#FF6B6B' : '#7BE04A' }}>{secMsg}</div>}
+          <button className="iv-btn" style={{ background: '#FF6B6B', borderColor: '#FF6B6B', color: '#2A0B0B' }} onClick={logoutAllDevices} disabled={secBusy}>{secBusy ? 'Working…' : '⏻ Logout All Devices'}</button>
         </div>
       )}
 

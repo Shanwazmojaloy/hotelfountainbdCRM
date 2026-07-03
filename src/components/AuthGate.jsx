@@ -13,9 +13,10 @@ const AuthContext = createContext({ user: null, signOut: () => {} });
 export const useAuth = () => useContext(AuthContext);
 
 // Modern SaaS palette (literals — AuthGate renders outside .crm-root).
-const PARCH = '#FFFFFF', WALNUT = '#0F172A', WHITE = '#FFFFFF';
-const GOLD = '#8B6914', GOLD2 = '#6B4E0A', GOLDL = '#C8A96E';
-const TX = '#0F172A', TX2 = '#475569', TX3 = '#94A3B8', BR = '#E2E8F0';
+// Aurora/Orbix login (2026-07-04): dark glass card on aurora field, lime CTA (ref frame 1).
+const PARCH = 'rgba(22,20,28,.92)', WALNUT = '#0B0A0F', WHITE = 'rgba(255,255,255,.06)';
+const GOLD = '#DFFF45', GOLD2 = '#C3E62E', GOLDL = '#DFFF45';
+const TX = '#F2F1F5', TX2 = '#A7A4B0', TX3 = '#716E7B', BR = 'rgba(255,255,255,.14)';
 const serif = "'DM Sans', system-ui, -apple-system, sans-serif";
 const sans = "'DM Sans', system-ui, -apple-system, sans-serif";
 const mono = "'IBM Plex Mono', ui-monospace, monospace";
@@ -162,25 +163,25 @@ export default function AuthGate({ children }) {
   const goldBtn = (disabled) => ({ width: '100%', justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: sans, fontWeight: 600, letterSpacing: 0, textTransform: 'none', cursor: disabled ? 'not-allowed' : 'pointer', borderRadius: 8, padding: '12px 24px', fontSize: 14, marginTop: 8, background: GOLDL, color: '#1C1510', border: `1px solid ${GOLDL}`, opacity: disabled ? 0.5 : 1, transition: 'background .15s cubic-bezier(.4,0,.2,1)' });
   const linkBtn = { background: 'none', border: 'none', cursor: 'pointer', fontFamily: sans, fontSize: 12, letterSpacing: 0, color: GOLD, textTransform: 'none', fontWeight: 600, padding: 0 };
   const subText = { textAlign: 'center', fontSize: 12, color: TX2, lineHeight: 1.5, margin: '8px 0 20px' };
-  const errBox = (t) => <div style={{ marginTop: 10, marginBottom: 4, fontSize: 11, color: '#B91C1C', fontFamily: sans }}>{t}</div>;
+  const errBox = (t) => <div style={{ marginTop: 10, marginBottom: 4, fontSize: 11, color: '#FF6B6B', fontFamily: sans }}>{t}</div>;
 
   return (
     <div style={{ minHeight: '100vh', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: WALNUT, position: 'relative', overflow: 'hidden', fontFamily: sans }}>
-      {/* radial glow */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 50% at 20% 30%, rgba(200,169,110,.10), transparent 65%), radial-gradient(ellipse 50% 60% at 80% 70%, rgba(200,169,110,.06), transparent 60%)' }} />
+      {/* aurora glow — purple top, burnt orange bottom (Orbix reference) */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 55% at 18% 22%, rgba(124,58,183,.32), transparent 62%), radial-gradient(ellipse 60% 55% at 85% 15%, rgba(147,72,196,.2), transparent 58%), radial-gradient(ellipse 60% 60% at 80% 88%, rgba(178,84,32,.3), transparent 60%)' }} />
       {/* fine grid texture */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'repeating-linear-gradient(0deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px)' }} />
 
-      <div style={{ background: PARCH, border: '1px solid rgba(148,163,184,.2)', borderRadius: 16, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(2,6,23,.55)' }}>
+      <div style={{ background: PARCH, border: '1px solid rgba(255,255,255,.1)', borderRadius: 20, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)' }}>
         {/* logo */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
           <img src="/fountain-logo.png" alt="Hotel Fountain" style={{ width: 96, height: 'auto', objectFit: 'contain' }} />
         </div>
         {/* eyebrow divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, justifyContent: 'center' }}>
-          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,transparent,#E2E8F0)' }} />
+          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,transparent,rgba(255,255,255,.18))' }} />
           <span style={{ fontSize: 8, color: TX3, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 500, whiteSpace: 'nowrap' }}>{eyebrow}</span>
-          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,#E2E8F0,transparent)' }} />
+          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,rgba(255,255,255,.18),transparent)' }} />
         </div>
 
         {/* step dots (activation) */}
@@ -236,7 +237,7 @@ export default function AuthGate({ children }) {
         ) : (
           <div>
             <p style={subText}>Enter the code sent to<br /><strong style={{ color: TX, fontFamily: mono, fontSize: 12 }}>{actEmail}</strong> and choose a password.</p>
-            {actMsg && <div style={{ fontSize: 10.5, color: '#15803D', marginBottom: 14, textAlign: 'center', padding: 8, background: 'rgba(21,128,61,.07)', border: '1px solid rgba(21,128,61,.18)', fontFamily: sans, lineHeight: 1.5 }}>{actMsg}</div>}
+            {actMsg && <div style={{ fontSize: 10.5, color: '#7BE04A', marginBottom: 14, textAlign: 'center', padding: 8, background: 'rgba(123,224,74,.09)', border: '1px solid rgba(123,224,74,.25)', borderRadius: 8, fontFamily: sans, lineHeight: 1.5 }}>{actMsg}</div>}
             <div style={fieldWrap}>
               <label style={labelSt}>Verification Code</label>
               <input style={{ ...inputSt, letterSpacing: '.5em', fontSize: 20, textAlign: 'center', fontFamily: mono }} onFocus={onFocus} onBlur={onBlur} maxLength={6} inputMode="numeric" value={actOtp} onChange={(e) => { setActOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setActErr(''); }} placeholder="123456" />

@@ -16,12 +16,13 @@ import { can } from '@/lib/permissions';
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 
 // Design-system status hues (RoomTile).
+// Aurora palette (2026-07-04): brighter hues — the old dark-on-light values sank into the dark theme.
 const STATUS = {
-  AVAILABLE:    { c: '#15803D', label: 'Available' },
-  OCCUPIED:     { c: '#1D4ED8', label: 'Occupied' },
-  DIRTY:        { c: '#B45309', label: 'Dirty' },
-  OUT_OF_ORDER: { c: '#B91C1C', label: 'Out of Order' },
-  RESERVED:     { c: '#6D28D9', label: 'Reserved' },
+  AVAILABLE:    { c: '#7BE04A', label: 'Available' },
+  OCCUPIED:     { c: '#6AA5FF', label: 'Occupied' },
+  DIRTY:        { c: '#F5A93B', label: 'Dirty' },
+  OUT_OF_ORDER: { c: '#FF6B6B', label: 'Out of Order' },
+  RESERVED:     { c: '#C08BFF', label: 'Reserved' },
 };
 
 // hex (#RRGGBB) → rgba(...) for the status-tinted glass tiles
@@ -80,10 +81,10 @@ export default function Rooms() {
   const tabs = ['ALL', 'AVAILABLE', 'OCCUPIED', 'DIRTY', 'OUT_OF_ORDER', 'RESERVED'];
 
   const statCards = [
-    { label: 'Available', k: 'AVAILABLE', c: '#15803D' },
-    { label: 'Occupied', k: 'OCCUPIED', c: '#1D4ED8' },
-    { label: 'Needs Cleaning', k: 'DIRTY', c: '#B45309' },
-    { label: 'Out of Order', k: 'OUT_OF_ORDER', c: '#B91C1C' },
+    { label: 'Available', k: 'AVAILABLE', c: '#7BE04A' },
+    { label: 'Occupied', k: 'OCCUPIED', c: '#6AA5FF' },
+    { label: 'Needs Cleaning', k: 'DIRTY', c: '#F5A93B' },
+    { label: 'Out of Order', k: 'OUT_OF_ORDER', c: '#FF6B6B' },
   ];
 
   return (
@@ -91,10 +92,10 @@ export default function Rooms() {
       {/* Status stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }} className="iv-stat-grid iv-stagger">
         {statCards.map((s) => (
-          <div key={s.k} style={{ background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, boxShadow: 'var(--iv-card-shadow)', padding: '14px 18px 16px' }}>
+          <div key={s.k} style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', padding: '14px 18px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <span style={{ width: 8, height: 8, borderRadius: 99, background: s.c, boxShadow: `0 0 0 3px ${s.c}22` }} />
-              <span style={{ fontSize: 12, letterSpacing: '.01em', color: '#64748B', fontWeight: 500 }}>{s.label}</span>
+              <span style={{ fontSize: 12, letterSpacing: '.01em', color: 'var(--iv-ink2)', fontWeight: 500 }}>{s.label}</span>
             </div>
             <div style={{ fontFamily: 'var(--iv-mono)', fontSize: 26, fontWeight: 700, color: 'var(--iv-ink)', lineHeight: 1.1, marginTop: 8, letterSpacing: '-.02em' }}>{loading ? '—' : (counts[s.k] || 0)}</div>
           </div>
@@ -102,11 +103,11 @@ export default function Rooms() {
       </div>
 
       {/* Floor plan card */}
-      <section style={{ background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, boxShadow: 'var(--iv-card-shadow)', overflow: 'hidden' }}>
+      <section style={{ background: 'var(--iv-card)', border: '1px solid var(--iv-border)', borderRadius: 18, boxShadow: 'var(--iv-card-shadow)', overflow: 'hidden' }}>
         <header style={{ padding: '14px 18px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, flexWrap: 'wrap' }}>
           <h3 style={{ margin: 0, fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)', letterSpacing: '-.01em' }}>Floor <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}>Plan</em></h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ display: 'inline-flex', fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.01em', padding: '3px 10px', borderRadius: 999, color: 'var(--iv-gold)', background: 'rgba(139,105,20,.08)', border: '1px solid rgba(139,105,20,.22)' }}>{filtered.length} rooms</span>
+            <span style={{ display: 'inline-flex', fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.01em', padding: '3px 10px', borderRadius: 999, color: 'var(--iv-gold)', background: 'rgba(223,255,69,.1)', border: '1px solid rgba(223,255,69,.28)' }}>{filtered.length} rooms</span>
             {canFolio && <button className="iv-btn" onClick={() => setShowAddRoom(true)} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Room</button>}
           </div>
         </header>

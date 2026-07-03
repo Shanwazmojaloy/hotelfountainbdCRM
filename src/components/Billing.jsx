@@ -113,20 +113,21 @@ export default function Billing() {
       <div className="iv-bill-grid iv-stagger" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, alignItems: 'start' }}>
         {/* LEFT */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 4, padding: '9px 12px', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.05)', border: '1px solid var(--iv-border)', borderRadius: 10, padding: '9px 12px', marginBottom: 14 }}>
             <span style={{ color: 'var(--iv-ink3)', fontSize: 13 }}>⌕</span>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search folios by room number or guest name…" style={{ background: 'none', border: 'none', outline: 'none', fontFamily: 'var(--iv-body)', fontSize: 12, color: 'var(--iv-ink)', flex: 1 }} />
             {q && <button onClick={() => setQ('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--iv-ink3)', fontSize: 14 }}>×</button>}
           </div>
 
-          <div className="iv-tabbar" style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto' }}>
+          {/* Folio picker — wraps into rows (owner 2026-07-04: standard view, no horizontal scroll) */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
             {filtered.slice(0, 40).map((r) => {
               const [lbl, tone] = fStatus(r);
               const on = sel && r.id === sel.id;
               return (
-                <button key={r.id} onClick={() => setActiveId(r.id)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 10px', whiteSpace: 'nowrap', flexShrink: 0, background: on ? '#fff' : 'transparent', cursor: 'pointer', border: '1px solid var(--iv-border)', borderTop: `3px solid ${on ? 'var(--iv-side)' : 'var(--iv-border)'}`, fontFamily: 'var(--iv-body)', fontSize: 11, color: 'var(--iv-ink)' }}>
-                  <span className="iv-mono" style={{ color: 'var(--iv-gold)' }}>{roomOf(r)}</span>
-                  <span style={{ fontWeight: 500 }}>{r.guest_name || 'Guest'}</span>
+                <button key={r.id} onClick={() => setActiveId(r.id)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 11px', whiteSpace: 'nowrap', background: on ? 'rgba(223,255,69,.12)' : 'rgba(255,255,255,.04)', cursor: 'pointer', border: `1px solid ${on ? 'rgba(223,255,69,.45)' : 'var(--iv-border)'}`, borderRadius: 10, fontFamily: 'var(--iv-body)', fontSize: 11, color: 'var(--iv-ink)', transition: 'background .2s var(--iv-ease), border-color .2s var(--iv-ease)' }}>
+                  <span className="iv-mono" style={{ color: 'var(--iv-gold)', fontWeight: 700 }}>{roomOf(r)}</span>
+                  <span style={{ fontWeight: on ? 700 : 500 }}>{r.guest_name || 'Guest'}</span>
                   <Badge tone={tone} style={{ fontSize: 7, padding: '1px 6px' }}>{lbl}</Badge>
                 </button>
               );

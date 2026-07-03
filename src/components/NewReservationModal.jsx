@@ -135,7 +135,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 
-  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 8, background: '#fff', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
+  const field = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 10, background: 'rgba(255,255,255,.05)', width: '100%', fontSize: 13, minHeight: 42, color: 'var(--iv-ink)' };
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
 
   return (
@@ -161,7 +161,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
                   value={g.id ? g.name : (activeGuest === idx ? guestQuery : '')}
                   onFocus={() => { setActiveGuest(idx); setGuestQuery(''); setGuestHits([]); }}
                   onChange={(e) => { setActiveGuest(idx); setGuestQuery(e.target.value); setF((p) => { const a = [...p.guests]; a[idx] = { id: '', name: '' }; return { ...p, guests: a }; }); }} />
-                {f.guests.length > 1 && <button onClick={() => setF((p) => ({ ...p, guests: p.guests.filter((_, i) => i !== idx) }))} style={{ color: '#DC2626', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
+                {f.guests.length > 1 && <button onClick={() => setF((p) => ({ ...p, guests: p.guests.filter((_, i) => i !== idx) }))} style={{ color: '#FF6B6B', border: '1px solid rgba(255,107,107,0.25)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
               </div>
               {activeGuest === idx && !g.id && guestHits.length > 0 && (
                 <div className="iv-card" style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, marginTop: 2, padding: 4, maxHeight: 200, overflowY: 'auto' }}>
@@ -190,7 +190,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
                   <option key={r.id} value={r.room_number} disabled={roomBlocked(r)}>{roomLabel(r)}</option>
                 ))}
               </select>
-              {f.roomNos.length > 1 && <button onClick={() => setF((p) => ({ ...p, roomNos: p.roomNos.filter((_, i) => i !== idx) }))} style={{ color: '#DC2626', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
+              {f.roomNos.length > 1 && <button onClick={() => setF((p) => ({ ...p, roomNos: p.roomNos.filter((_, i) => i !== idx) }))} style={{ color: '#FF6B6B', border: '1px solid rgba(255,107,107,0.25)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
             </div>
           ))}
         </div>
@@ -200,7 +200,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           <div><label style={lbl}>Check-Out Date *</label><input type="date" style={field} value={f.checkOut} onChange={set('checkOut')} /></div>
         </div>
         {nN > 0 && (
-          <div className="mb-4 text-sm" style={{ background: 'rgba(139,105,20,0.06)', border: '1px solid rgba(139,105,20,0.16)', padding: '9px 12px', borderRadius: 8 }}>
+          <div className="mb-4 text-sm" style={{ background: 'rgba(223,255,69,.07)', border: '1px solid rgba(223,255,69,.2)', padding: '9px 12px', borderRadius: 10 }}>
             {nN} night{nN !== 1 ? 's' : ''} × {f.roomNos.filter(Boolean).length} room{f.roomNos.filter(Boolean).length !== 1 ? 's' : ''} = <strong style={{ color: 'var(--iv-gold)' }}>{bdt(autoTotal)}</strong>
           </div>
         )}
@@ -223,7 +223,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           </div>
         ); })()}
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#FF6B6B' }}>{err}</div>}
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>

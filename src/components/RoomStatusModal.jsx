@@ -8,9 +8,9 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 
 // Safe, non-reservation statuses only (no OCCUPIED/RESERVED — those follow bookings).
 const OPTIONS = [
-  { v: 'AVAILABLE', label: 'Available', c: '#4A7C59' },
-  { v: 'DIRTY', label: 'Dirty', c: '#D9A441' },
-  { v: 'OUT_OF_ORDER', label: 'Out of Order', c: '#DC2626' },
+  { v: 'AVAILABLE', label: 'Available', c: '#7BE04A' },
+  { v: 'DIRTY', label: 'Dirty', c: '#F5A93B' },
+  { v: 'OUT_OF_ORDER', label: 'Out of Order', c: '#FF6B6B' },
 ];
 
 export default function RoomStatusModal({ room, onClose, onSaved }) {
@@ -50,7 +50,7 @@ export default function RoomStatusModal({ room, onClose, onSaved }) {
             <button key={o.v} onClick={() => setStatus(o.v)}
               className="flex items-center gap-3 text-left"
               style={{ padding: '11px 14px', border: `1px solid ${status === o.v ? o.c : 'var(--iv-border)'}`,
-                borderRadius: 8, background: status === o.v ? `${o.c}14` : '#fff', transition: 'border-color .18s var(--iv-ease), background .18s var(--iv-ease)' }}>
+                borderRadius: 10, background: status === o.v ? `${o.c}1f` : 'rgba(255,255,255,.04)', transition: 'border-color .18s var(--iv-ease), background .18s var(--iv-ease)' }}>
               <span style={{ width: 10, height: 10, borderRadius: 99, background: o.c, display: 'inline-block' }} />
               <span style={{ color: 'var(--iv-ink)', fontSize: 14 }}>{o.label}</span>
               {status === o.v && <span className="ml-auto" style={{ color: o.c, fontSize: 13 }}>✓</span>}
@@ -58,7 +58,7 @@ export default function RoomStatusModal({ room, onClose, onSaved }) {
           ))}
         </div>
 
-        {err && <div className="mb-3 text-sm" style={{ color: '#DC2626' }}>{err}</div>}
+        {err && <div className="mb-3 text-sm" style={{ color: '#FF6B6B' }}>{err}</div>}
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>

@@ -1,8 +1,11 @@
 'use client';
 
-// Header / Topbar — modern SaaS. White bar, per-page title (indigo accent word), live Dhaka
-// clock, global "+ New Booking" (opens the Check-In modal from ANY page), notif bell.
+// Header / Topbar — Aurora/Orbix shell (2026-07-04). Replaces the old sidebar entirely:
+// brand mark, RBAC pill nav (active = lime pill w/ label, others icon-only), live Dhaka
+// clock, notif bell (web-booking requests), lime "+ New Booking" (works from ANY page),
+// user chip + sign-out. Mobile keeps BottomNav; pills hide below md.
 import { useState, useEffect, useRef, useMemo } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { getSnap } from '@/lib/snap';
@@ -21,6 +24,20 @@ const TITLES = {
   '/crm/settings': ['System', 'Settings'],
 };
 
+// Pill nav — all 8 sections, RBAC-filtered. Active page renders as the lime pill with
+// its label; the rest collapse to icon pills with tooltips (Orbix top-nav pattern).
+const PILLS = [
+  { href: '/crm', icon: '⌂', label: 'Dashboard', exact: true },
+  { href: '/crm/rooms', icon: '▦', label: 'Rooms' },
+  { href: '/crm/reservations', icon: '◈', label: 'Reservations' },
+  { href: '/crm/guests', icon: '◉', label: 'Guests' },
+  { href: '/crm/housekeeping', icon: '✦', label: 'Housekeeping' },
+  { href: '/crm/billing', icon: '৳', label: 'Billing' },
+  { href: '/crm/reports', icon: '▤', label: 'Reports' },
+  { href: '/crm/settings', icon: '⚙', label: 'Settings' },
+];
+const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase() || '?';
+
 // Live notifications = PENDING web bookings (created by /api/book with source WEBSITE).
 // Each is an actionable card: pick an available room → Confirm (→ RESERVED) or Cancel.
 const fmtD = (d) => { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch { return String(d).slice(0, 10); } };
@@ -38,7 +55,7 @@ function titleFor(pathname) {
 export default function Header() {
   const pathname = usePathname() || '/crm';
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   // New Booking + the booking-request bell are reservation actions — only for roles that
   // can access Reservations (receptionist + admin); hidden from housekeeping (RBAC 2026-06-10).
   const canBook = canAccess(user?.role, '/crm/reservations');
@@ -130,18 +147,51 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
+  // Mobile bottom-nav "+" (and any page) can summon the global New Booking modal.
+  useEffect(() => {
+    const open = () => { if (canBook) openNewBooking(); };
+    window.addEventListener('lumea:global-new-booking', open);
+    return () => window.removeEventListener('lumea:global-new-booking', open);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canBook, pathname]);
+
   const [t0, t1] = titleFor(pathname);
+  const visiblePills = PILLS.filter((p) => canAccess(user?.role, p.href));
 
   return (
-    <div className="iv-topbar" style={{ height: 54, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 16px 0 24px', gap: 14, position: 'sticky', top: 0, zIndex: 20 }}>
-      <div style={{ fontFamily: 'var(--iv-head)', fontSize: 18, fontWeight: 700, color: 'var(--iv-ink)', flex: 1, letterSpacing: '.01em', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {t0}{t1 && <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)', fontWeight: 700 }}> {t1}</em>}
+    <div className="iv-topbar" style={{ height: 62, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 14px', gap: 8, position: 'sticky', top: 0, zIndex: 20 }}>
+      {/* Brand mark */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, marginRight: 4 }}>
+        <span style={{ width: 36, height: 36, borderRadius: 12, background: 'linear-gradient(135deg,#EAFF7A,#B8D62E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, color: '#171A05', boxShadow: '0 4px 14px rgba(223,255,69,.28)', flexShrink: 0 }}>F</span>
+        <div className="hidden lg:block" style={{ lineHeight: 1.05 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--iv-ink)', whiteSpace: 'nowrap' }}>Hotel Fountain</div>
+          <div style={{ fontSize: 8, letterSpacing: '.18em', color: 'var(--iv-ink3)', textTransform: 'uppercase', marginTop: 2 }}>Management OS</div>
+        </div>
       </div>
-      {/* Dhaka clock — desktop/tablet only; on phones it starved the page title into "Op…" */}
-      <div className="iv-mono hidden sm:block" style={{ fontSize: 9, color: 'var(--iv-ink3)', letterSpacing: '.04em', whiteSpace: 'nowrap' }}>{meta}</div>
+
+      {/* Pill nav — desktop. Text labels (owner request 2026-07-04), no glyph icons. */}
+      <nav className="hidden md:flex" style={{ alignItems: 'center', gap: 5, flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', padding: '2px 0' }}>
+        {visiblePills.map((p) => {
+          const on = p.exact ? pathname === p.href : pathname === p.href || pathname.startsWith(p.href + '/');
+          return (
+            <Link key={p.href} href={p.href} className={`fx-pill${on ? ' on' : ''}`} aria-current={on ? 'page' : undefined}>
+              {p.label}
+            </Link>
+          );
+        })}
+      </nav>
+      {/* Page title — mobile only (pills hidden) */}
+      <div className="flex-1 md:hidden" style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {t0}{t1 && <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)' }}> {t1}</em>}
+        </div>
+      </div>
+
+      {/* Dhaka clock — wide screens only */}
+      <div className="iv-mono hidden xl:block" style={{ fontSize: 9, color: 'var(--iv-ink3)', letterSpacing: '.04em', whiteSpace: 'nowrap', flexShrink: 0 }}>{meta}</div>
       {canBook && (
-        <button className="iv-btn" onClick={openNewBooking} style={{ fontSize: 12.5, padding: '7px 14px', flexShrink: 0 }}>
-          <span className="sm:hidden">+ Book</span>
+        <button className="iv-btn" onClick={openNewBooking} style={{ fontSize: 12.5, padding: '8px 16px', flexShrink: 0, borderRadius: 999 }}>
+          <span className="sm:hidden">+</span>
           <span className="hidden sm:inline">+ New Booking</span>
         </button>
       )}
@@ -150,18 +200,18 @@ export default function Header() {
           onSaved={() => { setShowNew(false); router.push('/crm/reservations'); }} />
       )}
       {canBook && <div ref={bellRef} style={{ position: 'relative' }}>
-        <div onClick={() => { setBell((v) => !v); loadNotifs(); }} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${bell ? 'var(--iv-side)' : 'var(--iv-border)'}`, background: bell ? 'var(--iv-sunken)' : 'transparent', cursor: 'pointer', position: 'relative', fontSize: 15, color: 'var(--iv-ink3)', borderRadius: 8, transition: 'border-color .2s var(--iv-ease), background .2s var(--iv-ease), box-shadow .2s var(--iv-ease)', boxShadow: bell ? '0 0 0 3px var(--iv-glow)' : 'none' }}>
+        <div onClick={() => { setBell((v) => !v); loadNotifs(); }} className="fx-round" style={{ position: 'relative', boxShadow: bell ? '0 0 0 3px var(--iv-glow)' : 'none', borderColor: bell ? 'var(--iv-gold)' : undefined }}>
           🔔
           {unseen > 0 && (
-            <span className="iv-ping" style={{ position: 'absolute', top: 3, right: 3, minWidth: 14, height: 14, padding: '0 3px', background: '#DC2626', border: '1.5px solid #fff', borderRadius: 999, color: '#fff', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--iv-body)' }}>{unseen}</span>
+            <span className="iv-ping" style={{ position: 'absolute', top: 1, right: 1, minWidth: 15, height: 15, padding: '0 3px', background: '#F0559C', border: '1.5px solid #131118', borderRadius: 999, color: '#fff', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--iv-body)' }}>{unseen}</span>
           )}
         </div>
         {bell && (
-          <div style={{ position: 'absolute', top: 40, right: 0, width: 372, maxWidth: 'calc(100vw - 24px)', background: '#fff', border: '1px solid var(--iv-border)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 16px 48px rgba(15,23,42,.14)', zIndex: 100, animation: 'bellFadeIn .22s var(--iv-ease) both', transformOrigin: 'top right' }}>
+          <div style={{ position: 'absolute', top: 46, right: 0, width: 372, maxWidth: 'calc(100vw - 24px)', background: 'rgba(21,19,27,.97)', backdropFilter: 'blur(18px)', border: '1px solid var(--iv-border)', borderRadius: 16, overflow: 'hidden', boxShadow: '0 24px 70px rgba(0,0,0,.55)', zIndex: 100, animation: 'bellFadeIn .22s var(--iv-ease) both', transformOrigin: 'top right' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--iv-border2)', background: 'var(--iv-sunken)' }}>
               <span style={{ fontFamily: 'var(--iv-head)', fontSize: 15, fontWeight: 700, color: 'var(--iv-ink)' }}>Booking Requests</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {pending.length > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--iv-rose-fg)', background: 'rgba(220,38,38,.08)', border: '1px solid rgba(220,38,38,.2)', borderRadius: 999, padding: '2px 9px' }}>{pending.length} pending</span>}
+                {pending.length > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--iv-rose-fg)', background: 'rgba(255,107,107,.08)', border: '1px solid rgba(255,107,107,.2)', borderRadius: 999, padding: '2px 9px' }}>{pending.length} pending</span>}
                 <button onClick={clearNotifs} style={{ fontSize: 11, fontWeight: 600, color: 'var(--iv-ink3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Clear</button>
               </div>
             </div>
@@ -177,7 +227,7 @@ export default function Header() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--iv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.guest_name || 'Guest'}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.06em', color: 'var(--iv-gold)', background: 'rgba(139,105,20,.08)', border: '1px solid rgba(139,105,20,.22)', borderRadius: 999, padding: '1px 7px' }}>{p.source || 'WEB'}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.06em', color: 'var(--iv-gold)', background: 'rgba(223,255,69,.1)', border: '1px solid rgba(223,255,69,.28)', borderRadius: 999, padding: '1px 7px' }}>{p.source || 'WEB'}</span>
                         <span className="iv-mono" style={{ fontSize: 9, color: 'var(--iv-ink3)' }}>{ago(p.created_at)}</span>
                       </div>
                     </div>
@@ -203,6 +253,21 @@ export default function Header() {
           </div>
         )}
       </div>}
+
+      {/* User chip (replaces the old sidebar footer) */}
+      <div className="hidden sm:flex" style={{ alignItems: 'center', gap: 9, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 999, padding: '4px 12px 4px 5px', flexShrink: 0 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 999, background: 'linear-gradient(135deg,#B384F5,#7C4BC9)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{initials(user?.name)}</span>
+        <div style={{ lineHeight: 1.1, minWidth: 0 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--iv-ink)', whiteSpace: 'nowrap', maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || 'Staff'}</div>
+          <div style={{ fontSize: 7.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginTop: 1 }}>{user?.role || ''}</div>
+        </div>
+      </div>
+
+      {/* Sign out — visible labeled button (owner request 2026-07-04), rose tint so it can't be missed */}
+      <button className="fx-signout" onClick={signOut} title="Sign out" aria-label="Sign out">
+        <span aria-hidden="true" style={{ fontSize: 14 }}>⏻</span>
+        <span className="hidden md:inline">Sign Out</span>
+      </button>
     </div>
   );
 }
