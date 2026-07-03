@@ -14,6 +14,16 @@ const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 const ROLE_LABEL = { owner: 'Founder / Owner', manager: 'Manager', receptionist: 'Receptionist', housekeeping: 'Housekeeping', accountant: 'Accountant' };
 
+// Presence from staff.last_seen_at (stamped by the 2-min session heartbeat).
+// ≤5 min = Active (pulsing lime); otherwise show a friendly "seen …" label.
+function presenceOf(ts) {
+  if (!ts) return { on: false, label: '', title: 'Never signed in' };
+  const mins = Math.round((Date.now() - new Date(ts).getTime()) / 60000);
+  if (mins <= 5) return { on: true, label: 'now', title: 'Active now' };
+  const label = mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.round(mins / 60)}h ago` : `${Math.round(mins / 1440)}d ago`;
+  return { on: false, label, title: `Last seen ${label}` };
+}
+
 export default function Settings() {
   const [tab, setTab] = useState('hotel');
   const [hs, setHS] = useState({ hotelName: 'Hotel Fountain', city: 'Dhaka', currency: 'BDT', checkIn: '14:00', checkOut: '12:00', vat: '0', svc: '0' });
@@ -32,6 +42,14 @@ export default function Settings() {
       setStaff(r.ok && j.staff ? j.staff : []);
     } catch (e) { console.error('[Settings] staff reload:', e); }
   }
+
+  // Presence stays live while the Staff tab is open — refresh the roster every 60s.
+  useEffect(() => {
+    if (tab !== 'users') return;
+    const iv = setInterval(reloadStaff, 60000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   const [secBusy, setSecBusy] = useState(false);
   const [secMsg, setSecMsg] = useState('');
@@ -129,9 +147,21 @@ export default function Settings() {
           {loading && <div className="iv-stat__sub">Loading…</div>}
           {!loading && staff.length === 0 && <div className="iv-stat__sub">No staff accounts.</div>}
           <div className="flex flex-col gap-2">
-            {staff.map((u) => (
-              <div key={u.id} className="flex items-center justify-between" style={{ border: '1px solid var(--iv-border2)', borderRadius: 8, padding: '10px 14px' }}>
-                <div><div style={{ fontWeight: 600, fontSize: 14 }}>{u.name}</div><div className="iv-mono" style={{ fontSize: 11, color: 'var(--iv-ink3)' }}>{u.email}</div></div>
+            {staff.map((u) => {
+              const p = presenceOf(u.last_seen_at);
+              return (
+              <div key={u.id} className="flex items-center justify-between" style={{ border: '1px solid var(--iv-border2)', borderRadius: 10, padding: '10px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                  {/* Presence — lime pulse = session heartbeat within the last 5 min */}
+                  <span className={p.on ? 'fx-pulse' : ''} title={p.title}
+                    style={{ width: 10, height: 10, borderRadius: 999, flexShrink: 0, background: p.on ? '#C9F73A' : 'rgba(255,255,255,.16)' }} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{u.name}
+                      {p.on && <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.08em', color: '#C9F73A', marginLeft: 8, textTransform: 'uppercase' }}>Active</span>}
+                    </div>
+                    <div className="iv-mono" style={{ fontSize: 11, color: 'var(--iv-ink3)' }}>{u.email}{!p.on && p.label ? <span style={{ marginLeft: 8, color: 'var(--iv-ink3)' }}>· seen {p.label}</span> : null}</div>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   {u.role === 'owner' ? <span className="iv-badge" style={{ background: 'rgba(223,255,69,.12)', color: 'var(--iv-gold)' }}>★ Owner</span>
                     : <span className="iv-badge">{ROLE_LABEL[u.role] || u.role}</span>}
@@ -139,7 +169,7 @@ export default function Settings() {
                   {u.role !== 'owner' && <button className="iv-btn iv-btn--ghost" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => setStaffModal({ user: u })}>Edit</button>}
                 </div>
               </div>
-            ))}
+            );})}
           </div>
         </div>
       )}
