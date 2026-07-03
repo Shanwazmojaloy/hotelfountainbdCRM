@@ -48,7 +48,7 @@ export default function ServicesPage() {
       <section className="section pb-24">
         <ScrollReveal stagger className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {AMENITIES.map((a) => (
-            <GlassCard key={a.title} className="glass-clip flex gap-5 p-7" interactive>
+            <GlassCard key={a.title} className="glass-clip flex flex-col gap-4 p-6 sm:flex-row sm:gap-5 sm:p-7" interactive>
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-3xl">
                 {a.icon}
               </div>

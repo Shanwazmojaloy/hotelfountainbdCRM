@@ -112,7 +112,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   .sec             { padding: 70px 24px !important; }
   .nav-links       { display: none !important; }
   .mobile-menu-btn { display: flex !important; }
-  footer           { flex-direction: column !important; gap: 16px !important; text-align: center !important; padding: 24px !important; }
+  /* Scoped to the legacy /lumea landing footer only — a bare `footer` selector
+     also hijacked the marketing-site footer (centered paragraphs, collapsed
+     section padding) on every phone. */
+  footer.footer    { flex-direction: column !important; gap: 16px !important; text-align: center !important; padding: 24px !important; }
   .tnc-cols        { columns: 1 !important; }
 }
 
