@@ -48,8 +48,16 @@ export default function ContactPage() {
                 ))}
               </InfoRow>
               <InfoRow label="Phone">
-                <a href={CONTACT.phoneHref} className="transition hover:text-neon-teal">
-                  {CONTACT.phone}
+                <a href={CONTACT.phoneHref} className="block transition hover:text-neon-teal">
+                  Front Office: {CONTACT.phone}
+                </a>
+                <a href={CONTACT.salesPhoneHref} className="mt-1 block transition hover:text-neon-teal">
+                  Sales &amp; Marketing: {CONTACT.salesPhone}
+                </a>
+              </InfoRow>
+              <InfoRow label="WhatsApp">
+                <a href={CONTACT.whatsappHref} target="_blank" rel="noopener noreferrer" className="transition hover:text-neon-teal">
+                  {CONTACT.whatsappLabel}
                 </a>
               </InfoRow>
               <InfoRow label="Email">
