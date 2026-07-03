@@ -121,10 +121,10 @@ function buildCsp(nonce: string): string {
     "font-src 'self' data: fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net`,
-    "frame-src 'self' https://www.google.com",
+    "frame-src 'self' https://www.google.com https://www.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    "form-action 'self' https://www.facebook.com",
     "frame-ancestors 'none'",
   ].join('; ');
 }
