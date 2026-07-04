@@ -17,6 +17,9 @@ export const maxDuration = 60;
 
 const BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1`;
 const MAX_POSTS_PER_RUN = 2;
+// Env Facebook credentials belong to the HOME tenant's page. Falling back to them
+// for other tenants would publish their content onto Hotel Fountain's page.
+const HOME_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
 function headers() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -65,8 +68,9 @@ export async function GET(req: Request) {
   for (const t of tenants) {
     const TENANT = t.id;
     const result: Record<string, unknown> = { tenant_id: TENANT };
-    const fbPageId = t.facebook_page_id || process.env.FACEBOOK_PAGE_ID;
-    const fbToken = t.facebook_page_token || process.env.FACEBOOK_PAGE_TOKEN;
+    const isHome = TENANT === HOME_TENANT;
+    const fbPageId = t.facebook_page_id || (isHome ? process.env.FACEBOOK_PAGE_ID : undefined);
+    const fbToken = t.facebook_page_token || (isHome ? process.env.FACEBOOK_PAGE_TOKEN : undefined);
 
     // ── PUBLISH due human-approved posts ─────────────────────────────
     try {

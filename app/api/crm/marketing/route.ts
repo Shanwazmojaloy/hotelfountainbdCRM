@@ -182,16 +182,19 @@ export async function POST(req: NextRequest) {
     if (String(row.platform).toUpperCase() !== 'FACEBOOK') {
       return NextResponse.json({ error: 'Only Facebook posts can be published from here.' }, { status: 400 });
     }
-    // Page credentials live on the tenants row (per-hotel), falling back to env for the
-    // home tenant. tenants is read on the service role — crm_tenant has no grant there.
-    let pageId = process.env.FACEBOOK_PAGE_ID || '';
-    let token = process.env.FACEBOOK_PAGE_TOKEN || '';
+    // Page credentials live on the tenants row (per-hotel). The env credentials are the
+    // HOME tenant's page — never fall back to them for another tenant, or a demo-tenant
+    // admin could publish onto Hotel Fountain's real page. tenants is read on the
+    // service role — crm_tenant has no grant there.
+    const isHome = tenant === ENV_TENANT;
+    let pageId = isHome ? process.env.FACEBOOK_PAGE_ID || '' : '';
+    let token = isHome ? process.env.FACEBOOK_PAGE_TOKEN || '' : '';
     try {
       const svc = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
       const { data: t } = await svc.from('tenants').select('facebook_page_id, facebook_page_token').eq('id', tenant).limit(1);
       pageId = t?.[0]?.facebook_page_id || pageId;
       token = t?.[0]?.facebook_page_token || token;
-    } catch { /* env fallback */ }
+    } catch { /* tenant-row creds unavailable — env fallback already applied for home */ }
     if (!pageId || !token) return NextResponse.json({ error: 'Facebook Page credentials are not configured.' }, { status: 500 });
 
     const message = composeMessage(row);
