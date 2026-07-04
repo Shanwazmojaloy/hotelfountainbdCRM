@@ -97,8 +97,14 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const closeRow = (closes || []).find((c) => (c.audit_date || '').slice(0, 10) === date) || null;
 
   // Open-day movements span openDay→today (so calendar 10-Jun AND 11-Jun show under the open
-  // 10-Jun report); a historical day shows only its own date.
-  const inDayRange = (d) => onOpenDay ? (d >= date && d <= calToday) : d === date;
+  // 10-Jun report). A CLOSED day must keep the SAME span it had while live: business days close
+  // after midnight (03-Jul closed 07:33 am on the 04th), so pending Due-Out/Check-Out rows whose
+  // stay date is the close morning belong to it. Narrowing a closed day to `d === date` made
+  // those rows vanish after Closing Complete — the owner's printed live report (12 movements)
+  // no longer matched the CRM's closed view (9). Boundary = Dhaka calendar date of closed_at.
+  const dhakaDateOf = (ts) => { try { return ts ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts)) : null; } catch { return null; } };
+  const closeBoundary = dhakaDateOf(closeRow?.closed_at) || date;
+  const inDayRange = (d) => onOpenDay ? (d >= date && d <= calToday) : (d >= date && d <= closeBoundary);
   // Collections are stamped with the open day at write-time, so `=== date` already captures
   // every calendar day's payments that belong to this business day.
   const collectedFor = (r) => txs.filter((t) => notBCF(t) && t.reservation_id === r.id && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
