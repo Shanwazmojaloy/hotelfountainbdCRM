@@ -11,6 +11,7 @@ const TABS = [
   { key: 'approved', label: 'Approved' },
   { key: 'posted', label: 'Posted' },
   { key: 'rejected', label: 'Rejected' },
+  { key: 'impact', label: 'Impact' },
 ];
 
 const bucketOf = (r) =>
@@ -52,8 +53,17 @@ export default function Marketing() {
   const [edit, setEdit] = useState(null); // { id, body_en, title, scheduled_for, post_time, image_url }
   const [showNew, setShowNew] = useState(false);
   const [nw, setNw] = useState(emptyNew);
+  const [impact, setImpact] = useState(null); // { summary, posts } — lazy-loaded
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (tab !== 'impact' || impact) return;
+    fetch('/api/crm/marketing?view=impact', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (d.summary) setImpact(d); else setErr(d.error || 'Could not load impact data'); })
+      .catch((e) => setErr(String(e)));
+  }, [tab, impact]);
 
   async function load() {
     try {
@@ -105,7 +115,7 @@ export default function Marketing() {
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} className="iv-btn iv-btn--ghost"
             style={{ padding: '5px 14px', fontSize: 12, ...(tab === t.key ? { background: 'rgba(223,255,69,.14)', color: 'var(--iv-gold)', borderColor: 'rgba(223,255,69,.3)' } : {}) }}>
-            {t.label} <span style={{ opacity: .6, marginLeft: 4 }}>{buckets[t.key].length}</span>
+            {t.label}{buckets[t.key] ? <span style={{ opacity: .6, marginLeft: 4 }}>{buckets[t.key].length}</span> : null}
           </button>
         ))}
         <div style={{ flex: 1 }} />
@@ -135,14 +145,57 @@ export default function Marketing() {
         </div>
       )}
 
-      {loading && <div className="iv-card iv-stat__sub">Loading content…</div>}
-      {!loading && buckets[tab].length === 0 && (
+      {/* Impact — correlation report (posts × bookings), not click attribution */}
+      {tab === 'impact' && (
+        !impact ? (
+          <div className="iv-card iv-stat__sub">Loading impact data…</div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+              {[
+                ['Posts (60d)', impact.summary.posts],
+                ['Total reactions', impact.summary.total_reactions],
+                ['Bookings/day · post days', impact.summary.avg_bookings_post_days ?? '—'],
+                ['Bookings/day · other days', impact.summary.avg_bookings_other_days ?? '—'],
+              ].map(([label, val]) => (
+                <div key={label} className="iv-card" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--iv-gold)' }}>{val}</div>
+                  <div className="iv-stat__sub" style={{ marginTop: 4 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="iv-card">
+              <div className="iv-stat__sub" style={{ marginBottom: 10 }}>
+                Bookings created within 48h of each post — correlation, not proof of cause. Reaction counts refresh daily at 10:00.
+              </div>
+              {impact.posts.length === 0 && <div className="iv-stat__sub">No posts published in the last 60 days yet.</div>}
+              {impact.posts.map((p) => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--iv-border2)' }}>
+                  <span className="iv-stat__sub" style={{ width: 92, flexShrink: 0 }}>{fmtTs(p.posted_at)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: 'var(--iv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</div>
+                    <div className="iv-stat__sub">{p.content_type}</div>
+                  </div>
+                  <span className="iv-stat__sub">👍 {p.engagement_likes ?? 0}</span>
+                  <span className="iv-badge" style={{ background: 'rgba(123,224,74,.12)', color: '#7BE04A' }}>{p.bookings_48h} bookings/48h</span>
+                  {p.fb_post_id && (
+                    <a href={`https://www.facebook.com/${p.fb_post_id}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--iv-gold)' }}>↗</a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      )}
+
+      {tab !== 'impact' && loading && <div className="iv-card iv-stat__sub">Loading content…</div>}
+      {tab !== 'impact' && !loading && buckets[tab].length === 0 && (
         <div className="iv-card iv-stat__sub">
           {tab === 'pending' ? 'No posts waiting for review. The strategist agent drafts new content every Monday.' : 'Nothing here yet.'}
         </div>
       )}
 
-      {!loading && buckets[tab].map((r) => {
+      {tab !== 'impact' && !loading && buckets[tab].map((r) => {
         const isEditing = edit?.id === r.id;
         const typeColor = TYPE_COLORS[r.content_type] || '#9AA3B2';
         const humanApproved = r.approved_channel === 'HUMAN';
