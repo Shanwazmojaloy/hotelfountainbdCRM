@@ -133,7 +133,7 @@ export async function GET(req: Request) {
         for (const row of recent ?? []) {
           const eng = await fetchEngagement(String(row.fb_post_id), String(fbToken));
           if (!eng) continue;
-          const patch: Record<string, unknown> = { engagement_likes: eng.likes + eng.comments };
+          const patch: Record<string, unknown> = { engagement_likes: eng.reactions + eng.shares };
           if (eng.impressions != null) patch.engagement_reach = eng.impressions;
           await dbPatch('content_calendar', `id=eq.${row.id}`, patch);
           refreshed += 1;
