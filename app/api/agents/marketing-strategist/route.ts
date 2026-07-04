@@ -1,0 +1,244 @@
+// marketing-strategist — weekly cron (Mon 09:00 Dhaka). Drafts the coming week's
+// Facebook content into content_calendar as PENDING_REVIEW using live hotel data
+// (available rooms, rates, occupancy, past post performance). Nothing it writes can
+// be published until a human approves it in /crm/marketing (approved_channel gate).
+//
+// Uses Claude Haiku behind the per-tenant AI budget guard (same pattern as
+// ceo-auditor); degrades to data-driven template posts when the key/budget is out.
+import { NextResponse } from 'next/server';
+import { assertCron } from '@/lib/workflow-trigger';
+import { activeOpsTenants } from '../_tenants';
+import { checkAiBudget, recordAiUsage } from '@/lib/aiBudget';
+
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+const BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1`;
+const TARGET_BACKLOG = 5; // skip generation while this many unposted future items exist
+
+function headers() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    'Content-Type': 'application/json',
+    Prefer: 'return=minimal',
+  };
+}
+
+async function dbGet(table: string, query: string) {
+  const res = await fetch(`${BASE}/${table}?${query}`, { headers: headers() });
+  if (!res.ok) throw new Error(`GET ${table}: ${await res.text()}`);
+  return res.json();
+}
+
+async function dbPost(table: string, body: object) {
+  const res = await fetch(`${BASE}/${table}`, { method: 'POST', headers: headers(), body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`POST ${table}: ${await res.text()}`);
+}
+
+function dhakaToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
+function plusDays(dateStr: string, n: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+interface DraftPost {
+  content_type: string;
+  title: string;
+  body_en: string;
+  body_bn?: string;
+  hashtags?: string;
+  cta?: string;
+  visual_brief?: string;
+  scheduled_for: string;
+  post_time?: string;
+}
+
+// Extract a JSON array from a model reply that may carry prose or code fences.
+function parseDrafts(text: string, today: string): DraftPost[] {
+  const start = text.indexOf('[');
+  const end = text.lastIndexOf(']');
+  if (start < 0 || end <= start) return [];
+  let arr: unknown;
+  try {
+    arr = JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(arr)) return [];
+  const out: DraftPost[] = [];
+  for (const [i, item] of arr.entries()) {
+    if (!item || typeof item !== 'object') continue;
+    const p = item as Record<string, unknown>;
+    const body = typeof p.body_en === 'string' ? p.body_en.trim() : '';
+    if (!body) continue;
+    const rawDate = typeof p.scheduled_for === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.scheduled_for) ? p.scheduled_for : '';
+    const scheduled = rawDate >= today && rawDate <= plusDays(today, 14) ? rawDate : plusDays(today, i + 1);
+    out.push({
+      content_type: (typeof p.content_type === 'string' ? p.content_type : 'GENERAL').toUpperCase().slice(0, 40),
+      title: (typeof p.title === 'string' && p.title ? p.title : 'Weekly Post').slice(0, 120),
+      body_en: body.slice(0, 4000),
+      body_bn: typeof p.body_bn === 'string' ? p.body_bn.slice(0, 4000) : undefined,
+      hashtags: typeof p.hashtags === 'string' ? p.hashtags.slice(0, 500) : undefined,
+      cta: typeof p.cta === 'string' ? p.cta.slice(0, 300) : undefined,
+      visual_brief: typeof p.visual_brief === 'string' ? p.visual_brief.slice(0, 1000) : undefined,
+      scheduled_for: scheduled,
+      post_time: typeof p.post_time === 'string' && /^\d{2}:\d{2}$/.test(p.post_time) ? p.post_time : '10:00',
+    });
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
+export async function GET(req: Request) {
+  const denied = assertCron(req);
+  if (denied) return denied;
+
+  const today = dhakaToday();
+  const startedAt = Date.now();
+  const tenants = await activeOpsTenants();
+  const perTenant: Array<Record<string, unknown>> = [];
+  let totalDrafted = 0;
+
+  for (const t of tenants) {
+    const TENANT = t.id;
+    const result: Record<string, unknown> = { tenant_id: TENANT };
+    try {
+      // Don't pile on: skip while a healthy unposted backlog exists.
+      const backlog = await dbGet(
+        'content_calendar',
+        `select=id&tenant_id=eq.${TENANT}&posted_at=is.null&status=in.(DRAFT,PENDING_REVIEW,VARIATIONS_READY,APPROVED)&scheduled_for=gte.${today}&limit=${TARGET_BACKLOG}`,
+      );
+      if ((backlog?.length ?? 0) >= TARGET_BACKLOG) {
+        result.skipped = `backlog full (${backlog.length} unposted items)`;
+        perTenant.push(result);
+        continue;
+      }
+      const wanted = TARGET_BACKLOG - (backlog?.length ?? 0);
+
+      // Live context for the drafts.
+      const hotelName = t.hotel_name || process.env.HOTEL_NAME || 'Hotel Fountain BD';
+      const hotelCity = t.hotel_city || process.env.HOTEL_CITY || 'Dhaka';
+      const waNumber = (t.hotel_whatsapp || process.env.HOTEL_WHATSAPP || '8801322840799').replace(/[^0-9]/g, '');
+      const waLink = `https://wa.me/${waNumber}`;
+
+      let rooms: Array<{ name?: string; room_type?: string; rate?: number }> = [];
+      try {
+        rooms = await dbGet('rooms', `select=name,room_type,rate&tenant_id=eq.${TENANT}&status=eq.AVAILABLE&limit=10`);
+      } catch { /* optional context */ }
+      let occupancy = '';
+      try {
+        const checkedIn = await dbGet('reservations', `select=id&tenant_id=eq.${TENANT}&status=eq.CHECKED_IN`);
+        const roomCount = Number(t.hotel_room_count ?? process.env.HOTEL_ROOM_COUNT ?? 24);
+        occupancy = `${Math.round(((checkedIn?.length ?? 0) / roomCount) * 100)}%`;
+      } catch { /* optional context */ }
+      let topPosts: Array<{ title?: string; content_type?: string; engagement_likes?: number }> = [];
+      try {
+        topPosts = await dbGet(
+          'content_calendar',
+          `select=title,content_type,engagement_likes&tenant_id=eq.${TENANT}&engagement_likes=gt.0&order=engagement_likes.desc&limit=3`,
+        );
+      } catch { /* none posted yet */ }
+
+      const minRate = rooms.length ? Math.min(...rooms.map((r) => Number(r.rate) || Infinity)) : null;
+      let drafts: DraftPost[] = [];
+      let source = 'template';
+
+      const anthropicKey = (process.env.ANTHROPIC_API_KEY ?? '').trim();
+      const budget = await checkAiBudget(TENANT);
+      if (anthropicKey && budget.allowed) {
+        const prompt = `You are the marketing strategist for ${hotelName}, a hotel in ${hotelCity}, Bangladesh (near Dhaka airport, Nikunja-02). Today is ${today}. Current occupancy: ${occupancy || 'unknown'}. Available rooms: ${rooms.map((r) => `${r.name || r.room_type} ৳${r.rate}/night`).join(', ') || 'unknown'}. Booking WhatsApp: ${waLink}.
+${topPosts.length ? `Best-performing past posts: ${topPosts.map((p) => `"${p.title}" (${p.content_type}, ${p.engagement_likes} reactions)`).join(', ')}.` : ''}
+Draft ${wanted} Facebook posts for the coming week. Vary the angle: ROOM_SPOTLIGHT, OFFER, TESTIMONIAL, LOCAL_EVENT, CORPORATE_PITCH, BEHIND_SCENES, SEASONAL. Keep each under 100 words, warm and concrete, with emoji, real rates in ৳, and the WhatsApp link as the call to action. Audience: Bangladeshi families, business travellers, airport transit guests.
+Reply with ONLY a JSON array; each element: {"content_type","title","body_en","body_bn","hashtags","cta","visual_brief","scheduled_for","post_time"}. scheduled_for = dates spread across the next 7 days (YYYY-MM-DD). post_time between 09:00 and 20:00.`;
+
+        try {
+          const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+            body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 3000, messages: [{ role: 'user', content: prompt }] }),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            recordAiUsage(TENANT, data.usage);
+            const text = Array.isArray(data.content) ? data.content.map((c: { text?: string }) => c.text || '').join('') : '';
+            drafts = parseDrafts(text, today).slice(0, wanted);
+            if (drafts.length) source = 'claude';
+          } else {
+            console.error('[marketing-strategist] Claude non-ok', response.status, (await response.text()).slice(0, 200));
+          }
+        } catch (e) {
+          console.error('[marketing-strategist] Claude fetch error', e);
+        }
+      }
+
+      // Template fallback — data-driven, never blocks the pipeline on AI availability.
+      if (!drafts.length) {
+        const room = rooms[0];
+        if (room) {
+          drafts.push({
+            content_type: 'ROOM_SPOTLIGHT',
+            title: `Room of the Week — ${room.name || room.room_type}`,
+            body_en: `🏨 Room of the Week — ${room.name || room.room_type}\n\n✨ ${room.room_type || 'Comfort room'} | ৳${room.rate}/night\n✈️ 10 minutes from Dhaka Airport (Nikunja-02)\n\n📞 Book now on WhatsApp: ${waLink}`,
+            hashtags: `#${String(hotelName).replace(/\s+/g, '')} #${hotelCity} #HotelBD`,
+            scheduled_for: plusDays(today, 1),
+            post_time: '10:00',
+          });
+        }
+        if (minRate && Number.isFinite(minRate)) {
+          drafts.push({
+            content_type: 'OFFER',
+            title: 'Weekend Getaway Offer',
+            body_en: `🎉 Weekend at ${hotelName}!\n\n🛏️ ${rooms.length} rooms available this week\n💰 Starting ৳${minRate}/night\n✈️ Right next to Dhaka Airport — Nikunja-02\n\n📞 Reserve on WhatsApp: ${waLink}`,
+            hashtags: `#${String(hotelName).replace(/\s+/g, '')} #DhakaHotel #WeekendOffer`,
+            scheduled_for: plusDays(today, 3),
+            post_time: '17:00',
+          });
+        }
+        drafts = drafts.slice(0, wanted);
+      }
+
+      for (const d of drafts) {
+        await dbPost('content_calendar', {
+          tenant_id: TENANT,
+          platform: 'FACEBOOK',
+          content_type: d.content_type,
+          title: d.title,
+          body_en: d.body_en,
+          body_bn: d.body_bn ?? null,
+          hashtags: d.hashtags ?? null,
+          cta: d.cta ?? null,
+          visual_brief: d.visual_brief ?? null,
+          scheduled_for: d.scheduled_for,
+          post_time: d.post_time ?? '10:00',
+          status: 'PENDING_REVIEW',
+          created_by_agent: 'marketing-strategist',
+        });
+      }
+      totalDrafted += drafts.length;
+      result.drafted = drafts.length;
+      result.source = source;
+    } catch (e) {
+      result.error = String(e).slice(0, 300);
+    }
+    perTenant.push(result);
+  }
+
+  try {
+    await dbPost('workflow_runs', {
+      workflow_name: 'marketing-strategist',
+      status: 'success',
+      duration_ms: Date.now() - startedAt,
+      records_processed: totalDrafted,
+      summary: { dhaka_date: today, tenants: perTenant },
+      tenant_id: tenants[0]?.id,
+    });
+  } catch { /* non-fatal */ }
+
+  return NextResponse.json({ ok: true, dhaka_date: today, drafted: totalDrafted, tenants: perTenant });
+}

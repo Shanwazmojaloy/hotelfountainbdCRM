@@ -94,7 +94,7 @@ npm run lint
 
 - **Page:** Hotel Fountain (facebook.com/thehotelfountain, Shanwaz Ahmed account)
 - **Token type:** PAGE — obtained via Graph API Explorer → User token → `/me/accounts` → copy Page Access Token → Extend to 60-day via token debugger
-- **Expires:** 2026-06-30 — renew by running Graph API Explorer on Shanwaz Ahmed account, re-extending, updating `ADD_FACEBOOK_TOKEN.bat` + Vercel env vars
+- **Expires:** NEVER (long-lived page token renewed 2026-07-04; debug_token confirms expires=never). Data-access window ends 2026-08-01 — engagement READS may need re-auth then; posting keeps working. Scopes: pages_manage_posts, pages_read_engagement, pages_show_list, business_management (no read_insights → engagement "reach" stays empty). Renewal procedure unchanged: Graph API Explorer on Shanwaz Ahmed account → update `ADD_FACEBOOK_TOKEN.bat` + Vercel env vars + `.env.local`
 - **DO NOT use USER tokens** — `me/accounts` returns `data:[]` for personal profiles with no Business Page admin role. Always get a PAGE token from the Shanwaz Ahmed account (ID: 26709838978678716), not the "Hotel Fountain" personal profile (ID: 995130273017390)
 - **App in dev mode** — `POST /me/accounts` (page creation via API) returns `(#100) Can only call this method on valid test users`. Cannot create pages via API; use Facebook UI.
 

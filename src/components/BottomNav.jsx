@@ -21,6 +21,7 @@ function Icon({ name }) {
     sparkle: <><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" /></>,
     gear: <><circle cx="12" cy="12" r="3.2" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" /></>,
     grid: <><rect x="4" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" /></>,
+    megaphone: <><path d="M10 8.5H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h4l6 4.5V4l-6 4.5z" /><path d="M19 9a4.2 4.2 0 0 1 0 6" /></>,
   };
   return <svg {...p} aria-hidden="true">{paths[name]}</svg>;
 }
@@ -37,6 +38,7 @@ const moreItems = [
   { href: '/crm/guests', icon: 'users', label: 'Guests & CRM' },
   { href: '/crm/housekeeping', icon: 'sparkle', label: 'Housekeeping' },
   { href: '/crm/reports', icon: 'trend', label: 'Reports' },
+  { href: '/crm/marketing', icon: 'megaphone', label: 'Marketing' },
   { href: '/crm/settings', icon: 'gear', label: 'Settings' },
 ];
 
