@@ -22,6 +22,8 @@
     { "path": "/api/agents/overdue-alert", "schedule": "30 12 * * *" },
     { "path": "/api/agents/weekly-summary", "schedule": "0 8 * * 1" },
     { "path": "/api/agents/competitor-monitor", "schedule": "0 6 * * *" },
-    { "path": "/api/agents/backup-verification", "schedule": "0 23 * * 0" }
+    { "path": "/api/agents/backup-verification", "schedule": "0 23 * * 0" },
+    { "path": "/api/agents/marketing-publisher", "schedule": "0 4 * * *" },
+    { "path": "/api/agents/marketing-strategist", "schedule": "30 3 * * 1" }
   ]
 }

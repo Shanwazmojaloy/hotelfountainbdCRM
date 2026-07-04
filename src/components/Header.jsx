@@ -21,6 +21,7 @@ const TITLES = {
   '/crm/housekeeping': ['Housekeeping', 'Board'],
   '/crm/billing': ['Billing &', 'Invoices'],
   '/crm/reports': ['Performance', 'Reports'],
+  '/crm/marketing': ['Marketing', 'Studio'],
   '/crm/settings': ['System', 'Settings'],
 };
 
@@ -34,6 +35,7 @@ const PILLS = [
   { href: '/crm/housekeeping', icon: '✦', label: 'Housekeeping' },
   { href: '/crm/billing', icon: '৳', label: 'Billing' },
   { href: '/crm/reports', icon: '▤', label: 'Reports' },
+  { href: '/crm/marketing', icon: '◬', label: 'Marketing' },
   { href: '/crm/settings', icon: '⚙', label: 'Settings' },
 ];
 const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase() || '?';
