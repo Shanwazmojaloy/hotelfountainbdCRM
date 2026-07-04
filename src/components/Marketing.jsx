@@ -42,7 +42,7 @@ async function api(body) {
   return d;
 }
 
-const emptyNew = { title: '', body_en: '', scheduled_for: '', post_time: '10:00', image_url: '' };
+const emptyNew = { title: '', body_en: '', scheduled_for: '', post_time: '10:00', image_url: '', platform: 'FACEBOOK' };
 
 export default function Marketing() {
   const [rows, setRows] = useState([]);
@@ -133,9 +133,13 @@ export default function Marketing() {
           <input style={inputStyle} placeholder="Title (internal label)" value={nw.title} onChange={(e) => setNw({ ...nw, title: e.target.value })} />
           <textarea style={{ ...inputStyle, minHeight: 110, resize: 'vertical' }} placeholder="Post text…" value={nw.body_en} onChange={(e) => setNw({ ...nw, body_en: e.target.value })} />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <select style={{ ...inputStyle, width: 140 }} value={nw.platform} onChange={(e) => setNw({ ...nw, platform: e.target.value })}>
+              <option value="FACEBOOK">Facebook</option>
+              <option value="INSTAGRAM">Instagram</option>
+            </select>
             <input type="date" style={{ ...inputStyle, width: 160 }} value={nw.scheduled_for} onChange={(e) => setNw({ ...nw, scheduled_for: e.target.value })} />
             <input type="time" style={{ ...inputStyle, width: 120 }} value={nw.post_time} onChange={(e) => setNw({ ...nw, post_time: e.target.value })} />
-            <input style={{ ...inputStyle, flex: 1, minWidth: 200 }} placeholder="Image URL (optional, https://…)" value={nw.image_url} onChange={(e) => setNw({ ...nw, image_url: e.target.value })} />
+            <input style={{ ...inputStyle, flex: 1, minWidth: 200 }} placeholder={nw.platform === 'INSTAGRAM' ? 'Image URL (required for Instagram)' : 'Image URL (optional, https://…)'} value={nw.image_url} onChange={(e) => setNw({ ...nw, image_url: e.target.value })} />
           </div>
           <div>
             <button className="iv-btn" style={{ padding: '6px 16px', fontSize: 12 }} disabled={busy === 'new'} onClick={createPost}>
@@ -178,8 +182,8 @@ export default function Marketing() {
                   </div>
                   <span className="iv-stat__sub">👍 {p.engagement_likes ?? 0}</span>
                   <span className="iv-badge" style={{ background: 'rgba(123,224,74,.12)', color: '#7BE04A' }}>{p.bookings_48h} bookings/48h</span>
-                  {p.fb_post_id && (
-                    <a href={`https://www.facebook.com/${p.fb_post_id}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--iv-gold)' }}>↗</a>
+                  {(p.permalink || p.fb_post_id) && (
+                    <a href={p.permalink || `https://www.facebook.com/${p.fb_post_id}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--iv-gold)' }}>↗</a>
                   )}
                 </div>
               ))}
@@ -240,9 +244,9 @@ export default function Marketing() {
               <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
                 <span className="iv-stat__sub">👍 {r.engagement_likes ?? 0} reactions</span>
                 {r.engagement_reach != null && <span className="iv-stat__sub">👁 {r.engagement_reach} reach</span>}
-                {r.fb_post_id && (
-                  <a href={`https://www.facebook.com/${r.fb_post_id}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--iv-gold)' }}>
-                    View on Facebook ↗
+                {(r.permalink || r.fb_post_id) && (
+                  <a href={r.permalink || `https://www.facebook.com/${r.fb_post_id}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--iv-gold)' }}>
+                    View on {r.platform === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} ↗
                   </a>
                 )}
               </div>

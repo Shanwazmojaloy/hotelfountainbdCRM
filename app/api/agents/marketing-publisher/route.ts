@@ -10,7 +10,14 @@
 import { NextResponse } from 'next/server';
 import { assertCron } from '@/lib/workflow-trigger';
 import { activeOpsTenants } from '../_tenants';
-import { composeMessage, publishToFacebook, fetchEngagement } from '@/lib/fbPublish';
+import {
+  composeMessage,
+  publishToFacebook,
+  fetchEngagement,
+  resolveIgUserId,
+  publishToInstagram,
+  fetchIgEngagement,
+} from '@/lib/fbPublish';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -95,6 +102,7 @@ export async function GET(req: Request) {
               status: 'POSTED',
               posted_at: new Date().toISOString(),
               fb_post_id: pub.postId,
+              permalink: `https://www.facebook.com/${pub.postId}`,
               publish_error: null,
             });
             totalPosted += 1;
@@ -121,17 +129,80 @@ export async function GET(req: Request) {
       result.publish = { error: String(e).slice(0, 300) };
     }
 
+    // ── INSTAGRAM: due human-approved posts (requires an image) ──────
+    try {
+      if (fbToken) {
+        const igDue = await dbGet(
+          'content_calendar',
+          `select=*&tenant_id=eq.${TENANT}&platform=eq.INSTAGRAM&status=eq.APPROVED&approved_channel=eq.HUMAN&posted_at=is.null&scheduled_for=lte.${today}&order=scheduled_for.asc&limit=${MAX_POSTS_PER_RUN}`,
+        );
+        if ((igDue?.length ?? 0) > 0) {
+          const igUserId = fbPageId ? await resolveIgUserId(String(fbPageId), String(fbToken)) : null;
+          if (!igUserId) {
+            // Either no linked IG business account, or the token lacks
+            // instagram_basic/instagram_content_publish — surface on each due row.
+            for (const row of igDue) {
+              await dbPatch('content_calendar', `id=eq.${row.id}`, {
+                publish_error: 'Instagram account not reachable — link an IG business account and re-issue the page token with instagram_basic + instagram_content_publish',
+              });
+            }
+            result.instagram = { due: igDue.length, skipped: 'no reachable instagram account' };
+          } else {
+            const igOutcomes: Array<Record<string, unknown>> = [];
+            for (const row of igDue) {
+              if (!row.image_url) {
+                await dbPatch('content_calendar', `id=eq.${row.id}`, { publish_error: 'Instagram posts require an image_url' });
+                igOutcomes.push({ id: row.id, ok: false, error: 'no image_url' });
+                continue;
+              }
+              const caption = composeMessage(row);
+              const pub = await publishToInstagram(igUserId, String(fbToken), caption, String(row.image_url));
+              if (pub.ok) {
+                await dbPatch('content_calendar', `id=eq.${row.id}`, {
+                  status: 'POSTED',
+                  posted_at: new Date().toISOString(),
+                  fb_post_id: pub.postId,
+                  permalink: pub.permalink,
+                  publish_error: null,
+                });
+                totalPosted += 1;
+              } else {
+                await dbPatch('content_calendar', `id=eq.${row.id}`, { publish_error: pub.error });
+              }
+              igOutcomes.push({ id: row.id, title: row.title, ok: pub.ok, post_id: pub.postId, error: pub.error });
+              try {
+                await dbPost('notifications_log', {
+                  tenant_id: TENANT,
+                  workflow: 'marketing-publisher',
+                  body: pub.ok
+                    ? `Instagram post published: "${row.title}" (${pub.postId})`
+                    : `Instagram post FAILED: "${row.title}" — ${pub.error}`,
+                  status: pub.ok ? 'success' : 'error',
+                  triggered_by: 'cron:marketing-publisher',
+                });
+              } catch { /* non-fatal */ }
+            }
+            result.instagram = { due: igDue.length, outcomes: igOutcomes };
+          }
+        }
+      }
+    } catch (e) {
+      result.instagram = { error: String(e).slice(0, 300) };
+    }
+
     // ── ENGAGEMENT refresh for posts from the last 7 days ────────────
     try {
       if (fbToken) {
         const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
         const recent = await dbGet(
           'content_calendar',
-          `select=id,fb_post_id&tenant_id=eq.${TENANT}&fb_post_id=not.is.null&posted_at=gte.${since}&limit=20`,
+          `select=id,fb_post_id,platform&tenant_id=eq.${TENANT}&fb_post_id=not.is.null&posted_at=gte.${since}&limit=20`,
         );
         let refreshed = 0;
         for (const row of recent ?? []) {
-          const eng = await fetchEngagement(String(row.fb_post_id), String(fbToken));
+          const eng = String(row.platform).toUpperCase() === 'INSTAGRAM'
+            ? await fetchIgEngagement(String(row.fb_post_id), String(fbToken))
+            : await fetchEngagement(String(row.fb_post_id), String(fbToken));
           if (!eng) continue;
           const patch: Record<string, unknown> = { engagement_likes: eng.reactions + eng.shares };
           if (eng.impressions != null) patch.engagement_reach = eng.impressions;
