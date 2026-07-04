@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { tenantScoped, tenantClient } from '@/lib/tenantDb';
-import { composeMessage, publishToFacebook } from '@/lib/fbPublish';
+import { composeMessage, publishToFacebook, publishToInstagram, resolveIgUserId } from '@/lib/fbPublish';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -87,7 +87,7 @@ async function impactView(db: any) {
   const since = new Date(sinceMs).toISOString();
   const [postsRes, resvRes] = await Promise.all([
     db.from('content_calendar')
-      .select('id, title, content_type, platform, posted_at, engagement_likes, engagement_reach, fb_post_id')
+      .select('id, title, content_type, platform, posted_at, engagement_likes, engagement_reach, fb_post_id, permalink')
       .not('posted_at', 'is', null)
       .gte('posted_at', since)
       .order('posted_at', { ascending: false })
@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
   if (new URL(req.url).searchParams.get('view') === 'impact') return impactView(db);
   const { data, error } = await db
     .from('content_calendar')
-    .select('id, platform, content_type, title, body_bn, body_en, hashtags, visual_brief, cta, scheduled_for, post_time, status, approved_by, approved_channel, approved_at, posted_at, fb_post_id, image_url, publish_error, engagement_likes, engagement_reach, created_by_agent, created_at')
+    .select('id, platform, content_type, title, body_bn, body_en, hashtags, visual_brief, cta, scheduled_for, post_time, status, approved_by, approved_channel, approved_at, posted_at, fb_post_id, permalink, image_url, publish_error, engagement_likes, engagement_reach, created_by_agent, created_at')
     .order('scheduled_for', { ascending: false })
     .limit(500);
   if (error) {
@@ -245,8 +245,9 @@ export async function POST(req: NextRequest) {
 
   if (action === 'post_now') {
     if (row.posted_at || row.fb_post_id) return NextResponse.json({ error: 'Already published.' }, { status: 409 });
-    if (String(row.platform).toUpperCase() !== 'FACEBOOK') {
-      return NextResponse.json({ error: 'Only Facebook posts can be published from here.' }, { status: 400 });
+    const platform = String(row.platform).toUpperCase();
+    if (platform !== 'FACEBOOK' && platform !== 'INSTAGRAM') {
+      return NextResponse.json({ error: 'Only Facebook and Instagram posts can be published from here.' }, { status: 400 });
     }
     // Page credentials live on the tenants row (per-hotel). The env credentials are the
     // HOME tenant's page — never fall back to them for another tenant, or a demo-tenant
@@ -265,16 +266,34 @@ export async function POST(req: NextRequest) {
 
     const message = composeMessage(row);
     if (!message) return NextResponse.json({ error: 'Post body is empty.' }, { status: 400 });
-    const result = await publishToFacebook(pageId, token, message, row.image_url);
+
+    let result: { ok: boolean; postId: string | null; error: string | null };
+    let permalink: string | null = null;
+    if (platform === 'INSTAGRAM') {
+      if (!row.image_url) return NextResponse.json({ error: 'Instagram posts require an image.' }, { status: 400 });
+      const igUserId = await resolveIgUserId(pageId, token);
+      if (!igUserId) {
+        return NextResponse.json({
+          error: 'Instagram account not reachable — link an IG business account to the page and re-issue the token with instagram_basic + instagram_content_publish.',
+        }, { status: 502 });
+      }
+      const igResult = await publishToInstagram(igUserId, token, message, row.image_url);
+      result = igResult;
+      permalink = igResult.permalink;
+    } else {
+      result = await publishToFacebook(pageId, token, message, row.image_url);
+      if (result.ok) permalink = `https://www.facebook.com/${result.postId}`;
+    }
 
     if (!result.ok) {
       await update({ publish_error: result.error });
-      return NextResponse.json({ error: `Facebook rejected the post: ${result.error}` }, { status: 502 });
+      return NextResponse.json({ error: `${platform === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} rejected the post: ${result.error}` }, { status: 502 });
     }
     const updated = await update({
       status: 'POSTED',
       posted_at: nowIso,
       fb_post_id: result.postId,
+      permalink,
       publish_error: null,
       approved_by: row.approved_channel === 'HUMAN' ? row.approved_by : staffName,
       approved_channel: 'HUMAN',
@@ -285,7 +304,7 @@ export async function POST(req: NextRequest) {
       await svc.from('notifications_log').insert({
         tenant_id: tenant,
         workflow: 'marketing-studio',
-        body: `Facebook post published by ${staffName}: ${result.postId}`,
+        body: `${platform === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} post published by ${staffName}: ${result.postId}`,
         status: 'success',
         triggered_by: 'crm:post-now',
       });

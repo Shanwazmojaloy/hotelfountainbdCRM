@@ -52,6 +52,78 @@ export async function publishToFacebook(
   }
 }
 
+// ── Instagram (Business account linked to the page) ─────────────────────────
+// Requires the page token to carry instagram_basic + instagram_content_publish.
+// Publishing is two-step: create a media container, then publish it.
+
+export async function resolveIgUserId(pageId: string, token: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${GRAPH}/${pageId}?fields=instagram_business_account&access_token=${encodeURIComponent(token)}`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.instagram_business_account?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function publishToInstagram(
+  igUserId: string,
+  token: string,
+  caption: string,
+  imageUrl: string,
+): Promise<FbPublishResult & { permalink: string | null }> {
+  try {
+    const cRes = await fetch(`${GRAPH}/${igUserId}/media`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_url: imageUrl, caption, access_token: token }),
+    });
+    const cData = await cRes.json().catch(() => ({} as Record<string, unknown>));
+    if (!cRes.ok || !cData.id) {
+      return { ok: false, postId: null, permalink: null, error: JSON.stringify(cData.error ?? cData).slice(0, 500) };
+    }
+    const pRes = await fetch(`${GRAPH}/${igUserId}/media_publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ creation_id: cData.id, access_token: token }),
+    });
+    const pData = await pRes.json().catch(() => ({} as Record<string, unknown>));
+    if (!pRes.ok || !pData.id) {
+      return { ok: false, postId: null, permalink: null, error: JSON.stringify(pData.error ?? pData).slice(0, 500) };
+    }
+    let permalink: string | null = null;
+    try {
+      const mRes = await fetch(`${GRAPH}/${pData.id}?fields=permalink&access_token=${encodeURIComponent(token)}`);
+      if (mRes.ok) permalink = (await mRes.json())?.permalink ?? null;
+    } catch { /* permalink best-effort */ }
+    return { ok: true, postId: String(pData.id), permalink, error: null };
+  } catch (e) {
+    return { ok: false, postId: null, permalink: null, error: String(e).slice(0, 500) };
+  }
+}
+
+// IG interactions mapped onto FbEngagement: reactions=like_count, shares slot carries
+// comments_count so engagement_likes (reactions+shares) = total interactions.
+export async function fetchIgEngagement(mediaId: string, token: string): Promise<FbEngagement | null> {
+  try {
+    const res = await fetch(
+      `${GRAPH}/${mediaId}?fields=like_count,comments_count&access_token=${encodeURIComponent(token)}`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      reactions: Number(data?.like_count ?? 0),
+      shares: Number(data?.comments_count ?? 0),
+      impressions: null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export interface FbEngagement {
   reactions: number;
   shares: number;
