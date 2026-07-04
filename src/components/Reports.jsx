@@ -105,10 +105,16 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const dhakaDateOf = (ts) => { try { return ts ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts)) : null; } catch { return null; } };
   const closeBoundary = dhakaDateOf(closeRow?.closed_at) || date;
   const inDayRange = (d) => onOpenDay ? (d >= date && d <= calToday) : (d >= date && d <= closeBoundary);
+  // …but the DATE span alone over-includes: actions taken AFTER the close moment on the same
+  // calendar morning (e.g. a 10:08 am check-in when the day closed 07:33) belong to the NEXT
+  // business day. On a closed day, gate rows by the ACTUAL action timestamp vs closed_at —
+  // the closed report then reads exactly as it did at the moment of Closing Complete.
+  const closedAtMs = !onOpenDay && closeRow?.closed_at ? new Date(closeRow.closed_at).getTime() : null;
+  const beforeClose = (ts) => closedAtMs == null || !ts || new Date(ts).getTime() <= closedAtMs;
   // Collections are stamped with the open day at write-time, so `=== date` already captures
   // every calendar day's payments that belong to this business day.
   const collectedFor = (r) => txs.filter((t) => notBCF(t) && t.reservation_id === r.id && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
-  const ins = res.filter((r) => inDayRange((r.check_in || '').slice(0, 10))).map((r) => ({ ...r, _type: 'IN' }));
+  const ins = res.filter((r) => inDayRange((r.check_in || '').slice(0, 10)) && beforeClose(r.checked_in_at)).map((r) => ({ ...r, _type: 'IN' }));
   const outs = res.filter((r) => inDayRange((r.check_out || '').slice(0, 10))).map((r) => ({ ...r, _type: 'OUT' }));
   const _mv = [...ins, ...outs];
   const _movedIds = new Set(_mv.map((m) => m.id));
@@ -125,14 +131,17 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   // this it renders as a blank "—/—/Settled" ghost row. The filter MUST use the DEDUPED collection
   // (`_movesColl`), not the raw per-reservation `collectedFor`, or the duplicate row slips through.
   const _keep = _moves.map((m, i) => dueOf(m) > 0 || _movesColl[i] > 0);
-  // Action time per movement: IN→checked_in_at, OUT→checked_out_at, PAY→latest owning tx today.
+  // A row whose check_out DATE is in range is only a real "Check-Out" once the guest actually
+  // departed WITHIN this business day. On the open day that's live status; on a CLOSED day it's
+  // checked_out_at ≤ closed_at — a guest who left AFTER the close stays "Due Out" here forever
+  // (that was the truth at close; the departure lists on the next day's report instead).
+  const isDeparted = (m) => closedAtMs != null
+    ? !!(m.checked_out_at && new Date(m.checked_out_at).getTime() <= closedAtMs)
+    : String(m.status || '').toUpperCase() === 'CHECKED_OUT';
+  // Action time per movement: IN→checked_in_at, OUT→checked_out_at (only if departed within the
+  // day — a post-close departure shows the blank "Due Out" it had at close), PAY→latest tx today.
   const _txTimeFor = (r) => { const l = txs.filter((t) => notBCF(t) && t.reservation_id === r.id && t.created_at && (t.fiscal_day || t.created_at || '').slice(0, 10) === date); return l.length ? l.map((t) => t.created_at).sort().slice(-1)[0] : null; };
-  const timeOf = (m) => m._type === 'IN' ? (m.checked_in_at || null) : m._type === 'OUT' ? (m.checked_out_at || null) : _txTimeFor(m);
-  // A row whose check_out DATE is in range is only a real "Check-Out" once the guest is actually
-  // CHECKED_OUT (→ checked_out_at stamped). Until then it's a pending "Due Out" — a blank time is
-  // CORRECT there (no checkout has happened yet). Once staff check out, the trigger stamps the live
-  // time and the label flips to Check-Out automatically.
-  const isDeparted = (m) => String(m.status || '').toUpperCase() === 'CHECKED_OUT';
+  const timeOf = (m) => m._type === 'IN' ? (m.checked_in_at || null) : m._type === 'OUT' ? (isDeparted(m) ? (m.checked_out_at || null) : null) : _txTimeFor(m);
   const typeLabel = (m) => m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : (isDeparted(m) ? 'Check-Out' : 'Due Out');
   const typeTone = (m) => m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : (isDeparted(m) ? 'teal' : 'amber');
   // Keep the attention/money rows, then sort chronologically by action time (nulls last) so staff
