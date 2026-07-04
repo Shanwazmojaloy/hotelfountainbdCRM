@@ -3,11 +3,14 @@
 // ReservationEditModal.save (room-status sync on add/remove/transition, Stay-Extension TX on
 // checkout push-out, Advance-Payment TX on paid increase, authoritative recalc). Session-gated.
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { recalcResTotalServer } from '@/lib/recalcResTotal.server';
 import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
 import { notifyReservationChange, notifyReservationDeleted } from '@/lib/changeNotify';
 import { tenantScoped, tenantClient, type TenantDb } from '@/lib/tenantDb';
+
+const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -72,7 +75,15 @@ export async function POST(req: NextRequest) {
 
   // Open business day for any TX this request writes (advance / stay-extension / paid-increase).
   // Collections accrue to the open day, not the calendar date, until "Closing Complete".
-  const { data: _closes } = await db.from('night_audit_log').select('audit_date, status');
+  // A failed read must NEVER silently fall back to the calendar date (2026-07-04 incident:
+  // missing crm_tenant grant → night-shift advances leaked into the next business day).
+  const _closesRes = await db.from('night_audit_log').select('audit_date, status');
+  let _closes = _closesRes.data;
+  if (_closesRes.error) {
+    console.error('[crm/reservation] night_audit_log read failed (grant gap?) — service-role fallback:', _closesRes.error.message);
+    const svc = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    _closes = (await svc.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT)).data;
+  }
   const openDay = openBusinessDay(_closes, todayDhaka());
   const txFiscal = clampFiscalDay(typeof body.fiscal_day === 'string' ? (body.fiscal_day as string) : null, openDay);
 

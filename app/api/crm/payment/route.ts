@@ -4,10 +4,13 @@
 // duplicates), treat 23505 as success, then bump reservations.paid_amount floored at the net
 // bill. Session-gated. Body: { reservation_id, amount, type, fiscal_day, idempotency_key }.
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { requireSession } from '@/lib/session';
 import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
 import { sendCapiEvent } from '@/lib/capi';
 import { tenantScoped, tenantClient } from '@/lib/tenantDb';
+
+const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -42,7 +45,16 @@ export async function POST(req: NextRequest) {
   // fiscal_day is the OPEN business day, not the calendar date — collections accrue to the
   // open day until it's closed. A modal defaulting to "today" snaps back to the open day;
   // an explicit back-date (≤ open) is honored for offline reconciliation.
-  const { data: closes } = await db.from('night_audit_log').select('audit_date, status');
+  // A failed read here must NEVER silently fall back to the calendar date (2026-07-04
+  // incident: missing crm_tenant grant → night-shift payments leaked into the next
+  // business day). Log loudly and retry on the service role (night_audit_log is not PII).
+  const closesRes = await db.from('night_audit_log').select('audit_date, status');
+  let closes = closesRes.data;
+  if (closesRes.error) {
+    console.error('[crm/payment] night_audit_log read failed (grant gap?) — service-role fallback:', closesRes.error.message);
+    const svc = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    closes = (await svc.from('night_audit_log').select('audit_date, status').eq('tenant_id', TENANT)).data;
+  }
   const fiscalDay = clampFiscalDay(typeof body.fiscal_day === 'string' ? body.fiscal_day : null, openBusinessDay(closes));
 
   // Derive bill math server-side (do not trust the client).
