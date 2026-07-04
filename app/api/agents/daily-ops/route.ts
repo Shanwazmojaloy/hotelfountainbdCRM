@@ -141,80 +141,17 @@ export async function GET(req: Request) {
       results.revenue_manager = { error: String(e) };
     }
 
-    // ── AUTOMATED MARKETER ───────────────────────────────────────────
-    try {
-      const waDefault = (t.hotel_whatsapp || process.env.HOTEL_WHATSAPP || '8801322840799').replace(/[^0-9]/g, '');
-      let waNumber = waDefault;
-      try {
-        const waSetting = await dbGet(
-          'hotel_settings',
-          `select=value&tenant_id=eq.${TENANT}&key=eq.whatsapp_number&limit=1`
-        );
-        waNumber = (waSetting?.[0]?.value ?? waDefault).replace(/[^0-9]/g, '');
-      } catch { /* use default */ }
-      const waLink = `https://wa.me/${waNumber}`;
-
-      let postBody = '';
-
-      try {
-        const approvedContent = await dbGet(
-          'marketing_content',
-          `select=*&tenant_id=eq.${TENANT}&status=eq.approved&scheduled_date=eq.${today}&order=priority.asc&limit=1`
-        );
-        if (approvedContent?.length > 0) postBody = approvedContent[0].content;
-      } catch { /* fall through to room-of-day */ }
-
-      if (!postBody) {
-        try {
-          const rooms = await dbGet(
-            'rooms',
-            `select=name,room_type,rate,features&tenant_id=eq.${TENANT}&status=eq.AVAILABLE&limit=1`
-          );
-          if (rooms?.length > 0) {
-            const room = rooms[0];
-            const hotelName = t.hotel_name || process.env.HOTEL_NAME || 'Hotel Fountain BD';
-            const hotelCity = t.hotel_city || process.env.HOTEL_CITY || 'Dhaka';
-            postBody = `🏨 Room of the Day — ${room.name}\n\n✨ ${room.room_type} | ৳${room.rate}/night\n\n📞 Book now via WhatsApp: ${waLink}\n\n#${hotelName.replace(/\s+/g,'')} #${hotelCity} #HotelBD`;
-          }
-        } catch { /* no rooms */ }
-      }
-
-      // Per-tenant Facebook credentials (fall back to env for the home tenant).
-      const fbPageId = t.facebook_page_id || process.env.FACEBOOK_PAGE_ID;
-      const fbToken  = t.facebook_page_token || process.env.FACEBOOK_PAGE_TOKEN;
-
-      if (postBody && fbPageId && fbToken) {
-        const fbRes = await fetch(
-          `https://graph.facebook.com/v19.0/${fbPageId}/feed`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: postBody, access_token: fbToken }),
-          }
-        );
-        const fbData = await fbRes.json();
-
-        try {
-          await dbPost('notifications_log', {
-            tenant_id: TENANT,
-            workflow: 'automated-marketer',
-            body: fbData.id
-              ? `Facebook post published: ${fbData.id}`
-              : `Facebook post failed: ${JSON.stringify(fbData)}`,
-            status: fbData.id ? 'success' : 'error',
-            triggered_by: 'cron:daily-ops',
-          });
-        } catch { /* non-fatal */ }
-
-        results.automated_marketer = { published: !!fbData.id, post_id: fbData.id ?? null };
-      } else {
-        results.automated_marketer = {
-          skipped: postBody ? 'no facebook credentials for tenant' : 'no content or available rooms',
-        };
-      }
-    } catch (e) {
-      results.automated_marketer = { error: String(e) };
-    }
+    // ── AUTOMATED MARKETER — RETIRED 2026-07-04 (PR #60) ─────────────
+    // daily-ops no longer posts to Facebook. Publishing moved to
+    // /api/agents/marketing-publisher, which only posts content_calendar rows a
+    // human approved in /crm/marketing (approved_channel='HUMAN'). The block that
+    // lived here auto-posted an ungated "Room of the Day" whenever page
+    // credentials existed — it never actually ran (the env token had expired),
+    // but with the renewed 2026-07-04 page token it would have come back to life
+    // on the next deploy. Do not restore an unapproved posting path.
+    results.automated_marketer = {
+      skipped: 'superseded by marketing-publisher (human-approved content only)',
+    };
 
     perTenant.push(results);
   }
