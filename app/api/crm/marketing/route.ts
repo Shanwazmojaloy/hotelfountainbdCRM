@@ -72,10 +72,76 @@ async function auth(req: NextRequest): Promise<{ ctx?: Ctx; fail?: NextResponse 
   return { ctx: { db, tenant, staffName: srow[0].name || `staff#${sess.id}` } };
 }
 
+// ── Impact view ──────────────────────────────────────────────────────────────
+// Correlation report, deliberately NOT called "attribution": posts from the last
+// 60 days with their engagement, bookings created within 48h of each post, and
+// average bookings on post days vs non-post days. Reservation creation is the
+// only revenue-adjacent signal we can join without click tracking.
+const IMPACT_WINDOW_DAYS = 60;
+const dhakaDay = (iso: string | Date) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function impactView(db: any) {
+  const sinceMs = Date.now() - IMPACT_WINDOW_DAYS * 86400000;
+  const since = new Date(sinceMs).toISOString();
+  const [postsRes, resvRes] = await Promise.all([
+    db.from('content_calendar')
+      .select('id, title, content_type, platform, posted_at, engagement_likes, engagement_reach, fb_post_id')
+      .not('posted_at', 'is', null)
+      .gte('posted_at', since)
+      .order('posted_at', { ascending: false })
+      .limit(100),
+    db.from('reservations').select('created_at').gte('created_at', since).limit(5000),
+  ]);
+  if (postsRes.error || resvRes.error) {
+    console.error('[crm/marketing] impact:', postsRes.error?.message, resvRes.error?.message);
+    return NextResponse.json({ error: 'Could not load impact data.' }, { status: 500 });
+  }
+  const posts = postsRes.data ?? [];
+  const resv: { created_at: string }[] = resvRes.data ?? [];
+
+  const bookingsByDay = new Map<string, number>();
+  for (const r of resv) {
+    const d = dhakaDay(r.created_at);
+    bookingsByDay.set(d, (bookingsByDay.get(d) || 0) + 1);
+  }
+
+  const rows = posts.map((p: { posted_at: string; engagement_likes?: number }) => {
+    const t = new Date(p.posted_at).getTime();
+    const bookings48h = resv.filter((r) => {
+      const ct = new Date(r.created_at).getTime();
+      return ct >= t && ct < t + 48 * 3600000;
+    }).length;
+    return { ...p, bookings_48h: bookings48h };
+  });
+
+  const postDays = new Set(posts.map((p: { posted_at: string }) => dhakaDay(p.posted_at)));
+  let postDaySum = 0;
+  let otherDaySum = 0;
+  let otherDayCount = 0;
+  for (let i = 0; i < IMPACT_WINDOW_DAYS; i++) {
+    const d = dhakaDay(new Date(sinceMs + i * 86400000));
+    const n = bookingsByDay.get(d) || 0;
+    if (postDays.has(d)) postDaySum += n;
+    else { otherDaySum += n; otherDayCount += 1; }
+  }
+  const summary = {
+    window_days: IMPACT_WINDOW_DAYS,
+    posts: posts.length,
+    total_reactions: posts.reduce((s: number, p: { engagement_likes?: number }) => s + (Number(p.engagement_likes) || 0), 0),
+    avg_bookings_post_days: postDays.size ? +(postDaySum / postDays.size).toFixed(2) : null,
+    avg_bookings_other_days: otherDayCount ? +(otherDaySum / otherDayCount).toFixed(2) : null,
+    total_bookings_window: resv.length,
+  };
+  return NextResponse.json({ summary, posts: rows });
+}
+
 export async function GET(req: NextRequest) {
   const { ctx, fail } = await auth(req);
   if (fail) return fail;
   const { db } = ctx!;
+  if (new URL(req.url).searchParams.get('view') === 'impact') return impactView(db);
   const { data, error } = await db
     .from('content_calendar')
     .select('id, platform, content_type, title, body_bn, body_en, hashtags, visual_brief, cta, scheduled_for, post_time, status, approved_by, approved_channel, approved_at, posted_at, fb_post_id, image_url, publish_error, engagement_likes, engagement_reach, created_by_agent, created_at')

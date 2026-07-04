@@ -144,6 +144,19 @@ export async function GET(req: Request) {
           `select=title,content_type,engagement_likes&tenant_id=eq.${TENANT}&engagement_likes=gt.0&order=engagement_likes.desc&limit=3`,
         );
       } catch { /* none posted yet */ }
+      // Owner-curated REAL guest reviews (hotel_settings key 'marketing_reviews', one per
+      // line, e.g. `Wonderful stay, very clean — Karim R.`). Testimonial posts may quote
+      // ONLY these; with none present the model is forbidden from testimonial content —
+      // an early draft invented a named 5-star review, which is the failure mode here.
+      let realReviews: string[] = [];
+      try {
+        const rr = await dbGet(
+          'hotel_settings',
+          `select=value&tenant_id=eq.${TENANT}&key=eq.marketing_reviews&limit=1`,
+        );
+        realReviews = String(rr?.[0]?.value ?? '')
+          .split('\n').map((s: string) => s.trim()).filter(Boolean).slice(0, 10);
+      } catch { /* none configured */ }
 
       const minRate = rooms.length ? Math.min(...rooms.map((r) => Number(r.rate) || Infinity)) : null;
       let drafts: DraftPost[] = [];
@@ -152,9 +165,16 @@ export async function GET(req: Request) {
       const anthropicKey = (process.env.ANTHROPIC_API_KEY ?? '').trim();
       const budget = await checkAiBudget(TENANT);
       if (anthropicKey && budget.allowed) {
+        const angles = realReviews.length
+          ? 'ROOM_SPOTLIGHT, OFFER, TESTIMONIAL, LOCAL_EVENT, CORPORATE_PITCH, BEHIND_SCENES, SEASONAL'
+          : 'ROOM_SPOTLIGHT, OFFER, LOCAL_EVENT, CORPORATE_PITCH, BEHIND_SCENES, SEASONAL';
         const prompt = `You are the marketing strategist for ${hotelName}, a hotel in ${hotelCity}, Bangladesh (near Dhaka airport, Nikunja-02). Today is ${today}. Current occupancy: ${occupancy || 'unknown'}. Available rooms: ${rooms.map((r) => `${r.name || r.room_type} ৳${r.rate}/night`).join(', ') || 'unknown'}. Booking WhatsApp: ${waLink}.
 ${topPosts.length ? `Best-performing past posts: ${topPosts.map((p) => `"${p.title}" (${p.content_type}, ${p.engagement_likes} reactions)`).join(', ')}.` : ''}
-Draft ${wanted} Facebook posts for the coming week. Vary the angle: ROOM_SPOTLIGHT, OFFER, TESTIMONIAL, LOCAL_EVENT, CORPORATE_PITCH, BEHIND_SCENES, SEASONAL. Keep each under 100 words, warm and concrete, with emoji, real rates in ৳, and the WhatsApp link as the call to action. Audience: Bangladeshi families, business travellers, airport transit guests.
+${realReviews.length
+  ? `REAL guest reviews — TESTIMONIAL posts must quote one of these VERBATIM with its exact attribution and nothing else: ${realReviews.map((r) => `"${r}"`).join(' | ')}.`
+  : 'IMPORTANT: never invent guest reviews, quotes, testimonials, or named guests. No TESTIMONIAL posts.'}
+Use ONLY the room rates listed above — never invent prices or packages with made-up figures.
+Draft ${wanted} Facebook posts for the coming week. Vary the angle: ${angles}. Keep each under 100 words, warm and concrete, with emoji, real rates in ৳, and the WhatsApp link as the call to action. Audience: Bangladeshi families, business travellers, airport transit guests.
 Reply with ONLY a JSON array; each element: {"content_type","title","body_en","body_bn","hashtags","cta","visual_brief","scheduled_for","post_time"}. scheduled_for = dates spread across the next 7 days (YYYY-MM-DD). post_time between 09:00 and 20:00.`;
 
         try {
@@ -228,6 +248,33 @@ Reply with ONLY a JSON array; each element: {"content_type","title","body_en","b
     }
     perTenant.push(result);
   }
+
+  // ── Approval nudge (home tenant, weekly with this cron) ───────────────────
+  // The queue only moves when a human approves; without a nudge it silently
+  // piles up. Sent via Brevo like fb-token-check's alert.
+  try {
+    const HOME = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+    const brevoKey = process.env.BREVO_API_KEY;
+    if (brevoKey) {
+      const pending = await dbGet(
+        'content_calendar',
+        `select=id&tenant_id=eq.${HOME}&posted_at=is.null&status=in.(DRAFT,PENDING_REVIEW,VARIATIONS_READY)&limit=50`,
+      );
+      const n = pending?.length ?? 0;
+      if (n > 0) {
+        await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sender: { name: 'Lumea CRM', email: process.env.HOTEL_SENDER_EMAIL || 'hotellfountainbd@gmail.com' },
+            to: [{ email: process.env.ALERT_EMAIL || 'ahmedshanwaz5@gmail.com', name: process.env.ALERT_NAME || 'Hotel Owner' }],
+            subject: `📣 ${n} marketing draft${n === 1 ? '' : 's'} awaiting your approval`,
+            textContent: `${n} Facebook draft${n === 1 ? ' is' : 's are'} waiting in the Marketing Studio.\n\nReview & approve: https://fountainbd.com/crm/marketing\n\nApproved posts go live automatically at 10:00 (max 2/day). Nothing publishes without your approval.`,
+          }),
+        });
+      }
+    }
+  } catch { /* nudge is best-effort */ }
 
   try {
     await dbPost('workflow_runs', {
