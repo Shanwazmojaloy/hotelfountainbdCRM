@@ -53,33 +53,42 @@ export async function publishToFacebook(
 }
 
 export interface FbEngagement {
-  likes: number;
-  comments: number;
+  reactions: number;
+  shares: number;
   impressions: number | null;
 }
 
+// Verified against the live page token 2026-07-04 (dev-mode app):
+// - `reactions.summary(true)` / `comments.summary(true)` post fields 403 with (#10)
+//   (need pages_read_user_content / Page Public Content Access) — do NOT use them.
+// - `{post}/insights?metric=post_reactions_by_type_total` works (data may lag ~hours).
+// - `{post}?fields=shares` works.
+// - `post_impressions` metrics are gone from current Graph versions → impressions stays
+//   null until the token gains read_insights AND a valid current metric exists.
 export async function fetchEngagement(postId: string, token: string): Promise<FbEngagement | null> {
   try {
-    const res = await fetch(
-      `${GRAPH}/${postId}?fields=reactions.summary(true),comments.summary(true)&access_token=${encodeURIComponent(token)}`,
+    const ins = await fetch(
+      `${GRAPH}/${postId}/insights?metric=post_reactions_by_type_total&access_token=${encodeURIComponent(token)}`,
     );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const likes = Number(data?.reactions?.summary?.total_count ?? 0);
-    const comments = Number(data?.comments?.summary?.total_count ?? 0);
-    let impressions: number | null = null;
-    try {
-      // Needs read_insights on the page token; best-effort only.
-      const ins = await fetch(
-        `${GRAPH}/${postId}/insights/post_impressions?access_token=${encodeURIComponent(token)}`,
+    if (!ins.ok) return null;
+    const iData = await ins.json();
+    const byType = iData?.data?.[0]?.values?.[0]?.value;
+    let reactions = 0;
+    if (byType && typeof byType === 'object') {
+      reactions = Object.values(byType as Record<string, unknown>).reduce(
+        (s: number, v) => s + (Number(v) || 0),
+        0,
       );
-      if (ins.ok) {
-        const iData = await ins.json();
-        const v = iData?.data?.[0]?.values?.[0]?.value;
-        if (v != null && Number.isFinite(Number(v))) impressions = Number(v);
+    }
+    let shares = 0;
+    try {
+      const sh = await fetch(`${GRAPH}/${postId}?fields=shares&access_token=${encodeURIComponent(token)}`);
+      if (sh.ok) {
+        const sData = await sh.json();
+        shares = Number(sData?.shares?.count ?? 0);
       }
-    } catch { /* impressions unavailable — keep reactions */ }
-    return { likes, comments, impressions };
+    } catch { /* shares best-effort */ }
+    return { reactions, shares, impressions: null };
   } catch {
     return null;
   }
