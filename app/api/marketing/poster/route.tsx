@@ -48,8 +48,9 @@ export async function GET(req: Request) {
   const rate = clamp(searchParams.get('rate'), 12).replace(/[^0-9,]/g, '');
   const sub = clamp(searchParams.get('sub'), 90, 'Nikunja-02 · 10 minutes from Dhaka Airport');
   const wa = clamp(searchParams.get('wa'), 20, '01322 840 799').replace(/[^0-9 +-]/g, '');
+  const unit = clamp(searchParams.get('unit'), 16, '/night');
 
-  const latinText = `HOTEL FOUNTAIN${badge}${title}${sub}${rate}/night${wa}WhatsApp DHAKA·`;
+  const latinText = `HOTEL FOUNTAIN${badge}${title}${sub}${rate}${unit}${wa}WhatsApp DHAKA·`;
   const bengaliText = `${bn}৳${rate}`;
 
   const [inter, interBold, bengali] = await Promise.all([
@@ -147,7 +148,7 @@ export async function GET(req: Request) {
           {rate ? (
             <div style={{ display: 'flex', alignItems: 'flex-end', marginTop: 34 }}>
               <div style={{ fontSize: 110, color: gold, fontWeight: 700, fontFamily: 'Bengali' }}>{`৳${rate}`}</div>
-              <div style={{ fontSize: 34, color: ivory, marginBottom: 20, marginLeft: 12 }}>/night</div>
+              <div style={{ fontSize: 34, color: ivory, marginBottom: 20, marginLeft: 12 }}>{unit}</div>
             </div>
           ) : null}
         </div>
