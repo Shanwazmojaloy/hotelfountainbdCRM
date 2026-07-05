@@ -387,7 +387,13 @@ function Daily({ txs, res, closes, loading, onClosed }) {
 
       <Card title="Daily" titleAccent="Movements" bodyStyle={{ padding: 0 }}>
         <Table head={['Guest', 'Room', 'Type', 'Time', 'Collected', 'Balance', 'Status']}>
-          {loading && <tr><td colSpan={7} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>Loading…</td></tr>}
+          {/* Skeleton rows reserve realistic height during load so the fill-in doesn't shift
+              the cards below (Outstanding Dues / Closing Ledger) — fixes the /crm/reports CLS. */}
+          {loading && Array.from({ length: 6 }).map((_, i) => (
+            <tr key={`skm${i}`} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+              <td colSpan={7} style={{ padding: '13px 12px' }}><div style={{ height: 12, borderRadius: 6, background: 'var(--iv-border2)', opacity: 0.5 }} /></td>
+            </tr>
+          ))}
           {!loading && moves.length === 0 && <tr><td colSpan={7} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No movements or collections on {fmtLong(date)}.</td></tr>}
           {moves.map((m, i) => {
             const due = dueOf(m);
@@ -409,6 +415,12 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       {/* Outstanding dues — always visible on every day's report (full live book) */}
       <Card title="Outstanding" titleAccent="Dues" accent={C.rose} bodyStyle={{ padding: 0 }}>
         <Table head={['Guest', 'Room', 'Status', 'Balance Due']}>
+          {/* Loading skeleton (this table had none) — the 0→N-row jump was the main CLS driver. */}
+          {loading && Array.from({ length: 8 }).map((_, i) => (
+            <tr key={`skd${i}`} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+              <td colSpan={4} style={{ padding: '13px 12px' }}><div style={{ height: 12, borderRadius: 6, background: 'var(--iv-border2)', opacity: 0.5 }} /></td>
+            </tr>
+          ))}
           {!loading && allDue.length === 0 && <tr><td colSpan={4} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No outstanding balances. ✓</td></tr>}
           {allDue.slice(0, 200).map((r, i) => (
             <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
