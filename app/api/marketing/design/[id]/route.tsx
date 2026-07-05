@@ -35,6 +35,15 @@ const IMG_SRC_RE = /src\s*=\s*["']([^"']+)["']/gi;
 // restaurant / rooftop photography uploaded from F:\Hotel Fountain\Picture).
 const ALLOWED_IMG = /^https:\/\/(?:fountainbd\.com|mynwfkgksqqwlqowlscj\.supabase\.co\/storage\/v1\/object\/public\/crm-assets)\/[\w\-./%]+\.(?:png|jpe?g)$/i;
 
+// Typographic variety (banner doctrine: serif display = luxury tier, geometric sans
+// = tech tier). Designs opt in via font-family:<Name>; each family is runtime-
+// subsetted like Inter. Max 2 display families load per design (doctrine's font cap).
+const FONT_LIB: Record<string, string> = {
+  Playfair: 'Playfair+Display:wght@700',
+  Cormorant: 'Cormorant+Garamond:wght@600',
+  SpaceGrotesk: 'Space+Grotesk:wght@700',
+};
+
 async function loadGoogleFont(family: string, text: string): Promise<ArrayBuffer | null> {
   try {
     const css = await (
@@ -91,6 +100,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (loaded[0]) fonts.push({ name: 'Inter', data: loaded[0], weight: 400 });
     if (loaded[1]) fonts.push({ name: 'Inter', data: loaded[1], weight: 700 });
     if (hasBengali && loaded[2]) fonts.push({ name: 'Bengali', data: loaded[2], weight: 700 });
+    const requested = new Set<string>();
+    for (const m of processed.matchAll(/font-family:\s*([A-Za-z]+)/g)) {
+      if (FONT_LIB[m[1]]) requested.add(m[1]);
+    }
+    for (const name of [...requested].slice(0, 2)) {
+      const data = await loadGoogleFont(FONT_LIB[name], text);
+      if (data) {
+        fonts.push({ name, data, weight: 700 });
+        fonts.push({ name, data, weight: 400 });
+      }
+    }
     if (!fonts.length) return fallback(row.title);
 
     const element = satoriHtml(processed);
