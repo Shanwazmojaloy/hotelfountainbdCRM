@@ -159,6 +159,17 @@ export async function GET(req: Request) {
         realReviews = String(rr?.[0]?.value ?? '')
           .split('\n').map((s: string) => s.trim()).filter(Boolean).slice(0, 10);
       } catch { /* none configured */ }
+      // Viral-content intel for the niche (hotel_settings key 'marketing_trends').
+      // Populated by Claude sessions from Virlo keyword research — this cron cannot
+      // call the Virlo MCP connector itself, so the intel flows through the DB.
+      let trendNotes = '';
+      try {
+        const tn = await dbGet(
+          'hotel_settings',
+          `select=value&tenant_id=eq.${TENANT}&key=eq.marketing_trends&limit=1`,
+        );
+        trendNotes = String(tn?.[0]?.value ?? '').trim().slice(0, 2500);
+      } catch { /* none configured */ }
 
       const minRate = rooms.length ? Math.min(...rooms.map((r) => Number(r.rate) || Infinity)) : null;
       let drafts: DraftPost[] = [];
@@ -175,6 +186,7 @@ ${topPosts.length ? `Best-performing past posts: ${topPosts.map((p) => `"${p.tit
 ${realReviews.length
   ? `REAL guest reviews — TESTIMONIAL posts must quote one of these VERBATIM with its exact attribution and nothing else: ${realReviews.map((r) => `"${r}"`).join(' | ')}.`
   : 'IMPORTANT: never invent guest reviews, quotes, testimonials, or named guests. No TESTIMONIAL posts.'}
+${trendNotes ? `VIRAL-CONTENT INTEL for this niche (from real trend research — model the FORMATS, hooks and angles; adapt to this hotel; never copy captions verbatim or claim things untrue of this hotel):\n${trendNotes}` : ''}
 Use ONLY the room rates listed above — never invent prices or packages with made-up figures.
 Draft ${wanted} Facebook posts for the coming week. Vary the angle: ${angles}. Keep each under 100 words, warm and concrete, with emoji, real rates in ৳, and the WhatsApp link as the call to action. Audience: Bangladeshi families, business travellers, airport transit guests.
 ALSO design each post's 1080x1080 social graphic as "design_html" — one self-contained HTML snippet for the Satori renderer, under 3500 characters. STRICT RENDERER RULES: only <div>, <span>, <img>; ALL styling inline; EVERY div must include display:flex plus a flex-direction; position:absolute is allowed for photo overlays; no grid, no scripts, no external CSS; do not set font-family (Inter is default; use font-family:Bengali only for Bangla text). Images may ONLY be these exact URLs: https://fountainbd.com/logo-crest.png (logo), https://fountainbd.com/fountain-deluxe.jpeg, https://fountainbd.com/premium-deluxe.jpg, https://fountainbd.com/royal-suite.jpeg, https://fountainbd.com/superior-deluxe.jpeg, https://fountainbd.com/twin-deluxe.jpg (room photos). Brand: deep walnut background (linear-gradient #241B12 → #14100B), gold #C8A96E, ivory #F5EFE4 text, thin gold border frame. Root element: <div style="display:flex;flex-direction:column;width:1080px;height:1080px;...">. VARY the layout across the ${wanted} posts: full-bleed room photo with dark overlay + headline; split photo/text panels; big ৳ rate card; badge-and-list. Always include the hotel name and the rate when the post has one.
