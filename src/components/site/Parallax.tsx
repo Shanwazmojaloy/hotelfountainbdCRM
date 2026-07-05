@@ -22,11 +22,18 @@ type Props = {
 export default function Parallax({ children, className, distance = 60 }: Props) {
   const reduce = useReducedMotion();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // PERF: only run the scroll-linked motion value on desktop (lg+, pointer:fine).
+  // On phones the drift is imperceptible but the per-scroll-frame transform update
+  // is pure main-thread cost that hurts INP. Set post-mount → no hydration mismatch.
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    setDesktop(window.matchMedia("(min-width: 1024px) and (pointer: fine)").matches);
+  }, []);
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], [distance, -distance]);
-  const active = mounted && !reduce;
+  const active = mounted && desktop && !reduce;
 
   return (
     <div ref={ref} className={className}>

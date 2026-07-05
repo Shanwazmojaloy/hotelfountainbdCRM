@@ -1,22 +1,22 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "framer-motion";
 import type { Room } from "@/lib/rooms";
 import { openReservation } from "@/lib/reserve";
-import { revealItem } from "./ScrollReveal";
 
 /**
  * Glassmorphic room card: image, price badge, feature tags, Book Now.
- * Designed to sit inside a `stagger` ScrollReveal grid (uses revealItem variant).
+ *
+ * PERF: no framer-motion. The hover lift is CSS (hover:-translate-y-2), and the
+ * reveal/exit is owned by the parent motion wrapper (ScrollReveal grid on home,
+ * AnimatePresence grid in RoomsCatalog) — the old `variants={revealItem}` never
+ * actually fired here (parents pass explicit initial/animate, not variant labels).
+ * Kept as a client component only for the Book Now onClick handler.
  */
 export default function RoomCard({ room }: { room: Room }) {
   return (
-    <motion.article
-      variants={revealItem}
-      whileHover={{ y: -8 }}
-      transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className="glass glass-sheen glass-clip group flex h-full flex-col overflow-hidden transition-[box-shadow,border-color] duration-300 ease-fluid hover:border-neon-teal/45 hover:shadow-glow-teal"
+    <article
+      className="glass glass-sheen glass-clip group flex h-full flex-col overflow-hidden transition-[transform,box-shadow,border-color] duration-300 ease-fluid hover:-translate-y-2 hover:border-neon-teal/45 hover:shadow-glow-teal motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       <div className="relative aspect-[4/3] overflow-hidden">
         <Image
@@ -73,6 +73,6 @@ export default function RoomCard({ room }: { room: Room }) {
           </button>
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }

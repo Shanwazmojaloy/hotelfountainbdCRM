@@ -32,6 +32,11 @@ const nextConfig = {
   trailingSlash: false,
   poweredByHeader: false,
   reactStrictMode: true,
+  // PERF: barrel-optimize framer-motion so pages only pull the primitives they use
+  // instead of the whole package — smaller client bundles, less parse/eval on mobile.
+  experimental: {
+    optimizePackageImports: ['framer-motion'],
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [

@@ -1,6 +1,3 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 
 type Props = {
@@ -12,22 +9,17 @@ type Props = {
 
 /**
  * Frosted glass surface with optional hover lift/glow.
- * The `.glass` + `.glass-sheen` classes carry the liquid look (see globals.css).
+ * The `.glass` + `.glass-sheen` classes carry the liquid look; `.glass-interactive`
+ * carries the hover lift (see globals.css).
+ *
+ * PERF: server component — no framer-motion. The old `whileHover` motion.div forced
+ * framer into the bundle of every page using a card (home, rooms, services, contact,
+ * faq); the CSS `.glass-interactive` hover is identical and ships zero client JS.
  */
 export default function GlassCard({ children, className = "", interactive = false }: Props) {
-  const reduce = useReducedMotion();
-
   return (
-    <motion.div
-      whileHover={
-        interactive && !reduce
-          ? { y: -6, boxShadow: "0 0 0 1px rgba(200,169,110,0.45), 0 24px 60px -18px rgba(200,169,110,0.32)" }
-          : undefined
-      }
-      transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className={`glass glass-sheen ${className}`}
-    >
+    <div className={`glass glass-sheen ${interactive ? "glass-interactive" : ""} ${className}`}>
       {children}
-    </motion.div>
+    </div>
   );
 }

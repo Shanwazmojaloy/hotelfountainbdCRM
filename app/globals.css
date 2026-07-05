@@ -418,6 +418,19 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
   backdrop-filter: blur(22px) saturate(125%); -webkit-backdrop-filter: blur(22px) saturate(125%);
   box-shadow: 0 10px 40px -16px rgba(0,0,0,0.75);
 }
+/* Hover lift + gold ring for interactive glass cards — pure CSS replacement for the
+   old framer-motion whileHover (GlassCard). Same offset/shadow/timing, zero JS. */
+.site-root .glass-interactive {
+  transition: transform 0.35s var(--ease-fluid), box-shadow 0.35s var(--ease-fluid);
+}
+.site-root .glass-interactive:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 0 0 1px rgba(200,169,110,0.45), 0 24px 60px -18px rgba(200,169,110,0.32);
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-root .glass-interactive { transition: none; }
+  .site-root .glass-interactive:hover { transform: none; }
+}
 .site-root .pill {
   display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 9999px;
   padding: 0.25rem 0.75rem; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em;
@@ -460,6 +473,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 @keyframes fade-up { 0% { opacity: 0; transform: translateY(24px); } 100% { opacity: 1; transform: translateY(0); } }
 @keyframes pulse-ring { 0%,100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.6); } }
 @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* ── Page-transition enter (replaces the old framer-motion template.tsx).
+   Pure CSS, runs at first paint with no JS/hydration dependency, and drops the
+   expensive blur filter. Short + GPU-cheap (opacity + translate) so it barely
+   touches LCP. Fully disabled under prefers-reduced-motion. */
+@keyframes pageEnter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.page-enter { animation: pageEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@media (prefers-reduced-motion: reduce) { .page-enter { animation: none; } }
 
 /* ── FadeIn component — CSS-driven reveal (NO JS dependency; cannot stall like a framer/rAF reveal).
    Resting state is fully visible (opacity:1); the entrance animates on mount. If CSS/animation never
