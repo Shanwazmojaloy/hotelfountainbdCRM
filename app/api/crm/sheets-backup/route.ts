@@ -1,25 +1,50 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/crm/sheets-backup
 //
-// Writes the daily closing ledger to the master Google Sheets backup file.
-// Called by doClosingComplete() in crm-src.jsx after fiscal day close.
+// Writes the daily closing ledger to the TENANT'S Google Sheets backup file.
+// Called by doClosingComplete() in crm-src.jsx after fiscal day close (browser
+// fetch is same-origin, so the lumea_sess cookie rides along).
 //
 // Body: { sheetName: "DD-MM-YYYY", wsData: any[][], overwrite: boolean }
 //
+// Session-gated (2026-07-04 — was previously unauthenticated behind the IP
+// perimeter only). Destination resolution:
+//   tenants.sheets_backup_id (per client, set at onboarding)
+//   → env SHEETS_BACKUP_ID / legacy hardcoded id, HOME TENANT ONLY
+//   → other tenants without a configured sheet get a soft 'skipped' response —
+//     a client's closing data must never land in Hotel Fountain's spreadsheet.
+//
 // Env vars required (set in Vercel):
-//   GOOGLE_SA_KEY   — full service account JSON (stringified)
-//                     The service account email must have Editor access on the sheet.
-//   SHEETS_BACKUP_ID — spreadsheet ID (default: hardcoded below)
+//   GOOGLE_SA_KEY — full service account JSON (stringified). Each tenant shares
+//                   their spreadsheet with this service account's client_email
+//                   (Editor) at onboarding.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
+import { requireSession } from '@/lib/session'
+import { getTenantById } from '@/lib/tenant'
 
-const SPREADSHEET_ID =
+const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
+const HOME_TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8'
+const HOME_SPREADSHEET_ID =
   process.env.SHEETS_BACKUP_ID || '1MjqNY4_q78xldaA3M8pnFEFI7RiPwGh0npA-EDiYwas'
 
 export async function POST(req: NextRequest) {
   try {
+    const sess = requireSession(req)
+    if (!sess) return NextResponse.json({ ok: false, error: 'Not authenticated' }, { status: 401 })
+    const TENANT = sess.tenant_id || ENV_TENANT
+
+    // Per-tenant destination (service-role lookup, 60s-cached).
+    const tenant = await getTenantById(TENANT)
+    const SPREADSHEET_ID =
+      tenant?.sheets_backup_id || (TENANT === HOME_TENANT ? HOME_SPREADSHEET_ID : null)
+    if (!SPREADSHEET_ID) {
+      // Soft skip: closing must not fail because a client has no sheet configured yet.
+      return NextResponse.json({ ok: false, skipped: true, error: 'No backup spreadsheet configured for this property.' })
+    }
+
     const saKey = process.env.GOOGLE_SA_KEY
     if (!saKey) {
       return NextResponse.json(

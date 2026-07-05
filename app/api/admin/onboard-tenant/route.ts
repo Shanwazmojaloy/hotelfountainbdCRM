@@ -122,6 +122,9 @@ export async function POST(req: NextRequest) {
     // Phase B perimeter overrides (NULL = deployment defaults in middleware)
     office_ips:          strArr(body.office_ips),
     remote_roles:        strArr(body.remote_roles)?.map((r) => r.toLowerCase()) ?? null,
+    // Per-tenant closing-ledger backup spreadsheet (client shares it with the
+    // platform's Google service account as Editor). NULL = backups skipped.
+    sheets_backup_id:    (typeof body.sheets_backup_id === 'string' && body.sheets_backup_id.trim()) ? body.sheets_backup_id.trim() : null,
     // Secrets live in Supabase Vault (written below) — columns stay NULL.
   };
 
@@ -224,6 +227,8 @@ export async function POST(req: NextRequest) {
       `3. Retrieve this tenant's cron_secret from the tenants table (Supabase) and set CRON_SECRET in Vercel env — it is intentionally NOT returned here to keep secrets out of HTTP responses/logs`,
       ...(roomsSeeded === 0 ? [`4. Seed rooms: POST again with rooms[] or insert into rooms with tenant_id='${data.id}'`] : []),
       ...(ownerStaffId == null ? [`5. Create the owner staff row (POST again with owner{name,email}), then have them activate at https://${slug}.${apexDomain}/crm`] : [`5. Owner activates at https://${slug}.${apexDomain}/crm → Activate tab (staff id ${ownerStaffId})`]),
+      `6. EMAIL DELIVERABILITY (critical): verify ${body.hotel_email} as a sender in the Brevo account whose API key this tenant uses — Brevo returns success but SILENTLY DROPS mail from unverified senders.`,
+      ...(insertData.sheets_backup_id ? [`7. Backups: have the client share spreadsheet ${insertData.sheets_backup_id} with the platform Google service-account email (Editor), or nightly closing backups will fail.`] : [`7. Backups: no sheets_backup_id set — nightly closing backups are SKIPPED for this property until one is configured (UPDATE tenants SET sheets_backup_id='<id>' and share the sheet with the service account).`]),
     ],
   }, { status: 201 });
 }
