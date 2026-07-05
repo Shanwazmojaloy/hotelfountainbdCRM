@@ -53,6 +53,10 @@ export interface TenantConfig {
   // Per-tenant perimeter overrides (Phase B) — NULL = deployment defaults in middleware.ts
   office_ips:           string[] | null;
   remote_roles:         string[] | null;
+
+  // Per-tenant Google Sheets backup destination — NULL = none (home tenant falls
+  // back to env SHEETS_BACKUP_ID in the sheets-backup route)
+  sheets_backup_id:     string | null;
 }
 
 // Secret keys that may live in Supabase Vault (Phase B). Vault values only fill
@@ -209,6 +213,7 @@ function buildEnvFallback(): TenantConfig {
     cron_secret:         process.env.CRON_SECRET             || null,
     office_ips:          null,
     remote_roles:        null,
+    sheets_backup_id:    process.env.SHEETS_BACKUP_ID || null,
   };
 }
 
