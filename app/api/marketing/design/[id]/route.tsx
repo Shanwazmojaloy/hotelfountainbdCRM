@@ -31,7 +31,9 @@ const MIN_PNG_BYTES = 15_000;
 const MIN_TEXT_CHARS = 12;
 const FORBIDDEN = [/<script/i, /<iframe/i, /<link/i, /<object/i, /<embed/i, /<video/i, /<audio/i, /javascript:/i, /\son\w+\s*=/i, /expression\s*\(/i];
 const IMG_SRC_RE = /src\s*=\s*["']([^"']+)["']/gi;
-const ALLOWED_IMG = /^https:\/\/fountainbd\.com\/[\w\-./%]+\.(?:png|jpe?g)$/i;
+// fountainbd.com assets + the hotel's own public marketing bucket (real room /
+// restaurant / rooftop photography uploaded from F:\Hotel Fountain\Picture).
+const ALLOWED_IMG = /^https:\/\/(?:fountainbd\.com|mynwfkgksqqwlqowlscj\.supabase\.co\/storage\/v1\/object\/public\/crm-assets)\/[\w\-./%]+\.(?:png|jpe?g)$/i;
 
 async function loadGoogleFont(family: string, text: string): Promise<ArrayBuffer | null> {
   try {
