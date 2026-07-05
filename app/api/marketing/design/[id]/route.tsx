@@ -94,10 +94,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!fonts.length) return fallback(row.title);
 
     const element = satoriHtml(processed);
+    // Canvas ratio follows the design's root height (banner doctrine: 1:1 grid,
+    // 4:5 feed gold-standard, 9:16 story). Whitelisted heights only; default 1:1.
+    const hMatch = processed.match(/height:\s*(1080|1350|1920)px/);
+    const height = hMatch ? Number(hMatch[1]) : 1080;
     // Buffer the full render INSIDE the handler: Satori errors surface here (and
     // hit the catch → template fallback) instead of dying mid-stream as a 500.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ir = new ImageResponse(element as any, { width: 1080, height: 1080, fonts });
+    const ir = new ImageResponse(element as any, { width: 1080, height, fonts });
     const buf = await ir.arrayBuffer();
     if (buf.byteLength < MIN_PNG_BYTES) {
       console.warn(`[marketing/design] ${id}: near-blank render (${buf.byteLength}B) — template fallback`);
