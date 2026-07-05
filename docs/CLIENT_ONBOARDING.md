@@ -105,10 +105,55 @@ enter their email → they receive an OTP (this is the step-4 deliverability tes
 
 ---
 
-## Still needed before charging money (platform-level, not per-client)
+## Billing (manual, for the first clients)
 
-1. **Billing** — `plan_tier` is a label only. Manual invoicing (bKash/bank) is
-   fine for the first handful of clients; automate later.
-2. **Terms / Privacy / DPA** — one document covering guest-data handling +
-   stated support expectation. Don't sign a hotel without it.
+The billing substrate exists: `public.tenant_billing` (invoice ledger) and
+`public.plan_pricing` (per-tier monthly price). Both are **service-role / admin
+only** — a hotel can never see billing through its own login. There is NO
+payment gateway; you record manual bKash/bank payments by hand.
+
+**One-time: set real prices** (they ship as 0 placeholders):
+```sql
+UPDATE public.plan_pricing SET monthly_price = 3000 WHERE plan_tier = 'starter';
+UPDATE public.plan_pricing SET monthly_price = 6000 WHERE plan_tier = 'growth';
+UPDATE public.plan_pricing SET monthly_price = 12000 WHERE plan_tier = 'full';
+```
+
+**Issue an invoice for a tenant's month:**
+```sql
+INSERT INTO public.tenant_billing (tenant_id, period, plan_tier, amount_due, due_at)
+SELECT t.id, '2026-08', t.plan_tier, p.monthly_price, DATE '2026-08-07'
+FROM public.tenants t JOIN public.plan_pricing p ON p.plan_tier = t.plan_tier
+WHERE t.slug = 'grandpalace'
+ON CONFLICT (tenant_id, period) DO NOTHING;
+```
+
+**Record a payment (manual bKash/bank):**
+```sql
+UPDATE public.tenant_billing
+SET status='paid', paid_at=now(), payment_method='bkash', payment_ref='TRX123'
+WHERE tenant_id = (SELECT id FROM public.tenants WHERE slug='grandpalace')
+  AND period = '2026-08';
+```
+
+**See who owes what:**
+```sql
+SELECT t.slug, b.period, b.amount_due, b.currency, b.status, b.due_at
+FROM public.tenant_billing b JOIN public.tenants t ON t.id = b.tenant_id
+WHERE b.status IN ('pending','overdue') ORDER BY b.due_at;
+```
+
+Automate (Stripe / recurring bKash / a cron that stamps `overdue`) only once the
+manual flow proves the pricing — don't build a gateway for the first 5 hotels.
+
+## Still needed before charging money
+
+1. ~~Billing~~ — substrate done (above); **decide real prices** and issue the
+   first invoice manually.
+2. **Terms / Privacy / DPA** — drafts live at `docs/legal/` (TERMS_OF_SERVICE.md,
+   PRIVACY_POLICY.md, DPA_DECISIONS.md). They are STARTING TEMPLATES with
+   `[[PLACEHOLDER]]` fields — fill in your legal entity + jurisdiction and have
+   a lawyer review before sending to any hotel. Do not sign a client without a
+   signed DPA (you process their guests' PII).
 3. **Support channel** — where clients report issues; who responds, how fast.
+   Decide and state it in the Terms.
