@@ -23,6 +23,12 @@ const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqow
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const UUID_RE = /^[0-9a-fA-F-]{36}$/;
 const MAX_HTML = 10_000;
+// Satori tolerates unsupported markup by rendering an (almost) empty canvas
+// instead of throwing — verified live with a <table> design: 8.5KB PNG, while
+// every real branded card lands 90KB+ (flat bg + text ≈ 25-40KB). A 1080×1080
+// output under this many bytes is a blank/degenerate render → template fallback.
+const MIN_PNG_BYTES = 15_000;
+const MIN_TEXT_CHARS = 12;
 const FORBIDDEN = [/<script/i, /<iframe/i, /<link/i, /<object/i, /<embed/i, /<video/i, /<audio/i, /javascript:/i, /\son\w+\s*=/i, /expression\s*\(/i];
 const IMG_SRC_RE = /src\s*=\s*["']([^"']+)["']/gi;
 const ALLOWED_IMG = /^https:\/\/fountainbd\.com\/[\w\-./%]+\.(?:png|jpe?g)$/i;
@@ -70,6 +76,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const processed = ensureFlex(raw);
     const text = processed.replace(/<[^>]+>/g, ' ');
+    // A design with (almost) no visible text is not a usable marketing graphic.
+    if (text.replace(/\s+/g, '').length < MIN_TEXT_CHARS) return fallback(row.title);
     const fontLoads: Promise<ArrayBuffer | null>[] = [
       loadGoogleFont('Inter:wght@400', text),
       loadGoogleFont('Inter:wght@700', text),
@@ -89,6 +97,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ir = new ImageResponse(element as any, { width: 1080, height: 1080, fonts });
     const buf = await ir.arrayBuffer();
+    if (buf.byteLength < MIN_PNG_BYTES) {
+      console.warn(`[marketing/design] ${id}: near-blank render (${buf.byteLength}B) — template fallback`);
+      return fallback(row.title);
+    }
     return new Response(buf, {
       headers: {
         'Content-Type': 'image/png',
