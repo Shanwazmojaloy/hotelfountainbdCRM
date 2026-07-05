@@ -6,7 +6,7 @@
 //   and flips the view to a post-close "fresh" report: only outstanding dues + NEW
 //   check-ins/outs (dated after the closed day) + NEW collections (recorded after closed_at).
 // Monthly: per-day revenue bars. Yearly: per-month revenue bars. Live, read-only.
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { Tabs, Card, StatCard, Table, Badge, TD, MONO, C, bdt } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
@@ -94,6 +94,24 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
+  // PERF: index eligible (non-BCF) txs by reservation_id ONCE. Previously collectedFor() and
+  // _txTimeFor() each scanned the FULL transactions array for every reservation, and the movement
+  // sort comparator called _txTimeFor() per comparison — O(res×txs) / O(n·log n·txs), re-run on
+  // every render (incl. every keystroke in the close-day fields). Now each lookup is that
+  // reservation's short tx list. Mathematically identical: notBCF + reservation_id are pre-applied,
+  // the per-call date filter and sum are unchanged.
+  const _txByRes = useMemo(() => {
+    const mp = new Map();
+    for (const t of txs) {
+      if (!notBCF(t)) continue;
+      const k = t.reservation_id;
+      if (k == null) continue;
+      let arr = mp.get(k); if (!arr) { arr = []; mp.set(k, arr); }
+      arr.push(t);
+    }
+    return mp;
+  }, [txs]);
+
   const closeRow = (closes || []).find((c) => (c.audit_date || '').slice(0, 10) === date) || null;
 
   // Open-day movements span openDay→today (so calendar 10-Jun AND 11-Jun show under the open
@@ -113,7 +131,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const beforeClose = (ts) => closedAtMs == null || !ts || new Date(ts).getTime() <= closedAtMs;
   // Collections are stamped with the open day at write-time, so `=== date` already captures
   // every calendar day's payments that belong to this business day.
-  const collectedFor = (r) => txs.filter((t) => notBCF(t) && t.reservation_id === r.id && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+  const collectedFor = (r) => (_txByRes.get(r.id) || []).filter((t) => (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
   const ins = res.filter((r) => inDayRange((r.check_in || '').slice(0, 10)) && beforeClose(r.checked_in_at)).map((r) => ({ ...r, _type: 'IN' }));
   const outs = res.filter((r) => inDayRange((r.check_out || '').slice(0, 10))).map((r) => ({ ...r, _type: 'OUT' }));
   const _mv = [...ins, ...outs];
@@ -140,7 +158,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
     : String(m.status || '').toUpperCase() === 'CHECKED_OUT';
   // Action time per movement: IN→checked_in_at, OUT→checked_out_at (only if departed within the
   // day — a post-close departure shows the blank "Due Out" it had at close), PAY→latest tx today.
-  const _txTimeFor = (r) => { const l = txs.filter((t) => notBCF(t) && t.reservation_id === r.id && t.created_at && (t.fiscal_day || t.created_at || '').slice(0, 10) === date); return l.length ? l.map((t) => t.created_at).sort().slice(-1)[0] : null; };
+  const _txTimeFor = (r) => { const l = (_txByRes.get(r.id) || []).filter((t) => t.created_at && (t.fiscal_day || t.created_at || '').slice(0, 10) === date); return l.length ? l.map((t) => t.created_at).sort().slice(-1)[0] : null; };
   const timeOf = (m) => m._type === 'IN' ? (m.checked_in_at || null) : m._type === 'OUT' ? (isDeparted(m) ? (m.checked_out_at || null) : null) : _txTimeFor(m);
   const typeLabel = (m) => m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : (isDeparted(m) ? 'Check-Out' : 'Due Out');
   const typeTone = (m) => m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : (isDeparted(m) ? 'teal' : 'amber');
@@ -518,10 +536,15 @@ function Monthly({ txs }) {
   const [month, setMonth] = useState(dhakaToday().slice(0, 7));
   const [y, m] = month.split('-').map(Number);
   const days = new Date(y, m, 0).getDate();
+  // PERF: sum revenue by fiscal-day ONCE (was O(days×txs) — a full txs scan per day of the month).
+  const byDay = useMemo(() => {
+    const acc = new Map();
+    for (const t of txs) { if (!notBCF(t)) continue; const d = (t.fiscal_day || t.created_at || '').slice(0, 10); if (!d) continue; acc.set(d, (acc.get(d) || 0) + (Number(t.amount) || 0)); }
+    return acc;
+  }, [txs]);
   const bars = Array.from({ length: days }, (_, i) => {
     const ds = `${month}-${String(i + 1).padStart(2, '0')}`;
-    const v = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === ds).reduce((a, t) => a + (Number(t.amount) || 0), 0);
-    return { v, lbl: String(i + 1) };
+    return { v: byDay.get(ds) || 0, lbl: String(i + 1) };
   });
   const total = bars.reduce((a, b) => a + b.v, 0);
   const periodLabel = new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
@@ -546,10 +569,15 @@ function Monthly({ txs }) {
 function Yearly({ txs }) {
   const [year, setYear] = useState(() => dhakaToday().slice(0, 4));
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // PERF: sum revenue by fiscal-month ONCE (was O(12×txs) — a full txs scan per month).
+  const byMonth = useMemo(() => {
+    const acc = new Map();
+    for (const t of txs) { if (!notBCF(t)) continue; const mm = (t.fiscal_day || t.created_at || '').slice(0, 7); if (!mm) continue; acc.set(mm, (acc.get(mm) || 0) + (Number(t.amount) || 0)); }
+    return acc;
+  }, [txs]);
   const bars = MONTHS.map((ml, i) => {
     const mm = `${year}-${String(i + 1).padStart(2, '0')}`;
-    const v = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 7) === mm).reduce((a, t) => a + (Number(t.amount) || 0), 0);
-    return { v, lbl: ml };
+    return { v: byMonth.get(mm) || 0, lbl: ml };
   });
   const total = bars.reduce((a, b) => a + b.v, 0);
   return (

@@ -236,7 +236,7 @@ export default function Marketing() {
                 {r.hashtags && <div className="iv-stat__sub" style={{ color: '#8AB4FF' }}>{r.hashtags}</div>}
                 {r.image_url && (
                   <a href={r.image_url} target="_blank" rel="noreferrer" style={{ alignSelf: 'flex-start' }}>
-                    <img src={r.image_url} alt="post graphic" loading="lazy"
+                    <img src={r.image_url} alt="post graphic" loading="lazy" decoding="async"
                       style={{ maxHeight: 180, maxWidth: '100%', borderRadius: 10, border: '1px solid rgba(255,255,255,.1)' }} />
                   </a>
                 )}
