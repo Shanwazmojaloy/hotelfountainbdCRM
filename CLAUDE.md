@@ -91,6 +91,8 @@ npm run lint
 |-----|-------|----------|
 | `FACEBOOK_PAGE_TOKEN` | PAGE token (not USER token) | Vercel (all envs) + `.env.local` |
 | `FACEBOOK_PAGE_ID` | `111521248040168` | Vercel (all envs) + `.env.local` |
+| `INSTAGRAM_ACCESS_TOKEN` | Business SYSTEM-USER token ("Shanwaz Ahmned"), scopes instagram_basic+instagram_content_publish — EXPIRES 2026-09-03; renew from Business Settings → System users → Generate token (pick "never expire" next time). NOT interchangeable with the page token (no page scopes) | Vercel (all envs) + `.env.local` |
+| `INSTAGRAM_USER_ID` | `17841471779213123` (@hotel_fountainbd) — configured directly because system tokens cannot read the page→IG edge | Vercel (all envs) + `.env.local` |
 
 - **Page:** Hotel Fountain (facebook.com/thehotelfountain, Shanwaz Ahmed account)
 - **Token type:** PAGE — obtained via Graph API Explorer → User token → `/me/accounts` → copy Page Access Token → Extend to 60-day via token debugger
