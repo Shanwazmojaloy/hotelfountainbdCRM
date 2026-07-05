@@ -57,6 +57,7 @@ interface DraftPost {
   visual_brief?: string;
   scheduled_for: string;
   post_time?: string;
+  design_html?: string;
 }
 
 // Extract a JSON array from a model reply that may carry prose or code fences.
@@ -89,6 +90,7 @@ function parseDrafts(text: string, today: string): DraftPost[] {
       visual_brief: typeof p.visual_brief === 'string' ? p.visual_brief.slice(0, 1000) : undefined,
       scheduled_for: scheduled,
       post_time: typeof p.post_time === 'string' && /^\d{2}:\d{2}$/.test(p.post_time) ? p.post_time : '10:00',
+      design_html: typeof p.design_html === 'string' && p.design_html.trim().startsWith('<') ? p.design_html.slice(0, 10000) : undefined,
     });
     if (out.length >= 5) break;
   }
@@ -175,13 +177,14 @@ ${realReviews.length
   : 'IMPORTANT: never invent guest reviews, quotes, testimonials, or named guests. No TESTIMONIAL posts.'}
 Use ONLY the room rates listed above — never invent prices or packages with made-up figures.
 Draft ${wanted} Facebook posts for the coming week. Vary the angle: ${angles}. Keep each under 100 words, warm and concrete, with emoji, real rates in ৳, and the WhatsApp link as the call to action. Audience: Bangladeshi families, business travellers, airport transit guests.
-Reply with ONLY a JSON array; each element: {"content_type","title","body_en","body_bn","hashtags","cta","visual_brief","scheduled_for","post_time"}. scheduled_for = dates spread across the next 7 days (YYYY-MM-DD). post_time between 09:00 and 20:00.`;
+ALSO design each post's 1080x1080 social graphic as "design_html" — one self-contained HTML snippet for the Satori renderer, under 3500 characters. STRICT RENDERER RULES: only <div>, <span>, <img>; ALL styling inline; EVERY div must include display:flex plus a flex-direction; position:absolute is allowed for photo overlays; no grid, no scripts, no external CSS; do not set font-family (Inter is default; use font-family:Bengali only for Bangla text). Images may ONLY be these exact URLs: https://fountainbd.com/logo-crest.png (logo), https://fountainbd.com/fountain-deluxe.jpeg, https://fountainbd.com/premium-deluxe.jpg, https://fountainbd.com/royal-suite.jpeg, https://fountainbd.com/superior-deluxe.jpeg, https://fountainbd.com/twin-deluxe.jpg (room photos). Brand: deep walnut background (linear-gradient #241B12 → #14100B), gold #C8A96E, ivory #F5EFE4 text, thin gold border frame. Root element: <div style="display:flex;flex-direction:column;width:1080px;height:1080px;...">. VARY the layout across the ${wanted} posts: full-bleed room photo with dark overlay + headline; split photo/text panels; big ৳ rate card; badge-and-list. Always include the hotel name and the rate when the post has one.
+Reply with ONLY a JSON array; each element: {"content_type","title","body_en","body_bn","hashtags","cta","visual_brief","scheduled_for","post_time","design_html"}. scheduled_for = dates spread across the next 7 days (YYYY-MM-DD). post_time between 09:00 and 20:00.`;
 
         try {
           const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-            body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 3000, messages: [{ role: 'user', content: prompt }] }),
+            body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 8000, messages: [{ role: 'user', content: prompt }] }),
           });
           if (response.ok) {
             const data = await response.json();
@@ -224,7 +227,12 @@ Reply with ONLY a JSON array; each element: {"content_type","title","body_en","b
       }
 
       for (const d of drafts) {
+        // Id generated here so image_url can point at the row's own Claude-designed
+        // graphic (/api/marketing/design/{id} renders design_html, falling back to
+        // the template poster on any validation/render failure — never a broken image).
+        const rowId = crypto.randomUUID();
         await dbPost('content_calendar', {
+          id: rowId,
           tenant_id: TENANT,
           platform: 'FACEBOOK',
           content_type: d.content_type,
@@ -234,6 +242,8 @@ Reply with ONLY a JSON array; each element: {"content_type","title","body_en","b
           hashtags: d.hashtags ?? null,
           cta: d.cta ?? null,
           visual_brief: d.visual_brief ?? null,
+          design_html: d.design_html ?? null,
+          image_url: d.design_html ? `https://fountainbd.com/api/marketing/design/${rowId}` : null,
           scheduled_for: d.scheduled_for,
           post_time: d.post_time ?? '10:00',
           status: 'PENDING_REVIEW',

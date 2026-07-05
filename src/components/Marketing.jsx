@@ -234,7 +234,12 @@ export default function Marketing() {
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--iv-ink)' }}>{r.title}</div>
                 <div style={{ fontSize: 13, lineHeight: 1.55, color: 'rgba(242,241,245,.85)', whiteSpace: 'pre-wrap' }}>{r.body_en || r.body_bn}</div>
                 {r.hashtags && <div className="iv-stat__sub" style={{ color: '#8AB4FF' }}>{r.hashtags}</div>}
-                {r.image_url && <div className="iv-stat__sub">🖼 {r.image_url}</div>}
+                {r.image_url && (
+                  <a href={r.image_url} target="_blank" rel="noreferrer" style={{ alignSelf: 'flex-start' }}>
+                    <img src={r.image_url} alt="post graphic" loading="lazy"
+                      style={{ maxHeight: 180, maxWidth: '100%', borderRadius: 10, border: '1px solid rgba(255,255,255,.1)' }} />
+                  </a>
+                )}
                 {r.publish_error && <div style={{ fontSize: 12, color: '#FF6B6B' }}>⚠ Last publish attempt failed: {r.publish_error}</div>}
               </>
             )}
