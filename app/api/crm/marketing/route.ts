@@ -271,13 +271,18 @@ export async function POST(req: NextRequest) {
     let permalink: string | null = null;
     if (platform === 'INSTAGRAM') {
       if (!row.image_url) return NextResponse.json({ error: 'Instagram posts require an image.' }, { status: 400 });
-      const igUserId = await resolveIgUserId(pageId, token);
+      // Home tenant publishes IG with the dedicated system-user token + configured
+      // IG user id (a system token has IG scopes but cannot read the page→IG edge).
+      const igToken = (isHome && process.env.INSTAGRAM_ACCESS_TOKEN) || token;
+      const igUserId = (isHome && process.env.INSTAGRAM_USER_ID)
+        ? process.env.INSTAGRAM_USER_ID
+        : await resolveIgUserId(pageId, igToken);
       if (!igUserId) {
         return NextResponse.json({
-          error: 'Instagram account not reachable — link an IG business account to the page and re-issue the token with instagram_basic + instagram_content_publish.',
+          error: 'Instagram account not reachable — link an IG business account to the page and configure INSTAGRAM_ACCESS_TOKEN/INSTAGRAM_USER_ID (or a page token with instagram scopes).',
         }, { status: 502 });
       }
-      const igResult = await publishToInstagram(igUserId, token, message, row.image_url);
+      const igResult = await publishToInstagram(igUserId, igToken, message, row.image_url);
       result = igResult;
       permalink = igResult.permalink;
     } else {

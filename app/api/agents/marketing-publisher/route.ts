@@ -130,14 +130,25 @@ export async function GET(req: Request) {
     }
 
     // ── INSTAGRAM: due human-approved posts (requires an image) ──────
+    // IG uses its own credential when configured: a Business system-user token
+    // carrying instagram_basic + instagram_content_publish (the page token often
+    // lacks IG scopes, and a system token lacks page scopes — they are NOT
+    // interchangeable). Env credentials remain HOME-tenant-only, as with FB.
+    const igToken = t.facebook_page_token
+      || (isHome ? (process.env.INSTAGRAM_ACCESS_TOKEN || process.env.FACEBOOK_PAGE_TOKEN) : undefined);
     try {
-      if (fbToken) {
+      if (igToken) {
         const igDue = await dbGet(
           'content_calendar',
           `select=*&tenant_id=eq.${TENANT}&platform=eq.INSTAGRAM&status=eq.APPROVED&approved_channel=eq.HUMAN&posted_at=is.null&scheduled_for=lte.${today}&order=scheduled_for.asc&limit=${MAX_POSTS_PER_RUN}`,
         );
         if ((igDue?.length ?? 0) > 0) {
-          const igUserId = fbPageId ? await resolveIgUserId(String(fbPageId), String(fbToken)) : null;
+          // System-user tokens can't read the page→IG edge, so the home tenant's
+          // IG user id is configured directly (INSTAGRAM_USER_ID) with the edge
+          // lookup as fallback for tenants using a full page token.
+          const igUserId = (isHome && process.env.INSTAGRAM_USER_ID)
+            ? process.env.INSTAGRAM_USER_ID
+            : (fbPageId ? await resolveIgUserId(String(fbPageId), String(igToken)) : null);
           if (!igUserId) {
             // Either no linked IG business account, or the token lacks
             // instagram_basic/instagram_content_publish — surface on each due row.
@@ -156,7 +167,7 @@ export async function GET(req: Request) {
                 continue;
               }
               const caption = composeMessage(row);
-              const pub = await publishToInstagram(igUserId, String(fbToken), caption, String(row.image_url));
+              const pub = await publishToInstagram(igUserId, String(igToken), caption, String(row.image_url));
               if (pub.ok) {
                 await dbPatch('content_calendar', `id=eq.${row.id}`, {
                   status: 'POSTED',
@@ -192,7 +203,7 @@ export async function GET(req: Request) {
 
     // ── ENGAGEMENT refresh for posts from the last 7 days ────────────
     try {
-      if (fbToken) {
+      if (fbToken || igToken) {
         const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
         const recent = await dbGet(
           'content_calendar',
@@ -200,9 +211,12 @@ export async function GET(req: Request) {
         );
         let refreshed = 0;
         for (const row of recent ?? []) {
-          const eng = String(row.platform).toUpperCase() === 'INSTAGRAM'
-            ? await fetchIgEngagement(String(row.fb_post_id), String(fbToken))
-            : await fetchEngagement(String(row.fb_post_id), String(fbToken));
+          const isIg = String(row.platform).toUpperCase() === 'INSTAGRAM';
+          const tokenFor = isIg ? igToken : fbToken;
+          if (!tokenFor) continue;
+          const eng = isIg
+            ? await fetchIgEngagement(String(row.fb_post_id), String(tokenFor))
+            : await fetchEngagement(String(row.fb_post_id), String(tokenFor));
           if (!eng) continue;
           const patch: Record<string, unknown> = { engagement_likes: eng.reactions + eng.shares };
           if (eng.impressions != null) patch.engagement_reach = eng.impressions;
