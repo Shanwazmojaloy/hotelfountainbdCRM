@@ -43,6 +43,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             load from the same-origin /_vercel/* path, already covered by script-src 'self'. */}
         <SpeedInsights sampleRate={0.25} />
         <Analytics />
+        {/* CookieHub consent banner — loaded before GA so the consent UI is available
+            as early as possible. Host whitelisted in script-src; inline init carries the
+            nonce. (Analytics is not yet gated on consent — see note in the GA install.) */}
+        <script async src="https://cdn.cookiehub.eu/c2/bebf3065.js" nonce={nonce} suppressHydrationWarning />
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `document.addEventListener("DOMContentLoaded",function(){if(window.cookiehub){window.cookiehub.load({});}});`,
+          }}
+        />
         {/* Google tag (gtag.js) — GA4 G-TS2Q3QEF19, exactly once per page via the root
             layout. The loader host is whitelisted in script-src; the inline bootstrap
             carries the per-request CSP nonce like every other inline script here. */}
