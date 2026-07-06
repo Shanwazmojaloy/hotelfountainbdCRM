@@ -116,11 +116,12 @@ function buildCsp(nonce: string): string {
   const supabaseSrc = SUPABASE_HOST ? ` https://${SUPABASE_HOST} wss://${SUPABASE_HOST}` : '';
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'${devEval} https://connect.facebook.net`,
+    `script-src 'self' 'nonce-${nonce}'${devEval} https://connect.facebook.net https://www.googletagmanager.com`,
     "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
     "font-src 'self' data: fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
-    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net`,
+    // google-analytics wildcards cover GA4's regional collect endpoints (region1. etc.)
+    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net`,
     "frame-src 'self' https://www.google.com https://www.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
