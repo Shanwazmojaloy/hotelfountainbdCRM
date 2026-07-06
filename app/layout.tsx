@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Cormorant_Garamond } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { headers } from "next/headers";
+import Script from "next/script";
 import ClientErrorReporter from "./components/ClientErrorReporter";
 import "./globals.css";
 import { RoleProvider } from "@/context/RoleContext";
@@ -37,23 +38,24 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        {/* CookieHub consent banner — must be the very first script to load so it can
+            set consent state before any other service (Meta Pixel, GA, etc.) runs.
+            strategy="beforeInteractive" makes Next.js inject this into the initial
+            server HTML and execute it before hydration and before other scripts. */}
+        <Script
+          src="https://cdn.cookiehub.eu/c2/bebf3065.js"
+          strategy="beforeInteractive"
+          nonce={nonce}
+        />
+        <Script id="cookiehub-init" strategy="beforeInteractive" nonce={nonce}>
+          {`document.addEventListener("DOMContentLoaded",function(){if(window.cookiehub){window.cookiehub.load({});}});`}
+        </Script>
         <RoleProvider>{children}</RoleProvider>
         <ClientErrorReporter />
         {/* Vercel components don't accept a `nonce` prop and don't need one — their scripts
             load from the same-origin /_vercel/* path, already covered by script-src 'self'. */}
         <SpeedInsights sampleRate={0.25} />
         <Analytics />
-        {/* CookieHub consent banner — loaded before GA so the consent UI is available
-            as early as possible. Host whitelisted in script-src; inline init carries the
-            nonce. (Analytics is not yet gated on consent — see note in the GA install.) */}
-        <script async src="https://cdn.cookiehub.eu/c2/bebf3065.js" nonce={nonce} suppressHydrationWarning />
-        <script
-          nonce={nonce}
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: `document.addEventListener("DOMContentLoaded",function(){if(window.cookiehub){window.cookiehub.load({});}});`,
-          }}
-        />
         {/* Google tag (gtag.js) — GA4 G-TS2Q3QEF19, exactly once per page via the root
             layout. The loader host is whitelisted in script-src; the inline bootstrap
             carries the per-request CSP nonce like every other inline script here. */}
