@@ -43,6 +43,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             load from the same-origin /_vercel/* path, already covered by script-src 'self'. */}
         <SpeedInsights sampleRate={0.25} />
         <Analytics />
+        {/* Google tag (gtag.js) — GA4 G-TS2Q3QEF19, exactly once per page via the root
+            layout. The loader host is whitelisted in script-src; the inline bootstrap
+            carries the per-request CSP nonce like every other inline script here. */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-TS2Q3QEF19" nonce={nonce} />
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-TS2Q3QEF19');`,
+          }}
+        />
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
