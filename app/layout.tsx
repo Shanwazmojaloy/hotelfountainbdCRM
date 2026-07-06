@@ -46,15 +46,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {/* Google tag (gtag.js) — GA4 G-TS2Q3QEF19, exactly once per page via the root
             layout. The loader host is whitelisted in script-src; the inline bootstrap
             carries the per-request CSP nonce like every other inline script here. */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-TS2Q3QEF19" nonce={nonce} />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-TS2Q3QEF19" nonce={nonce} suppressHydrationWarning />
         <script
-          nonce={nonce}
+          nonce={nonce} suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-TS2Q3QEF19');`,
           }}
         />
         <script
-          nonce={nonce}
+          nonce={nonce} suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}`,
           }}
