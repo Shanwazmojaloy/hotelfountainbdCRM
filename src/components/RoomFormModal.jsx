@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const CATEGORIES = ['Fountain Deluxe', 'Premium Deluxe', 'Superior Deluxe', 'Twin Deluxe', 'Royal Suite'];
+const CATEGORIES = ['Fountain Deluxe', 'Premium Deluxe', 'Superior Deluxe', 'Twin Deluxe', 'Single Deluxe', 'Royal Suite'];
 
 export default function RoomFormModal({ existingRooms = [], onClose, onSaved }) {
   const [f, setF] = useState({ room_number: '', category: 'Fountain Deluxe', price: 4000, status: 'AVAILABLE' });
