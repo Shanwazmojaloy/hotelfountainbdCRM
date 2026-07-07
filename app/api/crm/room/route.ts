@@ -34,8 +34,28 @@ export async function POST(req: NextRequest) {
       const id = body.id;
       const status = s(body.status);
       if (!id || !status || !STATUSES.includes(status)) return NextResponse.json({ error: 'Invalid room/status.' }, { status: 400 });
-      const { error } = await db.from('rooms').update({ status }).eq('id', id);
-      if (error) throw error;
+      const patch: Record<string, unknown> = { status };
+      // Admin-only room-detail edits (room number / category / rate). Housekeeping
+      // and reception keep status-only; detail fields from a non-admin are ignored.
+      const isAdmin = ['owner', 'admin', 'manager'].includes(String(sess.role || '').toLowerCase());
+      if (isAdmin) {
+        const rn = s(body.room_number);
+        if (rn) patch.room_number = rn;
+        const cat = s(body.category);
+        if (cat) patch.category = cat;
+        if (body.price !== undefined && body.price !== null && body.price !== '') {
+          const p = Number(body.price);
+          if (Number.isFinite(p) && p >= 0) patch.price = p;
+        }
+      }
+      const { error } = await db.from('rooms').update(patch).eq('id', id);
+      if (error) {
+        // unique_violation on (tenant_id, room_number) → friendly conflict
+        if ((error as { code?: string }).code === '23505') {
+          return NextResponse.json({ error: 'That room number is already in use.' }, { status: 409 });
+        }
+        throw error;
+      }
       return NextResponse.json({ ok: true });
     }
     if (action === 'create') {
