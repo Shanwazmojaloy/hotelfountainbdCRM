@@ -33,19 +33,18 @@ const nextConfig = {
   trailingSlash: false,
   poweredByHeader: false,
   reactStrictMode: true,
-  // WORKFLOW BUILD FIX (2026-07-10): cbor-x (dep of @workflow/world-vercel) loads a
-  // native binding via node-gyp-build(__dirname). Webpack-bundling it into the server
-  // chunk breaks that loader ("path argument must be of type string, received undefined"
-  // during 'Collecting page data' for /.well-known/workflow/v1/step). Externalizing keeps
-  // it a real node_modules require at runtime (Vercel file-traces it). Do NOT remove.
-  serverExternalPackages: ['cbor-x', 'cbor-extract'],
+  // WORKFLOW BUILD FIX (2026-07-10): the workflow routes' server bundle crashed page-data
+  // collection with `TypeError: The "path" argument must be of type string` thrown by
+  // `new XDGAppPaths` at module scope. Chain: @workflow/world-vercel -> @vercel/oidc ->
+  // @vercel/cli-config -> xdg-app-paths, which derives an app name from require.main
+  // (gone under webpack). These are CLI/local-dev token packages and must stay real
+  // runtime requires (Vercel file-traces them). cbor-x kept external too - its native
+  // binding loader (node-gyp-build) is equally webpack-hostile. Do NOT remove.
+  serverExternalPackages: ['cbor-x', 'cbor-extract', '@vercel/oidc', '@vercel/cli-config', '@vercel/cli-auth', 'xdg-app-paths'],
   // PERF: barrel-optimize framer-motion so pages only pull the primitives they use
   // instead of the whole package — smaller client bundles, less parse/eval on mobile.
   experimental: {
     optimizePackageImports: ['framer-motion'],
-    // TEMP DIAGNOSTIC (2026-07-10): unminified server chunks so the workflow route's
-    // module-scope crash reports a readable stack. REMOVE after the build is fixed.
-    serverMinification: false,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
