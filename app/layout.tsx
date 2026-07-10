@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Cormorant_Garamond } from "next/font/google";
+import { Geist, Geist_Mono, Cormorant_Garamond, Playfair_Display } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { headers } from "next/headers";
@@ -14,6 +14,17 @@ const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
   subsets: ["latin"],
   weight: ["300", "400", "500"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+// CLS FIX: Playfair (the public-site .font-display serif, incl. the 6xl-8xl hero h1)
+// previously came from the Google Fonts stylesheet with display=swap and a raw Georgia
+// fallback -- the metric mismatch reflowed the whole hero on swap (CLS 0.61 mobile).
+// next/font self-hosts it AND injects a size-adjusted fallback, so the swap is shift-free.
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
   style: ["normal", "italic"],
   display: "swap",
 });
@@ -36,21 +47,14 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} h-full antialiased`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} ${playfair.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        {/* PERF: Google Fonts moved out of globals.css @import (render-blocking chain) into
-            a preconnected parallel stylesheet. React 19 hoists these into <head>; the
-            `precedence` prop is required for stylesheet hoisting. Family list is TRIMMED to
-            the literal font-family references that remain in CSS (Playfair = public
-            .font-display; DM Sans/Roboto = CRM iv tokens; IBM Plex Mono + Libre Baskerville =
-            Reports PRINT_CSS + admin/audit). Geist + Cormorant are self-hosted via next/font. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          precedence="default"
-          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=DM+Sans:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap"
-        />
+        {/* PERF: NO Google Fonts stylesheet here anymore. All public-site fonts (Geist,
+            Cormorant, Playfair) are self-hosted via next/font -- zero render-blocking
+            font CSS on the marketing pages. The remaining Google families (DM Sans /
+            Roboto / IBM Plex Mono / Libre Baskerville) are CRM/admin-only and are loaded
+            by <UiFonts /> (app/components/UiFonts.tsx), mounted in the /crm layout and
+            the /billing, /admin/*, /lumea pages that reference them. */}
         {/* CookieHub consent banner. PERF: was strategy="beforeInteractive", which put a
             synchronous third-party script in the initial HTML and blocked first paint
             (~2.5s of the 3s FCP). Consent-gated scripts (Meta Pixel) are inert

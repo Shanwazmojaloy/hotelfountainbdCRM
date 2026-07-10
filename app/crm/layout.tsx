@@ -1,4 +1,5 @@
 import Layout from '@/components/Layout';
+import UiFonts from '../components/UiFonts';
 
 // Shared shell for ALL /crm/* routes. Mounted ONCE — AuthGate and the Header pill-nav persist
 // across tab navigation, so switching pages only swaps the page body (no remount, no auth
@@ -7,6 +8,7 @@ import Layout from '@/components/Layout';
 export default function CrmLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <UiFonts />
       <style>{`html,body{background:#0B0A0F !important;}`}</style>
       <Layout>{children}</Layout>
     </>

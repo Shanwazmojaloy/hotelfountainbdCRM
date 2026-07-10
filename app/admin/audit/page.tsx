@@ -13,6 +13,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
+import UiFonts from '../../components/UiFonts';
 
 export const dynamic = 'force-dynamic';
 
@@ -341,7 +342,8 @@ export default function AdminAuditPage() {
   if (!authed) {
     return (
       <>
-        <style>{CSS}</style>
+        <UiFonts />
+      <style>{CSS}</style>
         <div className="wrap" style={{ maxWidth: 460, marginTop: 80 }}>
           <header>
             <div>
@@ -377,6 +379,7 @@ export default function AdminAuditPage() {
   // ── DASHBOARD ─────────────────────────────────────────────────────────────
   return (
     <>
+      <UiFonts />
       <style>{CSS}</style>
       <div className="wrap">
         <header>

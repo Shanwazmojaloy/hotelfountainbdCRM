@@ -48,7 +48,11 @@
   --shadow-glass: 0 8px 40px -12px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.04);
   --shadow-glow-teal: 0 0 0 1px rgba(200,169,110,0.40), 0 0 32px -4px rgba(200,169,110,0.40);
   --shadow-glow-soft: 0 0 48px -8px rgba(200,169,110,0.22);
-  --font-display: 'Playfair Display', Georgia, serif;
+  /* CLS FIX (2026-07-11): Playfair now comes from next/font (--font-playfair, root
+     layout) which ships a size-adjusted fallback -- the old Google-CSS + raw Georgia
+     fallback reflowed the hero h1 on swap (mobile CLS 0.61). Do NOT hardcode
+     'Playfair Display' here again. */
+  --font-display: var(--font-playfair), 'Playfair Display', Georgia, serif;
   --ease-fluid: cubic-bezier(0.4, 0, 0.2, 1);
   --animate-fade-up: fade-up 0.7s cubic-bezier(0.4,0,0.2,1) both;
   --animate-pulse-ring: pulse-ring 2.4s ease-in-out infinite;

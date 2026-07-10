@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, FormEvent } from 'react';
+import UiFonts from '../../components/UiFonts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface OnboardResult {
@@ -107,6 +108,7 @@ export default function OnboardPage() {
   if (!authed) {
     return (
       <div style={styles.page}>
+        <UiFonts />
         <div style={styles.card}>
           <div style={styles.logo}>Lumea<span style={styles.dot}>.</span></div>
           <div style={styles.subtitle}>Admin — Tenant Onboarding</div>

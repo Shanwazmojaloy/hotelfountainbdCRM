@@ -8,6 +8,7 @@ import ProgressRing from "@/components/ProgressRing";
 import QueryProvider from "@/providers/QueryProvider";
 import { C, Card as DSCard, Badge } from "@/components/dskit";
 import RecordPaymentModal from "@/components/RecordPaymentModal";
+import UiFonts from "../components/UiFonts";
 
 function FRow({ label, value, color, sub }) {
   return (
@@ -292,6 +293,7 @@ function BillingPageInner() {
 export default function BillingPage() {
   return (
     <QueryProvider>
+      <UiFonts />
       <BillingPageInner />
     </QueryProvider>
   );

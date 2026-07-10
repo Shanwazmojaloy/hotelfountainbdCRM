@@ -13,6 +13,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import UiFonts from '../components/UiFonts';
 
 const WHATSAPP_URL =
   'https://wa.me/8801322840799?text=Hi%20Lumea%20team%2C%20I%27d%20like%20to%20learn%20more%20about%20your%20PMS%20for%20my%20hotel.';
@@ -351,6 +352,7 @@ export default function LumeaLandingPage() {
 
   return (
     <main className="lumea-main">
+      <UiFonts />
       {/* Cinematic background layers */}
       <div className="bg-gradient" aria-hidden="true" />
       <div className="bg-gradient-2" aria-hidden="true" />
