@@ -33,6 +33,12 @@ const nextConfig = {
   trailingSlash: false,
   poweredByHeader: false,
   reactStrictMode: true,
+  // WORKFLOW BUILD FIX (2026-07-10): cbor-x (dep of @workflow/world-vercel) loads a
+  // native binding via node-gyp-build(__dirname). Webpack-bundling it into the server
+  // chunk breaks that loader ("path argument must be of type string, received undefined"
+  // during 'Collecting page data' for /.well-known/workflow/v1/step). Externalizing keeps
+  // it a real node_modules require at runtime (Vercel file-traces it). Do NOT remove.
+  serverExternalPackages: ['cbor-x', 'cbor-extract'],
   // PERF: barrel-optimize framer-motion so pages only pull the primitives they use
   // instead of the whole package — smaller client bundles, less parse/eval on mobile.
   experimental: {
