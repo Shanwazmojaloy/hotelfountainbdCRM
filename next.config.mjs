@@ -43,6 +43,9 @@ const nextConfig = {
   // instead of the whole package — smaller client bundles, less parse/eval on mobile.
   experimental: {
     optimizePackageImports: ['framer-motion'],
+    // TEMP DIAGNOSTIC (2026-07-10): unminified server chunks so the workflow route's
+    // module-scope crash reports a readable stack. REMOVE after the build is fixed.
+    serverMinification: false,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
