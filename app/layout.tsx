@@ -38,6 +38,19 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        {/* PERF: Google Fonts moved out of globals.css @import (render-blocking chain) into
+            a preconnected parallel stylesheet. React 19 hoists these into <head>; the
+            `precedence` prop is required for stylesheet hoisting. Family list is TRIMMED to
+            the literal font-family references that remain in CSS (Playfair = public
+            .font-display; DM Sans/Roboto = CRM iv tokens; IBM Plex Mono + Libre Baskerville =
+            Reports PRINT_CSS + admin/audit). Geist + Cormorant are self-hosted via next/font. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          precedence="default"
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=DM+Sans:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap"
+        />
         {/* CookieHub consent banner. PERF: was strategy="beforeInteractive", which put a
             synchronous third-party script in the initial HTML and blocked first paint
             (~2.5s of the 3s FCP). Consent-gated scripts (Meta Pixel) are inert

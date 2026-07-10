@@ -1,4 +1,10 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist:wght@200;300;400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Roboto:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500;1,600;1,700&family=Inter:wght@400;500;600&display=swap');
+﻿/* PERF (2026-07-10): the Google Fonts @import that used to live here was the #1 mobile
+   FCP cost — a render-blocking fetch chain (globals.css -> fonts CSS) loading 8 families
+   / ~30 variants. It moved to a preconnected, parallel <link> in app/layout.tsx with a
+   TRIMMED family list (Playfair/DM Sans/Roboto/IBM Plex Mono/Libre Baskerville — the
+   ones referenced by literal font-family names incl. Reports PRINT_CSS + admin/audit).
+   Geist + Cormorant Garamond come from next/font (self-hosted vars) — do NOT re-add
+   them to the Google URL, and do NOT re-add an @import here. */
 @import "tailwindcss";
 
 
@@ -56,8 +62,8 @@ html { scroll-behavior: smooth; }
 body { background: var(--dark); color: var(--tx); overflow-x: hidden; }
 
 /* â”€â”€â”€ Typography utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-.cg { font-family: 'Cormorant Garamond', Georgia, serif; }
-.gs { font-family: 'Geist', var(--font-geist-sans), system-ui, sans-serif; }
+.cg { font-family: var(--font-cormorant), 'Cormorant Garamond', Georgia, serif; }
+.gs { font-family: var(--font-geist-sans), 'Geist', system-ui, sans-serif; }
 
 /* â”€â”€â”€ Animations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @keyframes pulse  { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
@@ -69,14 +75,14 @@ body { background: var(--dark); color: var(--tx); overflow-x: hidden; }
 .gc { background: rgba(13,17,23,.75); backdrop-filter: blur(16px); border: 1px solid var(--br); }
 
 /* â”€â”€â”€ Buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-.gb { background: var(--gold); color: var(--dark); font-family: 'Geist', sans-serif; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; padding: 13px 32px; border: none; cursor: pointer; transition: all .3s; font-weight: 500; }
+.gb { background: var(--gold); color: var(--dark); font-family: var(--font-geist-sans), 'Geist', sans-serif; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; padding: 13px 32px; border: none; cursor: pointer; transition: all .3s; font-weight: 500; }
 .gb:hover { background: var(--gold2); transform: translateY(-1px); }
 .gb:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-.ob { background: transparent; color: var(--tx); font-family: 'Geist', sans-serif; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; padding: 13px 32px; border: 1px solid rgba(238,233,226,.25); cursor: pointer; transition: all .3s; }
+.ob { background: transparent; color: var(--tx); font-family: var(--font-geist-sans), 'Geist', sans-serif; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; padding: 13px 32px; border: 1px solid rgba(238,233,226,.25); cursor: pointer; transition: all .3s; }
 .ob:hover { border-color: var(--gold); color: var(--gold); }
 
 /* â”€â”€â”€ Form inputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-.fi { background: var(--dark); border: 1px solid rgba(200,169,110,.2); color: var(--tx); font-family: 'Geist', sans-serif; font-size: 13px; padding: 12px 14px; outline: none; transition: border-color .3s; width: 100%; }
+.fi { background: var(--dark); border: 1px solid rgba(200,169,110,.2); color: var(--tx); font-family: var(--font-geist-sans), 'Geist', sans-serif; font-size: 13px; padding: 12px 14px; outline: none; transition: border-color .3s; width: 100%; }
 .fi:focus { border-color: var(--gold); }
 .fi option { background: var(--dark); }
 input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia(1) saturate(2) hue-rotate(10deg); }
