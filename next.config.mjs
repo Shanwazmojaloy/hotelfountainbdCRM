@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+import { withWorkflow } from 'workflow/next';
 
 const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/^https?:\/\//, '');
 
@@ -61,4 +62,5 @@ const nextConfig = {
   ],
 };
 
-export default nextConfig;
+// withWorkflow enables the "use workflow"/"use step" directives (close-day chain).
+export default withWorkflow(nextConfig);

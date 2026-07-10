@@ -11,6 +11,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireSession } from '@/lib/session';
 import { openBusinessDay } from '@/lib/businessDay';
 import { tenantScoped, tenantClient } from '@/lib/tenantDb';
+import { start } from 'workflow/api';
+import { closeDayChain } from '@/workflows/close-day-chain';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -77,6 +79,16 @@ export async function POST(req: NextRequest) {
     .select('*')
     .eq('audit_date', auditDate)
     .single();
+
+  // Fire the post-close snapshot chain (verify -> shadow audit -> owner summary
+  // email -> 9AM Dhaka dues follow-up). Fire-and-forget: an enqueue failure must
+  // NEVER fail the close itself - the RPC already persisted the audit. The chain
+  // is strictly read-only on money tables (see src/workflows/close-day-chain.ts).
+  try {
+    await start(closeDayChain, [{ auditDate, tenantId: TENANT, closedBy: staff.name || 'Staff' }]);
+  } catch (e) {
+    console.error('[crm/close-day] chain enqueue failed (close still OK):', e instanceof Error ? e.message : e);
+  }
 
   return NextResponse.json({ ok: true, close: saved, audit: rpc });
 }
