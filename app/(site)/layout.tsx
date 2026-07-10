@@ -1,8 +1,9 @@
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import BookNowFab from "@/components/site/BookNowFab";
-import ReservationModal from "@/components/site/ReservationModal";
+import ReservationModalHost from "@/components/site/ReservationModalHost";
 import ScrollProgress from "@/components/site/ScrollProgress";
+import MotionProvider from "@/components/site/MotionProvider";
 import { SITE, CONTACT, AMENITIES } from "@/lib/site";
 import { headers } from "next/headers";
 import Script from "next/script";
@@ -56,13 +57,17 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           }}
         />
       )}
-      <Script src={CHAT_WIDGET_SRC} strategy="afterInteractive" />
-      <ScrollProgress />
-      <Navbar />
-      <main className="min-h-screen pt-24">{children}</main>
-      <Footer />
-      <BookNowFab />
-      <ReservationModal />
+      {/* PERF: lazyOnload — the chat widget is non-critical; keep it out of the
+          hydration window so it never competes with first interactions (INP). */}
+      <Script src={CHAT_WIDGET_SRC} strategy="lazyOnload" />
+      <MotionProvider>
+        <ScrollProgress />
+        <Navbar />
+        <main className="min-h-screen pt-24">{children}</main>
+        <Footer />
+        <BookNowFab />
+        <ReservationModalHost />
+      </MotionProvider>
     </div>
   );
 }

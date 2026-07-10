@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { ROOMS, ROOM_FILTERS } from "@/lib/rooms";
 import RoomCard from "./RoomCard";
 
@@ -49,7 +49,7 @@ export default function RoomsCatalog() {
               }`}
             >
               {active && (
-                <motion.span
+                <m.span
                   layoutId="room-filter-active"
                   className="absolute inset-0 -z-10 rounded-full bg-gradient-to-r from-neon-teal to-neon-cyan"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
@@ -65,10 +65,10 @@ export default function RoomsCatalog() {
       </div>
 
       {/* Grid */}
-      <motion.div layout className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <m.div layout className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <AnimatePresence mode="popLayout">
           {rooms.map((room) => (
-            <motion.div
+            <m.div
               key={room.slug}
               layout
               initial={{ opacity: 0, y: 20 }}
@@ -77,10 +77,10 @@ export default function RoomsCatalog() {
               transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
             >
               <RoomCard room={room} />
-            </motion.div>
+            </m.div>
           ))}
         </AnimatePresence>
-      </motion.div>
+      </m.div>
     </>
   );
 }

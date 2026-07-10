@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { motion, useScroll, useTransform, useReducedMotion } from "framer-motion";
+import { m, useScroll, useTransform, useReducedMotion } from "framer-motion";
 
 type Props = {
   children: ReactNode;
@@ -37,9 +37,9 @@ export default function Parallax({ children, className, distance = 60 }: Props) 
 
   return (
     <div ref={ref} className={className}>
-      <motion.div style={{ y: active ? y : 0 }} className="h-full w-full">
+      <m.div style={{ y: active ? y : 0 }} className="h-full w-full">
         {children}
-      </motion.div>
+      </m.div>
     </div>
   );
 }

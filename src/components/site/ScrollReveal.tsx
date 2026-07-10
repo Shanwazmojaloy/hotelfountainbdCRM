@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { m, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useState, type ReactNode } from "react";
 
 type Props = {
@@ -38,7 +38,7 @@ export default function ScrollReveal({
       show: { transition: { staggerChildren: 0.1, delayChildren: delay } },
     };
     return (
-      <motion.div
+      <m.div
         className={className}
         variants={parent}
         initial="hidden"
@@ -46,12 +46,12 @@ export default function ScrollReveal({
         viewport={{ once: true, amount: 0.2 }}
       >
         {children}
-      </motion.div>
+      </m.div>
     );
   }
 
   return (
-    <motion.div
+    <m.div
       className={className}
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -59,7 +59,7 @@ export default function ScrollReveal({
       transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1], delay }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 

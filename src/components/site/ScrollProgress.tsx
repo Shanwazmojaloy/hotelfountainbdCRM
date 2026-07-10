@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, useScroll, useSpring, useReducedMotion } from "framer-motion";
+import { m, useScroll, useSpring, useReducedMotion } from "framer-motion";
 
 /**
  * Thin gold progress bar pinned to the top of the viewport that fills as the
@@ -21,5 +21,5 @@ export default function ScrollProgress() {
 
   if (!mounted || reduce) return null;
 
-  return <motion.div aria-hidden className="site-progress" style={{ scaleX }} />;
+  return <m.div aria-hidden className="site-progress" style={{ scaleX }} />;
 }

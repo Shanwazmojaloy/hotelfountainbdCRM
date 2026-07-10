@@ -38,17 +38,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        {/* CookieHub consent banner — must be the very first script to load so it can
-            set consent state before any other service (Meta Pixel, GA, etc.) runs.
-            strategy="beforeInteractive" makes Next.js inject this into the initial
-            server HTML and execute it before hydration and before other scripts. */}
-        <Script
-          src="https://cdn.cookiehub.eu/c2/bebf3065.js"
-          strategy="beforeInteractive"
-          nonce={nonce}
-        />
-        <Script id="cookiehub-init" strategy="beforeInteractive" nonce={nonce}>
-          {`document.addEventListener("DOMContentLoaded",function(){if(window.cookiehub){window.cookiehub.load({});}});`}
+        {/* CookieHub consent banner. PERF: was strategy="beforeInteractive", which put a
+            synchronous third-party script in the initial HTML and blocked first paint
+            (~2.5s of the 3s FCP). Consent-gated scripts (Meta Pixel) are inert
+            type="text/plain" tags, so CookieHub only needs to load before it ACTIVATES
+            them, not before paint. afterInteractive keeps consent-before-marketing
+            semantics with zero render blocking. The injector calls load() on the CDN
+            script's own onload, so no DOMContentLoaded race; cdn.cookiehub.eu is
+            host-whitelisted in the middleware CSP, the inline injector carries the nonce. */}
+        <Script id="cookiehub-init" strategy="afterInteractive" nonce={nonce}>
+          {`(function(){var s=document.createElement("script");s.src="https://cdn.cookiehub.eu/c2/bebf3065.js";s.async=true;s.onload=function(){if(window.cookiehub){window.cookiehub.load({});}};document.head.appendChild(s);})();`}
         </Script>
         <RoleProvider>{children}</RoleProvider>
         <ClientErrorReporter />

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { ROOMS } from "@/lib/rooms";
 import { waLink } from "@/lib/site";
-import { RESERVE_EVENT } from "@/lib/reserve";
+import { RESERVE_EVENT, type ReservePrefill } from "@/lib/reserve";
 
 declare global {
   interface Window {
@@ -48,7 +48,7 @@ const labelCls = "mb-1.5 block text-xs font-medium uppercase tracking-[0.16em] t
  * (see openReservation()). Posts to /api/book which creates a PENDING / WEBSITE
  * reservation the Lumea CRM bell picks up. Guest sees a confirmation card.
  */
-export default function ReservationModal() {
+export default function ReservationModal({ initialPrefill }: { initialPrefill?: ReservePrefill }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Form>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
@@ -80,7 +80,16 @@ export default function ReservationModal() {
       });
     }
     window.addEventListener(RESERVE_EVENT, onOpen);
+    // Lazy-mount replay: when ReservationModalHost dynamic-imports this modal in
+    // response to the FIRST reserve event, that event fired before this listener
+    // existed. The host captures its detail and passes it here; re-dispatch it
+    // (synchronously handled by onOpen above) so the first click still opens
+    // the modal with the chosen room/dates.
+    if (initialPrefill) {
+      window.dispatchEvent(new CustomEvent(RESERVE_EVENT, { detail: initialPrefill }));
+    }
     return () => window.removeEventListener(RESERVE_EVENT, onOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Lock body scroll while open
@@ -146,7 +155,7 @@ export default function ReservationModal() {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-abyss/85 p-4 backdrop-blur-sm sm:items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -155,7 +164,7 @@ export default function ReservationModal() {
             if (e.target === e.currentTarget) setOpen(false);
           }}
         >
-          <motion.div
+          <m.div
             role="dialog"
             aria-modal="true"
             aria-label="Reserve a room"
@@ -284,8 +293,8 @@ export default function ReservationModal() {
                 </p>
               </form>
             )}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

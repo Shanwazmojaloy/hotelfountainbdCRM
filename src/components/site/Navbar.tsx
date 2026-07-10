@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { NAV_LINKS, SITE, CONTACT } from "@/lib/site";
 import { openReservation } from "@/lib/reserve";
 
@@ -48,7 +48,7 @@ export default function Navbar() {
   return (
     <header className="fixed inset-x-0 top-0 z-50">
       <div className="section pt-4 max-[399px]:!px-2">
-        <motion.nav
+        <m.nav
           initial={false}
           animate={{ paddingTop: scrolled ? 10 : 14, paddingBottom: scrolled ? 10 : 14 }}
           transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
@@ -81,7 +81,7 @@ export default function Navbar() {
                     }`}
                   >
                     {active && (
-                      <motion.span
+                      <m.span
                         layoutId="nav-active"
                         className="absolute inset-0 -z-10 rounded-full border border-neon-teal/30 bg-neon-teal/10"
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
@@ -122,13 +122,13 @@ export default function Navbar() {
               </span>
             </button>
           </div>
-        </motion.nav>
+        </m.nav>
       </div>
 
       {/* Full-screen mobile menu — slides from the right */}
       <AnimatePresence>
         {open && (
-          <motion.div
+          <m.div
             key="mobile-menu"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -145,7 +145,7 @@ export default function Navbar() {
             />
 
             {/* Panel */}
-            <motion.div
+            <m.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -174,7 +174,7 @@ export default function Navbar() {
                 {NAV_LINKS.map((link, i) => {
                   const active = pathname === link.href;
                   return (
-                    <motion.div
+                    <m.div
                       key={link.href}
                       initial={{ opacity: 0, x: 28 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -188,13 +188,13 @@ export default function Navbar() {
                       >
                         {link.label}
                       </Link>
-                    </motion.div>
+                    </m.div>
                   );
                 })}
               </nav>
 
               {/* Actions */}
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: REGENT_EASE, delay: 0.12 + NAV_LINKS.length * 0.07 }}
@@ -213,7 +213,7 @@ export default function Navbar() {
                 <a href={SITE.crmUrl} className="btn-ghost w-full">
                   Staff Login
                 </a>
-              </motion.div>
+              </m.div>
 
               {/* Contact footer */}
               <div className="mt-auto pt-10 text-xs leading-relaxed text-white/45">
@@ -232,8 +232,8 @@ export default function Navbar() {
                 </a>
                 <p className="mt-3">{CONTACT.address.join(", ")}</p>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </header>

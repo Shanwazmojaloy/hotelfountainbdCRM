@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useMotionValue, useSpring, useReducedMotion } from "framer-motion";
+import { m, useMotionValue, useSpring, useReducedMotion } from "framer-motion";
 import type { ReactNode, MouseEvent } from "react";
 
 type Props = {
@@ -43,9 +43,9 @@ export default function MagneticButton({
   }
 
   const inner = (
-    <motion.span style={{ x: sx, y: sy }} className="inline-flex items-center gap-2">
+    <m.span style={{ x: sx, y: sy }} className="inline-flex items-center gap-2">
       {children}
-    </motion.span>
+    </m.span>
   );
 
   if (external) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 
 const TERMS = [
   "Reservations are confirmed on receipt of valid identification at check-in. Standard check-in is 12:00 PM and check-out is 12:00 PM.",
@@ -20,13 +20,13 @@ export default function TermsAccordion() {
         className="flex w-full items-center justify-between gap-4 text-left"
       >
         <span className="font-display text-base font-semibold text-white">Read Full Terms</span>
-        <motion.span animate={{ rotate: open ? 180 : 0 }} className="text-neon-teal">
+        <m.span animate={{ rotate: open ? 180 : 0 }} className="text-neon-teal">
           ▼
-        </motion.span>
+        </m.span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div
+          <m.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -45,7 +45,7 @@ export default function TermsAccordion() {
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
