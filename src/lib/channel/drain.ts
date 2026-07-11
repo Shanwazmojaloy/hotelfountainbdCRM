@@ -59,8 +59,26 @@ async function handleItem(
     if (account.status !== 'active') return { ok: true }; // paused channel: drop silently
     const adapter = getAdapter(account.provider);
     if (!adapter) return { ok: false, error: `NO_ADAPTER: ${account.provider}` };
+
+    // Absolute free-unit counts from the ledger (the single availability
+    // truth) - pushes are idempotent snapshots, never deltas.
+    const { data: cells, error: cellErr } = await db
+      .from('inventory_ledger')
+      .select('stay_date,total_units,booked_units')
+      .eq('tenant_id', item.tenant_id)
+      .eq('category', item.payload.category)
+      .gte('stay_date', item.payload.from)
+      .lt('stay_date', item.payload.to)
+      .order('stay_date');
+    if (cellErr) return { ok: false, error: `LEDGER_READ: ${cellErr.message}` };
+
+    const counts = (cells || []).map((c: any) => ({
+      date: c.stay_date,
+      available: Math.max(0, (c.total_units || 0) - (c.booked_units || 0)),
+    }));
+
     return adapter.pushAvailability(
-      { category: item.payload.category, from: item.payload.from, to: item.payload.to },
+      { category: item.payload.category, from: item.payload.from, to: item.payload.to, counts },
       account
     );
   }

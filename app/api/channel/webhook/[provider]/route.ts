@@ -46,12 +46,25 @@ export async function POST(
 
   let booking;
   try {
-    booking = adapter.parseWebhook(rawBody, acct);
+    if (adapter.resolveWebhook) {
+      // Thin-trigger providers (Channex): fetch the full booking upstream.
+      booking = await adapter.resolveWebhook(rawBody, acct);
+    } else if (adapter.parseWebhook) {
+      booking = adapter.parseWebhook(rawBody, acct);
+    } else {
+      return NextResponse.json({ error: 'Adapter has no parser' }, { status: 500 });
+    }
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || 'Malformed payload' },
-      { status: 400 }
-    );
+    const msg: string = e?.message || 'Malformed payload';
+    // MALFORMED = permanent (400, no retry); anything else (provider API
+    // down, unmapped room) = 500 so the provider redelivers for up to 24h.
+    const permanent = msg.startsWith('MALFORMED_PAYLOAD');
+    return NextResponse.json({ error: msg }, { status: permanent ? 400 : 500 });
+  }
+
+  // Non-booking event (ari, sync_error, reviews...): acknowledge and ignore.
+  if (booking === null) {
+    return NextResponse.json({ ok: true, ignored: true });
   }
 
   // Idempotent intake: partial-unique (channel_account_id, external_event_id)
@@ -112,6 +125,12 @@ export async function POST(
   }
 
   await db.rpc('fn_sync_queue_complete', { p_id: queueId, p_ok: true, p_error: null });
+
+  // Ack upstream (Channex revisions) - best effort; the unacked feed is
+  // the backstop if this fails.
+  if (adapter.ackEvent && booking.ackRef) {
+    try { await adapter.ackEvent(booking.ackRef, acct); } catch { /* feed backstop */ }
+  }
 
   const row = Array.isArray(result.data) ? result.data[0] : result.data;
 

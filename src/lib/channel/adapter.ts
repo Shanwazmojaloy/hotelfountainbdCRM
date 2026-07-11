@@ -26,6 +26,9 @@ export interface InboundBooking {
   /** BDT */
   totalAmount?: number;
   commissionPct?: number;
+  /** Provider-side reference to acknowledge after successful processing
+   *  (e.g. Channex booking revision id). */
+  ackRef?: string;
   raw: unknown;
 }
 
@@ -33,6 +36,9 @@ export interface AvailabilityUpdate {
   category: string;
   from: string; // YYYY-MM-DD
   to: string;   // YYYY-MM-DD exclusive
+  /** Absolute free-unit counts per date, computed from inventory_ledger
+   *  by the drainer. Adapters push these as-is (idempotent by design). */
+  counts?: { date: string; available: number }[];
 }
 
 export interface CategoryMapping {
@@ -61,15 +67,25 @@ export interface CMAdapter {
   provider: string;
   /** MUST fail closed: no secret configured => false. */
   verifyWebhook(req: Request, rawBody: string, account: ChannelAccountRow): boolean;
-  /** Throws on malformed payload (caller returns 400). */
-  parseWebhook(rawBody: string, account: ChannelAccountRow): InboundBooking;
+  /** Sync parse when the webhook body carries the full booking.
+   *  Throws MALFORMED_PAYLOAD on bad input (caller returns 400). */
+  parseWebhook?(rawBody: string, account: ChannelAccountRow): InboundBooking;
+  /** Async resolve when the webhook is a thin trigger and the booking must
+   *  be fetched from the provider API (e.g. Channex booking revisions).
+   *  Return null to ignore a non-booking event (caller returns 200).
+   *  Throw MALFORMED_PAYLOAD* for 400; any other error => 500 (provider retries). */
+  resolveWebhook?(rawBody: string, account: ChannelAccountRow): Promise<InboundBooking | null>;
+  /** Acknowledge a processed event upstream (best effort). */
+  ackEvent?(ackRef: string, account: ChannelAccountRow): Promise<void>;
   pushAvailability(update: AvailabilityUpdate, account: ChannelAccountRow): Promise<PushResult>;
 }
 
 import { mockAdapter } from './adapters/mock';
+import { channexAdapter } from './adapters/channex';
 
 const registry: Record<string, CMAdapter> = {
   [mockAdapter.provider]: mockAdapter,
+  [channexAdapter.provider]: channexAdapter,
 };
 
 export function getAdapter(provider: string): CMAdapter | null {
