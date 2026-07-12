@@ -6,7 +6,7 @@
 
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { drainOnce, pollInboundFeeds } from '@/lib/channel/drain';
+import { drainOnce, notifyReviews, pollInboundFeeds } from '@/lib/channel/drain';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -53,5 +53,16 @@ export async function GET(req: Request) {
   }
   totals.errors.push(...feed.errors);
 
-  return NextResponse.json({ ok: true, feed_processed: feed.processed, ...totals });
+  // Surface held REVIEW items to the owner (once per row).
+  let reviewsNotified = 0;
+  try { reviewsNotified = await notifyReviews(); } catch (e: any) {
+    totals.errors.push(`notify: ${e?.message || e}`);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    feed_processed: feed.processed,
+    reviews_notified: reviewsNotified,
+    ...totals,
+  });
 }

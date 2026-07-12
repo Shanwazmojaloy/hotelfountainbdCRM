@@ -67,6 +67,14 @@ export interface PushResult {
   error?: string;
 }
 
+export interface RateUpdate {
+  category: string;
+  from: string; // YYYY-MM-DD
+  to: string;   // YYYY-MM-DD exclusive
+  /** Nightly rate in BDT (gross), from rooms.price. */
+  rate: number;
+}
+
 export interface CMAdapter {
   provider: string;
   /** MUST fail closed: no secret configured => false. */
@@ -85,6 +93,7 @@ export interface CMAdapter {
    *  provider (e.g. Channex booking revisions feed). */
   pollFeed?(account: ChannelAccountRow): Promise<InboundBooking[]>;
   pushAvailability(update: AvailabilityUpdate, account: ChannelAccountRow): Promise<PushResult>;
+  pushRates?(update: RateUpdate, account: ChannelAccountRow): Promise<PushResult>;
 }
 
 import { mockAdapter } from './adapters/mock';

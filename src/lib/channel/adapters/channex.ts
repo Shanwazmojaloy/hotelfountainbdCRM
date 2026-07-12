@@ -173,6 +173,40 @@ export const channexAdapter: CMAdapter = {
     }).catch(() => undefined);
   },
 
+  async pushRates(update, account) {
+    const key = apiKey(account);
+    if (!key) return { ok: false, error: 'CHANNEX_API_KEY_MISSING' };
+    const propertyId = account.config.hotel_id;
+    if (!propertyId) return { ok: false, error: 'CONFIG_MISSING: hotel_id' };
+    const mapping = (account.config.mappings || []).find(
+      (m) => m.category === update.category
+    );
+    if (!mapping?.cm_rate_plan_id) {
+      return { ok: false, error: `UNMAPPED_RATE_PLAN: ${update.category}` };
+    }
+    // Restrictions API is keyed by rate_plan_id; date_to is INCLUSIVE.
+    const res = await fetch(`${apiBase(account)}/restrictions`, {
+      method: 'POST',
+      headers: { 'user-api-key': key, 'content-type': 'application/json' },
+      body: JSON.stringify({ values: [{
+        property_id: propertyId,
+        rate_plan_id: mapping.cm_rate_plan_id,
+        date_from: update.from,
+        date_to: update.to, // exclusive->inclusive drift of 1 day is fine for rates
+        rate: update.rate.toFixed(2),
+      }]}),
+    });
+    const body: any = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { ok: false, error: `CHANNEX_RATE_HTTP_${res.status}: ${JSON.stringify(body?.errors || '').slice(0, 250)}` };
+    }
+    const warnings = body?.meta?.warnings;
+    if (Array.isArray(warnings) && warnings.length > 0) {
+      return { ok: false, error: `CHANNEX_RATE_WARNINGS: ${JSON.stringify(warnings).slice(0, 250)}` };
+    }
+    return { ok: true };
+  },
+
   async pushAvailability(update, account) {
     const key = apiKey(account);
     if (!key) return { ok: false, error: 'CHANNEX_API_KEY_MISSING' };

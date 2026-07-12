@@ -83,6 +83,32 @@ async function handleItem(
     );
   }
 
+  if (item.direction === 'outbound' && item.event_type === 'rate_update') {
+    const account = await loadAccount(db, item.channel_account_id);
+    if (!account) return { ok: false, error: 'ACCOUNT_NOT_FOUND' };
+    if (account.status !== 'active') return { ok: true };
+    const adapter = getAdapter(account.provider);
+    if (!adapter) return { ok: false, error: `NO_ADAPTER: ${account.provider}` };
+    if (!adapter.pushRates) return { ok: true }; // provider without rate push (mock)
+
+    // Category rate = current rooms.price (uniform per category; max as guard)
+    const { data: priceRows, error: prErr } = await db
+      .from('rooms')
+      .select('price')
+      .eq('tenant_id', item.tenant_id)
+      .eq('category', item.payload.category)
+      .order('price', { ascending: false })
+      .limit(1);
+    if (prErr) return { ok: false, error: `PRICE_READ: ${prErr.message}` };
+    const rate = Number(priceRows?.[0]?.price || 0);
+    if (rate <= 0) return { ok: false, error: `NO_PRICE: ${item.payload.category}` };
+
+    return adapter.pushRates(
+      { category: item.payload.category, from: item.payload.from, to: item.payload.to, rate },
+      account
+    );
+  }
+
   if (item.direction === 'outbound' && item.event_type === 'overbook_alert') {
     if (!isMailConfigured()) return { ok: false, error: 'MAIL_NOT_CONFIGURED' };
     const p = item.payload;
@@ -107,6 +133,41 @@ async function handleItem(
   }
 
   return { ok: false, error: `UNHANDLED_EVENT: ${item.direction}/${item.event_type}` };
+}
+
+/** Email the owner about dead REVIEW rows (guarded cancels, complex
+ *  modifications) exactly once each. Runs on every drain sweep. */
+export async function notifyReviews(): Promise<number> {
+  const db = serviceClient();
+  if (!isMailConfigured()) return 0;
+  const { data: rows } = await db
+    .from('sync_queue')
+    .select('id, event_type, last_error, payload, created_at')
+    .eq('status', 'dead')
+    .like('last_error', 'REVIEW:%')
+    .is('payload->review_notified', null)
+    .limit(10);
+  if (!rows || rows.length === 0) return 0;
+
+  const lines = rows
+    .map((r: any) => `- [${r.event_type}] ${r.last_error}\n  queued: ${r.created_at}`)
+    .join('\n');
+  await sendMail({
+    to: process.env.ALERT_EMAIL || 'ahmedshanwaz5@gmail.com',
+    subject: `Channel sync: ${rows.length} item(s) need manual review`,
+    text:
+      `The channel manager held these OTA events instead of guessing\n` +
+      `(money/status guard or complex modification):\n\n${lines}\n\n` +
+      `Action: resolve in the CRM Reservations page. The held sync_queue\n` +
+      `rows are audit records - no further automation will touch them.`,
+  });
+  for (const r of rows as any[]) {
+    await db
+      .from('sync_queue')
+      .update({ payload: { ...r.payload, review_notified: true } })
+      .eq('id', r.id);
+  }
+  return rows.length;
 }
 
 /** Pull-based backstop: process unacked provider events (lost webhooks,
