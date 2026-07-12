@@ -29,6 +29,10 @@ export interface InboundBooking {
   /** Provider-side reference to acknowledge after successful processing
    *  (e.g. Channex booking revision id). */
   ackRef?: string;
+  /** Per-room breakdown for multi-room bookings. When length > 1 the
+   *  processor fans out ONE reservation PER ROOM (owner house rule),
+   *  suffixing external ids with #1, #2, ... */
+  roomsDetail?: { category: string; amount: number }[];
   raw: unknown;
 }
 
@@ -77,6 +81,9 @@ export interface CMAdapter {
   resolveWebhook?(rawBody: string, account: ChannelAccountRow): Promise<InboundBooking | null>;
   /** Acknowledge a processed event upstream (best effort). */
   ackEvent?(ackRef: string, account: ChannelAccountRow): Promise<void>;
+  /** Pull-based backstop: fetch unacknowledged booking events from the
+   *  provider (e.g. Channex booking revisions feed). */
+  pollFeed?(account: ChannelAccountRow): Promise<InboundBooking[]>;
   pushAvailability(update: AvailabilityUpdate, account: ChannelAccountRow): Promise<PushResult>;
 }
 

@@ -99,29 +99,45 @@ async function handleItem(
     return { ok: true };
   }
 
-  if (item.direction === 'inbound' && item.event_type === 'booking_created') {
-    // Retry path for bookings that failed inline processing.
-    // fn_guard_and_book is idempotent on external_booking_id.
-    const p = item.payload;
-    const { error } = await db.rpc('fn_guard_and_book', {
-      p_channel_account_id: item.channel_account_id,
-      p_external_booking_id: String(p.booking_id),
-      p_category: String(p.category),
-      p_check_in: String(p.check_in),
-      p_check_out: String(p.check_out),
-      p_guest_name: String(p.guest_name || ''),
-      p_phone: p.phone || null,
-      p_email: p.email || null,
-      p_total_amount: Number(p.total_amount || 0),
-      p_commission_pct: Number(p.commission_pct || 0),
-    });
-    if (error) return { ok: false, error: error.message };
+  if (item.direction === 'inbound') {
+    // Inbound retries are re-processed exclusively via the feed poll
+    // (revisions stay unacked until terminally handled). Nothing to do
+    // per-row here - report success so the row does not churn.
     return { ok: true };
   }
 
-  // booking_modified / booking_cancelled: Phase 3. Fail so it surfaces
-  // (goes dead after max_attempts and stays visible for manual review).
   return { ok: false, error: `UNHANDLED_EVENT: ${item.direction}/${item.event_type}` };
+}
+
+/** Pull-based backstop: process unacked provider events (lost webhooks,
+ *  failed inline processing). Runs on every drain sweep. */
+export async function pollInboundFeeds(): Promise<{ processed: number; errors: string[] }> {
+  const db = serviceClient();
+  const out = { processed: 0, errors: [] as string[] };
+  const { processInbound } = await import('./inbound');
+
+  const { data: accounts } = await db
+    .from('channel_accounts')
+    .select('*')
+    .eq('status', 'active');
+
+  for (const acct of (accounts || []) as ChannelAccountRow[]) {
+    const adapter = getAdapter(acct.provider);
+    if (!adapter?.pollFeed) continue;
+    try {
+      const bookings = await adapter.pollFeed(acct);
+      for (const b of bookings) {
+        const r = await processInbound(db, adapter, acct, b);
+        out.processed += 1;
+        if (r.httpStatus !== 200) {
+          out.errors.push(`${acct.provider} ${b.externalBookingId}: ${JSON.stringify(r.body).slice(0, 150)}`);
+        }
+      }
+    } catch (e: any) {
+      out.errors.push(`${acct.provider} feed: ${e?.message || e}`);
+    }
+  }
+  return out;
 }
 
 export async function drainOnce(limit = 10): Promise<DrainReport> {

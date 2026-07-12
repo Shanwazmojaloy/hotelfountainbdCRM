@@ -6,7 +6,7 @@
 
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { drainOnce } from '@/lib/channel/drain';
+import { drainOnce, pollInboundFeeds } from '@/lib/channel/drain';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -41,5 +41,17 @@ export async function GET(req: Request) {
     if (r.claimed < 25) break; // queue exhausted
   }
 
-  return NextResponse.json({ ok: true, ...totals });
+  // Feed backstop: pick up lost webhooks / unacked revisions, then drain
+  // any outbound rows their processing enqueued.
+  const feed = await pollInboundFeeds();
+  if (feed.processed > 0) {
+    const r = await drainOnce(25);
+    totals.claimed += r.claimed;
+    totals.done += r.done;
+    totals.failed += r.failed;
+    totals.errors.push(...r.errors);
+  }
+  totals.errors.push(...feed.errors);
+
+  return NextResponse.json({ ok: true, feed_processed: feed.processed, ...totals });
 }

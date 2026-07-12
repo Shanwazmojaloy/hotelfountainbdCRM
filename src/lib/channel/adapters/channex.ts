@@ -58,6 +58,49 @@ function webhookSecret(account: ChannelAccountRow): string | null {
   return process.env[ref] || null;
 }
 
+/** Map a Channex Booking Revision (attributes) to the normalized shape.
+ *  Multi-room revisions produce roomsDetail entries per room. */
+function mapRevision(a: any, account: ChannelAccountRow): InboundBooking {
+  const eventType = STATUS_MAP[a.status];
+  if (!eventType) throw new Error(`CHANNEX_UNKNOWN_STATUS: ${a.status}`);
+
+  const rooms: any[] = a.rooms || [];
+  if (rooms.length === 0 && eventType !== 'booking_cancelled') {
+    throw new Error('MALFORMED_PAYLOAD: revision has no rooms');
+  }
+
+  const roomsDetail = rooms.map((r) => {
+    const mapping = (account.config.mappings || []).find(
+      (m) => m.cm_room_id === r.room_type_id
+    );
+    if (!mapping) {
+      throw new Error(`UNMAPPED_ROOM: room_type_id=${r.room_type_id ?? 'null'}`);
+    }
+    return { category: mapping.category, amount: Number(r.amount || 0) };
+  });
+
+  const guestName =
+    [a.customer?.name, a.customer?.surname].filter(Boolean).join(' ').trim() ||
+    'OTA Guest';
+
+  return {
+    eventType,
+    externalEventId: String(a.system_id || a.id), // unique per revision
+    externalBookingId: String(a.unique_id || a.booking_id), // stable across revisions
+    category: roomsDetail[0]?.category || '',
+    checkIn: a.arrival_date,
+    checkOut: a.departure_date,
+    guestName,
+    phone: a.customer?.phone || null,
+    email: a.customer?.mail || null, // Channex field is 'mail', not 'email'
+    totalAmount: Number(a.amount || 0),
+    commissionPct: 0, // ota_commission is an amount, not a pct
+    ackRef: String(a.id),
+    roomsDetail,
+    raw: a,
+  };
+}
+
 export const channexAdapter: CMAdapter = {
   provider: 'channex',
 
@@ -97,49 +140,26 @@ export const channexAdapter: CMAdapter = {
     const body: any = await res.json();
     const a = body?.data?.attributes;
     if (!a) throw new Error('CHANNEX_FETCH_FAILED: empty revision');
+    return mapRevision(a, account);
+  },
 
-    const eventType = STATUS_MAP[a.status];
-    if (!eventType) throw new Error(`CHANNEX_UNKNOWN_STATUS: ${a.status}`);
-
-    const rooms: any[] = a.rooms || [];
-    if (rooms.length === 0) throw new Error('MALFORMED_PAYLOAD: revision has no rooms');
-    if (rooms.length > 1) {
-      // Per-room fan-out for multi-room OTA bookings is Phase 3.1 -
-      // fail loudly so it surfaces instead of booking only one room.
-      throw new Error(`MULTI_ROOM_UNSUPPORTED: ${a.unique_id || a.booking_id}`);
+  async pollFeed(account) {
+    const key = apiKey(account);
+    if (!key) return [];
+    const res = await fetch(`${apiBase(account)}/booking_revisions/feed`, {
+      headers: { 'user-api-key': key },
+    });
+    if (!res.ok) return [];
+    const body: any = await res.json().catch(() => null);
+    const out: InboundBooking[] = [];
+    for (const row of body?.data || []) {
+      try {
+        out.push(mapRevision(row.attributes, account));
+      } catch {
+        // unmapped/malformed revisions stay unacked in the feed for a human
+      }
     }
-
-    const roomTypeId = rooms[0].room_type_id;
-    const mapping = (account.config.mappings || []).find(
-      (m) => m.cm_room_id === roomTypeId
-    );
-    if (!mapping) {
-      // null room_type_id = unmapped on the Channex side; non-null but
-      // unknown = our config is stale. Both need a human.
-      throw new Error(`UNMAPPED_ROOM: room_type_id=${roomTypeId ?? 'null'}`);
-    }
-
-    const guestName =
-      [a.customer?.name, a.customer?.surname].filter(Boolean).join(' ').trim() ||
-      'OTA Guest';
-
-    return {
-      eventType,
-      // system_id is unique per revision - Channex's own dedup key.
-      externalEventId: String(a.system_id || a.id),
-      // unique_id (e.g. BDC-9996013801) is stable across revisions.
-      externalBookingId: String(a.unique_id || a.booking_id),
-      category: mapping.category,
-      checkIn: a.arrival_date,
-      checkOut: a.departure_date,
-      guestName,
-      phone: a.customer?.phone || null,
-      email: a.customer?.mail || null, // Channex field is 'mail', not 'email'
-      totalAmount: Number(a.amount || 0),
-      commissionPct: 0, // ota_commission is an amount, not a pct - folio note later
-      ackRef: String(a.id),
-      raw: body.data,
-    };
+    return out;
   },
 
   async ackEvent(ackRef, account) {
