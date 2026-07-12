@@ -4,15 +4,29 @@
 // Real-time draining rides on webhook traffic; this sweep catches retries,
 // overbook alerts from the nightly DB reconcile, and anything stranded.
 
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { drainOnce } from '@/lib/channel/drain';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+function drainKeyOk(req: Request): boolean {
+  const secret = process.env.CHANNEL_WEBHOOK_SECRET;
+  const got = req.headers.get('x-drain-key');
+  if (!secret || !got) return false;
+  const a = Buffer.from(got);
+  const b = Buffer.from(secret);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export async function GET(req: Request) {
+  // Two callers: Vercel cron (Bearer CRON_SECRET) and the Supabase pg_cron
+  // 15-min drain (x-drain-key = channel shared secret). Both fail closed.
   const authHeader = req.headers.get('authorization');
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const bearerOk =
+    !!process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  if (!bearerOk && !drainKeyOk(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
