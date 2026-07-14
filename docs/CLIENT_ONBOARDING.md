@@ -9,6 +9,19 @@ Prereqs (platform-side, one-time): wildcard DNS `*.lumea.fountainbd.com` → Ver
 (done), `NEXT_PUBLIC_APEX_DOMAIN=lumea.fountainbd.com` (done), `ADMIN_SECRET`,
 `GOOGLE_SA_KEY`, and the standby HS256 signing key for tenant JWTs (done).
 
+> ⚠️ **The `*.lumea` DNS record MUST stay "DNS only" (grey cloud) in Cloudflare —
+> never Proxied.** It is a *two-label* wildcard, and Cloudflare's Universal SSL only
+> covers `fountainbd.com` + `*.fountainbd.com` (one label). Proxying it leaves the
+> Cloudflare edge with no certificate matching the SNI, so it aborts every TLS
+> handshake: **all tenant subdomains go dark at once** — no HTTP status, no Vercel
+> logs, invisible to log-based monitoring. (This happened 2026-07-14. Hotel Fountain's
+> own CRM kept working, because its hosts are only one label deep, so it looked like
+> "just the demo is broken.") Grey-cloud keeps TLS terminating at Vercel, which holds
+> a valid cert for the wildcard. Proxying it to "add WAF" requires Cloudflare Advanced
+> Certificate Manager first. Diagnose with
+> `openssl s_client -servername <host> -connect <host>:443` — a `handshake_failure`
+> alert with healthy DNS is this bug, and it is NOT a `TENANT_JWT_MODE` fault.
+
 ---
 
 ## 1. Collect from the client
