@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Review-request builders (C2/C3 review engine — audit 2026-07-14).
 //
-// INERT UTILITY: nothing imports this yet. Wire it into the checkout flow
-// (reservation status → CHECKED_OUT) once the owner signs off on automated
-// guest messaging. Until then, front desk can use the WhatsApp helper manually
-// from any guest row.
+// WIRED 2026-07-14 (owner-approved): buildReviewRequestEmail() fires on the
+// reservation CHECKED_OUT transition in app/api/crm/reservation/route.ts
+// (email-only, best-effort). The WhatsApp helper stays available for front desk
+// to use manually from any guest row.
 //
 // Rules honored:
 //  - Reservation-centric: callers pass the reservation's guest fields, never

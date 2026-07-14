@@ -36,11 +36,10 @@ export const SOCIALS = [
   { label: "Instagram", href: "https://www.instagram.com/hotel_fountainbd" },
 ] as const;
 
-// Google review link for the Hotel Fountain GBP listing (CID-based; opens the
-// exact listing). TODO(owner): replace with the short "g.page/r/.../review" link
-// from Google Business Profile > Ask for reviews — that one opens the review
-// dialog directly.
-export const GOOGLE_REVIEW_URL = "https://www.google.com/maps?cid=16595962154219546266" as const;
+// Google review link for the Hotel Fountain GBP listing. Short "g.page/r/.../review"
+// link from Google Business Profile > Ask for reviews — opens the star-rating
+// review dialog directly.
+export const GOOGLE_REVIEW_URL = "https://g.page/r/CZomFWyms1DmEBM/review" as const;
 
 /** Build a WhatsApp deep link to the hotel with a prefilled message. */
 export function waLink(message: string): string {

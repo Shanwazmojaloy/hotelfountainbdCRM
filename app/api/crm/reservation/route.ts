@@ -9,6 +9,8 @@ import { recalcResTotalServer } from '@/lib/recalcResTotal.server';
 import { openBusinessDay, clampFiscalDay } from '@/lib/businessDay';
 import { notifyReservationChange, notifyReservationDeleted } from '@/lib/changeNotify';
 import { tenantScoped, tenantClient, type TenantDb } from '@/lib/tenantDb';
+import { sendMail, isMailConfigured } from '@/lib/mailer';
+import { buildReviewRequestEmail } from '@/lib/reviewRequest';
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 
@@ -199,6 +201,14 @@ export async function POST(req: NextRequest) {
       }
       if (status === 'CHECKED_OUT' && prev.status !== 'CHECKED_OUT') {
         for (const rn of newRoomNos) await db.from('rooms').update({ status: 'DIRTY' }).eq('room_number', rn);
+        // Post-checkout Google-review request (owner-approved 2026-07-14). Fires ONCE on the
+        // transition into CHECKED_OUT (the prev.status guard prevents re-sends on later edits).
+        // Email-only + best-effort: never blocks or faults the checkout save.
+        const guestEmail = String(prev.email || '').trim();
+        if (guestEmail && isMailConfigured()) {
+          const { subject, html } = buildReviewRequestEmail(gn || '');
+          sendMail({ to: guestEmail, subject, html }).catch(() => { /* fire-and-forget */ });
+        }
       }
 
       // Stay-Extension TX when checkout pushed out
