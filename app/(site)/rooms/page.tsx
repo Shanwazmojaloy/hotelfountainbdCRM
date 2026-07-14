@@ -8,6 +8,17 @@ export const metadata: Metadata = {
   title: "Rooms & Suites — Hotel Fountain",
   description:
     "Browse Hotel Fountain's curated collection — Fountain Deluxe, Premium Deluxe, Superior Deluxe, Twin Deluxe and the Royal Suite, from ৳4,000/night.",
+  alternates: { canonical: "https://fountainbd.com/rooms" },
+  openGraph: {
+    title: "Rooms & Suites | Hotel Fountain, Dhaka",
+    description:
+      "Five room categories from BDT 4,000/night — Fountain Deluxe to the Royal Suite. Free breakfast, fibre Wi-Fi and 24/7 room service.",
+    url: "https://fountainbd.com/rooms",
+    siteName: "Hotel Fountain",
+    type: "website",
+    images: [{ url: "/images/room-royal-suite.webp", width: 1200, height: 630, alt: "Royal Suite at Hotel Fountain, Dhaka" }],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RoomsPage() {

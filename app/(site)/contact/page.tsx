@@ -10,6 +10,17 @@ export const metadata: Metadata = {
   title: "Contact & Support — Hotel Fountain",
   description:
     "Reach Hotel Fountain — House-05, Road-02, Nikunja-02, Dhaka 1229. Front desk 24/7, call +880 1322-840799 or send a message.",
+  alternates: { canonical: "https://fountainbd.com/contact" },
+  openGraph: {
+    title: "Contact | Hotel Fountain, Nikunja-02, Dhaka",
+    description:
+      "House-05, Road-02, Nikunja-02, Dhaka 1229. Front desk 24/7. Call, WhatsApp or send a message to book your stay.",
+    url: "https://fountainbd.com/contact",
+    siteName: "Hotel Fountain",
+    type: "website",
+    images: [{ url: "/images/lobby.webp", width: 1200, height: 630, alt: "Hotel Fountain lobby, Dhaka" }],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (

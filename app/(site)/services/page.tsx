@@ -12,6 +12,17 @@ export const metadata: Metadata = {
   title: "Services & Amenities — Hotel Fountain",
   description:
     "Rooftop restaurant, business center, complimentary airport transfer and fibre Wi-Fi — premium hospitality in Nikunja-02, minutes from Dhaka airport.",
+  alternates: { canonical: "https://fountainbd.com/services" },
+  openGraph: {
+    title: "Services & Amenities | Hotel Fountain, Dhaka",
+    description:
+      "Rooftop restaurant, business center, complimentary airport transfer and fibre Wi-Fi — minutes from Dhaka airport.",
+    url: "https://fountainbd.com/services",
+    siteName: "Hotel Fountain",
+    type: "website",
+    images: [{ url: "/images/rooftop.webp", width: 1200, height: 630, alt: "Rooftop restaurant at Hotel Fountain, Dhaka" }],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 const GALLERY = [

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { NAV_LINKS, SITE, CONTACT } from "@/lib/site";
+import { NAV_LINKS, SITE, CONTACT, SOCIALS } from "@/lib/site";
 
 /**
  * Editorial multi-column footer (Gilded Threshold theme).
@@ -34,6 +34,20 @@ export default function Footer() {
           <p className="mt-6 text-[11px] uppercase tracking-[0.25em] text-white/35">
             {SITE.location} · {SITE.established}
           </p>
+          {/* Social profiles (also mirrored in Hotel schema sameAs) */}
+          <div className="mt-6 flex gap-4">
+            {SOCIALS.map((s) => (
+              <a
+                key={s.label}
+                href={s.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50 transition hover:text-neon-teal"
+              >
+                {s.label}
+              </a>
+            ))}
+          </div>
         </div>
 
         {/* Explore */}
@@ -55,9 +69,6 @@ export default function Footer() {
             <Link href="/contact#terms" className="w-fit text-sm text-white/60 transition hover:text-neon-teal">
               Terms &amp; Conditions
             </Link>
-            <a href={SITE.crmUrl} className="w-fit text-sm text-white/60 transition hover:text-neon-teal">
-              Staff Login
-            </a>
           </nav>
         </div>
 

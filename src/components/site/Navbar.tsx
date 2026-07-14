@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { m, AnimatePresence } from "framer-motion";
-import { NAV_LINKS, SITE, CONTACT } from "@/lib/site";
+import { NAV_LINKS, CONTACT } from "@/lib/site";
 import { openReservation } from "@/lib/reserve";
 
 // Understated luxury ease-out (matches --ease-regent in globals.css).
@@ -95,12 +95,7 @@ export default function Navbar() {
           </ul>
 
           <div className="flex shrink-0 items-center gap-1.5 min-[400px]:gap-2">
-            <a
-              href={SITE.crmUrl}
-              className="hidden rounded-full border border-white/15 px-4 py-2 text-xs font-medium uppercase tracking-[0.15em] text-white/80 transition hover:border-neon-teal/40 hover:text-white sm:inline-block"
-            >
-              Staff Login
-            </a>
+            {/* Staff Login removed from public nav (SEO/UX: /crm is perimeter-gated; staff bookmark it directly) */}
             <button
               type="button"
               onClick={() => openReservation()}
@@ -210,9 +205,6 @@ export default function Navbar() {
                 >
                   Book Now
                 </button>
-                <a href={SITE.crmUrl} className="btn-ghost w-full">
-                  Staff Login
-                </a>
               </m.div>
 
               {/* Contact footer */}

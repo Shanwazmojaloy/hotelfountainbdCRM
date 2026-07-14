@@ -28,6 +28,20 @@ export const CONTACT = {
     "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3649.7005234745966!2d90.4162137758988!3d23.82924608574381!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3755c72983411885%3A0xe650b3a66c15269a!2sHotel%20Fountain!5e0!3m2!1sen!2sbd!4v1775873778238!5m2!1sen!2sbd",
 } as const;
 
+// Official social profiles (single source for footer links + Hotel schema sameAs).
+// NOTE: @hotelfountain0806 is the canonical Facebook page (13.5K, 48 reviews);
+// the duplicate "Hotel Fountain | Dhaka" page is pending merge/retirement.
+export const SOCIALS = [
+  { label: "Facebook", href: "https://www.facebook.com/hotelfountain0806" },
+  { label: "Instagram", href: "https://www.instagram.com/hotel_fountainbd" },
+] as const;
+
+// Google review link for the Hotel Fountain GBP listing (CID-based; opens the
+// exact listing). TODO(owner): replace with the short "g.page/r/.../review" link
+// from Google Business Profile > Ask for reviews — that one opens the review
+// dialog directly.
+export const GOOGLE_REVIEW_URL = "https://www.google.com/maps?cid=16595962154219546266" as const;
+
 /** Build a WhatsApp deep link to the hotel with a prefilled message. */
 export function waLink(message: string): string {
   return `https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent(message)}`;

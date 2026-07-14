@@ -13,8 +13,11 @@ export const metadata: Metadata = {
     description:
       "Location, airport distance, room rates, check-in times, amenities and booking — everything about staying at Hotel Fountain, Dhaka.",
     url: "https://fountainbd.com/faq",
+    siteName: "Hotel Fountain",
     type: "website",
+    images: [{ url: "/images/hero-exterior.webp", width: 1200, height: 630, alt: "Hotel Fountain exterior, Nikunja-02, Dhaka" }],
   },
+  twitter: { card: "summary_large_image" },
 };
 
 // Single source of truth for both the visible page and the FAQPage JSON-LD,

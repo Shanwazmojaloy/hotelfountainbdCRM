@@ -30,6 +30,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://fountainbd.com"),
   title: "Hotel Fountain — Dhaka's Finest Luxury Hotel",
   description: "Experience refined comfort in the heart of Dhaka. Book your stay at Hotel Fountain — where every stay becomes a memory.",
   manifest: "/manifest.webmanifest",
@@ -64,7 +65,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             script's own onload, so no DOMContentLoaded race; cdn.cookiehub.eu is
             host-whitelisted in the middleware CSP, the inline injector carries the nonce. */}
         <Script id="cookiehub-init" strategy="afterInteractive" nonce={nonce}>
-          {`(function(){var s=document.createElement("script");s.src="https://cdn.cookiehub.eu/c2/bebf3065.js";s.async=true;s.onload=function(){if(window.cookiehub){window.cookiehub.load({});}};document.head.appendChild(s);})();`}
+          {`(function(){var s=document.createElement("script");s.src="https://cdn.cookiehub.eu/c2/bebf3065.js";s.async=true;s.onload=function(){if(window.cookiehub){window.cookiehub.load({});
+/* SCROLL-LOCK GUARD (2026-07-14): in region g0 (e.g. Bangladesh, consent not
+   required) CookieHub hides its root (.ch2 display:none) but leaves the
+   body overflow:hidden lock from its center dialog -> page cannot scroll.
+   Watch 10s post-load; release the lock ONLY if the CookieHub root is hidden
+   AND no other visible aria-modal dialog owns the lock. Fires once. */
+var n=0,t=setInterval(function(){n++;var r=document.querySelector(".ch2");var b=document.body;var o=document.querySelector('[aria-modal="true"]:not(#ch2-dialog)');var oV=o&&o.offsetWidth>0;if(r&&getComputedStyle(r).display==="none"&&b.style.overflow==="hidden"&&!oV){b.style.overflow="";clearInterval(t);}else if(n>=40){clearInterval(t);}},250);}};document.head.appendChild(s);})();`}
         </Script>
         <RoleProvider>{children}</RoleProvider>
         <ClientErrorReporter />

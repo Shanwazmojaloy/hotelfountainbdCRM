@@ -15,6 +15,17 @@ import Parallax from "@/components/site/Parallax";
 
 export const metadata: Metadata = {
   title: "Hotel Fountain — Dhaka's Finest Luxury Hotel",
+  alternates: { canonical: "https://fountainbd.com/" },
+  openGraph: {
+    title: "Hotel Fountain | Boutique Hotel in Nikunja-02, Dhaka",
+    description:
+      "Boutique comfort 8 minutes from Hazrat Shahjalal International Airport. Rooftop restaurant, free breakfast and fibre Wi-Fi. Book direct from BDT 4,000/night.",
+    url: "https://fountainbd.com/",
+    siteName: "Hotel Fountain",
+    type: "website",
+    images: [{ url: "/images/hero-exterior.webp", width: 1200, height: 630, alt: "Hotel Fountain exterior, Nikunja-02, Dhaka" }],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function HomePage() {
@@ -59,6 +70,8 @@ export default function HomePage() {
             <h1 className="mt-5 font-display text-6xl font-medium leading-[0.98] text-white sm:text-7xl lg:text-8xl">
               Hotel
               <span className="mt-1 block italic text-neon-teal">Fountain</span>
+              {/* SEO: keyword + location qualifier, visually hidden to preserve the hero design */}
+              <span className="sr-only">, Boutique Hotel in Nikunja-02, Dhaka, 8 minutes from Hazrat Shahjalal International Airport</span>
             </h1>
 
             <p className="mt-6 text-xs font-medium uppercase tracking-[0.3em] text-white/70">
