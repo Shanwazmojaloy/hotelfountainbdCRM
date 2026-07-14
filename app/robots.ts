@@ -10,6 +10,5 @@ export default function robots(): MetadataRoute.Robots {
       disallow: ["/crm", "/billing", "/settings", "/lumea", "/admin", "/invoice/", "/api/"],
     },
     sitemap: "https://fountainbd.com/sitemap.xml",
-    host: "https://fountainbd.com",
   };
 }
