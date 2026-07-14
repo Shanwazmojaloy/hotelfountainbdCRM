@@ -103,6 +103,31 @@ const LUMEA_MARKETING_HOSTS = new Set([
   'www.lumea.fountainbd.com',
 ]);
 
+// Hosts whose public pages may be indexed. Everything else — tenant subdomains
+// (<slug>.lumea.fountainbd.com), preview aliases (*.vercel.app), and made-up
+// subdomains that the wildcard now happily resolves — serves the SAME static
+// marketing site, so without this they are duplicate content competing with the
+// canonical fountainbd.com. The per-page `alternates.canonical` is only a hint;
+// X-Robots-Tag: noindex is the directive crawlers must honour.
+// NOT a security control — the tenant gate is getTenantFromHeaders() (404s
+// unknown slugs at the API layer). This is purely an SEO measure, and it stays
+// header-based on purpose: a 404 here would need a tenant lookup at the edge on
+// every public request, forcing dynamic SSR and undoing the static-render win.
+const INDEXABLE_HOSTS = new Set([
+  'fountainbd.com',
+  'www.fountainbd.com',
+  'hotel.fountainbd.com',
+]);
+
+// The Lumea marketing hosts are indexable ONLY at "/" — the one path the rewrite below
+// turns into the Lumea product page. Every OTHER path on them (/rooms, /services, /faq …)
+// falls through to the Hotel Fountain marketing site verbatim, so it is duplicate content
+// and must stay noindexed. Host-level allowlisting would leak exactly what this suppresses.
+function isIndexable(hostname: string, pathname: string): boolean {
+  if (LUMEA_MARKETING_HOSTS.has(hostname)) return pathname === '/';
+  return INDEXABLE_HOSTS.has(hostname);
+}
+
 // Per-request CSP for SSR pages. 'self' covers Next chunks + same-origin Vercel
 // analytics; the nonce covers every inline script (Next hydration, JSON-LD, SW,
 // Vercel's inline init). No 'strict-dynamic' so same-origin third-party stays simple.
@@ -196,6 +221,8 @@ export async function middleware(request: NextRequest) {
     if (isStrict) requestHeaders.set('x-nonce', nonce); // Next reads x-nonce + CSP to nonce its scripts
     requestHeaders.set('content-security-policy', csp);
   }
+  // Non-canonical host (or a non-product path on a Lumea host) → don't index this copy.
+  const noindex = !isIndexable(hostname, pathname);
   if (LUMEA_MARKETING_HOSTS.has(hostname) && pathname === '/') {
     const rewritten = request.nextUrl.clone();
     rewritten.pathname = '/lumea';
@@ -203,12 +230,14 @@ export async function middleware(request: NextRequest) {
     response.headers.set('x-tenant-slug', slug);
     response.headers.set('x-lumea-marketing', '1');
     response.headers.set('x-request-id', requestId);
+    if (noindex) response.headers.set('x-robots-tag', 'noindex, nofollow');
     if (!isCrmHtml) response.headers.set('content-security-policy', csp);
     return response;
   }
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-tenant-slug', slug);
   response.headers.set('x-request-id', requestId);
+  if (noindex) response.headers.set('x-robots-tag', 'noindex, nofollow');
   if (!isCrmHtml) response.headers.set('content-security-policy', csp);
   return response;
 }
