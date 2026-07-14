@@ -103,6 +103,23 @@ const LUMEA_MARKETING_HOSTS = new Set([
   'www.lumea.fountainbd.com',
 ]);
 
+// Hosts whose public pages may be indexed. Everything else — tenant subdomains
+// (<slug>.lumea.fountainbd.com), preview aliases (*.vercel.app), and made-up
+// subdomains that the wildcard now happily resolves — serves the SAME static
+// marketing site, so without this they are duplicate content competing with the
+// canonical fountainbd.com. The per-page `alternates.canonical` is only a hint;
+// X-Robots-Tag: noindex is the directive crawlers must honour.
+// NOT a security control — the tenant gate is getTenantFromHeaders() (404s
+// unknown slugs at the API layer). This is purely an SEO measure, and it stays
+// header-based on purpose: a 404 here would need a tenant lookup at the edge on
+// every public request, forcing dynamic SSR and undoing the static-render win.
+const INDEXABLE_HOSTS = new Set([
+  'fountainbd.com',
+  'www.fountainbd.com',
+  'hotel.fountainbd.com',
+  ...LUMEA_MARKETING_HOSTS, // the Lumea product page is its own indexable surface
+]);
+
 // Per-request CSP for SSR pages. 'self' covers Next chunks + same-origin Vercel
 // analytics; the nonce covers every inline script (Next hydration, JSON-LD, SW,
 // Vercel's inline init). No 'strict-dynamic' so same-origin third-party stays simple.
@@ -196,6 +213,8 @@ export async function middleware(request: NextRequest) {
     if (isStrict) requestHeaders.set('x-nonce', nonce); // Next reads x-nonce + CSP to nonce its scripts
     requestHeaders.set('content-security-policy', csp);
   }
+  // Non-canonical host → tell crawlers not to index this copy of the site.
+  const noindex = !INDEXABLE_HOSTS.has(hostname);
   if (LUMEA_MARKETING_HOSTS.has(hostname) && pathname === '/') {
     const rewritten = request.nextUrl.clone();
     rewritten.pathname = '/lumea';
@@ -203,12 +222,14 @@ export async function middleware(request: NextRequest) {
     response.headers.set('x-tenant-slug', slug);
     response.headers.set('x-lumea-marketing', '1');
     response.headers.set('x-request-id', requestId);
+    if (noindex) response.headers.set('x-robots-tag', 'noindex, nofollow');
     if (!isCrmHtml) response.headers.set('content-security-policy', csp);
     return response;
   }
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-tenant-slug', slug);
   response.headers.set('x-request-id', requestId);
+  if (noindex) response.headers.set('x-robots-tag', 'noindex, nofollow');
   if (!isCrmHtml) response.headers.set('content-security-policy', csp);
   return response;
 }
