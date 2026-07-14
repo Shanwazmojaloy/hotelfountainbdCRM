@@ -117,7 +117,7 @@ async function shadowAudit(input: ChainInput): Promise<ShadowFindings> {
   // Active-window reservations for due math + BCF cross-check.
   const { data: res, error: resErr } = await sb
     .from("reservations")
-    .select("id, room_number, room_ids, status, total_amount, discount, paid_amount, guest_name")
+    .select("id, room_ids, status, total_amount, discount, paid_amount, guest_name")
     .neq("status", "CANCELLED")
     .lte("check_in", input.auditDate)
     .eq("tenant_id", input.tenantId);
@@ -136,9 +136,7 @@ async function shadowAudit(input: ChainInput): Promise<ShadowFindings> {
   const ghostBcf = (txs || []).filter((t) => {
     if (t.type !== "Balance Carried Forward") return false;
     const match = (res || []).find(
-      (r) =>
-        String(r.room_number) === String(t.room_number) ||
-        (Array.isArray(r.room_ids) && r.room_ids.some((id: unknown) => String(id) === String(t.room_number))),
+      (r) => Array.isArray(r.room_ids) && r.room_ids.some((id: unknown) => String(id) === String(t.room_number)),
     );
     return !!match && match.status === "CHECKED_OUT" && dueOf(match) <= 0;
   });
@@ -149,7 +147,7 @@ async function shadowAudit(input: ChainInput): Promise<ShadowFindings> {
     .filter((r) => dueOf(r) > 0)
     .map((r) => ({
       guest_name: r.guest_name || "(no name)",
-      room: String(r.room_number ?? (Array.isArray(r.room_ids) ? r.room_ids.join("+") : "?")),
+      room: Array.isArray(r.room_ids) && r.room_ids.length ? r.room_ids.join("+") : "?",
       due: dueOf(r),
       status: r.status,
     }))
@@ -257,7 +255,7 @@ async function shadowAuditInline(input: ChainInput): Promise<Pick<ShadowFindings
   const sb = serviceClient();
   const { data: res, error } = await sb
     .from("reservations")
-    .select("id, room_number, room_ids, status, total_amount, discount, paid_amount, guest_name")
+    .select("id, room_ids, status, total_amount, discount, paid_amount, guest_name")
     .neq("status", "CANCELLED")
     .lte("check_in", input.auditDate)
     .eq("tenant_id", input.tenantId);
@@ -268,7 +266,7 @@ async function shadowAuditInline(input: ChainInput): Promise<Pick<ShadowFindings
     .filter((r) => dueOf(r) > 0)
     .map((r) => ({
       guest_name: r.guest_name || "(no name)",
-      room: String(r.room_number ?? (Array.isArray(r.room_ids) ? r.room_ids.join("+") : "?")),
+      room: Array.isArray(r.room_ids) && r.room_ids.length ? r.room_ids.join("+") : "?",
       due: dueOf(r),
       status: r.status,
     }))
