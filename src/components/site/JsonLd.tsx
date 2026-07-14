@@ -1,15 +1,11 @@
-import { headers } from "next/headers";
-
-// CSP-safe JSON-LD injector for the public site. Reads the per-request nonce
-// (set by middleware) so the structured-data <script> satisfies the nonce-based
-// Content-Security-Policy — mirrors the Hotel schema pattern in (site)/layout.tsx.
-// The site already renders dynamically (nonce), so headers() adds no new cost.
-export default async function JsonLd({ data }: { data: Record<string, unknown> }) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+// Shared JSON-LD injector for the public site. `application/ld+json` is a data block, not
+// executable JS, so the CSP script-src does NOT gate it — no nonce is required (this is why
+// these run fine under the public static CSP without forcing dynamic rendering). Kept as a
+// shared component so structured data is emitted consistently across the (site) pages.
+export default function JsonLd({ data }: { data: Record<string, unknown> }) {
   return (
     <script
       type="application/ld+json"
-      nonce={nonce}
       suppressHydrationWarning
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
     />

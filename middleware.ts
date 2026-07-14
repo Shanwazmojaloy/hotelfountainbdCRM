@@ -130,6 +130,30 @@ function buildCsp(nonce: string): string {
   ].join('; ');
 }
 
+// Static CSP for the PUBLIC marketing pages. Identical to buildCsp() except script-src uses
+// 'unsafe-inline' instead of a per-request nonce — so these routes can be STATICALLY rendered
+// (a nonce forces dynamic SSR and inflates TTFB). Our own inline scripts (GA, CookieHub, SW
+// register) live in app/(site)/layout.tsx and rely on this; Next's own inline hydration scripts
+// (which cannot be hashed) are covered too. These pages carry no auth, PII, or reflected user
+// input, so inline-script XSS exposure is minimal. All authed/staff surfaces stay on buildCsp().
+function buildStaticCsp(): string {
+  const devEval = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : '';
+  const supabaseSrc = SUPABASE_HOST ? ` https://${SUPABASE_HOST} wss://${SUPABASE_HOST}` : '';
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${devEval} https://connect.facebook.net https://www.googletagmanager.com https://cdn.cookiehub.eu`,
+    "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+    "font-src 'self' data: fonts.gstatic.com",
+    "img-src 'self' data: blob: https:",
+    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.cookiehub.eu`,
+    "frame-src 'self' https://www.google.com https://www.facebook.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https://www.facebook.com",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
+
 export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
@@ -156,14 +180,21 @@ export async function middleware(request: NextRequest) {
   const requestId = crypto.randomUUID();
   // /crm.html keeps its own static CSP from next.config.mjs (scripts all external).
   const isCrmHtml = pathname === '/crm.html';
+  // Authed/staff surfaces get the strict per-request nonce CSP (forces dynamic SSR — required so
+  // Next can nonce its inline hydration scripts). Everything else = the PUBLIC marketing pages,
+  // which get a static 'unsafe-inline' CSP so they can be statically rendered (low TTFB). The
+  // strict layouts (crm/admin/lumea/settings) also carry `export const dynamic='force-dynamic'`
+  // so they never static-render and lose their nonce.
+  const STRICT_PREFIXES = ['/crm', '/api', '/admin', '/lumea', '/settings', '/billing', '/invoice'];
+  const isStrict = STRICT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const nonce = btoa(crypto.randomUUID());
-  const csp = buildCsp(nonce);
+  const csp = isStrict ? buildCsp(nonce) : buildStaticCsp();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-tenant-slug', slug);
   requestHeaders.set('x-request-id', requestId);
   if (!isCrmHtml) {
-    requestHeaders.set('x-nonce', nonce);
-    requestHeaders.set('content-security-policy', csp); // Next reads this to nonce its own scripts
+    if (isStrict) requestHeaders.set('x-nonce', nonce); // Next reads x-nonce + CSP to nonce its scripts
+    requestHeaders.set('content-security-policy', csp);
   }
   if (LUMEA_MARKETING_HOSTS.has(hostname) && pathname === '/') {
     const rewritten = request.nextUrl.clone();

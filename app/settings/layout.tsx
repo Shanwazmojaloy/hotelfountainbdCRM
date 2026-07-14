@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 // component (cannot export metadata), so this server layout carries the
 // authoritative noindex directive alongside the robots.txt disallow.
 export const metadata: Metadata = { robots: { index: false, follow: false } };
+// Stay on the strict per-request nonce CSP (force-dynamic → Next nonces its inline scripts).
+export const dynamic = "force-dynamic";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;

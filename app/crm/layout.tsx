@@ -5,6 +5,9 @@ import UiFonts from '../components/UiFonts';
 // Staff CRM must never appear in search. robots.txt disallows /crm, but a page-level
 // noindex is the authoritative directive (blocks indexing even of leaked/linked URLs).
 export const metadata: Metadata = { robots: { index: false, follow: false } };
+// Keep the CRM on the strict per-request nonce CSP: force-dynamic prevents static rendering,
+// so Next injects the middleware nonce into its inline hydration scripts every request.
+export const dynamic = 'force-dynamic';
 
 // Shared shell for ALL /crm/* routes. Mounted ONCE — AuthGate and the Header pill-nav persist
 // across tab navigation, so switching pages only swaps the page body (no remount, no auth

@@ -2,8 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cormorant_Garamond, Playfair_Display } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
-import { headers } from "next/headers";
-import Script from "next/script";
 import ClientErrorReporter from "./components/ClientErrorReporter";
 import "./globals.css";
 import { RoleProvider } from "@/context/RoleContext";
@@ -45,55 +43,25 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+// PERF / STATIC RENDERING: this shared root layout no longer reads the per-request CSP
+// nonce (headers()). That call forced dynamic SSR on EVERY route — including the public
+// marketing pages — which was the 1.5s TTFB. With it gone, the public (site) routes render
+// statically (served from the CDN edge). The GA tag, CookieHub consent banner and
+// Service-Worker registration that used to live here (all nonce-dependent inline scripts)
+// now live in app/(site)/layout.tsx, scoped to the public pages under the static
+// 'unsafe-inline' CSP. The authed /crm, /admin, /lumea and /settings subtrees keep the
+// strict per-request nonce CSP via their own `export const dynamic = 'force-dynamic'`
+// layouts + the middleware CSP branch.
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} ${playfair.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        {/* PERF: NO Google Fonts stylesheet here anymore. All public-site fonts (Geist,
-            Cormorant, Playfair) are self-hosted via next/font -- zero render-blocking
-            font CSS on the marketing pages. The remaining Google families (DM Sans /
-            Roboto / IBM Plex Mono / Libre Baskerville) are CRM/admin-only and are loaded
-            by <UiFonts /> (app/components/UiFonts.tsx), mounted in the /crm layout and
-            the /billing, /admin/*, /lumea pages that reference them. */}
-        {/* CookieHub consent banner. PERF: was strategy="beforeInteractive", which put a
-            synchronous third-party script in the initial HTML and blocked first paint
-            (~2.5s of the 3s FCP). Consent-gated scripts (Meta Pixel) are inert
-            type="text/plain" tags, so CookieHub only needs to load before it ACTIVATES
-            them, not before paint. afterInteractive keeps consent-before-marketing
-            semantics with zero render blocking. The injector calls load() on the CDN
-            script's own onload, so no DOMContentLoaded race; cdn.cookiehub.eu is
-            host-whitelisted in the middleware CSP, the inline injector carries the nonce. */}
-        <Script id="cookiehub-init" strategy="afterInteractive" nonce={nonce}>
-          {`(function(){var s=document.createElement("script");s.src="https://cdn.cookiehub.eu/c2/bebf3065.js";s.async=true;s.onload=function(){if(window.cookiehub){window.cookiehub.load({});
-/* SCROLL-LOCK GUARD (2026-07-14): in region g0 (e.g. Bangladesh, consent not
-   required) CookieHub hides its root (.ch2 display:none) but leaves the
-   body overflow:hidden lock from its center dialog -> page cannot scroll.
-   Watch 10s post-load; release the lock ONLY if the CookieHub root is hidden
-   AND no other visible aria-modal dialog owns the lock. Fires once. */
-var n=0,t=setInterval(function(){n++;var r=document.querySelector(".ch2");var b=document.body;var o=document.querySelector('[aria-modal="true"]:not(#ch2-dialog)');var oV=o&&o.offsetWidth>0;if(r&&getComputedStyle(r).display==="none"&&b.style.overflow==="hidden"&&!oV){b.style.overflow="";clearInterval(t);}else if(n>=40){clearInterval(t);}},250);}};document.head.appendChild(s);})();`}
-        </Script>
         <RoleProvider>{children}</RoleProvider>
         <ClientErrorReporter />
-        {/* Vercel components don't accept a `nonce` prop and don't need one — their scripts
-            load from the same-origin /_vercel/* path, already covered by script-src 'self'. */}
+        {/* Vercel components don't accept/need a nonce — same-origin /_vercel/* scripts,
+            covered by script-src 'self'. */}
         <SpeedInsights sampleRate={0.25} />
         <Analytics />
-        {/* Google tag (gtag.js) — GA4 G-TS2Q3QEF19, exactly once per page via the root
-            layout. The loader host is whitelisted in script-src; the inline bootstrap
-            carries the per-request CSP nonce like every other inline script here. */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-TS2Q3QEF19" nonce={nonce} suppressHydrationWarning />
-        <script
-          nonce={nonce} suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-          __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',{ad_storage:'denied',analytics_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',wait_for_update:500});gtag('js',new Date());gtag('config','G-TS2Q3QEF19');`,          }}
-        />
-        <script
-          nonce={nonce} suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}`,
-          }}
-        />
       </body>
     </html>
   );
