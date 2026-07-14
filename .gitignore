@@ -38,3 +38,4 @@ scripts/RUN_PUSH_*.bat
 *payload*.json
 crm_live.html
 static-deploy/crm_live.html
+/.swc
