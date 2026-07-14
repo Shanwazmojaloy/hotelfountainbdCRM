@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import FadeIn from "@/components/site/FadeIn";
 import RoomsCatalog from "@/components/site/RoomsCatalog";
+import JsonLd from "@/components/site/JsonLd";
+import { ROOMS } from "@/lib/rooms";
 
 export const metadata: Metadata = {
   title: "Rooms & Suites — Hotel Fountain",
@@ -21,9 +23,48 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
+// Per-room structured data (HotelRoom + BDT Offer) so search/AI engines can
+// surface each room type and its price. Built from the canonical ROOMS catalog.
+const roomsListSchema = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: "Rooms & Suites at Hotel Fountain",
+  itemListElement: ROOMS.map((r, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    item: {
+      "@type": "HotelRoom",
+      name: r.name,
+      url: "https://fountainbd.com/rooms#" + r.slug,
+      image: "https://fountainbd.com" + r.image,
+      description: r.blurb,
+      occupancy: { "@type": "QuantitativeValue", maxValue: r.capacity, unitText: "guests" },
+      amenityFeature: r.features.map((f) => ({ "@type": "LocationFeatureSpecification", name: f, value: true })),
+      offers: {
+        "@type": "Offer",
+        price: r.priceBDT,
+        priceCurrency: "BDT",
+        availability: "https://schema.org/InStock",
+        url: "https://fountainbd.com/rooms",
+      },
+    },
+  })),
+};
+
+const roomsBreadcrumb = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://fountainbd.com/" },
+    { "@type": "ListItem", position: 2, name: "Rooms & Suites", item: "https://fountainbd.com/rooms" },
+  ],
+};
+
 export default function RoomsPage() {
   return (
     <div className="section pb-28 pt-10">
+      <JsonLd data={roomsListSchema} />
+      <JsonLd data={roomsBreadcrumb} />
       {/* ───────────────── PAGE HEADER ───────────────── */}
       <FadeIn className="max-w-2xl" whileInView={false}>
         <p className="eyebrow">Accommodations</p>

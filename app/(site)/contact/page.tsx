@@ -5,6 +5,16 @@ import ContactForm from "@/components/site/ContactForm";
 import TermsAccordion from "@/components/site/TermsAccordion";
 import MapEmbed from "@/components/site/MapEmbed";
 import FadeIn from "@/components/site/FadeIn";
+import JsonLd from "@/components/site/JsonLd";
+
+const contactBreadcrumb = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://fountainbd.com/" },
+    { "@type": "ListItem", position: 2, name: "Contact & Support", item: "https://fountainbd.com/contact" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: "Contact & Support — Hotel Fountain",
@@ -33,6 +43,7 @@ const InfoRow = ({ label, children }: { label: string; children: React.ReactNode
 export default function ContactPage() {
   return (
     <>
+      <JsonLd data={contactBreadcrumb} />
       {/* ───────────────── PAGE HEADER ───────────────── */}
       <section className="section pb-16 pt-10">
         <FadeIn className="mx-auto max-w-2xl text-center" whileInView={false}>

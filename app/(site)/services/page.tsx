@@ -7,6 +7,16 @@ import ScrollReveal from "@/components/site/ScrollReveal";
 import GlassCard from "@/components/site/GlassCard";
 import SectionHeading from "@/components/site/SectionHeading";
 import FadeIn from "@/components/site/FadeIn";
+import JsonLd from "@/components/site/JsonLd";
+
+const servicesBreadcrumb = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://fountainbd.com/" },
+    { "@type": "ListItem", position: 2, name: "Services & Amenities", item: "https://fountainbd.com/services" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: "Services & Amenities — Hotel Fountain",
@@ -41,6 +51,7 @@ const LOCALE = [
 export default function ServicesPage() {
   return (
     <>
+      <JsonLd data={servicesBreadcrumb} />
       {/* ───────────────── PAGE HEADER ───────────────── */}
       <section className="section pb-16 pt-10">
         <FadeIn className="mx-auto max-w-2xl text-center" whileInView={false}>
@@ -83,7 +94,7 @@ export default function ServicesPage() {
               <div className="relative aspect-[3/4] overflow-hidden rounded-xl2">
                 <Image
                   src={g.src}
-                  alt={g.label}
+                  alt={`${g.label} at Hotel Fountain, Nikunja-02, Dhaka`}
                   fill
                   sizes="(max-width: 1024px) 50vw, 25vw"
                   className="object-cover transition-transform duration-700 ease-fluid group-hover:scale-105"

@@ -1,5 +1,10 @@
+import type { Metadata } from 'next';
 import Layout from '@/components/Layout';
 import UiFonts from '../components/UiFonts';
+
+// Staff CRM must never appear in search. robots.txt disallows /crm, but a page-level
+// noindex is the authoritative directive (blocks indexing even of leaked/linked URLs).
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 // Shared shell for ALL /crm/* routes. Mounted ONCE — AuthGate and the Header pill-nav persist
 // across tab navigation, so switching pages only swaps the page body (no remount, no auth

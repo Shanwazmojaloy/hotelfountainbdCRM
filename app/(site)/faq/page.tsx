@@ -2,6 +2,16 @@ import type { Metadata } from "next";
 import { CONTACT } from "@/lib/site";
 import GlassCard from "@/components/site/GlassCard";
 import FadeIn from "@/components/site/FadeIn";
+import JsonLd from "@/components/site/JsonLd";
+
+const faqBreadcrumb = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://fountainbd.com/" },
+    { "@type": "ListItem", position: 2, name: "FAQ", item: "https://fountainbd.com/faq" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: "FAQ — Hotel Fountain, Dhaka",
@@ -79,10 +89,8 @@ const faqSchema = {
 export default function FaqPage() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
+      <JsonLd data={faqSchema} />
+      <JsonLd data={faqBreadcrumb} />
 
       {/* ───────────────── PAGE HEADER ───────────────── */}
       <section className="section pb-12 pt-10">
