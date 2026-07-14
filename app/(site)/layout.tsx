@@ -4,7 +4,7 @@ import BookNowFab from "@/components/site/BookNowFab";
 import ReservationModalHost from "@/components/site/ReservationModalHost";
 import ScrollProgress from "@/components/site/ScrollProgress";
 import MotionProvider from "@/components/site/MotionProvider";
-import { SITE, CONTACT, AMENITIES } from "@/lib/site";
+import { SITE, CONTACT, AMENITIES, SOCIALS } from "@/lib/site";
 import { headers } from "next/headers";
 import Script from "next/script";
 
@@ -18,6 +18,7 @@ const hotelSchema = {
   telephone: CONTACT.phone,
   email: CONTACT.email,
   image: "https://fountainbd.com/images/hero-exterior.webp",
+  sameAs: SOCIALS.map((s) => s.href),
   priceRange: "৳4,000–৳9,000",
   checkinTime: "12:00",
   checkoutTime: "12:00",
