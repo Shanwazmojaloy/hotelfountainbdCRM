@@ -117,8 +117,16 @@ const INDEXABLE_HOSTS = new Set([
   'fountainbd.com',
   'www.fountainbd.com',
   'hotel.fountainbd.com',
-  ...LUMEA_MARKETING_HOSTS, // the Lumea product page is its own indexable surface
 ]);
+
+// The Lumea marketing hosts are indexable ONLY at "/" — the one path the rewrite below
+// turns into the Lumea product page. Every OTHER path on them (/rooms, /services, /faq …)
+// falls through to the Hotel Fountain marketing site verbatim, so it is duplicate content
+// and must stay noindexed. Host-level allowlisting would leak exactly what this suppresses.
+function isIndexable(hostname: string, pathname: string): boolean {
+  if (LUMEA_MARKETING_HOSTS.has(hostname)) return pathname === '/';
+  return INDEXABLE_HOSTS.has(hostname);
+}
 
 // Per-request CSP for SSR pages. 'self' covers Next chunks + same-origin Vercel
 // analytics; the nonce covers every inline script (Next hydration, JSON-LD, SW,
@@ -213,8 +221,8 @@ export async function middleware(request: NextRequest) {
     if (isStrict) requestHeaders.set('x-nonce', nonce); // Next reads x-nonce + CSP to nonce its scripts
     requestHeaders.set('content-security-policy', csp);
   }
-  // Non-canonical host → tell crawlers not to index this copy of the site.
-  const noindex = !INDEXABLE_HOSTS.has(hostname);
+  // Non-canonical host (or a non-product path on a Lumea host) → don't index this copy.
+  const noindex = !isIndexable(hostname, pathname);
   if (LUMEA_MARKETING_HOSTS.has(hostname) && pathname === '/') {
     const rewritten = request.nextUrl.clone();
     rewritten.pathname = '/lumea';
