@@ -22,7 +22,11 @@ const hotelSchema = {
   priceRange: "৳4,000–৳9,000",
   checkinTime: "12:00",
   checkoutTime: "12:00",
-  aggregateRating: { "@type": "AggregateRating", ratingValue: "4.1", reviewCount: "349", bestRating: "5", worstRating: "1" },
+  // NO aggregateRating: Google requires it to reflect genuine ratings VISIBLE on this page
+  // from a verifiable first-party source. The site shows no review count/widget, and the
+  // hardcoded 349 didn't match any real source (the FB page has ~48) — an unbacked rating
+  // risks a manual structured-data penalty and can never update. Re-add ONLY alongside an
+  // on-page, real, self-updating review display.
   address: {
     "@type": "PostalAddress",
     streetAddress: "House-05, Road-02, Nikunja-02",
