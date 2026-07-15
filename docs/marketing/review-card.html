@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hotel Fountain — Review Card (print)</title>
+<!--
+  Reception review card. Open in a browser, Ctrl/Cmd+P, print on A6 (or "fit to
+  page"), place at the front desk. QR encodes the Google review deep link
+  (GOOGLE_REVIEW_URL in src/lib/site.ts). Uses the same api.qrserver.com pattern
+  as the invoice/booking QR — no build step, no dependency. If the review link
+  ever changes, update BOTH the QR `data=` param and the fallback text below.
+-->
+<style>
+  @page { size: A6 portrait; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #f4f1ea; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 16px;
+  }
+  .card {
+    width: 105mm; height: 148mm;              /* A6 */
+    background: #fffdf8;
+    border: 1px solid #e6ded0;
+    padding: 12mm 10mm;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center;
+    color: #1A1713;
+  }
+  .kicker {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9px; letter-spacing: .28em; text-transform: uppercase;
+    color: #9a8f7c; margin-bottom: 4mm;
+  }
+  .brand { font-size: 25px; font-weight: 500; letter-spacing: .01em; }
+  .rule { width: 34px; height: 2px; background: #C8A96E; margin: 4mm 0 6mm; }
+  h1 { font-size: 19px; font-weight: 500; line-height: 1.3; margin-bottom: 2mm; }
+  .sub { font-family: Arial, sans-serif; font-size: 11px; color: #4A443B; line-height: 1.5; max-width: 78mm; }
+  .stars { color: #C8A96E; font-size: 20px; letter-spacing: 3px; margin: 5mm 0; }
+  .qr-wrap { padding: 4mm; background: #fff; border: 1px solid #eee4d2; margin-bottom: 4mm; }
+  .qr-wrap img { display: block; width: 42mm; height: 42mm; }
+  .scan {
+    font-family: Arial, sans-serif; font-size: 12px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; color: #1A1713;
+  }
+  .fallback { font-family: 'Courier New', monospace; font-size: 10px; color: #8A8378; margin-top: 2mm; }
+  .foot {
+    margin-top: auto; font-family: Arial, sans-serif;
+    font-size: 9px; color: #9a8f7c; letter-spacing: .04em;
+  }
+  .print-hint {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    font-family: Arial, sans-serif; font-size: 12px; color: #555;
+    background: #fff; border: 1px solid #ddd; padding: 6px 12px; border-radius: 6px;
+  }
+  @media print { .print-hint { display: none; } html, body { background: #fff; } .card { border-color: #ccc; } }
+</style>
+</head>
+<body>
+  <div class="print-hint">Press <b>Ctrl/Cmd + P</b> &rarr; print on A6 (or "fit to page") &rarr; place at reception.</div>
+  <div class="card">
+    <div class="kicker">Nikunja-02 &middot; Dhaka</div>
+    <div class="brand">Hotel Fountain</div>
+    <div class="rule"></div>
+    <h1>Enjoyed your stay?</h1>
+    <p class="sub">A 60-second Google review means the world to our small team &mdash; and helps the next traveller find us.</p>
+    <div class="stars">&#9733; &#9733; &#9733; &#9733; &#9733;</div>
+    <div class="qr-wrap">
+      <img
+        src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&color=1C1510&bgcolor=ffffff&qzone=2&data=https%3A%2F%2Fg.page%2Fr%2FCZomFWyms1DmEBM%2Freview"
+        alt="Scan to review Hotel Fountain on Google">
+    </div>
+    <div class="scan">Scan to Review Us</div>
+    <div class="fallback">g.page/r/CZomFWyms1DmEBM/review</div>
+    <div class="foot">Thank you for staying with us &middot; +880 1322-840799</div>
+  </div>
+</body>
+</html>
