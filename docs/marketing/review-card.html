@@ -55,7 +55,14 @@
     font-family: Arial, sans-serif; font-size: 12px; color: #555;
     background: #fff; border: 1px solid #ddd; padding: 6px 12px; border-radius: 6px;
   }
-  @media print { .print-hint { display: none; } html, body { background: #fff; } .card { border-color: #ccc; } }
+  @media print {
+    .print-hint { display: none; }
+    html, body { background: #fff; }
+    /* The card is already exactly A6 (105x148mm); any body padding/min-height would
+       push it past the sheet and clip or spill onto a 2nd page. Reset for print. */
+    body { padding: 0; margin: 0; min-height: 0; display: block; }
+    .card { border-color: #ccc; }
+  }
 </style>
 </head>
 <body>
