@@ -113,10 +113,12 @@ const LUMEA_MARKETING_HOSTS = new Set([
 // unknown slugs at the API layer). This is purely an SEO measure, and it stays
 // header-based on purpose: a 404 here would need a tenant lookup at the edge on
 // every public request, forcing dynamic SSR and undoing the static-render win.
+// Apex only. www.fountainbd.com and hotel.fountainbd.com are intentionally absent:
+// both 301 to the apex in middleware() before rendering, so they never need
+// indexing. Any request that slips through (shouldn't) is then noindexed by
+// isIndexable() — belt and suspenders.
 const INDEXABLE_HOSTS = new Set([
   'fountainbd.com',
-  'www.fountainbd.com',
-  'hotel.fountainbd.com',
 ]);
 
 // The Lumea marketing hosts are indexable ONLY at "/" — the one path the rewrite below
@@ -183,6 +185,22 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
   const slug = extractSlug(host);
+
+  // ── Host canonicalization: www + hotel → apex (SEO) ──────────────────────────
+  // fountainbd.com, www.fountainbd.com and hotel.fountainbd.com all served 200
+  // with identical content, while every per-page alternates.canonical + sitemap.ts
+  // use the bare apex. Multiple live origins with no redirect is the exact trigger
+  // for GSC "Duplicate without user-selected canonical". A permanent 301 collapses
+  // them to ONE indexable origin. Scoped to the marketing aliases only — the Lumea
+  // marketing host (www.lumea.fountainbd.com) is handled by its own rewrite below
+  // and must NOT be caught here.
+  if (hostname === 'www.fountainbd.com' || hostname === 'hotel.fountainbd.com') {
+    const url = request.nextUrl.clone();
+    url.protocol = 'https:';
+    url.hostname = 'fountainbd.com';
+    url.port = '';
+    return NextResponse.redirect(url, 301);
+  }
 
   // ── CRM perimeter gate (deny-only; allowed requests fall through to CSP/tenant logic) ──
   const gatePath = request.nextUrl.pathname;
