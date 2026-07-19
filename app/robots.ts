@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/crm", "/billing", "/settings", "/lumea", "/admin", "/invoice/", "/api/"],
+      disallow: ["/crm", "/crm.html", "/billing", "/settings", "/lumea", "/admin", "/invoice/", "/api/"],
     },
     sitemap: "https://fountainbd.com/sitemap.xml",
   };
