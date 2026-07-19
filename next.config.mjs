@@ -48,6 +48,14 @@ const nextConfig = {
   },
   images: {
     formats: ['image/avif', 'image/webp'],
+    // PERF (2026-07-20): the LCP element on mobile is the hero image (FCP 1.2s vs
+    // LCP 4.3s = a ~3s image-download gap on throttled 4G). quality:62 on the
+    // heavily gradient-masked hero cuts real bytes with no visible change; 75 stays
+    // for every other image (default). minimumCacheTTL 31d lifts the optimizer's
+    // 60s default so the /_next/image responses cache properly (PSI "efficient cache
+    // lifetimes"). 31d (not 1yr) caps staleness — rename an image to bust it sooner.
+    qualities: [62, 75],
+    minimumCacheTTL: 2678400,
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
     ],

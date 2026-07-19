@@ -1,8 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { SITE, STATS, AMENITIES } from "@/lib/site";
+import { SITE, STATS, AMENITIES, CONTACT, SOCIALS } from "@/lib/site";
 import { ROOMS } from "@/lib/rooms";
+import JsonLd from "@/components/site/JsonLd";
 import ScrollReveal from "@/components/site/ScrollReveal";
 import GlassCard from "@/components/site/GlassCard";
 import SectionHeading from "@/components/site/SectionHeading";
@@ -30,9 +31,42 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
+// Site-root entities. Organization anchors the brand to the domain (knowledge-panel /
+// logo eligibility); WebSite ties the domain to that publisher. Both reference the Hotel
+// node's @id emitted in app/(site)/layout.tsx so search/AI engines see ONE entity graph.
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": "https://fountainbd.com/#organization",
+  name: SITE.name,
+  url: "https://fountainbd.com",
+  logo: { "@type": "ImageObject", url: "https://fountainbd.com/icons/icon-192.png", width: 192, height: 192 },
+  image: "https://fountainbd.com/images/hero-exterior.webp",
+  sameAs: SOCIALS.map((s) => s.href),
+  contactPoint: {
+    "@type": "ContactPoint",
+    telephone: CONTACT.phone,
+    contactType: "reservations",
+    areaServed: "BD",
+    availableLanguage: ["English", "Bengali"],
+  },
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://fountainbd.com/#website",
+  name: SITE.name,
+  url: "https://fountainbd.com",
+  inLanguage: "en",
+  publisher: { "@id": "https://fountainbd.com/#organization" },
+};
+
 export default function HomePage() {
   return (
     <>
+      <JsonLd data={organizationSchema} />
+      <JsonLd data={websiteSchema} />
       {/* ───────────────── HERO ───────────────── */}
       <section className="relative -mt-24 flex min-h-[100svh] items-center overflow-hidden pt-24">
         {/* Full-bleed exterior image — right edge on desktop, full backdrop on mobile */}
@@ -43,6 +77,7 @@ export default function HomePage() {
               alt="Hotel Fountain front view"
               fill
               priority
+              quality={62}
               sizes="(max-width: 1024px) 100vw, 58vw"
               className="scale-110 object-cover lg:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_22%,#000_50%)] lg:[mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.15)_22%,#000_50%)]"
             />
