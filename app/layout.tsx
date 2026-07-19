@@ -8,12 +8,20 @@ import { RoleProvider } from "@/context/RoleContext";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: "swap" });
+// PERF: Cormorant is CRM-only (the `.cg` class + NotificationBell); the public
+// marketing pages never render it (their serif is Playfair via --font-display).
+// preload:true (the next/font default) was emitting <link rel=preload> for all
+// 3 weights x normal+italic on EVERY page incl. the homepage, eagerly fetching
+// ~6 unused font files off the mobile LCP path. preload:false keeps the @font-face
+// so it still loads when actually used on /crm, but stops the wasteful preload on
+// public pages. No visual change (font is unused where it's no longer preloaded).
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
   subsets: ["latin"],
   weight: ["300", "400", "500"],
   style: ["normal", "italic"],
   display: "swap",
+  preload: false,
 });
 // CLS FIX: Playfair (the public-site .font-display serif, incl. the 6xl-8xl hero h1)
 // previously came from the Google Fonts stylesheet with display=swap and a raw Georgia
