@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       result: 'failure',
       action_target: clip(body.url, 512) || source || 'crm-client',
       error: stack ? `${message}\n${stack}` : message,
-      payload: {
+      payload_summary: {
         kind,
         source,
         url: clip(body.url, 512),
