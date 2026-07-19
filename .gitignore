@@ -32,6 +32,12 @@ supabase/.branches/
 # Cowork helper push scripts (local tooling, not source)
 scripts/RUN_PUSH_*.bat
 
+# Local scratch: git patches, push helpers, skill dumps (never source; keep out
+# of accidental commits — build audit 2026-07-19)
+*.patch
+PUSH_*.ps1
+agency-master-skill.txt
+
 # Secret-bearing files — never commit to repo (C1 audit 2026-06-18)
 # Rotate FB token + staff passwords before running git filter-repo purge
 *.bat

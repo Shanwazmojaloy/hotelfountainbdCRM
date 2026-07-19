@@ -123,7 +123,7 @@ npm run lint
 ## Vercel Build Script Rule (added 2026-05-12)
 
 - `"vercel-build": "next build"` in `package.json` is **required**. Vercel detects this script and uses it instead of `"build"`.
-- The `"build"` script runs `npm run build:crm && next build` which requires `babel.crm.json` at the repo root. `babel.crm.json` is in the working tree but was not committed. Rather than committing it, the `vercel-build` bypass skips the Babel/Terser step entirely — `crm-bundle.js` is pre-built and committed.
+- The `"build"` script runs `npm run build:crm && next build` which requires `babel.crm.json` at the repo root. `babel.crm.json` is now COMMITTED (verified 2026-07-19 build audit), so the full local `build` works on a clean clone too. The `vercel-build` bypass is still preferred (faster: skips the Babel/Terser step and ships the pre-built, committed `crm-bundle.js`) but is no longer strictly required.
 - **Never remove `vercel-build`** from `package.json`. Without it, Vercel falls back to `"build"` → `build:crm` → missing `babel.crm.json` → build fails.
 
 ## Next.js app/ vs src/app/ Precedence Rule (added 2026-05-12)
