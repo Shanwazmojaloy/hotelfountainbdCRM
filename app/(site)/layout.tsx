@@ -3,7 +3,9 @@ import Footer from "@/components/site/Footer";
 import BookNowFab from "@/components/site/BookNowFab";
 import ReservationModalHost from "@/components/site/ReservationModalHost";
 import ScrollProgress from "@/components/site/ScrollProgress";
+import GaClickEvents from "@/components/site/GaClickEvents";
 import MotionProvider from "@/components/site/MotionProvider";
+import WebVitalsReporter from "../components/WebVitalsReporter";
 import { SITE, CONTACT, AMENITIES, SOCIALS } from "@/lib/site";
 import Script from "next/script";
 
@@ -12,6 +14,9 @@ import Script from "next/script";
 const hotelSchema = {
   "@context": "https://schema.org",
   "@type": "Hotel",
+  // Stable entity anchor: lets Organization/WebSite (@see home page) and any future
+  // review/room nodes reference the SAME hotel instead of Google inferring duplicates.
+  "@id": "https://fountainbd.com/#hotel",
   name: SITE.name,
   description: SITE.description,
   url: "https://fountainbd.com",
@@ -19,6 +24,17 @@ const hotelSchema = {
   email: CONTACT.email,
   image: "https://fountainbd.com/images/hero-exterior.webp",
   sameAs: SOCIALS.map((s) => s.href),
+  // Local-SEO signals (target: airport-corridor local pack). All factual + on-page.
+  numberOfRooms: 28,
+  currenciesAccepted: "BDT",
+  hasMap: "https://www.google.com/maps/search/?api=1&query=23.82924608574381,90.4162137758988",
+  // Reception is staffed 24/7 (mirrors CONTACT.frontDesk + the FAQ page).
+  openingHoursSpecification: {
+    "@type": "OpeningHoursSpecification",
+    dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    opens: "00:00",
+    closes: "23:59",
+  },
   priceRange: "৳4,000–৳9,000",
   checkinTime: "12:00",
   checkoutTime: "12:00",
@@ -105,6 +121,8 @@ var n=0,t=setInterval(function(){n++;var r=document.querySelector(".ch2");var b=
 
       <MotionProvider>
         <ScrollProgress />
+        <GaClickEvents />
+        <WebVitalsReporter />
         <Navbar />
         <main className="min-h-screen pt-24">{children}</main>
         <Footer />
