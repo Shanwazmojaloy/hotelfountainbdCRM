@@ -5,6 +5,7 @@ import { m, AnimatePresence } from "framer-motion";
 import { ROOMS } from "@/lib/rooms";
 import { waLink } from "@/lib/site";
 import { RESERVE_EVENT, type ReservePrefill } from "@/lib/reserve";
+import { gaEvent } from "@/lib/ga";
 
 declare global {
   interface Window {
@@ -144,6 +145,14 @@ export default function ReservationModal({ initialPrefill }: { initialPrefill?: 
         },
         data.reservationId ? { eventID: data.reservationId } : undefined,
       );
+      // Mirror the Meta Lead conversion into GA4 for booking-funnel reporting.
+      gaEvent("generate_lead", {
+        value: (room?.priceBDT ?? 4000) * nights,
+        currency: "BDT",
+        room_type: form.roomType,
+        nights,
+        transaction_id: data.reservationId || undefined,
+      });
       setDone(form);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not submit your request.");
