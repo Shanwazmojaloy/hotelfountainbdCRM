@@ -64,7 +64,7 @@ export default function Billing() {
       // C3: reservations + transactions via session-gated route; night_audit_log stays on anon.
       const [rR, tR] = await Promise.all([
         fetch('/api/crm/data?resource=reservations&order=check_out.desc&limit=5000'),
-        fetch(`/api/crm/data?resource=transactions&fiscal_day=${encodeURIComponent(openDay)}`),
+        fetch(`/api/crm/data?resource=transactions&fiscal_day=${encodeURIComponent(openDay)}&cols=id,type,amount,reservation_id,fiscal_day,created_at,guest_name,room_number`),
       ]);
       const rj = await rR.json().catch(() => ({}));
       const tj = await tR.json().catch(() => ({}));

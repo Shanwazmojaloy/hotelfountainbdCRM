@@ -48,7 +48,7 @@ export default function Reports() {
       // C3: PII/financial reads (transactions, reservations) via the session-gated route; rooms +
       // night_audit_log stay on the anon client (not sensitive, anon SELECT retained).
       const [txR, resR, { data: rooms, error: rmErr }, { data: closes, error: clErr }] = await Promise.all([
-        fetch('/api/crm/data?resource=transactions'),
+        fetch('/api/crm/data?resource=transactions&cols=id,type,amount,reservation_id,fiscal_day,created_at,guest_name,room_number'),
         fetch('/api/crm/data?resource=reservations'),
         supabase.from('rooms').select('id, status, category, price'),
         supabase.from('night_audit_log').select('audit_date, closed_at, closed_by, total_checkins, total_checkouts, total_collections, carried_over_dues, opening_token, payouts').order('closed_at', { ascending: false }),
