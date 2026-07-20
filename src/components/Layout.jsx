@@ -6,6 +6,11 @@ import Header from "./Header";
 import BottomNav from "./BottomNav";
 import AuthGate, { useAuth } from "./AuthGate";
 import { canAccess } from '@/lib/permissions';
+// PERF (2026-07-21): the Lumea CRM theme (.crm-root .iv-* etc, ~580 rules) used to live
+// in app/globals.css, which the ROOT layout imports on every route -- including every
+// public marketing pageview. Split out here so only routes that render this Layout (the
+// sole renderer of .crm-root) pay for it. See app/globals.css header + src/components/crm-theme.css.
+import "./crm-theme.css";
 
 // RBAC route guard — runs inside AuthGate so `user` is resolved. A role that deep-links
 // (or is redirected back) to a page outside its department is bounced to the Dashboard.
