@@ -31,8 +31,18 @@ GUARD_BROKEN=0
 # integer on success, or "ERR" if the counting subprocess produced no/garbage
 # output (fork failure). Always exits 0 so `set -e` never trips on it.
 count_char() {
+  # Count a literal brace char in ONE awk pass. The old `grep -o | wc -l`
+  # spawned a 2-process pipe per call; under Windows fork-starvation
+  # ("Win32 error 5") the pipe returned a PARTIAL count (e.g. } = 1 for a
+  # balanced 5/5 file) -> false "brace imbalance". A single awk process is
+  # atomic. gsub uses a char class so { and } are matched literally, not as
+  # regex interval operators.
   local n
-  n=$(grep -o "$2" "$1" 2>/dev/null | wc -l 2>/dev/null)
+  case "$2" in
+    '{') n=$(awk '{c+=gsub(/[{]/,"&")} END{print c+0}' "$1" 2>/dev/null) ;;
+    '}') n=$(awk '{c+=gsub(/[}]/,"&")} END{print c+0}' "$1" 2>/dev/null) ;;
+    *)   n=$(awk -v ch="$2" '{c+=gsub(ch,"&")} END{print c+0}' "$1" 2>/dev/null) ;;
+  esac
   n=${n//[!0-9]/}
   [ -n "$n" ] && echo "$n" || echo "ERR"
 }
