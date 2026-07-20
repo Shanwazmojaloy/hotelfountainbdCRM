@@ -5532,7 +5532,7 @@ function LeadGenSwarmPanel({toast}) {
         </div>
       </div>
       <div className="tabs mb4">
-        {[['dashboard','📊 Dashboard'],['scout','🔍 Agent 1 · Scout'],['analyst','🧠 Agent 2 · Analyst'],['outreach','📨 Agent 3 · Outreach'],['leads','📋 All Leads']].map(([v,l])=>(
+        {[['dashboard','📊 Dashboard'],['scout','🔍 Agent 1 · Scout'],['analyst','🧠 Agent 2 · Analyst'],['outreach','📨 Agent 3 · Outreach'],['leads','📋 All Leads'],['pipeline','🎯 Pipeline']].map(([v,l])=>(
           <button key={v} className={`tab${activeTab===v?' on':''}`} onClick={()=>setActiveTab(v)}>{l}</button>
         ))}
       </div>
@@ -5697,6 +5697,9 @@ function LeadGenSwarmPanel({toast}) {
           )}
         </div>
       )}
+      {activeTab==='pipeline'&&(
+        <LeadPipelinePage/>
+      )}
     </div>
   )
 }
@@ -5836,7 +5839,7 @@ function GoogleSheetsCard({toast}) {
 }
 
 /* ═══════════════════════ ROOT APP ═══════════════════════════ */
-function LeadPipelinePage_REMOVED() {
+function LeadPipelinePage() {
   const [leads, setLeads]           = React.useState([])
   const [log, setLog]               = React.useState([])
   const [loading, setLoading]       = React.useState(true)
@@ -6666,12 +6669,13 @@ function App() {
     {id:'reports',   ico:'▣', label:'Reports',          sect:'ANALYTICS'},
     {id:'forecast',  ico:'◷', label:'Demand Forecast'},
     {id:'churn',     ico:'⚠', label:'Churn Risk',       url:'/churn'},
-    {id:'council',   ico:'⬢', label:'AI Council',       sect:'STRATEGY'},
+    {id:'leads',     ico:'🎯', label:'B2B Leads',       sect:'STRATEGY'},
+    {id:'council',   ico:'⬢', label:'AI Council'},
 
     {id:'settings',  ico:'◌', label:'Settings',         sect:'SYSTEM'},
   ].filter(n=>n.url ? ['owner','manager'].includes(user.role) : allowed.includes(n.id))
 
-  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',forecast:'Demand Forecast',council:'AI Advisory Council',settings:'Settings'}
+  const PAGE_TITLES={dashboard:'Dashboard',rooms:'Room Management',reservations:'Reservations',guests:'Guest CRM',housekeeping:'Housekeeping',billing:'Billing & Invoices',reports:'Reports & Analytics',forecast:'Demand Forecast',leads:'B2B Leads',council:'AI Advisory Council',settings:'Settings'}
   const bdParts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hourCycle:'h12'}).formatToParts(clock)
   const _p = k => bdParts.find(p=>p.type===k)?.value || ''
   const clockStr=(()=>{
@@ -6924,6 +6928,7 @@ function App() {
             {cur==='billing'      &&<BillingPage transactions={data.transactions} reservations={data.reservations} rooms={data.rooms} guests={data.guests} toast={toast} reload={loadAll} currentUser={user} businessDate={businessDate}/>}
             {cur==='reports'      &&<ReportsPage transactions={data.transactions} rooms={data.rooms} reservations={data.reservations} guests={data.guests}/>}
             {cur==='forecast'     &&<ForecastPage reservations={data.reservations} rooms={data.rooms} businessDate={businessDate} setPage={setPage}/>}
+            {cur==='leads'        &&<LeadGenSwarmPanel toast={toast}/>}
 
             {cur==='council'      &&<CouncilPage reservations={data.reservations} currentUser={user} toast={toast}/>}
             {cur==='settings'     &&<SettingsPage currentUser={user} toast={toast} staffList={staffList} setStaffList={setStaffList} reservations={data.reservations} rooms={data.rooms} guests={data.guests} onSignOut={signOut}/>}
