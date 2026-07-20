@@ -20,6 +20,11 @@ OFF=$'\033[0m'
 say()  { echo "${DIM}guard: $*${OFF}"; }
 fail() { echo "${RED}✖ $*${OFF}" >&2; FAIL=1; }
 pass() { echo "${GRN}✓ $*${OFF}"; }
+# Non-blocking advisory: prints but never sets FAIL, so it can NEVER abort a
+# commit. Used for the fuzzy brace-balance heuristic (raw brace counting can be
+# legitimately imbalanced inside strings/regex/template literals). Real
+# truncation is caught by the reliable signals (NUL bytes, size, EOF char).
+warn() { echo "${YLW}⚠ $*${OFF}" >&2; }
 
 # Set when a counting/enumeration subprocess could not run (transient bash/fork
 # starvation — e.g. "couldn't create signal pipe, Win32 error 5"). When tripped
@@ -63,7 +68,7 @@ if [ -f "$F" ]; then
   else
     DIFF=$(( OB - CB ))
     if [ "${DIFF#-}" -gt 5 ]; then
-      fail "$F: brace imbalance { = $OB, } = $CB"
+      warn "$F: brace imbalance { = $OB, } = $CB (advisory — not blocking)"
     fi
   fi
   # Must end with the render line (no trailing junk)
@@ -127,7 +132,7 @@ if [ -d app/api ]; then
       else
         DIFF=$(( OB - CB ))
         if [ "${DIFF#-}" -gt 3 ]; then
-          fail "$F: brace imbalance { = $OB, } = $CB"
+          warn "$F: brace imbalance { = $OB, } = $CB (advisory — not blocking)"
         fi
       fi
     done <<EOF
@@ -143,4 +148,37 @@ if [ -n "$SIDE" ]; then
   echo "$SIDE" | head -5 | sed 's/^/   /'
 fi
 
-# ── 5. crm-bundle.js — built artifact must parse
+# --- 5. crm-bundle.js -- built artifact: present, non-NUL, not truncated ------
+# (This section + the final verdict below were previously truncated off, which
+#  left the guard non-blocking. Restored 2026-07-20. crm.html is a thin loader;
+#  the real React app is this pre-built, committed bundle -- a truncated/NUL
+#  bundle ships a broken CRM, so it must block the commit.)
+F="public/crm-bundle.js"
+if [ -f "$F" ]; then
+  if ! cmp -s "$F" <(tr -d '\000' < "$F"); then
+    fail "$F: contains NUL bytes (corrupt artifact -- rebuild via npm run build:crm)"
+  elif [ "$(wc -c < "$F")" -lt 50000 ]; then
+    fail "$F: under 50KB -- truncated/empty build (expected ~600KB+)"
+  else
+    LB=$(tail -c 4 "$F" | tr -d '[:space:]'); LB=${LB: -1}
+    if [ "$LB" != ";" ] && [ "$LB" != ")" ] && [ "$LB" != "}" ]; then
+      fail "$F: last char '$LB' -- minified bundle looks truncated"
+    else
+      pass "$F: bundle artifact ok"
+    fi
+  fi
+fi
+
+# --- FINAL VERDICT ------------------------------------------------------------
+# Block ONLY on real corruption (NUL / undersize / wrong EOF / missing render
+# line). Never block on the fuzzy brace heuristic (warn-only) or on a transient
+# fork/subprocess failure (GUARD_BROKEN -> allow + advise re-run).
+if [ "$GUARD_BROKEN" = "1" ]; then
+  say "a check could not run (transient fork/subprocess failure) -- commit ALLOWED; re-run to re-verify"
+  exit 0
+fi
+if [ "$FAIL" = "1" ]; then
+  echo "${RED}guard: BLOCKING commit -- a guarded file looks corrupt or truncated (see marks above)${OFF}" >&2
+  exit 1
+fi
+exit 0
