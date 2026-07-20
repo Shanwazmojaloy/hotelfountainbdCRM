@@ -7,6 +7,19 @@
    them to the Google URL, and do NOT re-add an @import here. */
 @import "tailwindcss";
 
+/* PERF (2026-07-21b): stop Tailwind's auto content-scan from generating utility classes
+   (bg-*, flex, p-4, etc) for CRM-only source files into THIS stylesheet -- it's imported
+   by the ROOT layout on every route, so any utility class only used on /crm was still
+   shipping render-blocking to every public pageview even after the hand-written .crm-root
+   CSS was extracted below. src/components/crm-theme.css does its OWN full `@import
+   "tailwindcss"` (unscoped, safety-net auto-scan) so nothing here can go missing on /crm
+   even if one of these excludes is wrong or incomplete -- worst case is just smaller
+   savings, never breakage. Verified (2026-07-21b) zero references anywhere under
+   app/(site), app/admin, app/settings, app/lumea, app/invoice to any file matched below. */
+@source not "../src/components/*.jsx";
+@source not "./crm";
+@source not "./billing";
+
 /* PERF (2026-07-21): the Lumea CRM theme (.crm-root .iv-* and friends, ~580 rules /
    ~37KB) was extracted out of this file into src/components/crm-theme.css, imported
    only by src/components/Layout.jsx (the sole .crm-root renderer). This file is

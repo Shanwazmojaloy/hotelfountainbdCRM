@@ -5,7 +5,19 @@
    (covers app/crm/** + app/billing/page.jsx). Verified zero references to these
    selectors anywhere under app/(site), app/admin, app/settings, app/lumea, app/invoice.
    Base tokens (--gold, --dark, etc.) stay in app/globals.css (:root) and remain
-   available here via normal CSS cascade — both files load on every /crm page. */
+   available here via normal CSS cascade — both files load on every /crm page.
+
+   2026-07-21b: app/globals.css now @source-excludes CRM-only files (src/components/*.jsx,
+   app/crm, app/billing) from ITS Tailwind scan, so the utility classes (bg-*, flex, p-4,
+   etc) those files use need to be generated somewhere. This file does its OWN plain,
+   UNSCOPED `@import "tailwindcss"` on purpose -- a full auto-scan safety net, not a
+   scoped one -- so a wrong/incomplete exclude on the globals.css side can only ever cost
+   bytes, never break /crm styling. Yes this duplicates Preflight + theme vars across both
+   files on /crm pages; that's an accepted, harmless tradeoff (internal staff tool, not
+   payload-sensitive) in exchange for not hand-rolling a second scoped Tailwind entry point
+   we can't test-build in this sandbox (no Linux-built lightningcss binary available here;
+   gate = Vercel build + a manual /crm visual smoke-check after deploy). */
+@import "tailwindcss";
 
 /* â”€â”€â”€ Typography utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cg { font-family: var(--font-cormorant), "Cormorant Garamond", Georgia, serif; }
