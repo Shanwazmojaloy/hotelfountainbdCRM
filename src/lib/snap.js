@@ -44,3 +44,19 @@ export function clearSnaps() {
       .forEach((k) => window.localStorage.removeItem(k));
   } catch { /* ignore */ }
 }
+
+// Invalidate cached DATA after a write so every OTHER tab repaints from the network
+// instead of flashing a stale snapshot (the "shows wrong balance then self-heals" bug).
+// `exceptKey` = the tab that just wrote and will silently re-fetch itself; it's preserved
+// so that tab doesn't flash a skeleton. Also fires `lumea:data-changed` for any mounted
+// listener that wants to react immediately.
+export function invalidateData(exceptKey) {
+  for (const k of Array.from(_snap.keys())) if (k !== exceptKey) _snap.delete(k);
+  try {
+    if (typeof window === 'undefined') return;
+    Object.keys(window.localStorage)
+      .filter((k) => k.startsWith(PFX) && k !== PFX + exceptKey)
+      .forEach((k) => window.localStorage.removeItem(k));
+    window.dispatchEvent(new CustomEvent('lumea:data-changed', { detail: { exceptKey } }));
+  } catch { /* ignore */ }
+}

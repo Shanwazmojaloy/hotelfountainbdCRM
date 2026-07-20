@@ -117,7 +117,10 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
       }
       const j = await _r.json().catch(() => ({}));
       if (!_r.ok || j.error) throw new Error(j.error || 'Could not save reservation.');
-      onSaved?.(); onClose?.();
+      // Pass the edited fields back so the list can optimistically patch the row instantly
+      // (zero-flash) while the silent re-fetch reconciles with the server's authoritative recalc.
+      onSaved?.({ id: res.id, status, paid_amount: paidNum, discount_amount: discountNum, notes, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), guest_name: gn, total_amount: totalAmt });
+      onClose?.();
     } catch (e) { setErr(e.message || String(e)); setSaving(false); }
   }
 

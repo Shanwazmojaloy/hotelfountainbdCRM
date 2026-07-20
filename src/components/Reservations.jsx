@@ -9,7 +9,7 @@ import NewReservationModal from './NewReservationModal';
 import CheckActionModal from './CheckActionModal';
 import ReservationEditModal from './ReservationEditModal';
 import { Tabs, Card, Table, Badge, Avatar, Skeleton, TD, MONO, HoverRow, C, bdt } from './dskit';
-import { getSnap, warmSnap, setSnap } from '@/lib/snap';
+import { getSnap, warmSnap, setSnap, invalidateData } from '@/lib/snap';
 import { useAuth } from './AuthGate';
 import { can } from '@/lib/permissions';
 
@@ -99,7 +99,7 @@ export default function Reservations() {
       // C3: reservations + guests via session-gated route; rooms stays on anon.
       const [rR, gR, { data: rm, error: e3 }] = await Promise.all([
         fetch('/api/crm/data?resource=reservations&order=check_in.desc&limit=5000'),
-        fetch('/api/crm/data?resource=guests&limit=5000'),
+        fetch('/api/crm/data?resource=guests&cols=id,name&limit=5000'),
         supabase.from('rooms').select('id, room_number, status, category, price').order('room_number'),
       ]);
       const rj = await rR.json().catch(() => ({}));
@@ -118,6 +118,18 @@ export default function Reservations() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Optimistic instant update + cross-tab sync: patch the edited row locally so THIS tab
+  // updates with zero flash, wipe the OTHER tabs' snapshots so they repaint fresh instead of
+  // flashing a stale balance, then silently re-fetch to reconcile with the server's
+  // authoritative recalc (Stay-Extension / folio resync / paid_amount bump).
+  function handleSaved(patch) {
+    if (patch && patch.id) {
+      setReservations((prev) => prev.map((r) => (r.id === patch.id ? { ...r, ...patch } : r)));
+    }
+    invalidateData('reservations');
+    fetchData();
   }
 
   const getGN = (r) => r.guest_name || guestMap[String((r.guest_ids || [])[0] || '')] || 'Unknown';
@@ -211,13 +223,13 @@ export default function Reservations() {
       </Card>
 
       {showNew && (
-        <NewReservationModal rooms={allRooms} onClose={() => setShowNew(false)} onSaved={fetchData} />
+        <NewReservationModal rooms={allRooms} onClose={() => setShowNew(false)} onSaved={handleSaved} />
       )}
       {checkAction && (
-        <CheckActionModal reservation={checkAction.reservation} action={checkAction.action} onClose={() => setCheckAction(null)} onSaved={fetchData} />
+        <CheckActionModal reservation={checkAction.reservation} action={checkAction.action} onClose={() => setCheckAction(null)} onSaved={handleSaved} />
       )}
       {editRes && (
-        <ReservationEditModal reservation={editRes} guests={allGuests} rooms={allRooms} onClose={() => setEditRes(null)} onSaved={fetchData} />
+        <ReservationEditModal reservation={editRes} guests={allGuests} rooms={allRooms} onClose={() => setEditRes(null)} onSaved={handleSaved} />
       )}
     </div>
   );

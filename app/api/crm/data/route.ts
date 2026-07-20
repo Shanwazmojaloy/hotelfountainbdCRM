@@ -70,7 +70,12 @@ export async function GET(req: NextRequest) {
 
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(searchParams.get('limit') || String(MAX_LIMIT), 10) || MAX_LIMIT));
 
-  let query = db.from(resource).select('*');
+  // Optional column projection: ?cols=id,name — trims payload for big list reads (e.g. the
+  // Reservations tab only needs id+name from guests). Validated to a safe token charset;
+  // falls back to '*' if empty/invalid. Backward-compatible: callers that omit it get '*'.
+  const colsRaw = String(searchParams.get('cols') || '').trim();
+  const cols = /^[a-z0-9_]+(,[a-z0-9_]+)*$/.test(colsRaw) ? colsRaw : '*';
+  let query = db.from(resource).select(cols);
 
   // Optional safe filters. `ids` = UUID CSV → .in('id', …); `fiscal_day` (transactions only) → .eq.
   const idsParam = searchParams.get('ids');
