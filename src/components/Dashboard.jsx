@@ -216,7 +216,9 @@ export default function Dashboard() {
 
       const occupied = rms.filter((r) => r.status === 'OCCUPIED').length;
       const occupancy = rms.length ? Math.round((occupied / rms.length) * 100) : 0;
-      const checkinRes = res.filter((r) => (r.check_in || '').slice(0, 10) === calToday);
+      // Arrivals Today = the OPEN BUSINESS DAY (last close → next close), matching Today's Revenue.
+      // The Front-Desk "Arrivals" list below stays on the calendar day (owner decision 2026-07-21).
+      const checkinRes = res.filter((r) => (r.check_in || '').slice(0, 10) === today);
 
       // 14-day revenue series (collected, excl BCF) — anchored on the calendar so the chart axis is real
       const series = Array.from({ length: 14 }, (_, i) => {

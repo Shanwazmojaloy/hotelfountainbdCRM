@@ -183,6 +183,13 @@ function Daily({ txs, res, closes, loading, onClosed }) {
   const PM = [['Cash', /cash/i], ['bKash', /bkash/i], ['Nagad', /nagad/i], ['Card', /card/i], ['Bank', /bank|account|transfer/i]];
   const paySplit = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((acc, t) => { const hit = PM.find(([, re]) => re.test(t.type || '')); const k = hit ? hit[0] : 'Other'; acc[k] = (acc[k] || 0) + (Number(t.amount) || 0); return acc; }, {});
 
+  // 3-bucket collection split for the on-screen cards (owner spec 2026-07-21): Cash / bKash /
+  // Bank+Card. Cash absorbs Advance Payment + any un-tagged 'Other' so the three ALWAYS sum to
+  // Total Collection. Bank/Card bucket = card + bank transfer.
+  const pmBkash = paySplit.bKash || 0;
+  const pmBankCard = (paySplit.Card || 0) + (paySplit.Bank || 0);
+  const pmCash = Math.max(0, collected - pmBkash - pmBankCard);
+
   // Shared A4 print report — full day detail (used by BOTH the live and the closed-day Download).
   // Uses the day's own computed figures (collected/moves/paySplit/allDue), so a closed/historical
   // day prints that day's complete report, NOT the post-close "new activity" view.
@@ -378,8 +385,10 @@ function Daily({ txs, res, closes, loading, onClosed }) {
       </div>
       {err && <div style={{ color: C.rose, fontSize: 12, marginBottom: 10 }}>{err}</div>}
 
-      <div className="iv-stat-grid iv-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
-        <StatCard label="Movements" value={loading ? '—' : moves.length} accent={C.walnut} sub={fmtLong(date)} />
+      <div className="iv-stat-grid iv-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
+        <StatCard label="Cash" value={loading ? '—' : bdt(pmCash)} accent={C.grn} sub="collected today" />
+        <StatCard label="bKash" value={loading ? '—' : bdt(pmBkash)} accent={C.gold} sub="collected today" />
+        <StatCard label="Bank / Card" value={loading ? '—' : bdt(pmBankCard)} accent={C.sky} sub="collected today" />
         <StatCard label="Total Collection" value={loading ? '—' : bdt(collected)} accent={C.gold} />
         <StatCard label="Closing Balance" value={loading ? '—' : bdt(closing)} accent={C.grn} sub="token + cash − payouts" />
         <StatCard label="Total Due" value={loading ? '—' : bdt(totalDue)} accent={C.rose} sub={`${allDue.length} reservation${allDue.length === 1 ? '' : 's'} outstanding`} />
