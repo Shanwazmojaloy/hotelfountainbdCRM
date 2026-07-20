@@ -23,7 +23,13 @@ export default function RoomCard({ room }: { room: Room }) {
           src={room.image}
           alt={room.name}
           fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          // PERF (2026-07-21): on the homepage this card renders in the mobile carousel
+          // at `w-[76%] max-w-[300px]` (see app/(site)/page.tsx), never full-viewport —
+          // the old "100vw" hint at <=768px made Next serve the 750px bucket for a
+          // ~262-356px-wide card (PSI "Improve image delivery", ~13 KiB/image wasted).
+          // /rooms' RoomsCatalog grid is >=640px wide per column well before this bucket
+          // applies, so it keeps using the 100vw/50vw/33vw tiers below unchanged.
+          sizes="(max-width: 640px) 340px, (max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover transition-transform duration-700 ease-fluid group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-abyss/85 via-abyss/10 to-transparent" />
