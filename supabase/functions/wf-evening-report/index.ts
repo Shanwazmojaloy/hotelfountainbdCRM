@@ -10,7 +10,7 @@ const SB_URL  = Deno.env.get('SUPABASE_URL') ?? 'https://mynwfkgksqqwlqowlscj.su
 const SB_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const BREVO   = Deno.env.get('BREVO_API_KEY') ?? '';
 const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const TO_EMAIL = 'hotellfountainbd@gmail.com';
+const TO_EMAIL = 'shanwazahmed@fountainbd.com';
 const HOTEL   = 'Hotel Fountain BD';
 
 const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };

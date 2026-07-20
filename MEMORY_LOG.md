@@ -2400,3 +2400,13 @@ CANONICAL HOST -- SINGLE-ORIGIN 301 DECISION (2026-07-18):
 - VERIFIED (edit integrity): host Read confirmed both edits intact; sandbox grep = 0 NUL bytes + valid UTF-8. Compile gate = Vercel build (sandbox tsc truncates F: reads — do not trust it).
 - NEXT: commit/push Windows-side (or let auto-PR pipeline ship it) → confirm www + hotel return 301 to apex on the live deploy → click "Validate Fix" on the GSC row.
 - DO NOT re-add www.fountainbd.com or hotel.fountainbd.com to INDEXABLE_HOSTS, and do not remove the host-canonicalization 301 block — that reintroduces the duplicate.
+
+## 2026-07-20 - Workflow email recipient change (hotellfountainbd@gmail.com -> shanwazahmed@fountainbd.com)
+- SCOPE: recipient ("to") only for the 8 Email Workflows shown in CRM Settings. Sender/From KEPT as hotellfountainbd@gmail.com (Brevo-validated sender) to avoid SPF/DKIM deliverability risk. Owner-approved "recipient only".
+- CHANGES:
+  - DB: manus_config.owner_email = 'shanwazahmed@fountainbd.com' (was gmail). This governs wf-checkout-alerts -> covers BOTH Checkout Reminder + Overdue Alert (gmail in code is only a fallback).
+  - Edge functions redeployed (verify_jwt=false preserved) with TO_EMAIL -> new address, sender decoupled to SENDER_EMAIL const where it had reused TO_EMAIL: wf-morning-briefing (v32), wf-evening-report (v34), wf-period-reports (v35, weekly+monthly), wf-competitor-monitor (v32), wf-backup-verify (v32).
+- LEFT UNTOUCHED (not in the Email Workflows panel): public-site contact addresses (site.ts, lumea page, send-confirmation replyTo, printDocs, crm-config), reply-digest DIGEST_TO, wf-seo-lead-morning NOTIFY_EMAIL, reply-intake-poll IMAP inbox, all sender identities.
+- VERIFIED: git diff = only intended lines; sandbox NUL=0 + valid UTF-8; deployed wf-backup-verify content matches source byte-for-byte; live POST wf-backup-verify -> {ok:true, email.ok:true, Brevo msg id}. Brevo inbox delivery is a separate known-flaky concern (account historically silent-drops); API-level send succeeded.
+- SOURCE STATE: 5 function files edited in working tree (sandbox mount), UNCOMMITTED. Commit Windows-side or let auto-PR pipeline ship. Live functions already updated via Supabase MCP deploy (independent of the Vercel pipeline - no CI deploys edge functions).
+- IF ALL WORKFLOW EMAIL NEEDS TO CHANGE AGAIN: 5 functions hardcode TO_EMAIL (edit + redeploy each); only wf-checkout-alerts reads manus_config.owner_email. Consider refactoring the 5 to read owner_email too for a single-knob future.

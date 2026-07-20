@@ -15,7 +15,8 @@ const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const BREVO  = Deno.env.get('BREVO_API_KEY') ?? '';
 const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const TO_EMAIL = 'hotellfountainbd@gmail.com';
+const SENDER_EMAIL = 'hotellfountainbd@gmail.com';
+const TO_EMAIL = 'shanwazahmed@fountainbd.com';
 const HOTEL = 'Hotel Fountain BD';
 const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
 
@@ -47,7 +48,7 @@ async function sendBrevo(subject: string, html: string, text: string) {
   if (!BREVO) return { ok: false, error: 'BREVO_API_KEY not set' };
   const r = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST', headers: { 'api-key': BREVO, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sender: { name: `${HOTEL} CRM`, email: TO_EMAIL }, to: [{ email: TO_EMAIL, name: 'Shan Ahmed' }], subject, htmlContent: html, textContent: text }),
+    body: JSON.stringify({ sender: { name: `${HOTEL} CRM`, email: SENDER_EMAIL }, to: [{ email: TO_EMAIL, name: 'Shan Ahmed' }], subject, htmlContent: html, textContent: text }),
   });
   const d = await r.json().catch(() => ({}));
   return r.ok ? { ok: true, id: d.messageId } : { ok: false, error: JSON.stringify(d) };
