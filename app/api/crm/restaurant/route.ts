@@ -20,7 +20,7 @@ export const maxDuration = 15;
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
-const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+const round2 = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
 const clampPct = (n: unknown) => Math.min(100, Math.max(0, Number(n) || 0));
 const s = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
