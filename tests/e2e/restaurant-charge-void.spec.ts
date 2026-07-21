@@ -6,6 +6,11 @@ const money = (s: string) => Number(String(s).replace(/[^\d.-]/g, '')) || 0;
 
 const ITEM = `E2E RoomItem ${Date.now()}`;
 const PRICE = 120;
+// MUST equal the E2E_TEST_ROOMS nightly price in db/seed_e2e.sql (2000). recalcResTotalServer
+// recomputes total_amount = room.price×nights + folios (NEVER incremental), so the seed's paid
+// must equal room×nights (1 night) — otherwise the pre-charge balance never lands on 0 and the
+// post-charge balance clamps instead of showing exactly PRICE.
+const ROOM_RATE = 2000;
 const GUEST = `E2E ChargeGuest ${Date.now()}`;
 
 // Seed a single-room CHECKED_IN reservation via the API (authenticated by the shared
@@ -20,7 +25,7 @@ async function seedCheckin(request: APIRequestContext): Promise<{ id: string; ro
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   const res = await request.post('/api/crm/reservation', {
-    data: { action: 'create', guest_ids: [], guest_name: GUEST, room_ids: [room], check_in: today, check_out: tomorrow, status: 'CHECKED_IN', total_amount: 3000, paid_amount: 3000, discount_amount: 0, payment_method: 'Cash' },
+    data: { action: 'create', guest_ids: [], guest_name: GUEST, room_ids: [room], check_in: today, check_out: tomorrow, status: 'CHECKED_IN', total_amount: ROOM_RATE, paid_amount: ROOM_RATE, discount_amount: 0, payment_method: 'Cash' },
   });
   expect(res.ok()).toBeTruthy();
   const list = await request.get(`/api/crm/data?resource=reservations&status_in=CHECKED_IN`);
@@ -63,11 +68,13 @@ test.describe('Restaurant POS — charge to room + void', () => {
     const orderNo = (await chargeResp.json())?.order?.order_no as string;
     expect(orderNo).toBeTruthy();
 
-    // Billing: the F&B folio line shows on the guest's invoice + balance reflects the charge.
+    // Billing: prove the charge posted via the canonical balance delta. (The invoice card
+    // renders one summary "Room Charge" row on-screen; individual folio lines like
+    // "Restaurant POS-000x" appear only in the PRINTED invoice, so we assert on money, not text.)
+    // Searching by room narrows the folio picker to our reservation → it becomes the selected card.
     await page.goto('/crm/billing');
     await page.getByPlaceholder(/Search folios/i).fill(seeded.room);
-    await expect(page.getByText(new RegExp(`Restaurant ${orderNo}`))).toBeVisible();
-    // seeded fully-paid (3000/3000); the F&B charge makes the new balance == PRICE.
+    // seed is room-rate fully paid (balance 0); the F&B charge folds into total_amount → balance == PRICE.
     await expect.poll(async () => money(await page.getByTestId('billing-balance-due').innerText())).toBe(PRICE);
 
     // Void the order in History -> folio reverses -> balance returns to 0.
