@@ -127,21 +127,30 @@ drop trigger if exists trg_rest_orders_touch on public.restaurant_orders;
 create trigger trg_rest_orders_touch before update on public.restaurant_orders
   for each row execute function public.restaurant_touch_updated_at();
 
--- ---- RLS: fail-closed. service_role (API routes) is the sole access path -----
+-- ---- RLS: tenant isolation (mirrors folios/transactions) -------------------
+-- The Lumea CRM API connects as the `crm_tenant` role (TENANT_JWT_MODE), NOT
+-- service_role, so RLS is enforced on every read/write. Grant the app roles and
+-- add a tenant_isolation policy keyed on current_tenant_id() -- identical to the
+-- folios `tenant_isolation` policy. anon has no access to F&B data.
 alter table public.restaurant_menu_items  enable row level security;
 alter table public.restaurant_orders      enable row level security;
 alter table public.restaurant_order_items enable row level security;
 
--- No permissive policies for anon/authenticated: with RLS on and no policy, those
--- roles get zero rows / zero writes (secure default). service_role bypasses RLS.
-revoke all on public.restaurant_menu_items  from anon, authenticated, public;
-revoke all on public.restaurant_orders      from anon, authenticated, public;
-revoke all on public.restaurant_order_items from anon, authenticated, public;
+revoke all on public.restaurant_menu_items  from anon, public;
+revoke all on public.restaurant_orders      from anon, public;
+revoke all on public.restaurant_order_items from anon, public;
 
-grant select, insert, update, delete on public.restaurant_menu_items  to service_role;
-grant select, insert, update, delete on public.restaurant_orders      to service_role;
-grant select, insert, update, delete on public.restaurant_order_items to service_role;
-grant usage on sequence public.restaurant_order_no_seq to service_role;
+grant select, insert, update, delete on public.restaurant_menu_items  to crm_tenant, authenticated, service_role;
+grant select, insert, update, delete on public.restaurant_orders      to crm_tenant, authenticated, service_role;
+grant select, insert, update, delete on public.restaurant_order_items to crm_tenant, authenticated, service_role;
+grant usage on sequence public.restaurant_order_no_seq to crm_tenant, authenticated, service_role;
+
+drop policy if exists tenant_isolation on public.restaurant_menu_items;
+drop policy if exists tenant_isolation on public.restaurant_orders;
+drop policy if exists tenant_isolation on public.restaurant_order_items;
+create policy tenant_isolation on public.restaurant_menu_items  for all using (tenant_id = current_tenant_id());
+create policy tenant_isolation on public.restaurant_orders      for all using (tenant_id = current_tenant_id());
+create policy tenant_isolation on public.restaurant_order_items for all using (tenant_id = current_tenant_id());
 
 -- ---- atomic order creation --------------------------------------------------
 -- Header + line items + (for ROOM) the folios charge line commit as ONE unit, so a
@@ -201,7 +210,7 @@ begin
 end;
 $$;
 
-revoke all on function public.fn_pos_create_order(jsonb) from public, anon, authenticated;
-grant execute on function public.fn_pos_create_order(jsonb) to service_role;
+revoke all on function public.fn_pos_create_order(jsonb) from public, anon;
+grant execute on function public.fn_pos_create_order(jsonb) to crm_tenant, authenticated, service_role;
 
 commit;
