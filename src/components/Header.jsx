@@ -77,9 +77,12 @@ export default function Header() {
     try {
       const supabase = getSupabaseClient();
       const [pR, { data: rms }, aR] = await Promise.all([
-        fetch('/api/crm/data?resource=reservations&status=PENDING&order=created_at.desc&limit=20'),
+        // PERF (2026-07-21): project both reservations fetches — this bell mounts on EVERY /crm
+        // page. Pending list renders only these fields; the "clashes" set is used solely for
+        // room-overlap detection so it needs just check_in/check_out/room_ids (was ~352KB unprojected).
+        fetch('/api/crm/data?resource=reservations&status=PENDING&order=created_at.desc&limit=20&cols=id,guest_name,source,created_at,check_in,check_out,guests,room_type,phone,email,total_amount'),
         supabase.from('rooms').select('room_number, category, price, status').order('room_number'),
-        fetch('/api/crm/data?resource=reservations&status_in=RESERVED,CHECKED_IN,CONFIRMED'),
+        fetch('/api/crm/data?resource=reservations&status_in=RESERVED,CHECKED_IN,CONFIRMED&cols=check_in,check_out,room_ids'),
       ]);
       const p = (await pR.json().catch(() => ({}))).rows || [];
       const act = (await aR.json().catch(() => ({}))).rows || [];
