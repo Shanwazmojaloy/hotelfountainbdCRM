@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
+import { TEST_ROOMS } from './fixtures';
 
 // THE FLAGSHIP MONEY-INTEGRITY TEST.
 // House rule (2026-06-14): a multi-room booking is stored as ONE reservation PER ROOM
@@ -12,9 +13,8 @@ async function freeRooms(request: APIRequestContext, n: number): Promise<string[
   const res = await request.get('/api/crm/data?resource=reservations&status_in=CHECKED_IN,RESERVED&limit=5000');
   const taken = new Set<string>();
   ((await res.json()).rows || []).forEach((r: { room_ids?: string[] }) => (r.room_ids || []).forEach((x) => taken.add(String(x))));
-  const pool = ['101', '102', '103', '104', '105', '106', '107', '108', '109', '110', '201', '202', '203', '204', '205'];
-  const free = pool.filter((rn) => !taken.has(rn)).slice(0, n);
-  if (free.length < n) throw new Error(`Need ${n} free test rooms; seed more on the test tenant.`);
+  const free = TEST_ROOMS.filter((rn) => !taken.has(rn)).slice(0, n);
+  if (free.length < n) throw new Error(`Need ${n} free test rooms — set E2E_TEST_ROOMS to enough existing/free rooms on the test tenant.`);
   return free;
 }
 

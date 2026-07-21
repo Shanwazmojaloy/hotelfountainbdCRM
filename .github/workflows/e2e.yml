@@ -24,9 +24,11 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Run E2E
         env:
-          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}   # e.g. a Vercel preview / test deploy URL
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}   # a NON-PROD test deploy URL
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}         # POS-capable account on the TEST tenant
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          E2E_TEST_ROOMS: ${{ vars.E2E_TEST_ROOMS }}  # repo VARIABLE (not secret): rooms that exist on the test tenant, e.g. T01,T02,T03,T04,T05
+          E2E_ALLOW_CLOSE_DAY: ${{ vars.E2E_ALLOW_CLOSE_DAY }} # set to 1 only on a reset-able tenant to run the destructive close-day smoke
         run: npx playwright test --reporter=list,html
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}

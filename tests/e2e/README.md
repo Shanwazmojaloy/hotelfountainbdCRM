@@ -51,10 +51,17 @@ POS: `pos-grand-total`, `pos-charge-room`, `pos-settle`, `register-open`, `regis
 stable — tests depend on them (don't couple to CSS classes or Taka strings).
 
 ## Seeding & isolation
-The charge/void and multi-room specs seed their own reservation via `page.request` (the
-authenticated API) and cascade-delete it in `afterEach`, so a failed run never orphans data.
-They assume a test tenant with free rooms in `101..110` (and `201..205` for multi-room). Run
-against a **NON-PROD tenant only**.
+The charge/void, multi-room and payment specs seed their own reservation via `page.request`
+(the authenticated API) and cascade-delete it in `afterEach`, so a failed run never orphans
+data. They book from `tests/e2e/fixtures.ts` → `TEST_ROOMS`; override with **`E2E_TEST_ROOMS`**
+(comma-separated) to match the rooms that actually exist and are free on your test tenant (the
+multi-room spec needs 3 free). Run against a **NON-PROD tenant only** — the destructive specs
+(checkout, void, close-day) must never touch production data.
+
+> ⚠️ As of 2026-07-21 there is **no dedicated non-prod test tenant**: prod (Fountain) has rooms
+> 301–510 and is *real data*; the demo tenant `156da579` has only `D101–D103` + 1 staff. Before
+> running, provision a proper test tenant — rooms + a POS-capable Owner/Supervisor account + a
+> URL that routes to it — and set `E2E_TEST_ROOMS` to its room numbers.
 
 ## CI (GitHub Actions)
 `.github/workflows/e2e.yml` runs the suite. It's **manual (`workflow_dispatch`) by default** —
@@ -62,6 +69,10 @@ enable the commented `pull_request` trigger once you've set three repo secrets
 (Settings → Secrets and variables → Actions):
 - `E2E_BASE_URL` — a NON-PROD test deployment URL (Vercel preview or a dedicated test deploy).
 - `E2E_EMAIL` / `E2E_PASSWORD` — a POS-capable account on that test tenant.
+
+Plus repo **Variables** (Settings → Secrets and variables → Actions → Variables — not secrets):
+- `E2E_TEST_ROOMS` — rooms that exist + are free on the test tenant, e.g. `T01,T02,T03,T04,T05` (need ≥3 for the multi-room spec).
+- `E2E_ALLOW_CLOSE_DAY` — set to `1` only on a reset-able tenant to run the destructive close-day smoke.
 
 The workflow installs `@playwright/test` ad-hoc in the runner, so it never touches
 `package.json` / the lockfile / `next build`.

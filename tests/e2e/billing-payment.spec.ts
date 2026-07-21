@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
+import { TEST_ROOMS } from './fixtures';
 
 // Compare NUMBERS, not Taka strings.
 const money = (s: string) => Number(String(s).replace(/[^\d.-]/g, '')) || 0;
@@ -9,8 +10,8 @@ async function seedWithBalance(request: APIRequestContext): Promise<{ id: string
   const res = await request.get('/api/crm/data?resource=reservations&status_in=CHECKED_IN,RESERVED&limit=5000');
   const taken = new Set<string>();
   ((await res.json()).rows || []).forEach((r: { room_ids?: string[] }) => (r.room_ids || []).forEach((x) => taken.add(String(x))));
-  const room = ['101', '102', '103', '104', '105', '106', '107', '108', '109', '110'].find((rn) => !taken.has(rn));
-  if (!room) throw new Error('No free test room — seed rooms 101..110 on the test tenant.');
+  const room = TEST_ROOMS.find((rn) => !taken.has(rn));
+  if (!room) throw new Error('No free test room — set E2E_TEST_ROOMS to rooms that exist + are free on the test tenant.');
   await request.post('/api/crm/reservation', {
     data: { action: 'create', guest_ids: [], guest_name: GUEST, room_ids: [room], check_in: new Date().toISOString().slice(0, 10), check_out: new Date(Date.now() + 86400000).toISOString().slice(0, 10), status: 'CHECKED_IN', total_amount: 3000, paid_amount: 1000, discount_amount: 0, payment_method: 'Cash' },
   });

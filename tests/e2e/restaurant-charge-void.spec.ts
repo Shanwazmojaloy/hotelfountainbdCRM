@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
+import { TEST_ROOMS } from './fixtures';
 
 // Money helper: compare NUMBERS, not brittle Taka strings.
 const money = (s: string) => Number(String(s).replace(/[^\d.-]/g, '')) || 0;
@@ -14,8 +15,8 @@ async function seedCheckin(request: APIRequestContext): Promise<{ id: string; ro
   const taken = new Set<string>();
   ((await roomsRes.json()).rows || []).forEach((r: { room_ids?: string[] }) => (r.room_ids || []).forEach((x) => taken.add(String(x))));
   // A test tenant should have rooms 101..110 seeded; pick the first free one.
-  const room = ['101', '102', '103', '104', '105', '106', '107', '108', '109', '110'].find((rn) => !taken.has(rn));
-  if (!room) throw new Error('No free test room — seed rooms 101..110 on the test tenant.');
+  const room = TEST_ROOMS.find((rn) => !taken.has(rn));
+  if (!room) throw new Error('No free test room — set E2E_TEST_ROOMS to rooms that exist + are free on the test tenant.');
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   const res = await request.post('/api/crm/reservation', {
