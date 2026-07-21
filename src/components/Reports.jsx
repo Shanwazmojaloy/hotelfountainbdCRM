@@ -49,7 +49,11 @@ export default function Reports() {
       // night_audit_log stay on the anon client (not sensitive, anon SELECT retained).
       const [txR, resR, { data: rooms, error: rmErr }, { data: closes, error: clErr }, fbR] = await Promise.all([
         fetch('/api/crm/data?resource=transactions&cols=id,type,amount,reservation_id,fiscal_day,created_at,guest_name,room_number'),
-        fetch('/api/crm/data?resource=reservations'),
+        // PERF (2026-07-21): project ONLY the columns the Daily/dues/movement math reads.
+        // The unprojected fetch pulled every column (incl. room_details jsonb, notes, ota_*, fbp/fbc)
+        // = ~1.56MB / ~3s on prod. These 12 cover every money + display field Reports uses.
+        // room_number is intentionally omitted (not a reservations column — it lives in room_ids).
+        fetch('/api/crm/data?resource=reservations&cols=id,room_ids,status,total_amount,paid_amount,discount_amount,discount,check_in,check_out,checked_in_at,checked_out_at,guest_name'),
         supabase.from('rooms').select('id, status, category, price'),
         supabase.from('night_audit_log').select('audit_date, closed_at, closed_by, total_checkins, total_checkouts, total_collections, carried_over_dues, opening_token, payouts').order('closed_at', { ascending: false }),
         // F&B (restaurant) sales for the open business day — 403s (→ empty) for roles without
