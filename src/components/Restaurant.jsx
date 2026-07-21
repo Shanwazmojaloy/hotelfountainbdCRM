@@ -89,7 +89,7 @@ function PosTerminal({ menu, inhouse, canDiscount, canComp, canPostRoom, onDone 
     const out = [];
     (inhouse || []).forEach((r) => {
       const rooms = Array.isArray(r.room_ids) ? r.room_ids : (r.room_number ? [r.room_number] : []);
-      rooms.forEach((rn) => out.push({ key: `${r.id}|${rn}`, room: String(rn), guest: r.guest_name || 'Guest', resId: r.id }));
+      rooms.forEach((rn) => out.push({ key: `${r.id}|${rn}`, room: String(rn), guest: r.guest_name || 'Guest', resId: r.id, breakfast: !!r.breakfast_included }));
     });
     return out.sort((a, b) => a.room.localeCompare(b.room, undefined, { numeric: true }));
   }, [inhouse]);
@@ -175,8 +175,11 @@ function PosTerminal({ menu, inhouse, canDiscount, canComp, canPostRoom, onDone 
         {orderType === 'ROOM' && (
           <select value={resPick} onChange={(e) => setResPick(e.target.value)} style={{ ...inp, marginBottom: 8 }}>
             <option value="">- in-house room / guest -</option>
-            {roomOpts.map((o) => <option key={o.key} value={o.key}>{o.room} - {o.guest}</option>)}
+            {roomOpts.map((o) => <option key={o.key} value={o.key}>{o.room} - {o.guest}{o.breakfast ? ' · breakfast incl' : ''}</option>)}
           </select>
+        )}
+        {orderType === 'ROOM' && resPick && roomOpts.find((o) => o.key === resPick)?.breakfast && (
+          <div style={{ fontSize: 11, color: '#C3E62E', marginBottom: 8, lineHeight: 1.4 }}>🍳 Breakfast included for this guest — add the breakfast item and tap <strong>Comp</strong> to make it free.</div>
         )}
         {orderType === 'DINE_IN' && <input placeholder="Table #" value={table} onChange={(e) => setTable(e.target.value)} style={{ ...inp, marginBottom: 8 }} />}
 
@@ -208,7 +211,7 @@ function PosTerminal({ menu, inhouse, canDiscount, canComp, canPostRoom, onDone 
           {[['Subtotal', subtotal], ['VAT', vat], ['Service', service], ['Discount', -disc]].map(([l, v]) => (
             <div key={l} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--iv-ink2)', padding: '2px 0' }}><span>{l}</span><span className="iv-mono">{bdt(v)}</span></div>
           ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontWeight: 800, color: 'var(--iv-gold)', fontSize: 16 }}><span>Grand Total</span><span className="iv-mono">{bdt(grand)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontWeight: 800, color: 'var(--iv-gold)', fontSize: 16 }}><span>Grand Total</span><span className="iv-mono" data-testid="pos-grand-total">{bdt(grand)}</span></div>
         </div>
 
         {err && <div style={{ color: '#FF6B6B', fontSize: 12, marginTop: 8 }}>{err}</div>}
@@ -220,8 +223,8 @@ function PosTerminal({ menu, inhouse, canDiscount, canComp, canPostRoom, onDone 
         )}
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
           {orderType === 'ROOM'
-            ? <button className="iv-btn" style={{ flex: 1 }} disabled={busy || !cart.length} onClick={() => submit('ROOM')}>{busy ? '...' : 'Charge to Room'}</button>
-            : <button className="iv-btn" style={{ flex: 1 }} disabled={busy || !cart.length} onClick={() => submit('SETTLE')}>{busy ? '...' : `Settle (${method})`}</button>}
+            ? <button className="iv-btn" data-testid="pos-charge-room" style={{ flex: 1 }} disabled={busy || !cart.length} onClick={() => submit('ROOM')}>{busy ? '...' : 'Charge to Room'}</button>
+            : <button className="iv-btn" data-testid="pos-settle" style={{ flex: 1 }} disabled={busy || !cart.length} onClick={() => submit('SETTLE')}>{busy ? '...' : `Settle (${method})`}</button>}
         </div>
         {lastReceipt && (
           <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: 'rgba(223,255,69,.08)', border: '1px solid rgba(223,255,69,.28)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -559,9 +562,9 @@ export default function Restaurant() {
         {canRegister && (shift
           ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, color: '#7BE04A', display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: 99, background: '#7BE04A' }} />Register open</span>
-              <button className="iv-btn iv-btn--ghost" style={{ fontSize: 12, borderRadius: 999 }} onClick={() => setRegModal('close')}>Close Register</button>
+              <button className="iv-btn iv-btn--ghost" data-testid="register-close" style={{ fontSize: 12, borderRadius: 999 }} onClick={() => setRegModal('close')}>Close Register</button>
             </div>
-          : <button className="iv-btn" style={{ fontSize: 12, borderRadius: 999 }} onClick={() => setRegModal('open')}>Open Register</button>)}
+          : <button className="iv-btn" data-testid="register-open" style={{ fontSize: 12, borderRadius: 999 }} onClick={() => setRegModal('open')}>Open Register</button>)}
       </div>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>

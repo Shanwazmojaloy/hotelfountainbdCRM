@@ -15,7 +15,7 @@ const shortDate = (s) => { if (!s) return ''; const d = String(s).slice(0, 10); 
 export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   const [f, setF] = useState({
     guests: [{ id: '', name: '' }], roomNos: [''], checkIn: todayStr(), checkOut: '',
-    total: '', paid: '', discount: '', method: 'Cash', notes: '', officer: '', stayType: 'CHECK_IN',
+    total: '', paid: '', discount: '', method: 'Cash', notes: '', officer: '', stayType: 'CHECK_IN', breakfast: false,
   });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
   const [saving, setSaving] = useState(false);
@@ -100,7 +100,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
       const totalAmt = +f.total || autoTotal;
       const _r = await fetch('/api/crm/reservation', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create', guest_ids: guestIds, room_ids: sel, guest_name: primaryGuest.name || null, check_in: f.checkIn, check_out: f.checkOut, status: isCheckIn ? 'CHECKED_IN' : 'RESERVED', total_amount: totalAmt, paid_amount: +f.paid || 0, discount_amount: +f.discount || 0, payment_method: f.method, special_requests: f.notes || null, on_duty_officer: f.officer || null, stay_type: f.stayType, fiscal_day: todayStr(), idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null) }),
+        body: JSON.stringify({ action: 'create', guest_ids: guestIds, room_ids: sel, guest_name: primaryGuest.name || null, check_in: f.checkIn, check_out: f.checkOut, status: isCheckIn ? 'CHECKED_IN' : 'RESERVED', total_amount: totalAmt, paid_amount: +f.paid || 0, discount_amount: +f.discount || 0, payment_method: f.method, special_requests: f.notes || null, on_duty_officer: f.officer || null, stay_type: f.stayType, breakfast_included: !!f.breakfast, fiscal_day: todayStr(), idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null) }),
       });
       if (_r.status !== 401) {
         const j = await _r.json().catch(() => ({}));
@@ -216,6 +216,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           <div><label style={lbl}>On-Duty Officer</label><input style={field} value={f.officer} onChange={set('officer')} placeholder="Staff name" /></div>
         </div>
         <div className="mb-4"><label style={lbl}>Notes</label><textarea style={{ ...field, minHeight: 64, resize: 'vertical' }} value={f.notes} onChange={set('notes')} placeholder="Optional" /></div>
+        <div className="mb-4"><label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--iv-ink)' }}><input type="checkbox" checked={f.breakfast} onChange={(e) => setF((p) => ({ ...p, breakfast: e.target.checked }))} style={{ width: 16, height: 16, accentColor: '#C3E62E' }} /> 🍳 Breakfast included in this booking</label></div>
 
         {heldSel.length > 0 && (() => { const c = conflicts[String(heldSel[0])]; return (
           <div className="mb-3 text-sm" style={{ background: 'rgba(180,120,20,0.08)', border: '1px solid rgba(180,120,20,0.30)', color: '#92600A', padding: '9px 12px', borderRadius: 8 }}>

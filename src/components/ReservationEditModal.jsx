@@ -31,6 +31,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
   const [paidAmt, setPaidAmt] = useState(String(res.paid_amount || ''));
   const [discountAmt, setDiscountAmt] = useState(String(res.discount_amount || res.discount || ''));
   const [notes, setNotes] = useState(res.notes || res.special_requests || '');
+  const [breakfast, setBreakfast] = useState(!!res.breakfast_included);
   const [checkInDate, setCheckInDate] = useState(res.check_in ? String(res.check_in).slice(0, 10) : '');
   const [checkOut, setCheckOut] = useState(res.check_out ? String(res.check_out).slice(0, 10) : '');
   const [roomArr, setRoomArr] = useState((res.room_ids || []).filter(Boolean));
@@ -110,7 +111,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
     try {
       const _r = await fetch('/api/crm/reservation', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update', id: res.id, status, paid_amount: paidNum, discount_amount: discountNum, notes, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), guest_name: gn }),
+        body: JSON.stringify({ action: 'update', id: res.id, status, paid_amount: paidNum, discount_amount: discountNum, notes, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), guest_name: gn, breakfast_included: breakfast }),
       });
       if (_r.status === 401) {
         throw new Error('Your session has expired. Please sign out and sign in again, then retry.');
@@ -168,6 +169,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
         </div>
 
         <div className="mb-4"><label style={lbl}>Notes / Special Requests</label><input style={field} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        <div className="mb-4"><label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--iv-ink)' }}><input type="checkbox" checked={breakfast} onChange={(e) => setBreakfast(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#C3E62E' }} /> 🍳 Breakfast included in this booking</label></div>
 
         {/* Additional Charges — manual Add-Charge line items, shown separately and visible to
             every staff account, each stamped with who added it. Edit/remove is owner/admin

@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
         check_in: checkIn, check_out: checkOut, status,
         payment_method: body.payment_method || null,
         special_requests: body.special_requests || null, on_duty_officer: body.on_duty_officer || null,
-        stay_type: body.stay_type || null,
+        stay_type: body.stay_type || null, breakfast_included: !!body.breakfast_included,
       };
 
       // PER-ROOM BOOKINGS (house rule 2026-06-14): a multi-room booking is stored as ONE reservation
@@ -237,6 +237,7 @@ export async function POST(req: NextRequest) {
       const { error: upErr } = await db.from('reservations').update({
         status, paid_amount: paidNum, discount_amount: discountNum, notes: (body.notes as string) ?? prev.notes,
         check_in: checkIn, check_out: checkOut, room_ids: newRoomNos, guest_name: gn,
+        breakfast_included: typeof body.breakfast_included === 'boolean' ? body.breakfast_included : prev.breakfast_included,
       }).eq('id', id);
       if (upErr) throw upErr;
       // Recalc ONLY when dates/rooms changed — unconditional recalc clobbered negotiated /
