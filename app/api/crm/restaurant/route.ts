@@ -85,6 +85,35 @@ export async function GET(req: NextRequest) {
       const openRows = (data || []).filter((o: { status?: string }) => o.status !== 'CLOSED');
       return NextResponse.json({ rows: openRows });
     }
+    if (resource === 'register') {
+      // current open shift + live expected cash (float + cash sales since it opened)
+      const { data } = await ctx.db.from('restaurant_register_shifts').select('*').eq('status', 'OPEN').order('opened_at', { ascending: false }).limit(1);
+      const shift = data && data[0];
+      let expectedCash: number | null = null;
+      if (shift) {
+        const { data: paid } = await ctx.db.from('restaurant_orders').select('grand_total_bdt').eq('payment_method', 'Cash').neq('payment_status', 'VOID').gte('created_at', shift.opened_at);
+        const cashSales = (paid || []).reduce((a: number, o: { grand_total_bdt: number }) => a + (Number(o.grand_total_bdt) || 0), 0);
+        expectedCash = round2((Number(shift.opening_float_bdt) || 0) + cashSales);
+      }
+      return NextResponse.json({ shift: shift || null, expectedCash });
+    }
+    if (resource === 'history') {
+      const url = new URL(req.url);
+      const from = url.searchParams.get('from'); const to = url.searchParams.get('to');
+      const status = url.searchParams.get('status'); const query = (url.searchParams.get('q') || '').trim().toLowerCase();
+      let qb = ctx.db.from('restaurant_orders').select('*').order('created_at', { ascending: false }).limit(300);
+      if (from) qb = qb.gte('fiscal_day', from);
+      if (to) qb = qb.lte('fiscal_day', to);
+      if (status) qb = qb.eq('payment_status', status);
+      const { data, error } = await qb;
+      if (error) throw error;
+      let rows = data || [];
+      if (query) rows = rows.filter((o: Record<string, unknown>) => [o.order_no, o.room_number, o.table_no].some((v) => String(v || '').toLowerCase().includes(query)));
+      const ids = rows.map((o: { id: string }) => o.id);
+      let items: unknown[] = [];
+      if (ids.length) { const { data: it } = await ctx.db.from('restaurant_order_items').select('*').in('order_id', ids); items = it || []; }
+      return NextResponse.json({ rows, items });
+    }
     return NextResponse.json({ error: 'Unknown resource.' }, { status: 400 });
   } catch (e: unknown) {
     console.error('[crm/restaurant GET]', e instanceof Error ? e.message : e);
@@ -246,6 +275,44 @@ export async function POST(req: NextRequest) {
         .eq('id', body.id);
       if (error) throw error;
       return NextResponse.json({ ok: true });
+    }
+
+    // ---- open the register (posRegister) ----
+    if (action === 'register_open') {
+      if (!can(sess.role, 'posRegister')) return NextResponse.json({ error: 'Only a supervisor can open the register.' }, { status: 403 });
+      const { data: openS } = await db.from('restaurant_register_shifts').select('id').eq('status', 'OPEN').limit(1);
+      if (openS && openS[0]) return NextResponse.json({ error: 'A register is already open.' }, { status: 400 });
+      const { data: closes } = await supabase.from('night_audit_log').select('audit_date, status');
+      const fiscalDay = openBusinessDay(closes) || dhakaToday();
+      const { data: who } = await db.from('staff').select('name').eq('id', sess.id).limit(1);
+      const name = (who && who[0] && who[0].name) || null;
+      const { data: ins, error } = await db.from('restaurant_register_shifts')
+        .insert({ opening_float_bdt: round2(body.opening_float_bdt), opened_by_id: sess.id, opened_by_name: name, fiscal_day: fiscalDay, status: 'OPEN' })
+        .select('*').limit(1);
+      if (error) {
+        if (String((error as { code?: string }).code) === '23505') return NextResponse.json({ error: 'A register is already open.' }, { status: 400 });
+        throw error;
+      }
+      return NextResponse.json({ ok: true, shift: ins && ins[0] });
+    }
+
+    // ---- close the register (posRegister) — reconcile cash ----
+    if (action === 'register_close') {
+      if (!can(sess.role, 'posRegister')) return NextResponse.json({ error: 'Only a supervisor can close the register.' }, { status: 403 });
+      const { data: openS } = await db.from('restaurant_register_shifts').select('*').eq('status', 'OPEN').order('opened_at', { ascending: false }).limit(1);
+      const shift = openS && openS[0];
+      if (!shift) return NextResponse.json({ error: 'No open register to close.' }, { status: 400 });
+      const { data: paid } = await db.from('restaurant_orders').select('grand_total_bdt').eq('payment_method', 'Cash').neq('payment_status', 'VOID').gte('created_at', shift.opened_at);
+      const cashSales = (paid || []).reduce((a: number, o: { grand_total_bdt: number }) => a + (Number(o.grand_total_bdt) || 0), 0);
+      const expected = round2((Number(shift.opening_float_bdt) || 0) + cashSales);
+      const counted = round2(body.counted_cash_bdt);
+      const { data: who } = await db.from('staff').select('name').eq('id', sess.id).limit(1);
+      const name = (who && who[0] && who[0].name) || null;
+      const { data: upd, error } = await db.from('restaurant_register_shifts')
+        .update({ status: 'CLOSED', expected_cash_bdt: expected, counted_cash_bdt: counted, variance_bdt: round2(counted - expected), closed_by_id: sess.id, closed_by_name: name, closed_at: new Date().toISOString(), notes: s(body.notes) })
+        .eq('id', shift.id).select('*').limit(1);
+      if (error) throw error;
+      return NextResponse.json({ ok: true, shift: upd && upd[0], expected, cashSales });
     }
 
     return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });

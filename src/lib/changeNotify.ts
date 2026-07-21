@@ -15,7 +15,7 @@ const DASH = String.fromCharCode(0x2014); // em-dash (empty-value placeholder)
 
 const SENDER_NAME  = process.env.HOTEL_SENDER_NAME  || `Hotel Fountain BD ${DASH} Lumea`;
 const SENDER_EMAIL = process.env.HOTEL_SENDER_EMAIL || 'hotellfountainbd@gmail.com';
-const ADMIN_EMAIL  = process.env.ADMIN_NOTIFY_EMAIL || 'ahmedshanwaz5@gmail.com';
+const ADMIN_EMAIL  = process.env.ADMIN_NOTIFY_EMAIL || 'shanwazahmed@fountainbd.com';
 
 const bdt    = (n: unknown) => TAKA + Number(n || 0).toLocaleString('en-US');
 const dstr   = (v: unknown) => (v ? String(v).slice(0, 10) : DASH);

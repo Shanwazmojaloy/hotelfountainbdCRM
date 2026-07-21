@@ -16,7 +16,7 @@ const TENANT        = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-8
 // SENDER_NAME unused — display name embedded in email templates directly
 const SENDER_EMAIL  = process.env.HOTEL_SENDER_EMAIL    || 'hotellfountainbd@gmail.com';
 const HOTEL_NAME    = process.env.HOTEL_NAME            || 'Hotel Fountain BD';
-const DIGEST_TO     = process.env.HOTEL_SENDER_EMAIL    || 'hotellfountainbd@gmail.com';
+const DIGEST_TO     = process.env.ALERT_EMAIL          || 'shanwazahmed@fountainbd.com';
 
 interface ReplyRow {
   lead_id:       string;

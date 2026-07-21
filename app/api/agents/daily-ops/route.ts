@@ -83,7 +83,7 @@ export async function GET(req: Request) {
       try {
         const closing = await dbGet(
           'daily_closing',
-          `select=total_revenue&tenant_id=eq.${TENANT}&date=eq.${today}&limit=1`
+          `select=total_revenue&tenant_id=eq.${TENANT}&fiscal_day=eq.${today}&limit=1`
         );
         closingTotal = Number(closing?.[0]?.total_revenue ?? 0);
       } catch { /* no closing record yet */ }
@@ -121,14 +121,18 @@ export async function GET(req: Request) {
         } catch { /* non-fatal */ }
       }
 
+      // Persist the agent-verified daily revenue snapshot to its own isolated
+      // table (NOT daily_closing — that is the human night-audit/close-day
+      // ledger). Idempotent per (tenant_id, fiscal_day). Non-fatal.
       try {
-        await dbUpsert('daily_closing', {
+        await dbUpsert('agent_revenue_snapshot', {
           tenant_id: TENANT,
-          date: today,
+          fiscal_day: today,
           total_revenue: txnTotal,
+          occupancy_pct: Number(occupancy.toFixed(1)),
+          variance,
           agent_verified: true,
-          updated_at: new Date().toISOString(),
-        }, 'tenant_id,date');
+        }, 'tenant_id,fiscal_day');
       } catch { /* non-fatal */ }
 
       results.revenue_manager = {

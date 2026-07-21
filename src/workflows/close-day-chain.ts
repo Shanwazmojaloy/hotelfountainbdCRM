@@ -65,7 +65,7 @@ function serviceClient() {
 }
 
 const OWNER_EMAIL = () =>
-  process.env.OWNER_ALERT_EMAIL || process.env.CRM_FROM_EMAIL || "ahmedshanwaz5@gmail.com";
+  process.env.OWNER_ALERT_EMAIL || process.env.CRM_FROM_EMAIL || "shanwazahmed@fountainbd.com";
 
 // -------------------------------------------------------------- the workflow
 export async function closeDayChain(input: ChainInput) {

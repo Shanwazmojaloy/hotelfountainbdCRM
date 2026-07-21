@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       const prospector = new ProspectorAgent();
       const closer = new CloserAgent();
       const analyst = new AnalystAgent();
-      const ADMIN_EMAIL = 'ahmedshanwaz5@gmail.com';
+      const ADMIN_EMAIL = process.env.ALERT_EMAIL || 'shanwazahmed@fountainbd.com';
 
       const dailyLeads = [];
       const dailyTransactions = [];

@@ -113,7 +113,7 @@ async function handleItem(
     if (!isMailConfigured()) return { ok: false, error: 'MAIL_NOT_CONFIGURED' };
     const p = item.payload;
     await sendMail({
-      to: process.env.ALERT_EMAIL || 'ahmedshanwaz5@gmail.com',
+      to: process.env.ALERT_EMAIL || 'shanwazahmed@fountainbd.com',
       subject: `OVERBOOK ALERT: ${p.category} on ${p.stay_date} (${p.booked}/${p.total})`,
       text:
         `Nightly reconciliation found an overbooked cell.\n\n` +
@@ -153,7 +153,7 @@ export async function notifyReviews(): Promise<number> {
     .map((r: any) => `- [${r.event_type}] ${r.last_error}\n  queued: ${r.created_at}`)
     .join('\n');
   await sendMail({
-    to: process.env.ALERT_EMAIL || 'ahmedshanwaz5@gmail.com',
+    to: process.env.ALERT_EMAIL || 'shanwazahmed@fountainbd.com',
     subject: `Channel sync: ${rows.length} item(s) need manual review`,
     text:
       `The channel manager held these OTA events instead of guessing\n` +

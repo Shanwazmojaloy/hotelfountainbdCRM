@@ -53,6 +53,16 @@ function printReceipt(m) {
   printDoc(`Receipt ${m.order_no}`, css, body);
 }
 
+// Register close Z-report (cash reconciliation).
+function printRegisterReport(sh) {
+  const money = (v) => TK + (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('en-US');
+  const row = (l, v) => `<tr><td>${l}</td><td class="r">${money(v)}</td></tr>`;
+  const cashSales = (Number(sh.expected_cash_bdt) || 0) - (Number(sh.opening_float_bdt) || 0);
+  const css = `@page{size:80mm auto;margin:3mm}*{font-family:'Courier New',monospace;color:#000}body{width:74mm}h1{font-size:15px;text-align:center;margin:0}.sub{text-align:center;font-size:10px;margin:2px 0 6px}.meta{font-size:10px;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;margin-bottom:4px;line-height:1.5}table{width:100%;border-collapse:collapse}td{font-size:12px;padding:2px 0}.r{text-align:right}.grand td{font-size:13px;font-weight:700;border-top:1px dashed #000;padding-top:4px}.ft{text-align:center;font-size:10px;margin-top:8px;border-top:1px dashed #000;padding-top:4px}`;
+  const body = `<h1>REGISTER Z-REPORT</h1><div class="sub">Hotel Fountain Restaurant</div><div class="meta">Business day ${esc(sh.fiscal_day || '')}<br>Opened: ${esc(sh.opened_by_name || '')} &middot; ${sh.opened_at ? new Date(sh.opened_at).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }) : ''}<br>Closed: ${esc(sh.closed_by_name || '')} &middot; ${sh.closed_at ? new Date(sh.closed_at).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }) : ''}</div><table>${row('Opening Float', sh.opening_float_bdt)}${row('Cash Sales', cashSales)}<tr class="grand"><td>Expected Cash</td><td class="r">${money(sh.expected_cash_bdt)}</td></tr>${row('Counted Cash', sh.counted_cash_bdt)}<tr class="grand"><td>Variance</td><td class="r">${money(sh.variance_bdt)}</td></tr></table><div class="ft">Hotel Fountain, Dhaka</div>`;
+  printDoc('Register Z-Report', css, body);
+}
+
 // ─── POS terminal ────────────────────────────────────────────────────────────
 function PosTerminal({ menu, inhouse, canDiscount, canComp, canPostRoom, onDone }) {
   const [cat, setCat] = useState('All');
@@ -381,8 +391,116 @@ function MenuManager({ menu, onChange }) {
   );
 }
 
+// ─── Register open/close modal (posRegister) ─────────────────────────────────
+function RegisterModal({ mode, expectedCash, onClose, onDone }) {
+  const [float, setFloat] = useState('');
+  const [counted, setCounted] = useState('');
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  const exp = Number(expectedCash) || 0;
+  const variance = (Number(counted) || 0) - exp;
+  const inp = { padding: '10px 12px', border: '1px solid var(--iv-border)', borderRadius: 10, background: 'rgba(255,255,255,.05)', width: '100%', fontSize: 14, color: 'var(--iv-ink)' };
+  const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--iv-ink3)', margin: '0 0 5px', display: 'block' };
+  async function go() {
+    setBusy(true); setErr('');
+    try {
+      if (mode === 'open') {
+        await api('/api/crm/restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'register_open', opening_float_bdt: Number(float) || 0 }) });
+      } else {
+        const j = await api('/api/crm/restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'register_close', counted_cash_bdt: Number(counted) || 0, notes }) });
+        if (j.shift) printRegisterReport(j.shift);
+      }
+      onDone();
+    } catch (e) { setErr(e.message || String(e)); setBusy(false); }
+  }
+  return (
+    <div onClick={onClose} className="iv-modal-ov" style={{ position: 'fixed', inset: 0, background: 'rgba(7,9,14,0.58)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="iv-card" style={{ width: '100%', maxWidth: 400 }}>
+        <h3 className="text-xl mb-4 pb-3 iv-divider">{mode === 'open' ? 'Open Register' : 'Close Register'}</h3>
+        {mode === 'open'
+          ? <div><label style={lbl}>Opening Float ({TK})</label><input type="number" autoFocus value={float} onChange={(e) => setFloat(e.target.value)} style={inp} placeholder="e.g. 2000" /></div>
+          : <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10 }}><span className="iv-stat__sub">Expected cash in drawer</span><span className="iv-mono" style={{ color: 'var(--iv-gold)', fontWeight: 700 }}>{bdt(exp)}</span></div>
+              <label style={lbl}>Counted Cash ({TK})</label>
+              <input type="number" autoFocus value={counted} onChange={(e) => setCounted(e.target.value)} style={inp} placeholder="physically counted" />
+              {counted !== '' && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 8 }}><span className="iv-stat__sub">Variance</span><span className="iv-mono" style={{ fontWeight: 700, color: variance === 0 ? '#7BE04A' : (variance < 0 ? '#FF6B6B' : '#F5A93B') }}>{variance > 0 ? '+' : ''}{bdt(variance)}</span></div>}
+              <label style={{ ...lbl, marginTop: 12 }}>Notes</label><input value={notes} onChange={(e) => setNotes(e.target.value)} style={inp} placeholder="optional" />
+            </>}
+        {err && <div style={{ color: '#FF6B6B', fontSize: 12, marginTop: 8 }}>{err}</div>}
+        <div className="flex justify-end gap-2 iv-foot" style={{ marginTop: 16 }}>
+          <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="iv-btn" onClick={go} disabled={busy || (mode === 'close' && counted === '')}>{busy ? '...' : (mode === 'open' ? 'Open' : 'Close & Print')}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Order history + search ──────────────────────────────────────────────────
+function HistoryPanel() {
+  const dh = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date(ms));
+  const [from, setFrom] = useState(dh(Date.now() - 6 * 86400000));
+  const [to, setTo] = useState(dh(Date.now()));
+  const [q, setQ] = useState(''); const [status, setStatus] = useState('');
+  const [rows, setRows] = useState([]); const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  const itemsOf = (id) => items.filter((it) => it.order_id === id);
+  const receiptFromOrder = (o) => ({ order_no: o.order_no, order_type: o.order_type, room_number: o.room_number, table_no: o.table_no, method: o.payment_method, lines: itemsOf(o.id).map((i) => ({ name: i.name, qty: i.qty, unit: Number(i.unit_price_bdt), comp: Number(i.unit_price_bdt) === 0 })), subtotal: o.subtotal_bdt, vat: o.vat_bdt, service: o.service_charge_bdt, discount: o.discount_bdt, grand: o.grand_total_bdt });
+  const search = useCallback(async () => {
+    setBusy(true); setErr('');
+    try {
+      const p = new URLSearchParams({ resource: 'history', from, to });
+      if (status) p.set('status', status); if (q) p.set('q', q);
+      const j = await api('/api/crm/restaurant?' + p.toString());
+      setRows(j.rows || []); setItems(j.items || []);
+    } catch (e) { setErr(e.message || String(e)); } finally { setBusy(false); }
+  }, [from, to, status, q]);
+  useEffect(() => { search(); /* initial */ /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  const inp = { padding: '7px 9px', border: '1px solid var(--iv-border)', borderRadius: 8, background: 'rgba(255,255,255,.05)', color: 'var(--iv-ink)', fontSize: 12.5 };
+  const where = (o) => o.order_type === 'ROOM' ? `Room ${o.room_number || ''}` : o.order_type === 'DINE_IN' ? `Table ${o.table_no || ''}` : 'Walk-in';
+  const PS_COLOR = { PAID: '#7BE04A', POSTED_TO_ROOM: '#F5A93B', VOID: '#FF6B6B' };
+  return (
+    <div className="iv-card">
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+        <label style={{ fontSize: 10, color: 'var(--iv-ink3)' }}>From <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={inp} /></label>
+        <label style={{ fontSize: 10, color: 'var(--iv-ink3)' }}>To <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={inp} /></label>
+        <input placeholder="Order no / room / table" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} style={{ ...inp, width: 180 }} />
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={inp}>
+          <option value="">All status</option><option value="PAID">Paid</option><option value="POSTED_TO_ROOM">Charged to room</option><option value="VOID">Void</option>
+        </select>
+        <button className="iv-btn" style={{ fontSize: 12 }} disabled={busy} onClick={search}>{busy ? '...' : 'Search'}</button>
+      </div>
+      {err && <div style={{ color: '#FF6B6B', fontSize: 12, marginBottom: 8 }}>{err}</div>}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+          <thead><tr style={{ color: 'var(--iv-ink3)', textAlign: 'left' }}>
+            {['Order', 'Day', 'Where', 'Method', 'Status', 'Total', ''].map((h) => <th key={h} style={{ padding: '6px 8px', borderBottom: '1px solid var(--iv-border)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {rows.map((o) => (
+              <tr key={o.id} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+                <td className="iv-mono" style={{ padding: '6px 8px', color: 'var(--iv-gold)' }}>{o.order_no}</td>
+                <td className="iv-mono" style={{ padding: '6px 8px', color: 'var(--iv-ink3)' }}>{o.fiscal_day}</td>
+                <td style={{ padding: '6px 8px', color: 'var(--iv-ink2)' }}>{where(o)}</td>
+                <td style={{ padding: '6px 8px', color: 'var(--iv-ink2)' }}>{o.payment_method || '—'}</td>
+                <td style={{ padding: '6px 8px', fontSize: 10, fontWeight: 700, color: PS_COLOR[o.payment_status] || 'var(--iv-ink3)' }}>{o.payment_status}</td>
+                <td className="iv-mono" style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--iv-ink)' }}>{bdt(o.grand_total_bdt)}</td>
+                <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                  <button className="iv-btn iv-btn--ghost" style={{ fontSize: 10, padding: '2px 7px', marginRight: 4 }} onClick={() => printKot(o, itemsOf(o.id))}>KOT</button>
+                  <button className="iv-btn iv-btn--ghost" style={{ fontSize: 10, padding: '2px 7px' }} onClick={() => printReceipt(receiptFromOrder(o))}>Receipt</button>
+                </td>
+              </tr>
+            ))}
+            {!rows.length && !busy && <tr><td colSpan={7} style={{ padding: 14, textAlign: 'center', color: 'var(--iv-ink3)' }}>No orders found for this range.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
-const SUBTABS = [{ key: 'pos', label: 'Order Placement' }, { key: 'kot', label: 'Kitchen / Orders' }, { key: 'revenue', label: 'Revenue & Analytics' }];
+const SUBTABS = [{ key: 'pos', label: 'Order Placement' }, { key: 'kot', label: 'Kitchen / Orders' }, { key: 'history', label: 'History' }, { key: 'revenue', label: 'Revenue & Analytics' }];
 
 export default function Restaurant() {
   const { user } = useAuth();
@@ -394,10 +512,14 @@ export default function Restaurant() {
   const [inhouse, setInhouse] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [shift, setShift] = useState(null);          // open register shift (or null)
+  const [expectedCash, setExpectedCash] = useState(null);
+  const [regModal, setRegModal] = useState(null);    // 'open' | 'close' | null
 
   const canDiscount = can(user?.role, 'posDiscount');
   const canComp = can(user?.role, 'compItem'); // Front Office + supervisors mark complimentary (e.g. breakfast)
   const canPostRoom = can(user?.role, 'postFbToRoom');
+  const canRegister = can(user?.role, 'posRegister'); // open/close cash drawer & shift
   const canManageMenu = isOwnerAdmin(user?.role) || can(user?.role, 'posRegister');
   const canFbReports = can(user?.role, 'viewFbReports') || isOwnerAdmin(user?.role);
   const visibleSubtabs = SUBTABS.filter((s) => s.key !== 'revenue' || canFbReports);
@@ -414,8 +536,13 @@ export default function Restaurant() {
     try { const r = await fetch('/api/crm/data?resource=reservations&status_in=CHECKED_IN'); const j = await r.json().catch(() => ({})); setInhouse(j.rows || []); }
     catch { /* non-fatal */ }
   }, []);
+  const loadRegister = useCallback(async () => {
+    if (!canRegister) return;
+    try { const j = await api('/api/crm/restaurant?resource=register'); setShift(j.shift || null); setExpectedCash(j.expectedCash); }
+    catch { /* non-fatal */ }
+  }, [canRegister]);
 
-  useEffect(() => { (async () => { setLoading(true); await Promise.all([loadMenu(), loadOrders(), loadInhouse()]); setLoading(false); })(); }, [loadMenu, loadOrders, loadInhouse]);
+  useEffect(() => { (async () => { setLoading(true); await Promise.all([loadMenu(), loadOrders(), loadInhouse(), loadRegister()]); setLoading(false); })(); }, [loadMenu, loadOrders, loadInhouse, loadRegister]);
 
   async function setStatus(id, status) {
     try { await api('/api/crm/restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'order_status', id, status }) }); loadOrders(); }
@@ -424,9 +551,17 @@ export default function Restaurant() {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ marginBottom: 16 }}>
-        <h2 className="text-2xl" style={{ color: 'var(--iv-ink)' }}>Restaurant</h2>
-        <p className="iv-stat__sub" style={{ marginTop: 2 }}>Point of sale, kitchen tickets and F&amp;B revenue{day ? ` · ${day}` : ''}.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h2 className="text-2xl" style={{ color: 'var(--iv-ink)' }}>Restaurant</h2>
+          <p className="iv-stat__sub" style={{ marginTop: 2 }}>Point of sale, kitchen tickets and F&amp;B revenue{day ? ` · ${day}` : ''}.</p>
+        </div>
+        {canRegister && (shift
+          ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: '#7BE04A', display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: 99, background: '#7BE04A' }} />Register open</span>
+              <button className="iv-btn iv-btn--ghost" style={{ fontSize: 12, borderRadius: 999 }} onClick={() => setRegModal('close')}>Close Register</button>
+            </div>
+          : <button className="iv-btn" style={{ fontSize: 12, borderRadius: 999 }} onClick={() => setRegModal('open')}>Open Register</button>)}
       </div>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -445,9 +580,12 @@ export default function Restaurant() {
         </div>
       )}
       {!loading && tab === 'kot' && <KotQueue orders={orders} items={items} onStatus={setStatus} />}
+      {!loading && tab === 'history' && <HistoryPanel />}
       {!loading && tab === 'revenue' && (canFbReports
         ? <RevenuePanel orders={orders} items={items} day={day} />
         : <div className="iv-card"><p className="iv-stat__sub">F&amp;B sales reports are restricted to the Restaurant Supervisor and Owner/Admin.</p></div>)}
+
+      {regModal && <RegisterModal mode={regModal} expectedCash={expectedCash} onClose={() => setRegModal(null)} onDone={() => { setRegModal(null); loadRegister(); loadOrders(); }} />}
     </div>
   );
 }

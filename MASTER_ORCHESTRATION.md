@@ -67,7 +67,7 @@ Each command adopts exactly the mindset and task-set below. Full definitions liv
 
 ## 5. ESCALATION / HUMAN-IN-THE-LOOP
 
-- Alerts: Gmail draft to `ahmedshanwaz5@gmail.com` + Slack `#crm-alerts` (`C0B9UMQS42X`).
+- Alerts: Gmail draft to `shanwazahmed@fountainbd.com` + Slack `#crm-alerts` (`C0B9UMQS42X`).
 - Any production write requires explicit Shan approval unless it is a P3 with a green sandbox QA.
 
 ---

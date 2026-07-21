@@ -202,7 +202,7 @@ function buildEnvFallback(): TenantConfig {
     hotel_description:   process.env.HOTEL_DESCRIPTION       || 'Hotel Fountain BD, a boutique 24-room hotel in Nikunja 2, Dhaka',
     hotel_email:         process.env.HOTEL_SENDER_EMAIL      || 'hotellfountainbd@gmail.com',
     sender_name:         process.env.HOTEL_SENDER_NAME       || 'Shan Ahmed — Hotel Fountain BD',
-    alert_email:         process.env.ALERT_EMAIL             || 'ahmedshanwaz5@gmail.com',
+    alert_email:         process.env.ALERT_EMAIL             || 'shanwazahmed@fountainbd.com',
     alert_name:          process.env.ALERT_NAME              || 'Shan',
     brevo_api_key:       process.env.BREVO_API_KEY           || null,
     gmail_user:          process.env.GMAIL_USER              || null,
