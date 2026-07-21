@@ -38,12 +38,17 @@ E2E_BASE_URL=http://localhost:3000 E2E_EMAIL=... E2E_PASSWORD=... npx playwright
   (per-room fan-out), check out ONE room, and assert the other two stay `CHECKED_IN` with
   byte-for-byte unchanged balances (UI room tiles + backend re-fetch). Guards the
   ABDULLAH-BIN-SAFAT sibling-flip regression.
+- **billing-payment.spec.ts** — recording a partial payment reduces the Billing balance by
+  EXACTLY the amount (guards double-discount / rounding drift). Seeds/tears down its own stay.
+- **close-day.spec.ts** — DESTRUCTIVE smoke: "Closing Complete" posts a night-audit close
+  through the UI. Skipped unless `E2E_ALLOW_CLOSE_DAY=1`; run on a reset-able test tenant only
+  (it rolls the fiscal day and can't be undone from the UI).
 
 ## Contract (data-testid added to the app)
 POS: `pos-grand-total`, `pos-charge-room`, `pos-settle`, `register-open`, `register-close`,
-`history-void`. Billing: `billing-balance-due`. Rooms: `room-tile-<roomNumber>` (+ a
-`data-status` attribute). Keep these stable — tests depend on them (don't couple to CSS
-classes or Taka strings).
+`history-void`. Billing: `billing-balance-due`, `payment-amount`, `payment-submit`. Rooms:
+`room-tile-<roomNumber>` (+ a `data-status` attribute). Reports: `close-day-submit`. Keep these
+stable — tests depend on them (don't couple to CSS classes or Taka strings).
 
 ## Seeding & isolation
 The charge/void and multi-room specs seed their own reservation via `page.request` (the
@@ -62,6 +67,6 @@ The workflow installs `@playwright/test` ad-hoc in the runner, so it never touch
 `package.json` / the lockfile / `next build`.
 
 ## Not yet covered (good next additions)
-- Partial-payment + add-charge canonical-total resync.
-- Close-day / night-audit fiscal-day roll.
+- Add-charge canonical-total resync (it's on the folio modal, not Billing — needs its own testids).
+- Full post-close report-shape assertions (close-day.spec is a smoke of the endpoint only).
 - Public-site smoke (home/rooms render, single H1, booking bar).

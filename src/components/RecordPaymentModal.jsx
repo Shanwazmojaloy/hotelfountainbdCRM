@@ -71,7 +71,7 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Amount (৳) *</label>
-            <input style={field} type="number" inputMode="numeric" min="0" max={balance > 0 ? balance : undefined} value={amount} onChange={(e) => setAmount(clampAmt(e.target.value))} autoFocus />
+            <input style={field} type="number" inputMode="numeric" min="0" max={balance > 0 ? balance : undefined} value={amount} onChange={(e) => setAmount(clampAmt(e.target.value))} data-testid="payment-amount" autoFocus />
             <div style={{ fontSize: 10, color: 'var(--iv-ink3)', marginTop: 4 }}>Max: {bdt(balance)}</div></div>
           <div><label style={lbl}>Date</label>
             <input style={field} type="date" value={fiscalDay} onChange={(e) => setFiscalDay(e.target.value)} /></div>
@@ -85,7 +85,7 @@ export default function RecordPaymentModal({ reservation, onClose, onSaved }) {
 
         <div className="flex justify-end gap-3 iv-foot">
           <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="iv-btn" onClick={save} disabled={saving || balance <= 0}>{saving ? 'Saving…' : 'Record Payment'}</button>
+          <button className="iv-btn" onClick={save} disabled={saving || balance <= 0} data-testid="payment-submit">{saving ? 'Saving…' : 'Record Payment'}</button>
         </div>
       </div>
     </div>

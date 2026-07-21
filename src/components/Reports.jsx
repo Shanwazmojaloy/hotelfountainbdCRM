@@ -384,7 +384,7 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
           <input className="iv-input" type="number" placeholder="Opening token ৳" value={token} onChange={(e) => setToken(e.target.value)} style={{ padding: '7px 10px', width: 150 }} />
           <input className="iv-input" type="number" placeholder="Payouts ৳" value={payouts} onChange={(e) => setPayouts(e.target.value)} style={{ padding: '7px 10px', width: 130 }} />
           <button className="iv-btn iv-btn--ghost" onClick={() => window.print()} style={{ fontSize: 12, padding: '7px 12px' }}>⬇ Download</button>
-          <button className="iv-btn" onClick={handleClose} disabled={busy || loading} style={{ fontSize: 12, padding: '7px 12px' }}>{busy ? 'Closing…' : '✓ Closing Complete'}</button>
+          <button className="iv-btn" onClick={handleClose} disabled={busy || loading} data-testid="close-day-submit" style={{ fontSize: 12, padding: '7px 12px' }}>{busy ? 'Closing…' : '✓ Closing Complete'}</button>
         </div>
       </div>
       {err && <div style={{ color: C.rose, fontSize: 12, marginBottom: 10 }}>{err}</div>}
