@@ -3,7 +3,7 @@
 // CheckActionModal — WRITE flow: check-in (RESERVED->CHECKED_IN, rooms OCCUPIED) or
 // check-out (CHECKED_IN->CHECKED_OUT, rooms DIRTY; trg_auto_housekeeping makes the task).
 // Mirrors the legacy ReservationDetail status transitions. Warns on outstanding balance.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
 const due = (r) => Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - (+r.paid_amount || 0));
@@ -15,6 +15,19 @@ export default function CheckActionModal({ reservation, action, onClose, onSaved
   const roomNos = Array.isArray(r.room_ids) ? r.room_ids : (r.room_number ? [r.room_number] : []);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [openFb, setOpenFb] = useState([]); // open restaurant tickets on this reservation
+
+  // Checkout-lock: surface any open F&B kitchen tickets for this stay (food in progress /
+  // tab not finalized). Room charges are already folded into the balance above; this catches
+  // the case a guest tries to leave with an unclosed restaurant order.
+  useEffect(() => {
+    if (!isOut || !r.id) return;
+    let alive = true;
+    fetch(`/api/crm/restaurant?resource=res_orders&reservation_id=${r.id}`)
+      .then((x) => x.json()).then((j) => { if (alive) setOpenFb(j.rows || []); })
+      .catch(() => { /* non-fatal — never block checkout on a fetch error */ });
+    return () => { alive = false; };
+  }, [isOut, r.id]);
 
   async function go() {
     setErr(''); setSaving(true);
@@ -52,6 +65,13 @@ export default function CheckActionModal({ reservation, action, onClose, onSaved
         {isOut && balance > 0 && (
           <div className="mb-4 text-sm" style={{ background: 'rgba(255,107,107,0.07)', border: '1px solid rgba(255,107,107,0.25)', borderRadius: 8, padding: '10px 12px', color: '#FF6B6B' }}>
             ⚠ Outstanding balance of <strong>{bdt(balance)}</strong>. You can still check out, but consider collecting payment first (Billing → Collect).
+          </div>
+        )}
+
+        {isOut && openFb.length > 0 && (
+          <div className="mb-4 text-sm" style={{ background: 'rgba(245,169,59,0.08)', border: '1px solid rgba(245,169,59,0.28)', borderRadius: 8, padding: '10px 12px', color: '#F5A93B' }}>
+            🍽 <strong>{openFb.length} open restaurant {openFb.length === 1 ? 'ticket' : 'tickets'}</strong> on this stay
+            ({openFb.map((o) => o.order_no).join(', ')}). Finalise or settle in the Restaurant tab before checkout.
           </div>
         )}
 

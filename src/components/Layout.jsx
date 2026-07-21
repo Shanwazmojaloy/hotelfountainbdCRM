@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Header from "./Header";
 import BottomNav from "./BottomNav";
 import AuthGate, { useAuth } from "./AuthGate";
-import { canAccess } from '@/lib/permissions';
+import { canAccess, homeRoute } from '@/lib/permissions';
 // PERF (2026-07-21): the Lumea CRM theme (.crm-root .iv-* etc, ~580 rules) used to live
 // in app/globals.css, which the ROOT layout imports on every route -- including every
 // public marketing pageview. Split out here so only routes that render this Layout (the
@@ -20,7 +20,7 @@ function RouteGuard({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   useEffect(() => {
-    if (user && pathname && !canAccess(user.role, pathname)) router.replace('/crm');
+    if (user && pathname && !canAccess(user.role, pathname)) router.replace(homeRoute(user.role));
   }, [user, pathname, router]);
   if (user && pathname && !canAccess(user.role, pathname)) {
     return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iv-ink3)', fontSize: 13 }}>Redirecting…</div>;

@@ -134,6 +134,10 @@ export default function Dashboard() {
   const { user } = useAuth();
   // Housekeeping = operational metrics only, NO guest personal details / money (RBAC 2026-06-10).
   const showGuestDetails = can(user?.role, 'viewGuestDetails');
+  // Aggregate revenue metrics are a SEPARATE gate (RBAC 2026-07-21 matrix): owner/admin +
+  // manager + front-desk-supervisor only. Receptionist may see guest PII + take payments but
+  // NOT the revenue dashboard; housekeeping/restaurant roles see neither.
+  const showRevenue = can(user?.role, 'viewRevenue');
   // Day-scoped key: "Today's Revenue/Guests" are date-derived — an unscoped key painted
   // yesterday's money after midnight (audit LOW-17).
   const SNAP_KEY = 'dashboard.' + new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
@@ -284,7 +288,7 @@ export default function Dashboard() {
   return (
     <div className="iv-dash-root" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: 20 }}>
       {/* Row 1 — Orbix stat strip: wide Rooms card (3 sub-metrics) + stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: showGuestDetails ? '1.7fr 1fr 1fr 1fr' : '1.7fr 1fr 1fr', gap: 14, flexShrink: 0 }} className="iv-stat-grid iv-stagger">
+      <div style={{ display: 'grid', gridTemplateColumns: showRevenue ? '1.7fr 1fr 1fr 1fr' : '1.7fr 1fr 1fr', gap: 14, flexShrink: 0 }} className="iv-stat-grid iv-stagger">
         {(() => {
           const availCnt = roomsList.filter((r) => (r.status || '').toUpperCase() === 'AVAILABLE').length;
           const dirtyCnt = roomsList.filter((r) => (r.status || '').toUpperCase() === 'DIRTY').length;
@@ -318,21 +322,21 @@ export default function Dashboard() {
             </a>
           );
         })()}
-        {showGuestDetails && <StatCard icon="৳" label="Today's Revenue" accent={GOLD} value={loading ? '—' : bdt(stats.revenue)} sub="Collected today · Asia/Dhaka" href="/crm/billing"
+        {showRevenue && <StatCard icon="৳" label="Today's Revenue" accent={GOLD} value={loading ? '—' : bdt(stats.revenue)} sub="Collected today · Asia/Dhaka" href="/crm/billing"
           delta={!loading && stats.revDelta != null && stats.revDelta !== 0 ? <Delta dir={stats.revDelta > 0 ? 'up' : 'down'}>{Math.abs(stats.revDelta)}% vs yd</Delta> : null}
           spark={stats.sparkRev} />}
         <StatCard icon="✈" label="Arrivals Today" accent={SKY} value={loading ? '—' : stats.checkins} href="/crm/reservations"
           sub={loading ? '' : (stats.checkins > 0 ? `${stats.arrived || 0} arrived · ${Math.max(0, stats.checkins - (stats.arrived || 0))} expected` : 'Scheduled check-ins')}
           spark={stats.sparkArr} />
-        {showGuestDetails
+        {showRevenue
           ? <StatCard icon="⚠" label="Balance Due" accent={ROSE} value={loading ? '—' : bdt(stats.outstanding)} href="/crm/billing"
               sub={loading ? '' : `${stats.dueCount} reservation${stats.dueCount === 1 ? '' : 's'} → open dues`} />
           : <StatCard icon="🧹" label="Rooms to Clean" accent={AMB} value={loading ? '—' : (stats.totalRooms - stats.occupied)} sub="vacant / awaiting service" />}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, flexShrink: 0, alignItems: 'start' }} className="iv-chart-grid">
-        {/* 14-day revenue — THE lime card (Orbix signature: neon panel, dark bars & text) */}
-        <section style={{ background: LIME, border: '1px solid rgba(23,26,5,.1)', borderRadius: 20, padding: '18px 20px', boxShadow: '0 16px 44px rgba(223,255,69,.14), 0 2px 8px rgba(0,0,0,.3)', overflow: 'visible' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: showRevenue ? '3fr 2fr' : '1fr', gap: 16, flexShrink: 0, alignItems: 'start' }} className="iv-chart-grid">
+        {/* 14-day revenue — THE lime card (Orbix signature: neon panel, dark bars & text). Revenue-gated. */}
+        {showRevenue && <section style={{ background: LIME, border: '1px solid rgba(23,26,5,.1)', borderRadius: 20, padding: '18px 20px', boxShadow: '0 16px 44px rgba(223,255,69,.14), 0 2px 8px rgba(0,0,0,.3)', overflow: 'visible' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <h3 style={{ margin: 0, fontSize: 16.5, fontWeight: 800, color: LIME_INK, letterSpacing: '-.02em' }}>Revenue growth</h3>
             {!loading && stats.revDelta != null && stats.revDelta !== 0 && (
@@ -351,7 +355,7 @@ export default function Dashboard() {
             <span>Peak {peakInfo.date ? `${peakInfo.date} · ${bdt(peakInfo.val)}` : '—'}</span>
             <span>ADR {bdt(peakInfo.adr)} · RevPAR {bdt(revPAR)}</span>
           </div>
-        </section>
+        </section>}
 
         {/* rooms — live heatmap (Concept D) with the old category bars as a second tab */}
         <DSCard title={roomTab === 'rooms' ? 'Rooms —' : 'Category'} titleAccent={roomTab === 'rooms' ? 'Live Status' : 'Occupancy'}

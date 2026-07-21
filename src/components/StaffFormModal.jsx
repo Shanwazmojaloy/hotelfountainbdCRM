@@ -6,7 +6,15 @@
 // pwh) and remove. Owner rows are never editable/removable here.
 import { useState } from 'react';
 
-const ROLE_OPTS = [['manager', 'Manager'], ['receptionist', 'Receptionist'], ['housekeeping', 'Housekeeping'], ['accountant', 'Accountant']];
+const ROLE_OPTS = [
+  ['manager', 'Manager'],
+  ['front_desk_supervisor', 'Front Desk Supervisor'],
+  ['receptionist', 'Receptionist'],
+  ['restaurant_supervisor', 'Restaurant Supervisor'],
+  ['restaurant_staff', 'Restaurant Staff (Waiter)'],
+  ['housekeeping', 'Housekeeping'],
+  ['accountant', 'Accountant'],
+];
 
 export default function StaffFormModal({ user, onClose, onSaved }) {
   const isEdit = !!user;

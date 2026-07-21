@@ -11,8 +11,6 @@ const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 const WORKFLOWS = [
   { id: 'wf-morning-briefing', label: 'Morning Briefing', slug: 'wf-morning-briefing', time: '7:00 AM daily', body: '{}' },
-  { id: 'checkout-reminder', label: 'Checkout Reminder', slug: 'wf-checkout-alerts', time: '10:30 AM daily', body: '{"mode":"reminder"}' },
-  { id: 'overdue-alert', label: 'Overdue Alert', slug: 'wf-checkout-alerts', time: '12:30 PM daily', body: '{"mode":"overdue"}' },
   { id: 'evening-revenue', label: 'Evening Revenue Report', slug: 'wf-evening-report', time: '9:00 PM daily', body: '{}' },
   { id: 'weekly-summary', label: 'Weekly Summary', slug: 'wf-period-reports', time: 'Mon 8:00 AM', body: '{"mode":"weekly"}' },
   { id: 'monthly-report', label: 'Monthly Report', slug: 'wf-period-reports', time: '1st of month', body: '{"mode":"monthly"}' },

@@ -19,9 +19,9 @@ const TITLES = {
   '/crm/reservations': ['Guest', 'Reservations'],
   '/crm/guests': ['Guests &', 'CRM'],
   '/crm/housekeeping': ['Housekeeping', 'Board'],
+  '/crm/restaurant': ['Restaurant', 'POS'],
   '/crm/billing': ['Billing &', 'Invoices'],
   '/crm/reports': ['Performance', 'Reports'],
-  '/crm/marketing': ['Marketing', 'Studio'],
   '/crm/settings': ['System', 'Settings'],
 };
 
@@ -33,9 +33,9 @@ const PILLS = [
   { href: '/crm/reservations', icon: '◈', label: 'Reservations' },
   { href: '/crm/guests', icon: '◉', label: 'Guests' },
   { href: '/crm/housekeeping', icon: '✦', label: 'Housekeeping' },
+  { href: '/crm/restaurant', icon: '🍽', label: 'Restaurant' },
   { href: '/crm/billing', icon: '৳', label: 'Billing' },
   { href: '/crm/reports', icon: '▤', label: 'Reports' },
-  { href: '/crm/marketing', icon: '◬', label: 'Marketing' },
   { href: '/crm/settings', icon: '⚙', label: 'Settings' },
 ];
 const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase() || '?';

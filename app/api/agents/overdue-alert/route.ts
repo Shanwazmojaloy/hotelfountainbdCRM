@@ -1,12 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { triggerEdgeFunction, assertCron } from '@/lib/workflow-trigger';
 
-// Vercel Cron: 30 12 * * * — forwards to wf-checkout-alerts in overdue mode.
-async function run(req: Request) {
-  const denied = assertCron(req); if (denied) return denied;
-  const res = await triggerEdgeFunction('wf-checkout-alerts', { mode: 'overdue' });
-  return NextResponse.json(res.data, { status: res.ok ? 200 : res.status });
+// DISABLED 2026-07-21 (owner request): the Overdue Alert email workflow was retired.
+// Cron removed from vercel.json and the Settings toggle removed. This handler is kept as a
+// hard no-op so any lingering external trigger can never fire wf-checkout-alerts (no emails).
+async function run() {
+  return NextResponse.json({ disabled: true, workflow: 'overdue-alert' }, { status: 410 });
 }
 
 export const GET = run;
