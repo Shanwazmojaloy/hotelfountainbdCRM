@@ -24,11 +24,21 @@ async function api(path, opts) {
 
 // Open a print window with the given <body> HTML + a scoped stylesheet, then print.
 function printDoc(title, css, bodyHtml) {
-  const w = window.open('', '_blank', 'width=420,height=640');
+  const w = window.open('', '_blank', 'width=560,height=760');
   if (!w) { alert('Allow pop-ups to print.'); return; }
   w.document.write(`<!doctype html><html><head><title>${title}</title><meta charset="utf-8"><style>${css}</style></head><body>${bodyHtml}</body></html>`);
   w.document.close(); w.focus();
-  setTimeout(() => { w.print(); }, 200);
+  // Wait for images (e.g. the crest logo) to load before printing, with a hard cap.
+  const fire = () => { try { w.print(); } catch { /* ignore */ } };
+  const imgs = Array.from(w.document.images || []);
+  if (imgs.length) {
+    let left = imgs.length;
+    const done = () => { if (--left <= 0) fire(); };
+    imgs.forEach((im) => { if (im.complete) done(); else { im.onload = done; im.onerror = done; } });
+    setTimeout(fire, 1500);
+  } else {
+    setTimeout(fire, 200);
+  }
 }
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -45,11 +55,12 @@ function printKot(order, items) {
 // Guest-facing 80mm itemized receipt (separate from the kitchen KOT).
 function printReceipt(m) {
   const money = (v) => TK + (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('en-US');
+  const origin = (typeof window !== 'undefined' && window.location && window.location.origin) || '';
   const rows = (m.lines || []).map((l) => `<tr><td>${esc(l.name)}${l.comp ? ' <span class="c">(comp)</span>' : ''}</td><td class="q">${Number(l.qty)}</td><td class="r">${l.comp ? '0' : money(l.unit * l.qty).slice(1)}</td></tr>`).join('');
   const where = m.order_type === 'ROOM' ? `Room ${esc(m.room_number)}` : m.order_type === 'DINE_IN' ? `Table ${esc(m.table_no)}` : 'Walk-in';
   const ln = (l, v) => `<tr><td>${l}</td><td class="r">${money(v)}</td></tr>`;
-  const css = `@page{size:80mm auto;margin:3mm}*{font-family:'Courier New',monospace;color:#000}body{width:74mm}h1{font-size:15px;text-align:center;margin:0}.sub{text-align:center;font-size:10px;margin:2px 0 6px}.meta{font-size:11px;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;margin-bottom:4px}table{width:100%;border-collapse:collapse}td{font-size:12px;padding:2px 0;vertical-align:top}.q{width:26px;text-align:center}.r{text-align:right}.c{font-style:italic}.grand td{font-size:14px;font-weight:700;border-top:1px dashed #000;padding-top:4px}.ft{text-align:center;font-size:10px;margin-top:8px;border-top:1px dashed #000;padding-top:4px}`;
-  const body = `<h1>HOTEL FOUNTAIN</h1><div class="sub">Restaurant Receipt</div><div class="meta">${esc(m.order_no)} &middot; ${where}<br>${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}</div><table>${rows}</table><table style="margin-top:6px">${ln('Subtotal', m.subtotal)}${m.vat ? ln('VAT', m.vat) : ''}${m.service ? ln('Service', m.service) : ''}${m.discount ? ln('Discount', -m.discount) : ''}<tr class="grand"><td>TOTAL</td><td class="r">${money(m.grand)}</td></tr></table><div class="sub" style="margin-top:6px">Paid: ${esc(m.method)}</div><div class="ft">Thank you! &middot; Hotel Fountain, Dhaka</div>`;
+  const css = `@page{size:80mm auto;margin:3mm}*{font-family:'Courier New',monospace;color:#000}body{width:74mm}.crest{display:block;margin:0 auto 3px;width:46px;height:46px;object-fit:contain}h1{font-size:15px;text-align:center;margin:0;letter-spacing:.04em}.sub{text-align:center;font-size:10px;margin:2px 0 6px}.meta{font-size:11px;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;margin-bottom:4px}table{width:100%;border-collapse:collapse}td{font-size:12px;padding:2px 0;vertical-align:top}.q{width:26px;text-align:center}.r{text-align:right}.c{font-style:italic}.grand td{font-size:14px;font-weight:700;border-top:1px dashed #000;padding-top:4px}.ft{text-align:center;font-size:10px;margin-top:8px;border-top:1px dashed #000;padding-top:4px}`;
+  const body = `<img class="crest" src="${origin}/logo-crest.png" alt="" /><h1>HOTEL FOUNTAIN</h1><div class="sub">Restaurant Receipt</div><div class="meta">${esc(m.order_no)} &middot; ${where}<br>${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}</div><table>${rows}</table><table style="margin-top:6px">${ln('Subtotal', m.subtotal)}${m.vat ? ln('VAT', m.vat) : ''}${m.service ? ln('Service', m.service) : ''}${m.discount ? ln('Discount', -m.discount) : ''}<tr class="grand"><td>TOTAL</td><td class="r">${money(m.grand)}</td></tr></table><div class="sub" style="margin-top:6px">Paid: ${esc(m.method)}</div><div class="ft">Thank you! &middot; Hotel Fountain, Dhaka</div>`;
   printDoc(`Receipt ${m.order_no}`, css, body);
 }
 
@@ -300,13 +311,49 @@ function RevenuePanel({ orders, items, day }) {
   const card = { border: '1px solid var(--iv-border)', borderRadius: 14, padding: 16, background: 'var(--iv-card)' };
 
   function download() {
-    const css = `@page{size:A4 portrait;margin:12mm}*{font-family:Arial,Helvetica,sans-serif;color:#15110D}h1{font-size:18px;margin:0}h2{font-size:12px;margin:16px 0 6px;border-bottom:1px solid #ccc;padding-bottom:3px}.sub{color:#666;font-size:11px;margin-bottom:10px}.g{display:flex;gap:10px;margin-bottom:8px}.b{flex:1;border:1px solid #ddd;border-radius:8px;padding:8px}.b .l{font-size:9px;color:#888;text-transform:uppercase}.b .v{font-size:16px;font-weight:700}table{width:100%;border-collapse:collapse;font-size:11px}td,th{text-align:left;padding:4px 2px;border-bottom:1px solid #eee}th{font-size:9px;color:#888;text-transform:uppercase}.r{text-align:right}`;
-    const pm = Object.entries(byMethod).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${esc(bdt(v))}</td></tr>`).join('') || '<tr><td colspan="2">No sales.</td></tr>';
-    const ti = topItems.map(([n, a]) => `<tr><td>${esc(n)}</td><td class="r">${a.qty}</td><td class="r">${esc(bdt(a.rev))}</td></tr>`).join('') || '<tr><td colspan="3">No items.</td></tr>';
-    const body = `<h1>Restaurant / F&amp;B Day-Close</h1><div class="sub">Hotel Fountain · Business day ${esc(day)} · generated ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}</div>
-      <div class="g"><div class="b"><div class="l">F&amp;B Sales</div><div class="v">${esc(bdt(sales))}</div></div><div class="b"><div class="l">Orders</div><div class="v">${live.length}</div></div><div class="b"><div class="l">Charged to Room</div><div class="v">${esc(bdt(unsettledRoom))}</div></div></div>
-      <h2>Payment Breakdown</h2><table><tr><th>Method</th><th class="r">Amount</th></tr>${pm}</table>
-      <h2>Top-Selling Items</h2><table><tr><th>Item</th><th class="r">Qty</th><th class="r">Revenue</th></tr>${ti}</table>`;
+    // Matches the CRM Daily Performance Report: gold crest, #C5A059 rule, Georgia headings,
+    // ivory cards, IBM-Plex-mono figures. (Reports.jsx PRINT_CSS is the reference.)
+    const money = (v) => TK + (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('en-US');
+    const gen = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+    const origin = (typeof window !== 'undefined' && window.location && window.location.origin) || '';
+    const css = `@page{size:A4 portrait;margin:12mm}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;color:#2D2A26;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-size:11px}
+.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #C5A059;padding-bottom:8px;margin-bottom:12px}
+.brand{display:flex;gap:10px;align-items:center}
+.crest{width:34px;height:34px;object-fit:contain;flex:none}
+.name{font-family:Georgia,'Times New Roman',serif;font-size:17px;font-weight:700;color:#2D2A26}
+.tag{font-size:7.5px;letter-spacing:.2em;text-transform:uppercase;color:#7A7268;margin-top:2px}
+.meta{text-align:right;font-size:9px;line-height:1.6;color:#2D2A26}
+.meta .t{font-family:Georgia,serif;font-size:13px;font-weight:700;color:#2D2A26}
+.badge{display:inline-block;margin-top:3px;background:#FBF1DD;color:#9A6A12;border:1px solid #ecdcb8;border-radius:3px;padding:1px 8px;font-size:8px;font-weight:600;letter-spacing:.06em}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px}
+.card{border:1px solid #EAE6DD;border-radius:6px;padding:7px 10px;background:#fcfbf8}
+.card h4{font-family:'Courier New',monospace;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#8B6914;margin-bottom:4px}
+.card .v{font-family:'Courier New',monospace;font-size:17px;font-weight:700;color:#2D2A26}
+.sec{font-family:Georgia,serif;font-size:11px;font-weight:700;color:#2D2A26;margin:14px 0 5px;border-bottom:1.5px solid #C5A059;padding-bottom:3px}
+table{width:100%;border-collapse:collapse}
+th{font-family:'Courier New',monospace;font-size:7.5px;letter-spacing:.06em;text-transform:uppercase;color:#7A7268;text-align:left;border-bottom:1.5px solid #2D2A26;padding:3px 6px}
+td{font-size:9.5px;padding:3px 6px;border-bottom:1px solid #EAE6DD;font-family:'Courier New',monospace}
+td:first-child,th:first-child{font-family:Arial,sans-serif}
+.r{text-align:right}
+.foot{display:flex;justify-content:space-between;margin-top:16px;border-top:1px solid #EAE6DD;padding-top:6px;font-family:'Courier New',monospace;font-size:8px;color:#7A7268}`;
+    const pm = Object.entries(byMethod).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${money(v)}</td></tr>`).join('') || '<tr><td colspan="2">No sales.</td></tr>';
+    const ti = topItems.map(([n, a]) => `<tr><td>${esc(n)}</td><td class="r">${a.qty}</td><td class="r">${money(a.rev)}</td></tr>`).join('') || '<tr><td colspan="3">No items.</td></tr>';
+    const body = `<div class="head">
+  <div class="brand"><img class="crest" src="${esc(origin)}/logo-crest.png" alt="" /><div><div class="name">Hotel Fountain</div><div class="tag">Management CRM &middot; Powered by Lumea</div></div></div>
+  <div class="meta"><div class="t">Restaurant / F&amp;B Day-Close</div>Generated ${esc(gen)}<br><span class="badge">BUSINESS DAY ${esc(day)}</span></div>
+</div>
+<div class="grid">
+  <div class="card"><h4>F&amp;B Sales</h4><div class="v">${money(sales)}</div></div>
+  <div class="card"><h4>Orders</h4><div class="v">${live.length}</div></div>
+  <div class="card"><h4>Charged to Room</h4><div class="v">${money(unsettledRoom)}</div></div>
+</div>
+<div class="sec">Payment Breakdown</div>
+<table><thead><tr><th>Method</th><th class="r">Amount</th></tr></thead><tbody>${pm}</tbody></table>
+<div class="sec">Top-Selling Items</div>
+<table><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Revenue</th></tr></thead><tbody>${ti}</tbody></table>
+<div class="foot"><span>Hotel Fountain &middot; Lumea CRM &middot; /crm/restaurant</span><span>Page 1 of 1</span></div>`;
     printDoc(`F&B Day-Close ${day}`, css, body);
   }
 
