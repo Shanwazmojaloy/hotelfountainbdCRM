@@ -19,7 +19,7 @@ const TITLES = {
   '/crm/reservations': ['Guest', 'Reservations'],
   '/crm/guests': ['Guests &', 'CRM'],
   '/crm/housekeeping': ['Housekeeping', 'Board'],
-  '/crm/restaurant': ['Restaurant', 'POS'],
+  '/crm/restaurant': ['Restaurant', ''],
   '/crm/billing': ['Billing &', 'Invoices'],
   '/crm/reports': ['Performance', 'Reports'],
   '/crm/settings': ['System', 'Settings'],

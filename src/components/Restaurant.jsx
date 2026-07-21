@@ -310,13 +310,13 @@ function RevenuePanel({ orders, items, day }) {
 
 // ─── Menu manager (supervisor + owner/admin) ─────────────────────────────────
 function MenuManager({ menu, onChange }) {
-  const [f, setF] = useState({ name: '', category: 'Main Course', price_bdt: '', vat_rate: '' });
+  const [f, setF] = useState({ name: '', category: 'Main Course', price_bdt: '' });
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
   const inp = { padding: '8px 10px', border: '1px solid var(--iv-border)', borderRadius: 8, background: 'rgba(255,255,255,.05)', color: 'var(--iv-ink)', fontSize: 13 };
   async function save() {
     if (!f.name || !f.category) return setErr('Name and category required.');
     setBusy(true); setErr('');
-    try { await api('/api/crm/restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'menu_save', ...f, price_bdt: Number(f.price_bdt) || 0, vat_rate: Number(f.vat_rate) || 0 }) }); setF({ name: '', category: f.category, price_bdt: '', vat_rate: '' }); onChange(); }
+    try { await api('/api/crm/restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'menu_save', ...f, price_bdt: Number(f.price_bdt) || 0, vat_rate: 0 }) }); setF({ name: '', category: f.category, price_bdt: '' }); onChange(); }
     catch (e) { setErr(e.message); } finally { setBusy(false); }
   }
   async function toggle(m) { try { await api('/api/crm/restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'menu_save', id: m.id, name: m.name, category: m.category, price_bdt: m.price_bdt, vat_rate: m.vat_rate, is_available: !(m.is_available !== false) }) }); onChange(); } catch (e) { setErr(e.message); } }
@@ -328,7 +328,6 @@ function MenuManager({ menu, onChange }) {
         <input placeholder="Item name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} style={{ ...inp, flex: 2, minWidth: 140 }} />
         <input placeholder="Category" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} style={{ ...inp, flex: 1, minWidth: 110 }} />
         <input placeholder={`Price ${TK}`} type="number" value={f.price_bdt} onChange={(e) => setF({ ...f, price_bdt: e.target.value })} style={{ ...inp, width: 90 }} />
-        <input placeholder="VAT %" type="number" value={f.vat_rate} onChange={(e) => setF({ ...f, vat_rate: e.target.value })} style={{ ...inp, width: 70 }} />
         <button className="iv-btn" disabled={busy} onClick={save}>{busy ? '...' : 'Add'}</button>
       </div>
       {err && <div style={{ color: '#FF6B6B', fontSize: 12, marginBottom: 8 }}>{err}</div>}
@@ -348,7 +347,7 @@ function MenuManager({ menu, onChange }) {
 }
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
-const SUBTABS = [{ key: 'pos', label: 'POS Terminal' }, { key: 'kot', label: 'Kitchen / Orders' }, { key: 'revenue', label: 'Revenue & Analytics' }];
+const SUBTABS = [{ key: 'pos', label: 'Order Placement' }, { key: 'kot', label: 'Kitchen / Orders' }, { key: 'revenue', label: 'Revenue & Analytics' }];
 
 export default function Restaurant() {
   const { user } = useAuth();
@@ -390,7 +389,7 @@ export default function Restaurant() {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ marginBottom: 16 }}>
-        <h2 className="text-2xl" style={{ color: 'var(--iv-ink)' }}>Restaurant <em style={{ fontStyle: 'normal', color: 'var(--iv-gold)' }}>/ POS</em></h2>
+        <h2 className="text-2xl" style={{ color: 'var(--iv-ink)' }}>Restaurant</h2>
         <p className="iv-stat__sub" style={{ marginTop: 2 }}>Point of sale, kitchen tickets and F&amp;B revenue{day ? ` · ${day}` : ''}.</p>
       </div>
 
