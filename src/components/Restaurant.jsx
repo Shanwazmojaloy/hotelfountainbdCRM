@@ -54,7 +54,7 @@ function printReceipt(m) {
 }
 
 // ─── POS terminal ────────────────────────────────────────────────────────────
-function PosTerminal({ menu, inhouse, canDiscount, canPostRoom, onDone }) {
+function PosTerminal({ menu, inhouse, canDiscount, canComp, canPostRoom, onDone }) {
   const [cat, setCat] = useState('All');
   const [q, setQ] = useState('');
   const [cart, setCart] = useState([]); // {menu_item_id,name,unit_price_bdt,vat_rate,qty}
@@ -178,7 +178,7 @@ function PosTerminal({ menu, inhouse, canDiscount, canPostRoom, onDone }) {
                 <div style={{ fontSize: 12, color: 'var(--iv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}{x.comp && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 700, color: '#C3E62E' }}>COMP</span>}</div>
                 <div className="iv-mono" style={{ fontSize: 10.5, color: 'var(--iv-ink3)', textDecoration: x.comp ? 'line-through' : 'none' }}>{bdt(x.unit_price_bdt)} x {x.qty}</div>
               </div>
-              {canDiscount && <button onClick={() => toggleComp(x.menu_item_id)} title="Complimentary (free)" style={{ ...chip(x.comp), padding: '2px 7px', fontSize: 10 }}>Comp</button>}
+              {canComp && <button onClick={() => toggleComp(x.menu_item_id)} title="Complimentary (e.g. included breakfast)" style={{ ...chip(x.comp), padding: '2px 7px', fontSize: 10 }}>Comp</button>}
               <button onClick={() => setQty(x.menu_item_id, -1)} style={{ ...chip(false), padding: '2px 9px' }}>-</button>
               <span className="iv-mono" style={{ fontSize: 12, minWidth: 16, textAlign: 'center' }}>{x.qty}</span>
               <button onClick={() => setQty(x.menu_item_id, 1)} style={{ ...chip(false), padding: '2px 9px' }}>+</button>
@@ -396,6 +396,7 @@ export default function Restaurant() {
   const [err, setErr] = useState('');
 
   const canDiscount = can(user?.role, 'posDiscount');
+  const canComp = can(user?.role, 'compItem'); // Front Office + supervisors mark complimentary (e.g. breakfast)
   const canPostRoom = can(user?.role, 'postFbToRoom');
   const canManageMenu = isOwnerAdmin(user?.role) || can(user?.role, 'posRegister');
   const canFbReports = can(user?.role, 'viewFbReports') || isOwnerAdmin(user?.role);
@@ -439,7 +440,7 @@ export default function Restaurant() {
 
       {!loading && tab === 'pos' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <PosTerminal menu={menu} inhouse={inhouse} canDiscount={canDiscount} canPostRoom={canPostRoom} onDone={() => { loadOrders(); loadInhouse(); }} />
+          <PosTerminal menu={menu} inhouse={inhouse} canDiscount={canDiscount} canComp={canComp} canPostRoom={canPostRoom} onDone={() => { loadOrders(); loadInhouse(); }} />
           {canManageMenu && <MenuManager menu={menu} onChange={loadMenu} />}
         </div>
       )}

@@ -57,11 +57,13 @@ export function canAccess(role, path) {
 //   posDiscount      -- apply POS discounts / voids
 //   posRegister      -- open / close the POS register & shift
 //   viewFbReports    -- view F&B (restaurant) sales reports
+//   compItem         -- mark a POS line complimentary (e.g. included breakfast). Front Office
+//                       does this manually; NOT the waiter (restaurant_staff).
 const CAPS = {
-  manager:               { delete: true, viewRevenue: true, viewGuestDetails: true, recordPayment: true, closeDay: true, postFbToRoom: true },
-  front_desk_supervisor: { delete: true, viewRevenue: true, viewGuestDetails: true, recordPayment: true, closeDay: true, postFbToRoom: true },
-  receptionist:          { viewGuestDetails: true, recordPayment: true, postFbToRoom: true },
-  restaurant_supervisor: { postFbToRoom: true, posDiscount: true, posRegister: true, viewFbReports: true },
+  manager:               { delete: true, viewRevenue: true, viewGuestDetails: true, recordPayment: true, closeDay: true, postFbToRoom: true, compItem: true },
+  front_desk_supervisor: { delete: true, viewRevenue: true, viewGuestDetails: true, recordPayment: true, closeDay: true, postFbToRoom: true, compItem: true },
+  receptionist:          { viewGuestDetails: true, recordPayment: true, postFbToRoom: true, compItem: true },
+  restaurant_supervisor: { postFbToRoom: true, posDiscount: true, posRegister: true, viewFbReports: true, compItem: true },
   restaurant_staff:      { postFbToRoom: true },
   housekeeping:          {},
 };
