@@ -47,16 +47,20 @@ export default function Reports() {
       const supabase = getSupabaseClient();
       // C3: PII/financial reads (transactions, reservations) via the session-gated route; rooms +
       // night_audit_log stay on the anon client (not sensitive, anon SELECT retained).
-      const [txR, resR, { data: rooms, error: rmErr }, { data: closes, error: clErr }] = await Promise.all([
+      const [txR, resR, { data: rooms, error: rmErr }, { data: closes, error: clErr }, fbR] = await Promise.all([
         fetch('/api/crm/data?resource=transactions&cols=id,type,amount,reservation_id,fiscal_day,created_at,guest_name,room_number'),
         fetch('/api/crm/data?resource=reservations'),
         supabase.from('rooms').select('id, status, category, price'),
         supabase.from('night_audit_log').select('audit_date, closed_at, closed_by, total_checkins, total_checkouts, total_collections, carried_over_dues, opening_token, payouts').order('closed_at', { ascending: false }),
+        // F&B (restaurant) sales for the open business day — 403s (→ empty) for roles without
+        // restaurant access, so managers see no F&B card while owner/admin do.
+        fetch('/api/crm/restaurant?resource=orders'),
       ]);
       const txj = await txR.json().catch(() => ({}));
       const resj = await resR.json().catch(() => ({}));
+      const fbj = await fbR.json().catch(() => ({}));
       if (!txR.ok || !resR.ok || rmErr || clErr) console.error('[Reports] query error:', txj.error || resj.error || rmErr || clErr);
-      const next = { txs: txj.rows || [], rooms: rooms || [], res: resj.rows || [], closes: closes || [] };
+      const next = { txs: txj.rows || [], rooms: rooms || [], res: resj.rows || [], closes: closes || [], fb: fbj.rows || [] };
       setData(next); setSnap('reports', next);
     } catch (e) { console.error('[Reports] fetch error:', e); } finally { setLoading(false); }
   }, []);
@@ -79,7 +83,7 @@ export default function Reports() {
   );
 }
 
-function Daily({ txs, res, closes, loading, onClosed }) {
+function Daily({ txs, res, closes, fb, loading, onClosed }) {
   // The OPEN business day = (latest closed + 1), NOT the calendar date. Collections & movements
   // accrue here — across calendar days — until "Closing Complete". `picked` overrides only when
   // the user steps to a historical day; otherwise the report tracks the open day automatically.
@@ -392,6 +396,7 @@ function Daily({ txs, res, closes, loading, onClosed }) {
         <StatCard label="Total Collection" value={loading ? '—' : bdt(collected)} accent={C.gold} />
         <StatCard label="Closing Balance" value={loading ? '—' : bdt(closing)} accent={C.grn} sub="token + cash − payouts" />
         <StatCard label="Total Due" value={loading ? '—' : bdt(totalDue)} accent={C.rose} sub={`${allDue.length} reservation${allDue.length === 1 ? '' : 's'} outstanding`} />
+        {(fb || []).length > 0 && <StatCard label="F&B (Restaurant)" value={bdt((fb || []).filter((o) => o.payment_status !== 'VOID').reduce((a, o) => a + (Number(o.grand_total_bdt) || 0), 0))} accent={C.gold} sub="restaurant sales today" />}
       </div>
 
       <Card title="Daily" titleAccent="Movements" bodyStyle={{ padding: 0 }}>

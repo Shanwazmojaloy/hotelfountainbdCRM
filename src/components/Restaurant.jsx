@@ -42,6 +42,17 @@ function printKot(order, items) {
   printDoc(`KOT ${order.order_no}`, css, body);
 }
 
+// Guest-facing 80mm itemized receipt (separate from the kitchen KOT).
+function printReceipt(m) {
+  const money = (v) => TK + (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('en-US');
+  const rows = (m.lines || []).map((l) => `<tr><td>${esc(l.name)}${l.comp ? ' <span class="c">(comp)</span>' : ''}</td><td class="q">${Number(l.qty)}</td><td class="r">${l.comp ? '0' : money(l.unit * l.qty).slice(1)}</td></tr>`).join('');
+  const where = m.order_type === 'ROOM' ? `Room ${esc(m.room_number)}` : m.order_type === 'DINE_IN' ? `Table ${esc(m.table_no)}` : 'Walk-in';
+  const ln = (l, v) => `<tr><td>${l}</td><td class="r">${money(v)}</td></tr>`;
+  const css = `@page{size:80mm auto;margin:3mm}*{font-family:'Courier New',monospace;color:#000}body{width:74mm}h1{font-size:15px;text-align:center;margin:0}.sub{text-align:center;font-size:10px;margin:2px 0 6px}.meta{font-size:11px;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;margin-bottom:4px}table{width:100%;border-collapse:collapse}td{font-size:12px;padding:2px 0;vertical-align:top}.q{width:26px;text-align:center}.r{text-align:right}.c{font-style:italic}.grand td{font-size:14px;font-weight:700;border-top:1px dashed #000;padding-top:4px}.ft{text-align:center;font-size:10px;margin-top:8px;border-top:1px dashed #000;padding-top:4px}`;
+  const body = `<h1>HOTEL FOUNTAIN</h1><div class="sub">Restaurant Receipt</div><div class="meta">${esc(m.order_no)} &middot; ${where}<br>${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}</div><table>${rows}</table><table style="margin-top:6px">${ln('Subtotal', m.subtotal)}${m.vat ? ln('VAT', m.vat) : ''}${m.service ? ln('Service', m.service) : ''}${m.discount ? ln('Discount', -m.discount) : ''}<tr class="grand"><td>TOTAL</td><td class="r">${money(m.grand)}</td></tr></table><div class="sub" style="margin-top:6px">Paid: ${esc(m.method)}</div><div class="ft">Thank you! &middot; Hotel Fountain, Dhaka</div>`;
+  printDoc(`Receipt ${m.order_no}`, css, body);
+}
+
 // ─── POS terminal ────────────────────────────────────────────────────────────
 function PosTerminal({ menu, inhouse, canDiscount, canPostRoom, onDone }) {
   const [cat, setCat] = useState('All');
@@ -56,6 +67,7 @@ function PosTerminal({ menu, inhouse, canDiscount, canPostRoom, onDone }) {
   const [method, setMethod] = useState('Cash');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [lastReceipt, setLastReceipt] = useState(null);
 
   const cats = useMemo(() => ['All', ...Array.from(new Set(menu.map((m) => m.category)))], [menu]);
   const shown = menu.filter((m) => m.is_available !== false)
@@ -75,11 +87,13 @@ function PosTerminal({ menu, inhouse, canDiscount, canPostRoom, onDone }) {
   const add = (m) => setCart((c) => {
     const i = c.findIndex((x) => x.menu_item_id === m.id);
     if (i >= 0) { const n = [...c]; n[i] = { ...n[i], qty: n[i].qty + 1 }; return n; }
-    return [...c, { menu_item_id: m.id, name: m.name, unit_price_bdt: Number(m.price_bdt) || 0, vat_rate: Number(m.vat_rate) || 0, qty: 1 }];
+    return [...c, { menu_item_id: m.id, name: m.name, unit_price_bdt: Number(m.price_bdt) || 0, vat_rate: Number(m.vat_rate) || 0, qty: 1, comp: false }];
   });
   const setQty = (id, d) => setCart((c) => c.map((x) => x.menu_item_id === id ? { ...x, qty: Math.max(0, x.qty + d) } : x).filter((x) => x.qty > 0));
+  const toggleComp = (id) => setCart((c) => c.map((x) => x.menu_item_id === id ? { ...x, comp: !x.comp } : x));
 
-  const subtotal = cart.reduce((a, x) => a + x.unit_price_bdt * x.qty, 0);
+  // Comped lines (complimentary — e.g. breakfast for an included package) contribute 0.
+  const subtotal = cart.reduce((a, x) => a + (x.comp ? 0 : x.unit_price_bdt * x.qty), 0);
   const vat = subtotal * (Number(vatPct) || 0) / 100;
   const service = subtotal * (Number(svcPct) || 0) / 100;
   const disc = Math.min(Number(discount) || 0, subtotal + vat + service);
@@ -91,16 +105,24 @@ function PosTerminal({ menu, inhouse, canDiscount, canPostRoom, onDone }) {
     const isRoom = kind === 'ROOM';
     if (isRoom && !resPick) return setErr('Select an in-house room to charge.');
     const [reservation_id, room_number] = isRoom ? resPick.split('|') : [null, null];
+    // comped lines are sent at price 0 so the guest is not charged for them
+    const items = cart.map((x) => x.comp ? { ...x, unit_price_bdt: 0, notes: 'Complimentary' } : x);
     setBusy(true);
     try {
-      await api('/api/crm/restaurant', {
+      const resp = await api('/api/crm/restaurant', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'order_create', order_type: isRoom ? 'ROOM' : orderType,
-          items: cart, vat_pct: vatPct, service_pct: svcPct, discount_bdt: disc,
+          items, vat_pct: vatPct, service_pct: svcPct, discount_bdt: disc,
           reservation_id, room_number, table_no: orderType === 'DINE_IN' ? table : null,
           payment_method: isRoom ? 'Room' : method, idempotency_key: uuid(),
         }),
+      });
+      setLastReceipt({
+        order_no: (resp.order && resp.order.order_no) || '', order_type: isRoom ? 'ROOM' : orderType,
+        room_number, table_no: orderType === 'DINE_IN' ? table : null, method: isRoom ? 'Room' : method,
+        lines: cart.map((x) => ({ name: x.name, qty: x.qty, unit: x.unit_price_bdt, comp: !!x.comp })),
+        subtotal, vat, service, discount: disc, grand,
       });
       setCart([]); setDiscount(0); setResPick(''); setTable('');
       onDone && onDone();
@@ -153,9 +175,10 @@ function PosTerminal({ menu, inhouse, canDiscount, canPostRoom, onDone }) {
           {cart.map((x) => (
             <div key={x.menu_item_id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderBottom: '1px solid var(--iv-border2)' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, color: 'var(--iv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}</div>
-                <div className="iv-mono" style={{ fontSize: 10.5, color: 'var(--iv-ink3)' }}>{bdt(x.unit_price_bdt)} x {x.qty}</div>
+                <div style={{ fontSize: 12, color: 'var(--iv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}{x.comp && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 700, color: '#C3E62E' }}>COMP</span>}</div>
+                <div className="iv-mono" style={{ fontSize: 10.5, color: 'var(--iv-ink3)', textDecoration: x.comp ? 'line-through' : 'none' }}>{bdt(x.unit_price_bdt)} x {x.qty}</div>
               </div>
+              {canDiscount && <button onClick={() => toggleComp(x.menu_item_id)} title="Complimentary (free)" style={{ ...chip(x.comp), padding: '2px 7px', fontSize: 10 }}>Comp</button>}
               <button onClick={() => setQty(x.menu_item_id, -1)} style={{ ...chip(false), padding: '2px 9px' }}>-</button>
               <span className="iv-mono" style={{ fontSize: 12, minWidth: 16, textAlign: 'center' }}>{x.qty}</span>
               <button onClick={() => setQty(x.menu_item_id, 1)} style={{ ...chip(false), padding: '2px 9px' }}>+</button>
@@ -190,6 +213,12 @@ function PosTerminal({ menu, inhouse, canDiscount, canPostRoom, onDone }) {
             ? <button className="iv-btn" style={{ flex: 1 }} disabled={busy || !cart.length} onClick={() => submit('ROOM')}>{busy ? '...' : 'Charge to Room'}</button>
             : <button className="iv-btn" style={{ flex: 1 }} disabled={busy || !cart.length} onClick={() => submit('SETTLE')}>{busy ? '...' : `Settle (${method})`}</button>}
         </div>
+        {lastReceipt && (
+          <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: 'rgba(223,255,69,.08)', border: '1px solid rgba(223,255,69,.28)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ color: 'var(--iv-gold)' }}>Order {lastReceipt.order_no || ''} placed</span>
+            <button className="iv-btn iv-btn--ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => printReceipt(lastReceipt)}>Print Receipt</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -199,6 +228,11 @@ function PosTerminal({ menu, inhouse, canDiscount, canPostRoom, onDone }) {
 function KotQueue({ orders, items, onStatus }) {
   const open = orders.filter((o) => o.payment_status !== 'VOID' && o.status !== 'CLOSED');
   const itemsOf = (id) => (items || []).filter((it) => it.order_id === id);
+  const receiptFromOrder = (o) => ({
+    order_no: o.order_no, order_type: o.order_type, room_number: o.room_number, table_no: o.table_no,
+    method: o.payment_method, lines: itemsOf(o.id).map((i) => ({ name: i.name, qty: i.qty, unit: Number(i.unit_price_bdt), comp: Number(i.unit_price_bdt) === 0 })),
+    subtotal: o.subtotal_bdt, vat: o.vat_bdt, service: o.service_charge_bdt, discount: o.discount_bdt, grand: o.grand_total_bdt,
+  });
   const FLOW = { OPEN: 'FIRED', FIRED: 'READY', READY: 'SERVED', SERVED: 'CLOSED' };
   const LABEL = { OPEN: 'Fire', FIRED: 'Mark Ready', READY: 'Mark Served', SERVED: 'Close' };
   const COLORS = { OPEN: '#C3E62E', FIRED: '#F5A93B', READY: '#5AB0FF', SERVED: '#B384F5' };
@@ -216,9 +250,10 @@ function KotQueue({ orders, items, onStatus }) {
             <div style={{ fontSize: 11, color: 'var(--iv-ink2)' }}>
               {o.order_type === 'ROOM' ? `Room ${o.room_number || ''}` : o.order_type === 'DINE_IN' ? `Table ${o.table_no || ''}` : 'Walk-in'} · {bdt(o.grand_total_bdt)}
             </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-              <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => printKot(o, itemsOf(o.id))}>Print KOT</button>
-              {FLOW[o.status] && <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => onStatus(o.id, FLOW[o.status])}>{LABEL[o.status]}</button>}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+              <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 12, minWidth: 90 }} onClick={() => printKot(o, itemsOf(o.id))}>Print KOT</button>
+              <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 12, minWidth: 90 }} onClick={() => printReceipt(receiptFromOrder(o))}>Receipt</button>
+              {FLOW[o.status] && <button className="iv-btn iv-btn--ghost" style={{ flex: 1, fontSize: 12, minWidth: 90 }} onClick={() => onStatus(o.id, FLOW[o.status])}>{LABEL[o.status]}</button>}
             </div>
           </div>
         ))}
