@@ -68,7 +68,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ClientErrorReporter />
         {/* Vercel components don't accept/need a nonce — same-origin /_vercel/* scripts,
             covered by script-src 'self'. */}
-        <SpeedInsights sampleRate={0.25} />
+        <SpeedInsights />
         <Analytics />
       </body>
     </html>
