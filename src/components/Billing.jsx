@@ -164,7 +164,7 @@ export default function Billing() {
                     <FRow label="Bill Total" value={bdt(billTotal)} />
                     <FRow label="Paid" value={bdt(paid)} color="var(--iv-in-fg)" />
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, paddingTop: 8, fontFamily: 'var(--iv-head)' }}>
-                      <span>Balance Due</span><span className="iv-mono" style={{ color: bal > 0 ? 'var(--iv-rose-fg)' : 'var(--iv-in-fg)' }}>{bdt(bal)}</span>
+                      <span>Balance Due</span><span className="iv-mono" data-testid="billing-balance-due" style={{ color: bal > 0 ? 'var(--iv-rose-fg)' : 'var(--iv-in-fg)' }}>{bdt(bal)}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>

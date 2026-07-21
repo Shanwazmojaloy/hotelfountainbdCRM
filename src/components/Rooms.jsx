@@ -135,6 +135,8 @@ export default function Rooms() {
               return (
                 <div
                   key={room.id}
+                  data-testid={`room-tile-${room.room_number}`}
+                  data-status={room.status}
                   onClick={() => { if (room.status === 'OCCUPIED' && canFolio) setFolioRoom(room); else setStatusRoom(room); }}
                   style={{
                     /* Aurora: tint sits on the DARK card base — the old ", #ffffff" base made

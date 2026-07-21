@@ -487,7 +487,7 @@ function RegisterModal({ mode, expectedCash, onClose, onDone }) {
 }
 
 // ─── Order history + search ──────────────────────────────────────────────────
-function HistoryPanel() {
+function HistoryPanel({ canVoid }) {
   const dh = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date(ms));
   const [from, setFrom] = useState(dh(Date.now() - 6 * 86400000));
   const [to, setTo] = useState(dh(Date.now()));
@@ -506,6 +506,11 @@ function HistoryPanel() {
     } catch (e) { setErr(e.message || String(e)); } finally { setBusy(false); }
   }, [from, to, status, q]);
   useEffect(() => { search(); /* initial */ /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  async function voidOrder(o) {
+    if (!window.confirm(`Void order ${o.order_no}? This reverses any room charge.`)) return;
+    try { await api('/api/crm/restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'order_void', id: o.id }) }); search(); }
+    catch (e) { setErr(e.message || String(e)); }
+  }
   const inp = { padding: '7px 9px', border: '1px solid var(--iv-border)', borderRadius: 8, background: 'rgba(255,255,255,.05)', color: 'var(--iv-ink)', fontSize: 12.5 };
   const where = (o) => o.order_type === 'ROOM' ? `Room ${o.room_number || ''}` : o.order_type === 'DINE_IN' ? `Table ${o.table_no || ''}` : 'Walk-in';
   const PS_COLOR = { PAID: '#7BE04A', POSTED_TO_ROOM: '#F5A93B', VOID: '#FF6B6B' };
@@ -537,7 +542,8 @@ function HistoryPanel() {
                 <td className="iv-mono" style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--iv-ink)' }}>{bdt(o.grand_total_bdt)}</td>
                 <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                   <button className="iv-btn iv-btn--ghost" style={{ fontSize: 10, padding: '2px 7px', marginRight: 4 }} onClick={() => printKot(o, itemsOf(o.id))}>KOT</button>
-                  <button className="iv-btn iv-btn--ghost" style={{ fontSize: 10, padding: '2px 7px' }} onClick={() => printReceipt(receiptFromOrder(o))}>Receipt</button>
+                  <button className="iv-btn iv-btn--ghost" style={{ fontSize: 10, padding: '2px 7px', marginRight: 4 }} onClick={() => printReceipt(receiptFromOrder(o))}>Receipt</button>
+                  {canVoid && o.payment_status !== 'VOID' && <button className="iv-btn iv-btn--ghost" data-testid="history-void" style={{ fontSize: 10, padding: '2px 7px', color: '#FF6B6B' }} onClick={() => voidOrder(o)}>Void</button>}
                 </td>
               </tr>
             ))}
@@ -630,7 +636,7 @@ export default function Restaurant() {
         </div>
       )}
       {!loading && tab === 'kot' && <KotQueue orders={orders} items={items} onStatus={setStatus} />}
-      {!loading && tab === 'history' && <HistoryPanel />}
+      {!loading && tab === 'history' && <HistoryPanel canVoid={canDiscount} />}
       {!loading && tab === 'revenue' && (canFbReports
         ? <RevenuePanel orders={orders} items={items} day={day} />
         : <div className="iv-card"><p className="iv-stat__sub">F&amp;B sales reports are restricted to the Restaurant Supervisor and Owner/Admin.</p></div>)}
