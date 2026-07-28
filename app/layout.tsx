@@ -39,6 +39,32 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://fountainbd.com"),
   title: "Hotel Fountain — Dhaka's Finest Luxury Hotel",
   description: "Experience refined comfort in the heart of Dhaka. Book your stay at Hotel Fountain — where every stay becomes a memory.",
+  keywords: ["hotel dhaka", "luxury hotel dhaka", "hotel near dhaka airport", "nikunja hotel dhaka", "hotel fountain bangladesh"],
+  alternates: {
+    canonical: "https://fountainbd.com",
+  },
+  openGraph: {
+    type: "website",
+    url: "https://fountainbd.com",
+    siteName: "Hotel Fountain",
+    title: "Hotel Fountain — Dhaka's Finest Luxury Hotel",
+    description: "Experience refined comfort in the heart of Dhaka. Book your stay at Hotel Fountain — where every stay becomes a memory.",
+    images: [
+      {
+        url: "/images/hero-exterior.webp",
+        width: 1200,
+        height: 630,
+        alt: "Hotel Fountain — Luxury hotel in Dhaka, Bangladesh",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hotel Fountain — Dhaka's Finest Luxury Hotel",
+    description: "Experience refined comfort in the heart of Dhaka. Book your stay at Hotel Fountain — where every stay becomes a memory.",
+    images: ["/images/hero-exterior.webp"],
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Lumea" },
   icons: { icon: "/favicon.ico", apple: "/icons/icon-192.png" },
