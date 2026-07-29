@@ -125,8 +125,12 @@ export const channexAdapter: CMAdapter = {
     // Channex gets a 200 and does not retry.
     if (!BOOKING_EVENTS.includes(evt?.event)) return null;
 
-    const revisionId = evt?.payload?.revision_id;
-    if (!revisionId) throw new Error('MALFORMED_PAYLOAD: missing payload.revision_id');
+    const revisionId =
+      evt?.payload?.revision_id ??
+      evt?.payload?.booking_revision_id ??
+      evt?.booking_revision_id ??
+      evt?.revision_id;
+    if (!revisionId) throw new Error('MALFORMED_PAYLOAD: missing revision id');
 
     const key = apiKey(account);
     if (!key) throw new Error('CHANNEX_API_KEY_MISSING');
