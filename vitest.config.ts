@@ -7,6 +7,6 @@ import { defineConfig, configDefaults } from 'vitest/config';
 // only the CRM (e.g. crm.logic.test.ts).
 export default defineConfig({
   test: {
-    exclude: [...configDefaults.exclude, '**/archive/**'],
+    exclude: [...configDefaults.exclude, '**/archive/**', 'tests/e2e/**'],
   },
 });
