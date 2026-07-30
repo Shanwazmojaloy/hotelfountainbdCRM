@@ -58,13 +58,22 @@ export default function Rooms() {
     try {
       const supabase = getSupabaseClient();
       // C3: reservations + guests via session-gated route; rooms stays on anon.
-      const [{ data: rm }, resR, gR] = await Promise.all([
+      const [{ data: rm }, resR] = await Promise.all([
         supabase.from('rooms').select('id, room_number, status, category, price').order('room_number', { ascending: true }),
         fetch('/api/crm/data?resource=reservations&status_in=CHECKED_IN,RESERVED&limit=5000'),
-        fetch('/api/crm/data?resource=guests&limit=5000'),
       ]);
       const res = (await resR.json().catch(() => ({}))).rows || [];
-      const g = (await gR.json().catch(() => ({}))).rows || [];
+      // PERF (2026-07-30): was a full-table guests pull (all ~1.8k guests, every column,
+      // ~770KB) just so RoomFolioModal/printInvoice can resolve the guests of the ~30
+      // ACTIVE reservations. Fetch only those via ?ids= (full rows — printDocs needs
+      // id_card/address/nationality etc). Falls back to [] harmlessly if none.
+      const gidSet = new Set();
+      res.forEach((r) => (r.guest_ids || []).forEach((id) => { if (id) gidSet.add(String(id)); }));
+      let g = [];
+      if (gidSet.size) {
+        const gR = await fetch(`/api/crm/data?resource=guests&ids=${encodeURIComponent(Array.from(gidSet).join(','))}`);
+        g = (await gR.json().catch(() => ({}))).rows || [];
+      }
       setRooms(rm || []);
       setReservations(res);
       setGuests(g);

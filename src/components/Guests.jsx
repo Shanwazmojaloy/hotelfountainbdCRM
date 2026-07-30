@@ -34,7 +34,9 @@ export default function Guests() {
       // exposed to the public anon key.
       const [gr, rr] = await Promise.all([
         fetch('/api/crm/data?resource=guests&order=name.asc&limit=5000'),
-        fetch('/api/crm/data?resource=reservations'),
+        // cols= trim (2026-07-30): this page reads reservations ONLY in the `bal` dues memo
+        // (guest_ids/guest_name + money fields). Full rows were ~1.6MB; this is ~15% of that.
+        fetch('/api/crm/data?resource=reservations&cols=id,guest_ids,guest_name,total_amount,paid_amount,discount,discount_amount'),
       ]);
       const gj = await gr.json().catch(() => ({}));
       const rj = await rr.json().catch(() => ({}));

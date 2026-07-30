@@ -175,7 +175,10 @@ export default function Dashboard() {
       // stay on the anon client (not sensitive, anon SELECT retained).
       const [resR, txR, { data: rooms, error: e3 }, { data: closes }] = await Promise.all([
         fetch('/api/crm/data?resource=reservations&order=check_in.desc'),
-        fetch('/api/crm/data?resource=transactions'),
+        // cols= trim (2026-07-30): dashboard only groups/sums txs (type/amount/dates/ids) —
+        // same proven column list as Reports. Reservations stay FULL: desk rows feed the
+        // check-in/checkout/payment modals which need the whole reservation (see comment below).
+        fetch('/api/crm/data?resource=transactions&cols=id,type,amount,reservation_id,fiscal_day,created_at,guest_name,room_number'),
         supabase.from('rooms').select('id, room_number, status, category, price'),
         supabase.from('night_audit_log').select('audit_date, status'),
       ]);

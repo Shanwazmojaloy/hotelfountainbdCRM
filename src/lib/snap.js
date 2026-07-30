@@ -10,7 +10,11 @@
 //                   not linger on the device after logout.
 const _snap = new Map();
 const PFX = 'lumea.snap.v2.'; // v2 2026-06-10: bust all pre-fresh-start snapshots on deploy
-const MAX_BYTES = 900000; // per-key guard — keep well under the ~5MB localStorage quota
+// 2026-07-30: raised 900KB -> 2MB. The reservations table's JSON grew past 900KB
+// (~1.6MB), which silently killed the warm localStorage tier for the Reservations/
+// Billing/Guests snapshots -> cold skeleton on every full reload. Quota overflows
+// are still swallowed in setSnap, so worst case is the old behavior (no warm paint).
+const MAX_BYTES = 2000000; // per-key guard — stay under the ~5MB localStorage quota
 
 export function getSnap(key) { return _snap.has(key) ? _snap.get(key) : null; }
 
