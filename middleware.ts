@@ -173,7 +173,7 @@ function buildCsp(nonce: string): string {
     "img-src 'self' data: blob: https:",
     // google-analytics wildcards cover GA4's regional collect endpoints (region1. etc.)
     // cloudflareinsights.com: the CF beacon POSTs its RUM payload to /cdn-cgi/rum there.
-    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.cookiehub.eu https://cloudflareinsights.com`,
+    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.cookiehub.eu https://*.cookiehub.net https://cloudflareinsights.com`,
     "frame-src 'self' https://www.google.com https://www.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
@@ -200,7 +200,7 @@ function buildStaticCsp(): string {
     "font-src 'self' data: fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     // cloudflareinsights.com: the CF beacon POSTs its RUM payload to /cdn-cgi/rum there.
-    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.cookiehub.eu https://cloudflareinsights.com`,
+    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.cookiehub.eu https://*.cookiehub.net https://cloudflareinsights.com`,
     "frame-src 'self' https://www.google.com https://www.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
