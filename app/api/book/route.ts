@@ -110,9 +110,25 @@ export async function POST(req: Request) {
           loyalty_points: 0, outstanding_balance: 0, vip: false,
         }]),
       });
-      if (!create.ok) throw new Error(`guest insert failed: ${create.status} ${await create.text()}`);
-      const created = (await create.json()) as Array<{ id: string }>;
-      guestId = created[0]?.id ?? null;
+      if (!create.ok) {
+        const errTxt = await create.text();
+        // Returning guest / concurrent double-submit: unique(email,tenant_id) tripped between
+        // the lookup and this insert. Re-query and reuse the existing row — never 500 a booking.
+        if (create.status === 409 || /23505|guests_unique_real_email|duplicate key/i.test(errTxt)) {
+          const relookup = await fetch(
+            `${BASE}/guests?select=id&email=eq.${encodeURIComponent(email)}&tenant_id=eq.${TENANT}&limit=1`,
+            { headers: svcHeaders() },
+          );
+          const again = relookup.ok ? ((await relookup.json()) as Array<{ id: string }>) : [];
+          guestId = again[0]?.id ?? null;
+          if (!guestId) throw new Error(`guest insert failed: ${create.status} ${errTxt}`);
+        } else {
+          throw new Error(`guest insert failed: ${create.status} ${errTxt}`);
+        }
+      } else {
+        const created = (await create.json()) as Array<{ id: string }>;
+        guestId = created[0]?.id ?? null;
+      }
     }
 
     // ---- 2. insert the reservation (source MUST be 'WEBSITE' to satisfy the CHECK

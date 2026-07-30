@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   const id = body.id;
 
   const payload = {
-    name: s(body.name), phone: s(body.phone), email: s(body.email),
+    name: s(body.name), phone: s(body.phone), email: (s(body.email) || '').toLowerCase() || null,
     id_type: s(body.id_type) || 'NID', id_number: s(body.id_number),
     nationality: s(body.nationality), city: s(body.city), address: s(body.address),
   };
@@ -41,7 +41,12 @@ export async function POST(req: NextRequest) {
     if (action === 'create') {
       if (!payload.name) return NextResponse.json({ error: 'Full name is required.' }, { status: 400 });
       const { error } = await db.from('guests').insert(payload);
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505' || /guests_unique_real_email|duplicate key/i.test(error.message || '')) {
+          return NextResponse.json({ error: 'A guest with this email already exists — search for them and edit instead.' }, { status: 409 });
+        }
+        throw error;
+      }
       return NextResponse.json({ ok: true });
     }
     if (action === 'update') {
