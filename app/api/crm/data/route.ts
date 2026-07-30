@@ -15,7 +15,10 @@ export const maxDuration = 30;
 // Bounds worst-case latency: without this, a stalled PostgREST/network call
 // hangs until Vercel kills the function at maxDuration (raw 504, no body).
 // With it, the route fails fast with a clear, retryable JSON error instead.
-const QUERY_TIMEOUT_MS = 15_000;
+// 8s (was 15s, 2026-07-30): with functions now colocated with Supabase in iad1, a
+// healthy query returns in <1s — a 15s hang just held a Fluid instance hostage and
+// amplified post-deploy queueing. Fail fast; the client retries.
+const QUERY_TIMEOUT_MS = 8_000;
 
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
