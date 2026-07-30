@@ -164,12 +164,16 @@ function buildCsp(nonce: string): string {
   const supabaseSrc = SUPABASE_HOST ? ` https://${SUPABASE_HOST} wss://${SUPABASE_HOST}` : '';
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'${devEval} https://connect.facebook.net https://www.googletagmanager.com https://cdn.cookiehub.eu`,
-    "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+    // static.cloudflareinsights.com: fountainbd.com is Cloudflare-proxied and CF auto-injects
+    // its RUM beacon <script> into EVERY proxied HTML response (strict pages included).
+    `script-src 'self' 'nonce-${nonce}'${devEval} https://connect.facebook.net https://www.googletagmanager.com https://cdn.cookiehub.eu https://static.cloudflareinsights.com`,
+    // cdn.cookiehub.eu: the CookieHub loader injects its own stylesheet (c2/css/*.css).
+    "style-src 'self' 'unsafe-inline' fonts.googleapis.com https://cdn.cookiehub.eu",
     "font-src 'self' data: fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     // google-analytics wildcards cover GA4's regional collect endpoints (region1. etc.)
-    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.cookiehub.eu`,
+    // cloudflareinsights.com: the CF beacon POSTs its RUM payload to /cdn-cgi/rum there.
+    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.cookiehub.eu https://cloudflareinsights.com`,
     "frame-src 'self' https://www.google.com https://www.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
@@ -189,11 +193,14 @@ function buildStaticCsp(): string {
   const supabaseSrc = SUPABASE_HOST ? ` https://${SUPABASE_HOST} wss://${SUPABASE_HOST}` : '';
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${devEval} https://connect.facebook.net https://www.googletagmanager.com https://cdn.cookiehub.eu`,
-    "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+    // static.cloudflareinsights.com: CF-proxied HTML gets the RUM beacon auto-injected.
+    `script-src 'self' 'unsafe-inline'${devEval} https://connect.facebook.net https://www.googletagmanager.com https://cdn.cookiehub.eu https://static.cloudflareinsights.com`,
+    // cdn.cookiehub.eu: the CookieHub loader injects its own stylesheet (c2/css/*.css).
+    "style-src 'self' 'unsafe-inline' fonts.googleapis.com https://cdn.cookiehub.eu",
     "font-src 'self' data: fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
-    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.cookiehub.eu`,
+    // cloudflareinsights.com: the CF beacon POSTs its RUM payload to /cdn-cgi/rum there.
+    `connect-src 'self'${supabaseSrc} https://api.brevo.com https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net https://*.cookiehub.eu https://cloudflareinsights.com`,
     "frame-src 'self' https://www.google.com https://www.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
