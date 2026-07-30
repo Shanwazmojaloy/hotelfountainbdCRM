@@ -29,6 +29,16 @@ const RESOURCES: Record<string, { orderCols: Set<string>; defaultOrder: string }
 };
 const ALLOWED_STATUS = new Set(['RESERVED', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'PENDING']);
 
+// PERF (2026-07-30): the staff.session_v probe ran on EVERY data request — the Header
+// polls fire 2-3 of these per minute per open tab, each serializing an extra DB round
+// trip in FRONT of the actual read. session_v only changes on logout/password reset,
+// so a short per-instance cache is safe. The cache ONLY short-circuits the happy path
+// (cached v matches the cookie); any mismatch always re-verifies against the DB, so a
+// fresh re-login is never falsely 401'd. Worst case: a just-revoked session keeps
+// reading for <= 15s on an already-warm instance.
+const SESS_TTL_MS = 15_000;
+const sessCache = new Map<string, { v: number; ts: number }>();
+
 export async function GET(req: NextRequest) {
   if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
 
@@ -43,18 +53,31 @@ export async function GET(req: NextRequest) {
 
   const timeoutSignal = () => AbortSignal.timeout(QUERY_TIMEOUT_MS);
 
-  let srow;
-  try {
-    const res = await db.from('staff').select('session_v').eq('id', sess.id).limit(1).abortSignal(timeoutSignal());
-    srow = res.data;
-    if (res.error) console.error('[crm/data] staff check error:', res.error.code, res.error.message, res.error.hint ?? '');
-  } catch (e) {
-    console.error('[crm/data] staff check timed out/failed:', e instanceof Error ? e.message : String(e));
-    return NextResponse.json({ error: 'Database timeout — please retry.' }, { status: 504 });
+  const sessKey = `${TENANT}:${sess.id}`;
+  const cached = sessCache.get(sessKey);
+  let dbSessV: number | null =
+    cached && Date.now() - cached.ts < SESS_TTL_MS ? cached.v : null;
+  // Cache miss OR cached value disagrees with the cookie -> always re-verify against
+  // the DB (never 401 off a stale cache entry — e.g. right after a re-login bumps v).
+  if (dbSessV === null || dbSessV !== sess.session_v) {
+    let srow;
+    try {
+      const res = await db.from('staff').select('session_v').eq('id', sess.id).limit(1).abortSignal(timeoutSignal());
+      srow = res.data;
+      if (res.error) console.error('[crm/data] staff check error:', res.error.code, res.error.message, res.error.hint ?? '');
+    } catch (e) {
+      console.error('[crm/data] staff check timed out/failed:', e instanceof Error ? e.message : String(e));
+      return NextResponse.json({ error: 'Database timeout — please retry.' }, { status: 504 });
+    }
+    dbSessV = srow && srow[0] ? (srow[0].session_v || 1) : null;
+    if (dbSessV !== null) {
+      if (sessCache.size > 500) sessCache.clear(); // tiny staff table; hard cap just in case
+      sessCache.set(sessKey, { v: dbSessV, ts: Date.now() });
+    }
   }
   // Surfaces PostgREST auth errors (e.g. a rejected tenant JWT) that otherwise
   // masquerade as an expired session — essential while TENANT_JWT_MODE rolls out.
-  if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
+  if (dbSessV === null || dbSessV !== sess.session_v) {
     return NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 });
   }
 

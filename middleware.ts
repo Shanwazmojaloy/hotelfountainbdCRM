@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import type { NextRequest, NextFetchEvent } from 'next/server';
 
 const APEX_DOMAIN = process.env.NEXT_PUBLIC_APEX_DOMAIN || 'lumea.app';
 const DEFAULT_SLUG = process.env.NEXT_PUBLIC_TENANT_SLUG || 'hotelfountainbd';
@@ -18,9 +18,16 @@ const REMOTE_ROLES = new Set(['owner', 'admin']); // who may reach CRM off-site 
 // reachable even if Supabase is briefly unreachable from the edge).
 interface Perimeter { ips: string[]; roles: Set<string>; ts: number }
 const perimCache = new Map<string, Perimeter>();
-async function tenantPerimeter(slug: string): Promise<Perimeter> {
-  const hit = perimCache.get(slug);
-  if (hit && Date.now() - hit.ts < 60_000) return hit;
+// PERF (2026-07-30): the override fetch used to run INLINE whenever an edge isolate's
+// 60s cache was cold — and isolates are ephemeral, so in practice it blocked most
+// /crm + /api/crm requests for a full Supabase round trip (up to the 1.5s timeout)
+// BEFORE the route even started. Now: a warmed isolate serves the cached entry
+// immediately (even if stale) and refreshes in the background via event.waitUntil;
+// only a truly cold isolate still awaits one fetch. Security semantics unchanged —
+// same override data, it just propagates within ~5 min instead of 60s.
+const PERIM_TTL_MS = 5 * 60_000;
+let perimRefreshing = false;
+async function fetchPerimeter(slug: string): Promise<Perimeter> {
   let ips = OFFICE_IPS;
   let roles = REMOTE_ROLES;
   try {
@@ -40,7 +47,21 @@ async function tenantPerimeter(slug: string): Promise<Perimeter> {
       }
     }
   } catch { /* fail-open to deployment defaults */ }
-  const entry = { ips, roles, ts: Date.now() };
+  return { ips, roles, ts: Date.now() };
+}
+async function tenantPerimeter(slug: string, event?: NextFetchEvent): Promise<Perimeter> {
+  const hit = perimCache.get(slug);
+  if (hit) {
+    if (Date.now() - hit.ts > PERIM_TTL_MS && !perimRefreshing) {
+      perimRefreshing = true;
+      const refresh = fetchPerimeter(slug)
+        .then((entry) => { perimCache.set(slug, entry); })
+        .finally(() => { perimRefreshing = false; });
+      if (event) event.waitUntil(refresh); else refresh.catch(() => {});
+    }
+    return hit; // stale-while-revalidate: never block a warmed isolate on the override fetch
+  }
+  const entry = await fetchPerimeter(slug); // cold isolate only
   perimCache.set(slug, entry);
   return entry;
 }
@@ -181,7 +202,7 @@ function buildStaticCsp(): string {
   ].join('; ');
 }
 
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
   const slug = extractSlug(host);
@@ -205,7 +226,7 @@ export async function middleware(request: NextRequest) {
   // ── CRM perimeter gate (deny-only; allowed requests fall through to CSP/tenant logic) ──
   const gatePath = request.nextUrl.pathname;
   if ((gatePath.startsWith('/crm') || gatePath.startsWith('/api/crm')) && !AUTH_EXEMPT.has(gatePath)) {
-    const perim = await tenantPerimeter(slug); // per-tenant override, deployment defaults on miss
+    const perim = await tenantPerimeter(slug, event); // per-tenant override, deployment defaults on miss
     const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim();
     if (!perim.ips.includes(ip)) {
       const role = await sessionRole(request.cookies.get(SESSION_COOKIE)?.value);
