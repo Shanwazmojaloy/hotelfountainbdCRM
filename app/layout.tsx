@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cormorant_Garamond, Playfair_Display } from "next/font/google";
-import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Analytics } from "@vercel/analytics/next";
 import ClientErrorReporter from "./components/ClientErrorReporter";
 import "./globals.css";
 import { RoleProvider } from "@/context/RoleContext";
@@ -92,10 +90,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-full flex flex-col">
         <RoleProvider>{children}</RoleProvider>
         <ClientErrorReporter />
-        {/* Vercel components don't accept/need a nonce — same-origin /_vercel/* scripts,
-            covered by script-src 'self'. */}
-        <SpeedInsights />
-        <Analytics />
+        {/* Vercel Analytics + Speed Insights inject an INLINE bootstrap stub (window.si / window.va)
+            that cannot carry a nonce (the v2 components expose no nonce prop) — so the strict
+            per-request nonce CSP on the authed /crm, /admin, /lumea, /settings, /billing, /invoice
+            subtrees blocks it. They now live in app/(site)/layout.tsx, scoped to the public pages
+            under the static 'unsafe-inline' CSP where the inline stub is allowed. Do NOT re-add
+            them to this shared root layout — it re-breaks the strict-CSP pages. */}
       </body>
     </html>
   );

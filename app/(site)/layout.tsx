@@ -6,6 +6,8 @@ import ScrollProgress from "@/components/site/ScrollProgress";
 import GaClickEvents from "@/components/site/GaClickEvents";
 import MotionProvider from "@/components/site/MotionProvider";
 import WebVitalsReporter from "../components/WebVitalsReporter";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 import { SITE, CONTACT, AMENITIES, SOCIALS } from "@/lib/site";
 import Script from "next/script";
 
@@ -123,6 +125,11 @@ var n=0,t=setInterval(function(){n++;var r=document.querySelector(".ch2");var b=
         <ScrollProgress />
         <GaClickEvents />
         <WebVitalsReporter />
+        {/* Vercel telemetry lives here (public pages only): its inline bootstrap stub runs under
+            this layout's static 'unsafe-inline' CSP. It CANNOT go in the shared root layout —
+            the strict nonce CSP on /crm etc. blocks the un-nonceable inline stub. */}
+        <SpeedInsights />
+        <Analytics />
         <Navbar />
         <main className="min-h-screen pt-24">{children}</main>
         <Footer />
