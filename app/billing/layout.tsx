@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 
-// The Lumea CRM entry is staff-only and must stay out of search. The page is a
-// client component (cannot export metadata), so this server layout carries the
-// authoritative noindex directive alongside the robots.txt disallow.
+// /billing is CRM-styled but lives outside /crm. Staff-only, must stay out of search.
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 // Stay on the strict per-request nonce CSP (force-dynamic → Next nonces its inline scripts).
 export const dynamic = "force-dynamic";
 
-export default async function LumeaLayout({ children }: { children: React.ReactNode }) {
+export default async function BillingLayout({ children }: { children: React.ReactNode }) {
   // CSP FIX 2026-07-30: force-dynamic alone doesn't make Next apply the nonce to its
   // own inline hydration scripts — reading headers() is what does (see app/crm/layout.tsx).
   await headers();
