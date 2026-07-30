@@ -1,7 +1,6 @@
 "use client";
 
-import { m, useReducedMotion, type Variants } from "framer-motion";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
 type Props = {
   children: ReactNode;
@@ -14,7 +13,19 @@ type Props = {
 
 /**
  * Scroll-triggered fade-in-up. Fires once when ~20% in view.
- * Honors prefers-reduced-motion by rendering static content.
+ *
+ * INP REFACTOR (2026-07-30): framer-free. The old version rendered an `m.div`
+ * with whileInView per section — with 3-6 instances per page, each hydrated a
+ * framer motion-value node during boot, feeding the tap-during-hydration INP
+ * (field data: homepage taps 659ms avg / 3552ms max). Now: IntersectionObserver
+ * + CSS transitions with the SAME timings (block: 0.7s cubic-bezier(.4,0,.2,1);
+ * stagger children: 0.6s, 0.1s steps — matching the old revealItem variants).
+ *
+ * Fail-visible contract (same rationale as FadeIn.tsx): the resting DOM state
+ * is fully visible; the effect ARMS the hide only on the client, right before
+ * observing. If JS never runs (bot, stalled hydration, reduced-motion), content
+ * simply shows. The transition property lives on the REVEALED state only, so
+ * arming is an instant style jump (no fade-out flash), and the reveal animates.
  */
 export default function ScrollReveal({
   children,
@@ -23,48 +34,44 @@ export default function ScrollReveal({
   className,
   stagger = false,
 }: Props) {
-  const reduce = useReducedMotion();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const ref = useRef<HTMLDivElement>(null);
 
-  // Render static, visible content on the server and first client paint so SSR
-  // markup matches hydration (no "style did not match" mismatch). Motion attaches
-  // after mount — reveals still fire on scroll for below-the-fold sections.
-  if (reduce || !mounted) return <div className={className}>{children}</div>;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (typeof IntersectionObserver === "undefined") return;
 
-  if (stagger) {
-    const parent: Variants = {
-      hidden: {},
-      show: { transition: { staggerChildren: 0.1, delayChildren: delay } },
-    };
-    return (
-      <m.div
-        className={className}
-        variants={parent}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.2 }}
-      >
-        {children}
-      </m.div>
+    if (stagger) {
+      // Per-child transition-delay indexes for the CSS stagger.
+      Array.from(el.children).forEach((c, i) => (c as HTMLElement).style.setProperty("--sr-i", String(i)));
+    }
+    el.classList.add("sr-armed"); // instant hide (no transition on this state)
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            el.classList.add("sr-in");
+            io.disconnect();
+          }
+        }
+      },
+      { threshold: 0.2 },
     );
-  }
+    io.observe(el);
+    return () => io.disconnect();
+  }, [stagger]);
+
+  const style = { "--sr-y": `${y}px`, "--sr-delay": `${delay}s` } as CSSProperties;
 
   return (
-    <m.div
-      className={className}
-      initial={{ opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1], delay }}
+    <div
+      ref={ref}
+      className={["scroll-reveal", stagger ? "sr-stagger" : "", className].filter(Boolean).join(" ")}
+      style={style}
     >
       {children}
-    </m.div>
+    </div>
   );
 }
-
-/** Child item for use inside a `stagger` ScrollReveal. */
-export const revealItem: Variants = {
-  hidden: { opacity: 0, y: 28 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.4, 0, 0.2, 1] } },
-};

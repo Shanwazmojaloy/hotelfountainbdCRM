@@ -241,6 +241,34 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5) sepia
 .site-root .fade-in[data-dir="right"] { animation-name: rgnFadeRight; }
 @media (prefers-reduced-motion: reduce) { .site-root .fade-in { animation: none; } }
 
+/* ── ScrollReveal component — IO + CSS (framer-free, 2026-07-30 INP refactor).
+   Fail-visible: base state is fully visible; JS adds .sr-armed (instant hide — NO
+   transition on that state, so no fade-out flash) right before observing, then
+   .sr-in reveals. Transition lives on the revealed state only. Timings mirror the
+   old framer variants: block 0.7s cubic-bezier(.4,0,.2,1) + --sr-delay; stagger
+   children 0.6s with 0.1s steps (--sr-i set per child by ScrollReveal.tsx).
+   Scoped to .site-root so /crm is untouched. */
+.site-root .scroll-reveal.sr-armed:not(.sr-stagger) {
+  opacity: 0; transform: translateY(var(--sr-y, 28px));
+}
+.site-root .scroll-reveal.sr-armed.sr-in:not(.sr-stagger) {
+  opacity: 1; transform: none;
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1) var(--sr-delay, 0s),
+              transform 0.7s cubic-bezier(0.4, 0, 0.2, 1) var(--sr-delay, 0s);
+}
+.site-root .scroll-reveal.sr-stagger.sr-armed > * {
+  opacity: 0; transform: translateY(28px);
+}
+.site-root .scroll-reveal.sr-stagger.sr-armed.sr-in > * {
+  opacity: 1; transform: none;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-delay: calc(var(--sr-delay, 0s) + var(--sr-i, 0) * 0.1s);
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-root .scroll-reveal.sr-armed,
+  .site-root .scroll-reveal.sr-stagger.sr-armed > * { opacity: 1; transform: none; transition: none; }
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    MOTION LAYER v2 (2026-06-19) — "noticeable & lively" pass, scoped .site-root.
    Button shine-sweep · animated nav underline · CTA-arrow nudge · glass hover
