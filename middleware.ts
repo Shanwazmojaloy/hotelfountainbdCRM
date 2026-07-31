@@ -289,9 +289,15 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // Authed/staff surfaces get the strict per-request nonce CSP (forces dynamic SSR — required so
   // Next can nonce its inline hydration scripts). Everything else = the PUBLIC marketing pages,
   // which get a static 'unsafe-inline' CSP so they can be statically rendered (low TTFB). The
-  // strict layouts (crm/admin/lumea/settings) also carry `export const dynamic='force-dynamic'`
+  // strict layouts (admin/lumea/settings) also carry `export const dynamic='force-dynamic'`
   // so they never static-render and lose their nonce.
-  const STRICT_PREFIXES = ['/crm', '/api', '/admin', '/lumea', '/settings', '/billing', '/invoice'];
+  // '/crm' REMOVED from strict (OWNER DECISION 2026-07-31): the nonce forced dynamic SSR on
+  // every CRM page load, and the page function's ~20s cold boot (Hobby CPU) made staff loads
+  // intermittently awful. CRM pages now use the static 'unsafe-inline' CSP and prerender to
+  // CDN-served static shells (~100-300ms always). Trade-off accepted: weaker inline-XSS
+  // hardening on the SHELL only — the shell renders zero user content server-side; all money
+  // data flows via /api/crm/* which KEEPS the strict CSP + session gate + office-IP perimeter.
+  const STRICT_PREFIXES = ['/api', '/admin', '/lumea', '/settings', '/billing', '/invoice'];
   const isStrict = STRICT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const nonce = btoa(crypto.randomUUID());
   const csp = isStrict ? buildCsp(nonce) : buildStaticCsp();
