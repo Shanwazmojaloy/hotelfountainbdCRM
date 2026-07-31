@@ -28,9 +28,26 @@ function RouteGuard({ children }) {
   return children;
 }
 
+// KEEP-WARM (2026-07-31): the /crm PAGE function's cold boot is ~20s (heavy server
+// bundle — workflow SDK et al, see crm_slowness memory), while APIs boot in ~1s. Every
+// deploy/scale-out replaces warm instances, so the next staff page-load paid the full
+// cold boot — the recurring "20 seconds again" complaint. While ANY staff tab is open,
+// this pings the /crm document every 4 min so a warm page-function instance always
+// exists (288 tiny invocations/day worst case — trivial). The pre-shift Vercel cron
+// (vercel.json /crm @ 00:45 UTC) covers the overnight-cold morning first-hit. The REAL
+// fix is shrinking the server bundle — tracked as a follow-up.
+function useKeepWarm() {
+  useEffect(() => {
+    const ping = () => { fetch('/crm', { cache: 'no-store' }).catch(() => {}); };
+    const iv = setInterval(ping, 4 * 60_000);
+    return () => clearInterval(iv);
+  }, []);
+}
+
 // App shell — Aurora/Orbix (2026-07-04): full-width top pill-nav bar + scrolling content.
 // The old walnut Sidebar is retired; all nav lives in Header pills (desktop) / BottomNav (mobile).
 export default function Layout({ children }) {
+  useKeepWarm();
   return (
     <AuthGate>
       <div className="crm-root flex flex-col" style={{ height: '100vh', overflow: 'hidden' }}>
