@@ -230,6 +230,41 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     return NextResponse.redirect(url, 301);
   }
 
+  // ── EDGE 404 — route allowlist (2026-07-31) ─────────────────────────────────
+  // Scanner bots probe hundreds of INVENTED paths (a careers scraper alone hit 123
+  // distinct ones: /jobs, /praca, /saiyou, /carriere…). Every miss used to render
+  // Next's not-found page = one PAGE-function invocation — waves of these saturated
+  // the page lambda and queued STAFF page loads at a flat ~20s while /api/* stayed
+  // fast (APIs are edge-403'd for bots). Path-Deny firewall rules can't keep up with
+  // arbitrary paths, so instead: any path that is not a KNOWN route gets a tiny 404
+  // straight from the edge — zero function invocations, robust to any invented path.
+  // MAINTENANCE: add new top-level routes/public files here when created, or they
+  // will 404 (the x-edge-404 header makes that easy to spot in DevTools).
+  {
+    const P = request.nextUrl.pathname;
+    const EDGE_EXACT = new Set([
+      '/', '/index.html', '/landing', '/crm.html', '/manifest.webmanifest', '/sw.js',
+      '/robots.txt', '/sitemap.xml', '/widget.js', '/crm-boot.js', '/crm-bundle.js',
+      '/crm-config.js', '/crm-src.jsx', '/favicon.ico', '/__probe',
+      '/apqanhrpmfkq6pzdr6j35p7jptlot7.html', // Facebook domain verification
+      '/vibe-prospect-report.html',
+    ]);
+    const EDGE_PREFIXES = [
+      '/api', '/crm', '/admin', '/billing', '/chat', '/invoice', '/lumea', '/settings',
+      '/rooms', '/services', '/contact', '/faq',
+      '/_next', '/_vercel', '/icons', '/images', '/logo', '/vendor', '/.well-known', '/cdn-cgi',
+    ];
+    const known =
+      EDGE_EXACT.has(P) ||
+      EDGE_PREFIXES.some((pre) => P === pre || P.startsWith(pre + '/'));
+    if (!known) {
+      return new NextResponse('Not Found', {
+        status: 404,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'x-edge-404': '1', 'x-robots-tag': 'noindex' },
+      });
+    }
+  }
+
   // ── CRM perimeter gate (deny-only; allowed requests fall through to CSP/tenant logic) ──
   const gatePath = request.nextUrl.pathname;
   if ((gatePath.startsWith('/crm') || gatePath.startsWith('/api/crm')) && !AUTH_EXEMPT.has(gatePath)) {
