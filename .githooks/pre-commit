@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 # Hotel Fountain — pre-commit hook
-# Enables: scripts/guard-onedrive-truncation.sh
+# Enables: scripts/guard-onedrive-truncation.sh  (file corruption guard)
+#          scripts/check-edge-allowlist.mjs      (middleware edge-404 allowlist guard)
 # Install: git config core.hooksPath .githooks
 set -e
-exec bash "$(git rev-parse --show-toplevel)/scripts/guard-onedrive-truncation.sh"
+TOP="$(git rev-parse --show-toplevel)"
+bash "$TOP/scripts/guard-onedrive-truncation.sh"
+# Edge allowlist guard: new routes/public files MUST be in middleware.ts EDGE_EXACT/
+# EDGE_PREFIXES or they 404 in production (edge bot-probe defense, commit 6641b63).
+# Only runs when relevant paths are staged; node missing → warn-only (never brick a commit).
+if git diff --cached --name-only | grep -qE '^(app/|public/|middleware\.ts|vercel\.json)'; then
+  if command -v node >/dev/null 2>&1; then
+    node "$TOP/scripts/check-edge-allowlist.mjs"
+  else
+    echo "! node not found — skipping edge-allowlist guard (verify middleware.ts manually)"
+  fi
+fi
