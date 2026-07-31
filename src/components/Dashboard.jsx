@@ -167,6 +167,28 @@ export default function Dashboard() {
     fetchDashboard();
   }, []);
 
+  // LIVE REFRESH (2026-07-31, owner-flagged): the front desk keeps ONE dashboard tab open
+  // all day, but data only loaded on mount — by afternoon the tab showed the morning's
+  // world (৳0 "today's revenue" while ৳11,000 sat in the DB; 0 arrivals vs 3 checked-in).
+  // Three refresh triggers, all silent (no skeleton — fetchDashboard only shows loading
+  // when there's no snapshot):
+  //   1. Tab becomes visible again (staff task-switch back) → immediate refetch.
+  //   2. Another tab wrote data (lumea:data-changed from snap.invalidateData) → refetch.
+  //   3. Gentle 120s poll while the tab is VISIBLE (skipped while hidden — no wasted
+  //      function invocations from a minimized tab; visibility trigger covers the return).
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchDashboard(); };
+    const onDataChanged = () => fetchDashboard();
+    const iv = setInterval(() => { if (document.visibilityState === 'visible') fetchDashboard(); }, 120_000);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('lumea:data-changed', onDataChanged);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('lumea:data-changed', onDataChanged);
+    };
+  }, []);
+
   async function fetchDashboard() {
     if (!getSnap(SNAP_KEY)) setLoading(true); // first visit shows skeletons; revisits refresh silently
     try {
