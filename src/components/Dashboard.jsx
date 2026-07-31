@@ -347,14 +347,14 @@ export default function Dashboard() {
             </a>
           );
         })()}
-        {showRevenue && <StatCard icon="৳" label="Today's Revenue" accent={GOLD} value={loading ? '—' : bdt(stats.revenue)} sub="Collected today · Asia/Dhaka" href="/crm/billing"
+        {showRevenue && <StatCard icon="৳" label="Today's Revenue" accent={GOLD} value={loading ? '—' : bdt(stats.revenue)} sub="Collected today · Asia/Dhaka" href="/crm/reports"
           delta={!loading && stats.revDelta != null && stats.revDelta !== 0 ? <Delta dir={stats.revDelta > 0 ? 'up' : 'down'}>{Math.abs(stats.revDelta)}% vs yd</Delta> : null}
           spark={stats.sparkRev} />}
         <StatCard icon="✈" label="Arrivals Today" accent={SKY} value={loading ? '—' : stats.checkins} href="/crm/reservations"
           sub={loading ? '' : (stats.checkins > 0 ? `${stats.arrived || 0} arrived · ${Math.max(0, stats.checkins - (stats.arrived || 0))} expected` : 'Scheduled check-ins')}
           spark={stats.sparkArr} />
         {showRevenue
-          ? <StatCard icon="⚠" label="Balance Due" accent={ROSE} value={loading ? '—' : bdt(stats.outstanding)} href="/crm/billing"
+          ? <StatCard icon="⚠" label="Balance Due" accent={ROSE} value={loading ? '—' : bdt(stats.outstanding)} href="/crm/reports"
               sub={loading ? '' : `${stats.dueCount} reservation${stats.dueCount === 1 ? '' : 's'} → open dues`} />
           : <StatCard icon="🧹" label="Rooms to Clean" accent={AMB} value={loading ? '—' : (stats.totalRooms - stats.occupied)} sub="vacant / awaiting service" />}
       </div>
@@ -502,7 +502,6 @@ export default function Dashboard() {
                         </>)}
                     {deskTab === 'inhouse' && <>
                       {due > 0 && <button className="iv-btn" style={btn} onClick={() => setModal({ kind: 'pay', res: r })}>Record Payment</button>}
-                      <a href="/crm/billing" className="iv-btn iv-btn--ghost" style={{ ...btn, textDecoration: 'none' }}>Bill</a>
                     </>}
                   </div>
                 </div>

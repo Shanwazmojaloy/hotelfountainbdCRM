@@ -68,14 +68,17 @@ test.describe('Restaurant POS — charge to room + void', () => {
     const orderNo = (await chargeResp.json())?.order?.order_no as string;
     expect(orderNo).toBeTruthy();
 
-    // Billing: prove the charge posted via the canonical balance delta. (The invoice card
-    // renders one summary "Room Charge" row on-screen; individual folio lines like
-    // "Restaurant POS-000x" appear only in the PRINTED invoice, so we assert on money, not text.)
-    // Searching by room narrows the folio picker to our reservation → it becomes the selected card.
-    await page.goto('/crm/billing');
-    await page.getByPlaceholder(/Search folios/i).fill(seeded.room);
-    // seed is room-rate fully paid (balance 0); the F&B charge folds into total_amount → balance == PRICE.
-    await expect.poll(async () => money(await page.getByTestId('billing-balance-due').innerText())).toBe(PRICE);
+    // Prove the charge posted via the canonical balance delta — asserted on the API
+    // (due = total - discount - paid), since the Billing tab was retired 2026-07-31.
+    // Seed is room-rate fully paid (balance 0); the F&B charge folds into total_amount
+    // via the folio resync → balance == PRICE.
+    const apiDue = async () => {
+      const r = await request.get('/api/crm/data?resource=reservations&status_in=CHECKED_IN');
+      const mine = ((await r.json()).rows || []).find((x: { id?: string }) => x.id === seeded!.id);
+      if (!mine) return NaN;
+      return Math.max(0, (Number(mine.total_amount) || 0) - (Number(mine.discount_amount ?? mine.discount) || 0) - (Number(mine.paid_amount) || 0));
+    };
+    await expect.poll(apiDue, { timeout: 15_000 }).toBe(PRICE);
 
     // Void the order in History -> folio reverses -> balance returns to 0.
     await page.goto('/crm/restaurant');
@@ -91,8 +94,7 @@ test.describe('Restaurant POS — charge to room + void', () => {
       page.getByTestId('history-void').first().click(),
     ]);
 
-    await page.goto('/crm/billing');
-    await page.getByPlaceholder(/Search folios/i).fill(seeded.room);
-    await expect.poll(async () => money(await page.getByTestId('billing-balance-due').innerText())).toBe(0);
+    // Void reverses the folio → canonical balance returns to 0 (API assertion, see above).
+    await expect.poll(apiDue, { timeout: 15_000 }).toBe(0);
   });
 });

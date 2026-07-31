@@ -29,10 +29,12 @@ export const isAdmin = (role) => ADMIN_WRITE_ROLES.includes(norm(role));
 // Route prefixes each role may open. Owner/Admin bypass this (full access).
 // '/crm' (Dashboard) is matched EXACTLY so it doesn't wildcard everything.
 // Order matters: the FIRST entry is used as the role's landing route by homeRoute().
+// '/crm/billing' removed from all roles (owner decision 2026-07-31 — Billing tab retired;
+// the route itself now redirects to /crm).
 const ROLE_ROUTES = {
-  manager:               ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/housekeeping', '/crm/billing', '/crm/reports'],
-  front_desk_supervisor: ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/housekeeping', '/crm/billing', '/crm/reports'],
-  receptionist:          ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/housekeeping', '/crm/billing'],
+  manager:               ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/housekeeping', '/crm/reports'],
+  front_desk_supervisor: ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/housekeeping', '/crm/reports'],
+  receptionist:          ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/housekeeping'],
   restaurant_supervisor: ['/crm/restaurant', '/crm/rooms'],
   restaurant_staff:      ['/crm/restaurant'],
   housekeeping:          ['/crm/housekeeping', '/crm/rooms'],

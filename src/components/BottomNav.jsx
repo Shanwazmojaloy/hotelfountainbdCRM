@@ -30,7 +30,8 @@ const navItems = [
   { href: '/crm', icon: 'home', label: 'Dashboard' },
   { href: '/crm/reservations', icon: 'calendar', label: 'Bookings' },
   { href: '/crm/rooms', icon: 'bed', label: 'Rooms' },
-  { href: '/crm/billing', icon: 'dollar', label: 'Billing' },
+  // Billing tab removed (owner decision 2026-07-31) — Reports takes the mobile slot.
+  { href: '/crm/reports', icon: 'dollar', label: 'Reports' },
 ];
 
 // Sections the 4-slot bar can't hold — reachable on phones via the "More" sheet.

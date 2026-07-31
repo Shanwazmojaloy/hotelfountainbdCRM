@@ -21,7 +21,10 @@ async function seedWithBalance(request: APIRequestContext): Promise<{ id: string
   return { id: mine.id, room };
 }
 
-test.describe('Billing — partial payment', () => {
+// SKIPPED 2026-07-31: the Billing tab was retired (owner decision — /crm/billing now
+// redirects to /crm). The partial-payment money journey should be re-tested through the
+// Dashboard front-desk "Record Payment" modal instead — rewrite pending.
+test.describe.skip('Billing — partial payment', () => {
   let seeded: { id: string; room: string } | null = null;
   test.afterEach(async ({ request }) => {
     if (seeded) { await request.post('/api/crm/reservation', { data: { action: 'delete', id: seeded.id } }).catch(() => {}); seeded = null; }

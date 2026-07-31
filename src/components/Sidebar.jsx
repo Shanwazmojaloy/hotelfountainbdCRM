@@ -15,7 +15,6 @@ const NAV = [
   { href: '/crm/guests', icon: '◉', label: 'Guests & CRM' },
   { sect: 'Operations' },
   { href: '/crm/housekeeping', icon: '✦', label: 'Housekeeping' },
-  { href: '/crm/billing', icon: '◎', label: 'Billing & Invoices' },
   { sect: 'Analytics' },
   { href: '/crm/reports', icon: '▣', label: 'Reports' },
   { sect: 'System' },

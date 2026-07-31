@@ -20,7 +20,6 @@ const TITLES = {
   '/crm/guests': ['Guests &', 'CRM'],
   '/crm/housekeeping': ['Housekeeping', 'Board'],
   '/crm/restaurant': ['Restaurant', ''],
-  '/crm/billing': ['Billing &', 'Invoices'],
   '/crm/reports': ['Performance', 'Reports'],
   '/crm/settings': ['System', 'Settings'],
 };
@@ -34,7 +33,9 @@ const PILLS = [
   { href: '/crm/guests', icon: '◉', label: 'Guests' },
   { href: '/crm/housekeeping', icon: '✦', label: 'Housekeeping' },
   { href: '/crm/restaurant', icon: '🍽', label: 'Restaurant' },
-  { href: '/crm/billing', icon: '৳', label: 'Billing' },
+  // Billing tab REMOVED (owner decision 2026-07-31): redundant — payments are recorded
+  // from Dashboard/Rooms/Reservations modals, reports cover the numbers. Route
+  // /crm/billing now redirects to /crm (bookmarks safe).
   { href: '/crm/reports', icon: '▤', label: 'Reports' },
   { href: '/crm/settings', icon: '⚙', label: 'Settings' },
 ];
