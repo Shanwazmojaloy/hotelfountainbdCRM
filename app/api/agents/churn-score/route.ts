@@ -22,7 +22,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MODEL = 'claude-sonnet-4-6';
+const MODEL = 'claude-sonnet-5';
 const MAX_PARTNERS = 25;
 const CONCURRENCY = 5;
 // Sequential processing of up to MAX_PARTNERS partners (each up to a 25s AI

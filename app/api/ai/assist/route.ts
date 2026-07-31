@@ -208,7 +208,7 @@ export async function POST(req: Request) {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -225,7 +225,7 @@ export async function POST(req: Request) {
         tenant_id:     tenant_id_for_audit,
         request_id:    requestId,
         role:          'system',
-        payload_summary: { model: 'claude-sonnet-4-6', scope, user_request_len: user_request.length },
+        payload_summary: { model: 'claude-sonnet-5', scope, user_request_len: user_request.length },
         error:         txt.slice(0, 500),
       });
       return NextResponse.json({ error: 'anthropic_error', detail: txt }, { status: 502 });
@@ -244,7 +244,7 @@ export async function POST(req: Request) {
       request_id:    requestId,
       role:          'system',
       payload_summary: {
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         scope,
         user_request_len: user_request.length,
         answer_len: answer.length,
@@ -258,7 +258,7 @@ export async function POST(req: Request) {
       meta: {
         lighthouse_date: lighthouse?.snapshot_date ?? null,
         local_keys: Object.keys(local),
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
       },
     });
   } catch (e) {

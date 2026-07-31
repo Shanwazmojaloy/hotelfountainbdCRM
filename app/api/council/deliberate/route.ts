@@ -180,7 +180,7 @@ async function callClaude(args: {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-opus-5',
       max_tokens: args.max_tokens ?? 1024,
       system: args.system,
       messages: [{ role: 'user', content: args.user }],
@@ -293,7 +293,7 @@ export async function POST(req: Request) {
           tokens_out: result.tokens_out,
           cost_bdt:  result.cost_bdt,
           latency_ms: result.latency_ms,
-          model: 'claude-sonnet-4-6',
+          model: 'claude-opus-5',
         });
         return { role, label: panel.label, ...result };
       }),
@@ -319,7 +319,7 @@ export async function POST(req: Request) {
       tokens_out: chairmanResult.tokens_out,
       cost_bdt: chairmanResult.cost_bdt,
       latency_ms: chairmanResult.latency_ms,
-      model: 'claude-sonnet-4-6',
+      model: 'claude-opus-5',
     });
 
     // 5. Finalize session totals
@@ -380,7 +380,7 @@ export async function POST(req: Request) {
       meta: {
         scope_mode,
         lighthouse_date: ctx.lighthouse?.snapshot_date ?? null,
-        model: 'claude-sonnet-4-6',
+        model: 'claude-opus-5',
       },
     });
   } catch (e) {
