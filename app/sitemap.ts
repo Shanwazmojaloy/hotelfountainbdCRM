@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
     { url: `${BASE}/rooms`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/airport-hotel-dhaka`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE}/bn/airport-hotel-dhaka`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/transit-hotel-dhaka`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/hotel-near-bashundhara`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/guides/dhaka-layover`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },

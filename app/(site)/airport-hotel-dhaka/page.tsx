@@ -23,7 +23,14 @@ export const metadata: Metadata = {
   title: "Hotel Near Dhaka Airport (DAC) — Hotel Fountain, Nikunja",
   description:
     "Boutique hotel 8 minutes from Hazrat Shahjalal International Airport. 24/7 front desk for late arrivals, airport pickup, rooms from ৳4,000/night. Book direct.",
-  alternates: { canonical: "https://fountainbd.com/airport-hotel-dhaka" },
+  alternates: {
+    canonical: "https://fountainbd.com/airport-hotel-dhaka",
+    languages: {
+      en: "https://fountainbd.com/airport-hotel-dhaka",
+      bn: "https://fountainbd.com/bn/airport-hotel-dhaka",
+      "x-default": "https://fountainbd.com/airport-hotel-dhaka",
+    },
+  },
   openGraph: {
     title: "Hotel Near Dhaka Airport — 8 Minutes from DAC | Hotel Fountain",
     description:
