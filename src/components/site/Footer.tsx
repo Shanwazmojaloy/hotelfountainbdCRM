@@ -66,6 +66,9 @@ export default function Footer() {
             <Link href="/faq" className="w-fit text-sm text-white/60 transition hover:text-neon-teal">
               FAQ
             </Link>
+            <Link href="/airport-hotel-dhaka" className="w-fit text-sm text-white/60 transition hover:text-neon-teal">
+              Near Dhaka Airport
+            </Link>
             <Link href="/contact#terms" className="w-fit text-sm text-white/60 transition hover:text-neon-teal">
               Terms &amp; Conditions
             </Link>

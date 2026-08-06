@@ -7,9 +7,9 @@ import JsonLd from "@/components/site/JsonLd";
 import { ROOMS } from "@/lib/rooms";
 
 export const metadata: Metadata = {
-  title: "Rooms & Suites — Hotel Fountain",
+  title: "Hotel Rooms in Dhaka from ৳4,000 — Hotel Fountain",
   description:
-    "Browse Hotel Fountain's curated collection — Fountain Deluxe, Premium Deluxe, Superior Deluxe, Twin Deluxe and the Royal Suite, from ৳4,000/night.",
+    "Five room categories near Dhaka airport in Nikunja-02 — Fountain Deluxe, Premium Deluxe, Superior Deluxe, Twin Deluxe and the Royal Suite, from ৳4,000/night.",
   alternates: { canonical: "https://fountainbd.com/rooms" },
   openGraph: {
     title: "Rooms & Suites | Hotel Fountain, Dhaka",

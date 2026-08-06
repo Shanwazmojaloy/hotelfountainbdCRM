@@ -15,7 +15,7 @@ import FadeIn from "@/components/site/FadeIn";
 import Parallax from "@/components/site/Parallax";
 
 export const metadata: Metadata = {
-  title: "Hotel Fountain — Dhaka's Finest Luxury Hotel",
+  title: "Hotel Fountain — Boutique Hotel Near Dhaka Airport",
   description:
     "Boutique comfort 8 minutes from Hazrat Shahjalal International Airport. Rooftop restaurant, free breakfast and fibre Wi-Fi. Book direct from BDT 4,000/night at Hotel Fountain, Nikunja-02, Dhaka.",
   alternates: { canonical: "https://fountainbd.com/" },

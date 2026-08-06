@@ -19,7 +19,7 @@ const servicesBreadcrumb = {
 };
 
 export const metadata: Metadata = {
-  title: "Services & Amenities — Hotel Fountain",
+  title: "Hotel Amenities & Airport Transfer — Hotel Fountain Dhaka",
   description:
     "Rooftop restaurant, business center, complimentary airport transfer and fibre Wi-Fi — premium hospitality in Nikunja-02, minutes from Dhaka airport.",
   alternates: { canonical: "https://fountainbd.com/services" },
