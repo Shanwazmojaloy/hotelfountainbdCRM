@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import Layout from '@/components/Layout';
 import UiFonts from '../components/UiFonts';
 
@@ -22,6 +23,13 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
       <UiFonts />
       <style>{`html,body{background:#0B0A0F !important;}`}</style>
       <Layout>{children}</Layout>
+      {/* Speed Insights RE-SCOPED to /crm (owner decision 2026-08-06): safe here since the
+          static-shell CSP trade (ee5aad3) put /crm on the same 'unsafe-inline' policy as the
+          public site — the SI inline stub no longer trips CSP. Staff hard loads + route
+          changes are the desktop RES signal. Do NOT move this back to the ROOT layout: the
+          strict-CSP surfaces (/admin /lumea /settings /billing /invoice) would block the
+          stub again (see 4d10257). Client component — does not force dynamic rendering. */}
+      <SpeedInsights />
     </>
   );
 }

@@ -1,7 +1,14 @@
 name: E2E (Playwright)
 
-# Manual by default. Flip on `push`/`pull_request` ONCE the three repo secrets below are
-# set and E2E_BASE_URL points at a NON-PROD test deployment (never prod).
+# Manual by default. Flip on `push`/`pull_request` once E2E_EMAIL/E2E_PASSWORD secrets are set.
+#
+# TARGET (2026-08-06): the isolated `hotelfountainbdcrm-e2e` Vercel project + Supabase branch
+# were RETIRED. Tests now run against the LIVE hotelfountainbd-crm deployment on the dedicated
+# test tenant `lumeademo` (rooms D101–D105) via host-based tenant routing —
+# https://lumeademo.lumea.fountainbd.com. Isolation = tenant_id RLS; the suite seeds and
+# cascade-deletes its own reservations, and doubles as a tenant-isolation canary.
+# If a stale E2E_BASE_URL repo secret still points at the old e2e project, DELETE it —
+# the fallback below is the correct target.
 on:
   workflow_dispatch:
   # pull_request:
@@ -24,10 +31,10 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Run E2E
         env:
-          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}   # a NON-PROD test deploy URL
-          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}         # POS-capable account on the TEST tenant
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://lumeademo.lumea.fountainbd.com' }} # test tenant on the live deployment
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}         # POS-capable account on the lumeademo tenant (demo-owner)
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
-          E2E_TEST_ROOMS: ${{ vars.E2E_TEST_ROOMS }}  # repo VARIABLE (not secret): rooms that exist on the test tenant, e.g. T01,T02,T03,T04,T05
+          E2E_TEST_ROOMS: ${{ vars.E2E_TEST_ROOMS || 'D101,D102,D103,D104,D105' }} # rooms on the lumeademo tenant
           E2E_ALLOW_CLOSE_DAY: ${{ vars.E2E_ALLOW_CLOSE_DAY }} # set to 1 only on a reset-able tenant to run the destructive close-day smoke
         run: npx playwright test --reporter=list,html
       - uses: actions/upload-artifact@v4

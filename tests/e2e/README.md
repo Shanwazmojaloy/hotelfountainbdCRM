@@ -58,17 +58,21 @@ data. They book from `tests/e2e/fixtures.ts` → `TEST_ROOMS`; override with **`
 multi-room spec needs 3 free). Run against a **NON-PROD tenant only** — the destructive specs
 (checkout, void, close-day) must never touch production data.
 
-> ⚠️ As of 2026-07-21 there is **no dedicated non-prod test tenant**: prod (Fountain) has rooms
-> 301–510 and is *real data*; the demo tenant `156da579` has only `D101–D103` + 1 staff. Before
-> running, provision a proper test tenant — rooms + a POS-capable Owner/Supervisor account + a
-> URL that routes to it — and set `E2E_TEST_ROOMS` to its room numbers.
+> ✅ As of 2026-08-06 the dedicated test tenant is **`lumeademo`** (`156da579`): rooms
+> `D101–D105` + the activated `demo-owner@lumea.invalid` Owner account, reachable on the LIVE
+> deployment at `https://lumeademo.lumea.fountainbd.com` (host-based tenant routing; RLS
+> tenant_id isolation). The old isolated Vercel project (`hotelfountainbdcrm-e2e`) and its
+> Supabase preview branch were retired the same day. Fountain prod tenant (rooms 301–510) is
+> real data — never point E2E at it.
 
 ## CI (GitHub Actions)
 `.github/workflows/e2e.yml` runs the suite. It's **manual (`workflow_dispatch`) by default** —
-enable the commented `pull_request` trigger once you've set three repo secrets
+enable the commented `pull_request` trigger once you've set two repo secrets
 (Settings → Secrets and variables → Actions):
-- `E2E_BASE_URL` — a NON-PROD test deployment URL (Vercel preview or a dedicated test deploy).
-- `E2E_EMAIL` / `E2E_PASSWORD` — a POS-capable account on that test tenant.
+- `E2E_EMAIL` / `E2E_PASSWORD` — the POS-capable account on the `lumeademo` tenant.
+- `E2E_BASE_URL` is OPTIONAL — the workflow defaults to
+  `https://lumeademo.lumea.fountainbd.com`. Delete any stale secret pointing at the retired
+  `hotelfountainbdcrm-e2e` project.
 
 Plus repo **Variables** (Settings → Secrets and variables → Actions → Variables — not secrets):
 - `E2E_TEST_ROOMS` — rooms that exist + are free on the test tenant, e.g. `T01,T02,T03,T04,T05` (need ≥3 for the multi-room spec).
