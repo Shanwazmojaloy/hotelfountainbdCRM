@@ -14,12 +14,12 @@
     { "path": "/api/agents/follow-up-bot", "schedule": "0 4 * * *" },
     { "path": "/api/agents/daily-ops", "schedule": "0 5 * * *" },
     { "path": "/api/agents/fb-token-check", "schedule": "0 6 * * *" },
-    { "path": "/api/agents/lighthouse-tick", "schedule": "0 19 * * *" },
+    { "path": "/api/agents/lighthouse-tick", "schedule": "0 19 * * 1" },
     { "path": "/api/agents/audit-purge", "schedule": "30 0 * * *" },
     { "path": "/api/agents/churn-score", "schedule": "0 18 * * *" },
     { "path": "/api/agents/morning-briefing", "schedule": "0 7 * * *" },
     { "path": "/api/agents/weekly-summary", "schedule": "0 8 * * 1" },
-    { "path": "/api/agents/competitor-monitor", "schedule": "0 6 * * *" },
+    { "path": "/api/agents/competitor-monitor", "schedule": "0 6 * * 1" },
     { "path": "/api/agents/backup-verification", "schedule": "0 23 * * 0" },
     { "path": "/api/channel/drain", "schedule": "45 22 * * *" }
   ]
