@@ -140,6 +140,14 @@ export default function AirportHotelPage() {
                 <Link href="/services" className="text-neon-teal transition hover:text-white">
                   all services and amenities
                 </Link>
+                . On a layover rather than an overnight? Day-use rooms are covered on the{" "}
+                <Link href="/transit-hotel-dhaka" className="text-neon-teal transition hover:text-white">
+                  transit hotel page
+                </Link>{" "}
+                and in our{" "}
+                <Link href="/guides/dhaka-layover" className="text-neon-teal transition hover:text-white">
+                  Dhaka layover guide
+                </Link>
                 .
               </p>
             </div>

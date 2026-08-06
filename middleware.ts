@@ -252,6 +252,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     const EDGE_PREFIXES = [
       '/api', '/crm', '/admin', '/billing', '/chat', '/invoice', '/lumea', '/settings',
       '/rooms', '/services', '/contact', '/faq', '/airport-hotel-dhaka',
+      '/transit-hotel-dhaka', '/hotel-near-bashundhara', '/guides',
       '/_next', '/_vercel', '/icons', '/images', '/logo', '/vendor', '/.well-known', '/cdn-cgi',
     ];
     const known =
