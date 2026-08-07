@@ -9,6 +9,7 @@ import WebVitalsReporter from "../components/WebVitalsReporter";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { SITE, CONTACT, AMENITIES, SOCIALS } from "@/lib/site";
+import type { Metadata } from "next";
 import Script from "next/script";
 
 // Hotel JSON-LD for the public marketing pages. `application/ld+json` is a data block,
@@ -69,9 +70,28 @@ const CHAT_WIDGET_SRC = "/widget.js?v=2";
 // GA, CookieHub consent, Service-Worker registration — were moved here from the shared root
 // layout; they run under the middleware's static 'unsafe-inline' CSP for public routes. The
 // authed /crm etc. surfaces keep the strict per-request nonce CSP.
+// SEO (2026-08-07): explicit robots directive for PUBLIC pages only. Google defaults to
+// index,follow but caps preview size — `max-image-preview:large` is what earns the big
+// photo thumbnail in Search/Discover (material for a hotel), `max-snippet:-1` allows full
+// snippets. Scoped to the (site) group ON PURPOSE: /crm /admin /lumea /settings keep their
+// own `robots: { index:false }` and must NEVER inherit an index directive.
+export const metadata: Metadata = {
+  robots: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+};
+
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="site-root app-bg">
+      {/* Connection warm-up for the third-party origins this site ACTUALLY uses (verified
+          live 2026-08-07). Fonts are self-hosted via next/font — do NOT add preconnects for
+          fonts.googleapis.com / fonts.gstatic.com here: the public site never calls them, and
+          an unused preconnect just burns a connection. preconnect (full DNS+TCP+TLS) only for
+          the analytics origin that loads earliest; dns-prefetch for the deferred rest. */}
+      <link rel="preconnect" href="https://www.googletagmanager.com" />
+      <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+      <link rel="dns-prefetch" href="https://cdn.cookiehub.eu" />
+      <link rel="dns-prefetch" href="https://connect.facebook.net" />
+      <link rel="dns-prefetch" href="https://static.cloudflareinsights.com" />
       <script type="application/ld+json" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: JSON.stringify(hotelSchema) }} />
 
       {/* CookieHub consent banner. afterInteractive keeps consent-before-marketing semantics
