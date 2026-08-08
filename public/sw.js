@@ -46,7 +46,6 @@ function isStaticAsset(pathname) {
     || pathname.startsWith('/icons/')
     || pathname.startsWith('/images/')
     || pathname.startsWith('/logo')
-    || pathname === '/crm-bundle.js'
     || pathname === '/manifest.webmanifest'
     || STATIC_RE.test(pathname);
 }
@@ -62,7 +61,7 @@ self.addEventListener('fetch', (event) => {
   if (req.mode === 'navigate' || req.destination === 'document') {
     event.respondWith(
       fetch(req)
-        .catch(() => caches.match(req).then((m) => m || caches.match('/crm.html')))
+        .catch(() => caches.match(req).then((m) => m || caches.match('/crm')))
         .then((res) => res || swOfflinePage())
     );
     return;
@@ -102,16 +101,16 @@ self.addEventListener('push', (event) => {
     tag: 'lumea-booking',
     renotify: true,
     vibrate: [80, 40, 80],
-    data: { url: data.url || '/crm.html' },
+    data: { url: data.url || '/crm' },
   }));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || '/crm.html';
+  const target = (event.notification.data && event.notification.data.url) || '/crm';
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const c of all) { if (c.url.includes('/crm.html') && 'focus' in c) return c.focus(); }
+    for (const c of all) { if (c.url.includes('/crm') && 'focus' in c) return c.focus(); }
     if (self.clients.openWindow) return self.clients.openWindow(target);
   })());
 });

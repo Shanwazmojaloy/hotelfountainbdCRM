@@ -1,24 +1,12 @@
 /** @type {import('next').NextConfig} */
 import { withWorkflow } from 'workflow/next';
 
-const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/^https?:\/\//, '');
-
-const baseDirectives = (scriptSrc) => [
-  "default-src 'self'",
-  scriptSrc,
-  "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
-  "font-src 'self' data: fonts.gstatic.com",
-  "img-src 'self' data: blob: https:",
-  `connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST} https://api.brevo.com`,
-  "frame-src 'self' https://www.google.com",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-].join('; ');
-
-// /crm.html: every script is external same-origin now -> no inline/eval needed.
-const crmCsp = baseDirectives("script-src 'self'");
+// NOTE (2026-08-08): the legacy /crm.html SPA (crm-src.jsx + crm-bundle.js + crm-boot.js
+// + crm-config.js) was deleted — the Next.js /crm app is the only CRM now. The CSP helper
+// `baseDirectives` lived here solely to build that page's dedicated static CSP and went with
+// it; every surface now gets its CSP from middleware.ts. /crm.html 308-redirects to /crm
+// below so old bookmarks and already-installed PWAs keep working instead of hitting the
+// edge 404.
 
 // App (SSR) pages get a per-request nonce CSP from middleware.ts — NOT here.
 const securityHeaders = [
@@ -60,19 +48,18 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.supabase.co' },
     ],
   },
+  // Legacy CRM entry points → the Next CRM. `redirects()` runs BEFORE middleware, so these
+  // never reach the edge-404 allowlist and never need entries in EDGE_EXACT.
+  redirects: async () => [
+    { source: '/crm.html', destination: '/crm', permanent: true },
+    { source: '/crm-bundle.js', destination: '/crm', permanent: true },
+    { source: '/crm-boot.js', destination: '/crm', permanent: true },
+    { source: '/crm-config.js', destination: '/crm', permanent: true },
+    { source: '/crm-src.jsx', destination: '/crm', permanent: true },
+  ],
   headers: async () => [
     {
-      source: '/crm.html',
-      headers: [
-        { key: 'Content-Security-Policy', value: crmCsp },
-        ...securityHeaders,
-        { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
-        { key: 'Pragma', value: 'no-cache' },
-        { key: 'Expires', value: '0' },
-      ],
-    },
-    {
-      source: '/((?!crm.html).*)',
+      source: '/(.*)',
       headers: securityHeaders,
     },
   ],

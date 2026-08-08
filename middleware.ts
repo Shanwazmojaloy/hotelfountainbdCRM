@@ -243,9 +243,8 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   {
     const P = request.nextUrl.pathname;
     const EDGE_EXACT = new Set([
-      '/', '/index.html', '/landing', '/crm.html', '/manifest.webmanifest', '/sw.js',
-      '/robots.txt', '/sitemap.xml', '/widget.js', '/crm-boot.js', '/crm-bundle.js',
-      '/crm-config.js', '/crm-src.jsx', '/favicon.ico', '/__probe',
+      '/', '/index.html', '/landing', '/manifest.webmanifest', '/sw.js',
+      '/robots.txt', '/sitemap.xml', '/widget.js', '/favicon.ico', '/__probe',
       '/apqanhrpmfkq6pzdr6j35p7jptlot7.html', // Facebook domain verification
       '/vibe-prospect-report.html',
     ]);
@@ -285,8 +284,9 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   }
   const { pathname } = request.nextUrl;
   const requestId = crypto.randomUUID();
-  // /crm.html keeps its own static CSP from next.config.mjs (scripts all external).
-  const isCrmHtml = pathname === '/crm.html';
+  // (2026-08-08) The legacy /crm.html SPA was deleted; it used to opt out of the CSP set here
+  // because it carried its own static CSP from next.config.mjs. Every surface now gets a CSP
+  // from this middleware — no exemptions.
   // Authed/staff surfaces get the strict per-request nonce CSP (forces dynamic SSR — required so
   // Next can nonce its inline hydration scripts). Everything else = the PUBLIC marketing pages,
   // which get a static 'unsafe-inline' CSP so they can be statically rendered (low TTFB). The
@@ -305,10 +305,8 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-tenant-slug', slug);
   requestHeaders.set('x-request-id', requestId);
-  if (!isCrmHtml) {
-    if (isStrict) requestHeaders.set('x-nonce', nonce); // Next reads x-nonce + CSP to nonce its scripts
-    requestHeaders.set('content-security-policy', csp);
-  }
+  if (isStrict) requestHeaders.set('x-nonce', nonce); // Next reads x-nonce + CSP to nonce its scripts
+  requestHeaders.set('content-security-policy', csp);
   // Non-canonical host (or a non-product path on a Lumea host) → don't index this copy.
   const noindex = !isIndexable(hostname, pathname);
   if (LUMEA_MARKETING_HOSTS.has(hostname) && pathname === '/') {
@@ -319,14 +317,14 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     response.headers.set('x-lumea-marketing', '1');
     response.headers.set('x-request-id', requestId);
     if (noindex) response.headers.set('x-robots-tag', 'noindex, nofollow');
-    if (!isCrmHtml) response.headers.set('content-security-policy', csp);
+    response.headers.set('content-security-policy', csp);
     return response;
   }
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-tenant-slug', slug);
   response.headers.set('x-request-id', requestId);
   if (noindex) response.headers.set('x-robots-tag', 'noindex, nofollow');
-  if (!isCrmHtml) response.headers.set('content-security-policy', csp);
+  response.headers.set('content-security-policy', csp);
   return response;
 }
 

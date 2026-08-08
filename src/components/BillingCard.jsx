@@ -164,7 +164,8 @@ export default function BillingCard({
                 )}
 
                 <div className="flex gap-3 pt-2">
-                  <button className="iv-btn flex-1" onClick={() => { window.location.href = '/crm.html'; }}>Pay Now</button>
+                  {/* was '/crm.html' (legacy SPA, deleted 2026-08-08) — point at the live CRM billing page */}
+                  <button className="iv-btn flex-1" onClick={() => { window.location.href = '/crm/billing'; }}>Pay Now</button>
                   <button className="iv-btn iv-btn--ghost flex-1" onClick={() => window.print()}>Print</button>
                 </div>
 

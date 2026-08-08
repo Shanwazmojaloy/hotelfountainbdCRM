@@ -4,13 +4,12 @@
     "private": true,
     "scripts": {
         "dev": "next dev",
-        "build": "npm run build:crm && next build",
+        "build": "next build",
         "vercel-build": "next build",
         "start": "next start",
         "lint": "next lint",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
-        "build:crm": "babel public/crm-src.jsx --config-file ./babel.crm.json --out-file public/crm-bundle.js && terser public/crm-bundle.js --compress --mangle --output public/crm-bundle.js && node scripts/bump-cache.js",
         "import:leads": "node scripts/import-vibe-leads.js"
     },
     "dependencies": {

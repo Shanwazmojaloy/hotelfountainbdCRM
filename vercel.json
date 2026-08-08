@@ -4,7 +4,6 @@
   "outputDirectory": ".next",
   "regions": ["iad1"],
   "rewrites": [
-    { "source": "/crm.html", "destination": "/crm.html" },
     { "source": "/landing", "destination": "/index.html" }
   ],
   "crons": [
