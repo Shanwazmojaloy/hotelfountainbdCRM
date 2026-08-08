@@ -17,7 +17,6 @@
     { "path": "/api/agents/lighthouse-tick", "schedule": "0 19 * * 1" },
     { "path": "/api/agents/audit-purge", "schedule": "30 0 * * *" },
     { "path": "/api/agents/churn-score", "schedule": "0 18 * * *" },
-    { "path": "/api/agents/morning-briefing", "schedule": "0 7 * * *" },
     { "path": "/api/agents/weekly-summary", "schedule": "0 8 * * 1" },
     { "path": "/api/agents/competitor-monitor", "schedule": "0 6 * * 1" },
     { "path": "/api/agents/backup-verification", "schedule": "0 23 * * 0" },
