@@ -53,9 +53,68 @@ type ShadowFindings = {
   negativeDueCount: number;
   dues: DueRow[];
   duesTotal: number;
+  dueCount: number;
+  collected: number;
+  paySplit: Record<string, number>;
 };
 
 const bdt = (n: number) => TAKA + Math.round(n).toLocaleString("en-IN");
+
+// ---------------------------------------------------------------------------
+// PARITY BLOCK — these MUST stay byte-identical in meaning to the printed
+// Daily Performance Report (src/components/Reports.jsx). The owner reads the
+// email and the PDF side by side; any drift here is a reported money bug.
+//
+// Why the email used to disagree (fixed 2026-08-08): it trusted
+// night_audit_log.total_collections, which execute_nightly_audit() computes
+// with an EXCLUSION-ONLY filter (`type !~* 'balance carried forward'`). That
+// is the anti-pattern the house rules blacklist: it lets CHARGES count as
+// revenue. On 2026-08-07 five "Stay Extension (+1 night)" rows (৳21,500) were
+// booked as collections -> email ৳63,000 vs PDF ৳41,500, and the same ৳21,500
+// then inflated Closing Balance. The email now derives every figure from the
+// live ledger with the PDF's own rules, so the two agree by construction.
+// ---------------------------------------------------------------------------
+
+// POSITIVE payment match — mirrors Reports.jsx REAL_PAY + notBCF exactly.
+const REAL_PAY = /payment|settlement|advance|deposit|bkash|nagad|bank\s*transfer|cash|card/i;
+const isRealPayment = (type: string | null | undefined) => {
+  const t = type ?? "";
+  return REAL_PAY.test(t) && !/^\[VOID-DUP\]/.test(t) && !/balance carried forward/i.test(t);
+};
+
+// Payment-method buckets, derived from the composite `type` (there is no
+// payment_method column — selecting one 400s the query). First match wins;
+// order mirrors Reports.jsx PM.
+const PM: Array<[string, RegExp]> = [
+  ["Cash", /cash/i],
+  ["bKash", /bkash/i],
+  ["Nagad", /nagad/i],
+  ["Card", /card/i],
+  ["Bank", /bank|account|transfer/i],
+];
+export const PM_KEYS = ["Cash", "bKash", "Nagad", "Card", "Bank"];
+
+// A tx belongs to the fiscal day if fiscal_day matches, else fall back to its
+// created_at date — same coalesce Reports.jsx uses. A bare .eq('fiscal_day')
+// would silently drop any row written without one.
+const txDay = (t: { fiscal_day?: string | null; created_at?: string | null }) =>
+  String(t.fiscal_day || t.created_at || "").slice(0, 10);
+
+// Canonical due math (src/lib/dues.js). `raw` stays UNCLAMPED so the overpaid /
+// ghost-BCF integrity checks can still see negatives; `dueOf` is the clamped
+// figure the owner-facing totals use. discount_amount is the canonical column,
+// `discount` the legacy mirror.
+const rawDue = (r: { total_amount?: unknown; discount_amount?: unknown; discount?: unknown; paid_amount?: unknown }) =>
+  (Number(r.total_amount) || 0) - (Number(r.discount_amount) || Number(r.discount) || 0) - (Number(r.paid_amount) || 0);
+const dueOf = (r: Parameters<typeof rawDue>[0]) => Math.max(0, rawDue(r));
+// Outstanding Dues = RECEIVABLES ONLY (owner decision 2026-06-12): a future
+// RESERVED/PENDING booking that is part-prepaid is NOT outstanding until the
+// guest checks in. The old email counted the whole book (incl. future stays)
+// AND filtered by check_in <= auditDate -> ৳1,73,760/27 vs the PDF's ৳82,760/25.
+const isReceivable = (r: { status?: unknown }) => {
+  const s = String(r.status || "").toUpperCase();
+  return s === "CHECKED_IN" || s === "CHECKED_OUT";
+};
 
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
@@ -106,45 +165,60 @@ async function shadowAudit(input: ChainInput): Promise<ShadowFindings> {
   "use step";
   const sb = serviceClient();
 
-  // Day's transactions (bounded: one fiscal day, 24-room property).
-  const { data: txs, error: txErr } = await sb
+  // Day's transactions (bounded: one fiscal day, 24-room property). Fetched by
+  // fiscal_day OR created_at-within-the-day so rows written without a
+  // fiscal_day still land, then narrowed in JS by the same coalesce the PDF uses.
+  const nextDay = new Date(input.auditDate + "T00:00:00Z");
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+  const { data: txsRaw, error: txErr } = await sb
     .from("transactions")
-    .select("reservation_id, type, amount, room_number")
-    .eq("fiscal_day", input.auditDate)
-    .eq("tenant_id", input.tenantId);
+    .select("reservation_id, type, amount, room_number, fiscal_day, created_at")
+    .eq("tenant_id", input.tenantId)
+    .or(
+      "fiscal_day.eq." + input.auditDate +
+      ",and(created_at.gte." + input.auditDate + "T00:00:00Z,created_at.lt." + nextDay.toISOString().slice(0, 10) + "T00:00:00Z)",
+    );
   if (txErr) throw new Error("transactions read failed: " + txErr.message);
+  const txs = (txsRaw || []).filter((t) => txDay(t) === input.auditDate);
 
-  // Active-window reservations for due math + BCF cross-check.
+  // FULL live book (no check_in window) — the printed report's Outstanding Dues
+  // is the whole receivable ledger, not just guests who moved today.
   const { data: res, error: resErr } = await sb
     .from("reservations")
-    .select("id, room_ids, status, total_amount, discount, paid_amount, guest_name")
+    .select("id, room_ids, status, total_amount, discount, discount_amount, paid_amount, guest_name")
     .neq("status", "CANCELLED")
-    .lte("check_in", input.auditDate)
     .eq("tenant_id", input.tenantId);
   if (resErr) throw new Error("reservations read failed: " + resErr.message);
 
-  // Canonical due rule: max(0, total_amount - discount - paid_amount).
-  // paid_amount IS the source of truth (owner-confirmed 2026-06-02).
-  const dueOf = (r: NonNullable<typeof res>[number]) =>
-    (Number(r.total_amount) || 0) - (Number(r.discount) || 0) - (Number(r.paid_amount) || 0);
+  // --- Money figures, computed with the PRINTED REPORT's rules (see parity block).
+  const realPay = txs.filter((t) => isRealPayment(t.type));
+  const collected = realPay.reduce((a, t) => a + (Number(t.amount) || 0), 0);
+  const paySplit = realPay.reduce<Record<string, number>>((acc, t) => {
+    const hit = PM.find(([, re]) => re.test(t.type || ""));
+    const k = hit ? hit[0] : "Other";
+    acc[k] = (acc[k] || 0) + (Number(t.amount) || 0);
+    return acc;
+  }, {});
 
-  const orphans = (txs || []).filter((t) => !t.reservation_id);
+  // --- Integrity sweep (unchanged rules; now on the full book).
+  const orphans = txs.filter((t) => !t.reservation_id);
   const orphanTotal = orphans.reduce((a, t) => a + (Number(t.amount) || 0), 0);
 
   // Ghost-BCF: a Balance Carried Forward row whose room maps to a CHECKED_OUT
   // reservation with zero remaining due (the settled-and-closed double-count).
-  const ghostBcf = (txs || []).filter((t) => {
+  // Uses RAW (unclamped) due so an overpaid settled room still counts.
+  const ghostBcf = txs.filter((t) => {
     if (t.type !== "Balance Carried Forward") return false;
     const match = (res || []).find(
       (r) => Array.isArray(r.room_ids) && r.room_ids.some((id: unknown) => String(id) === String(t.room_number)),
     );
-    return !!match && match.status === "CHECKED_OUT" && dueOf(match) <= 0;
+    return !!match && match.status === "CHECKED_OUT" && rawDue(match) <= 0;
   });
 
-  const negatives = (res || []).filter((r) => dueOf(r) < 0);
+  const negatives = (res || []).filter((r) => rawDue(r) < 0);
 
   const dueRows: DueRow[] = (res || [])
-    .filter((r) => dueOf(r) > 0)
+    .filter((r) => isReceivable(r) && dueOf(r) > 0)
     .map((r) => ({
       guest_name: r.guest_name || "(no name)",
       room: Array.isArray(r.room_ids) && r.room_ids.length ? r.room_ids.join("+") : "?",
@@ -158,8 +232,13 @@ async function shadowAudit(input: ChainInput): Promise<ShadowFindings> {
     orphanTotal,
     ghostBcfCount: ghostBcf.length,
     negativeDueCount: negatives.length,
+    // `dues` is the DISPLAY slice; dueCount/duesTotal describe the FULL list —
+    // reporting dues.length as the count under-stated it past 30 reservations.
     dues: dueRows.slice(0, 30),
+    dueCount: dueRows.length,
     duesTotal: dueRows.reduce((a, d) => a + d.due, 0),
+    collected,
+    paySplit,
   };
 }
 
@@ -175,19 +254,42 @@ async function sendCloseSummary(input: ChainInput, snap: AuditRow, f: ShadowFind
 
   const row = (label: string, val: string) =>
     '<tr><td style="padding:6px 12px;color:#7A7268;">' + label + '</td><td style="padding:6px 12px;text-align:right;font-family:monospace;color:#2D2A26;"><b>' + val + "</b></td></tr>";
+  const totRow = (label: string, val: string) =>
+    '<tr><td style="padding:8px 12px;border-top:1px solid #EAE6DD;color:#2D2A26;"><b>' + label + '</b></td><td style="padding:8px 12px;border-top:1px solid #EAE6DD;text-align:right;font-family:monospace;color:#8B6914;"><b>' + val + "</b></td></tr>";
+  const card = (title: string, body: string) =>
+    '<table style="width:100%;border-collapse:collapse;background:#FCFBF8;border:1px solid #EAE6DD;border-radius:6px;margin-bottom:14px;">' +
+    '<tr><td colspan="2" style="padding:8px 12px;border-bottom:1px solid #EAE6DD;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8B6914;"><b>' + title + "</b></td></tr>" +
+    body + "</table>";
+
+  // Every figure below comes from the live ledger via shadowAudit(), NOT from
+  // night_audit_log.total_collections — that column is computed by an
+  // exclusion-only filter and counts charges as revenue (see parity block).
+  // Opening Token and Payouts ARE trusted from the snapshot: they are
+  // owner-entered cash-drawer values with no derivation to disagree about.
+  const tok = Number(snap.opening_token) || 0;
+  const payout = Number(snap.payouts) || 0;
+  // Closing Balance = Opening Token + Cash Collection - Payouts (owner spec
+  // 2026-06-24). "Cash Collection" here = the day's FULL collection across all
+  // payment methods, i.e. it equals Total Collection — no digital exclusion.
+  const closing = tok + f.collected - payout;
 
   const html =
     '<div style="font-family:system-ui,sans-serif;max-width:560px;margin:auto;color:#2D2A26;">' +
     '<h2 style="border-bottom:2px solid #C5A059;padding-bottom:8px;">Night Audit Closed - ' + input.auditDate + "</h2>" +
     '<p style="color:#7A7268;">Closed by ' + (snap.closed_by || input.closedBy) + " at " + (snap.closed_at || "n/a") + "</p>" +
-    '<table style="width:100%;border-collapse:collapse;background:#FCFBF8;border:1px solid #EAE6DD;border-radius:6px;">' +
-    row("Total Collections", bdt(Number(snap.total_collections) || 0)) +
-    row("Check-ins / Check-outs", (snap.total_checkins ?? "?") + " / " + (snap.total_checkouts ?? "?")) +
-    row("Opening Token", bdt(Number(snap.opening_token) || 0)) +
-    row("Payouts", bdt(Number(snap.payouts) || 0)) +
-    row("Closing Balance", bdt((Number(snap.opening_token) || 0) + (Number(snap.total_collections) || 0) - (Number(snap.payouts) || 0))) +
-    row("Outstanding Dues (live)", bdt(f.duesTotal) + " across " + f.dues.length + " reservation(s)") +
-    "</table>" +
+    card("Financial",
+      row("Total Collection", bdt(f.collected)) +
+      row("Opening Token", bdt(tok)) +
+      row("Cash Collected", bdt(f.collected)) +
+      row("Payouts", bdt(payout)) +
+      totRow("Closing Balance", bdt(closing))) +
+    card("Payment Method",
+      PM_KEYS.map((k) => row(k, bdt(f.paySplit[k] || 0))).join("") +
+      (f.paySplit.Other ? row("Other", bdt(f.paySplit.Other)) : "")) +
+    card("Operational",
+      row("Check-ins / Check-outs", (snap.total_checkins ?? "?") + " / " + (snap.total_checkouts ?? "?")) +
+      row("Outstanding Dues", f.dueCount + " resv.") +
+      totRow("Total Due Sum", bdt(f.duesTotal))) +
     (flags.length
       ? '<div style="margin-top:14px;padding:10px 14px;background:#FBF1DD;border:1px solid #D9A441;border-radius:6px;"><b>Integrity flags</b><ul>' +
         flags.map((x) => "<li>" + x + "</li>").join("") +
@@ -198,7 +300,7 @@ async function sendCloseSummary(input: ChainInput, snap: AuditRow, f: ShadowFind
 
   await sendMail({
     to: OWNER_EMAIL(),
-    subject: "Night Audit " + input.auditDate + " - " + bdt(Number(snap.total_collections) || 0) + " collected" + (flags.length ? " [" + flags.length + " FLAG(S)]" : ""),
+    subject: "Night Audit " + input.auditDate + " - " + bdt(f.collected) + " collected" + (flags.length ? " [" + flags.length + " FLAG(S)]" : ""),
     html,
   });
   return { sentTo: OWNER_EMAIL(), flagCount: flags.length };
@@ -235,7 +337,8 @@ async function followupDues(input: ChainInput) {
   const html =
     '<div style="font-family:system-ui,sans-serif;max-width:560px;margin:auto;color:#2D2A26;">' +
     '<h2 style="border-bottom:2px solid #D9A441;padding-bottom:8px;">Morning Dues Follow-up - after close of ' + input.auditDate + "</h2>" +
-    "<p>" + f.dues.length + " reservation(s) still carry a balance, total <b>" + bdt(f.duesTotal) + "</b>:</p>" +
+    "<p>" + f.dueCount + " reservation(s) still carry a balance, total <b>" + bdt(f.duesTotal) + "</b>" +
+    (f.dueCount > f.dues.length ? " (top " + f.dues.length + " shown)" : "") + ":</p>" +
     '<table style="width:100%;border-collapse:collapse;background:#FCFBF8;border:1px solid #EAE6DD;">' +
     '<tr><th style="text-align:left;padding:5px 10px;">Guest</th><th style="text-align:left;padding:5px 10px;">Room</th><th style="text-align:left;padding:5px 10px;">Status</th><th style="text-align:right;padding:5px 10px;">Due</th></tr>' +
     rows +
@@ -243,34 +346,32 @@ async function followupDues(input: ChainInput) {
 
   await sendMail({
     to: OWNER_EMAIL(),
-    subject: "Dues follow-up: " + bdt(f.duesTotal) + " outstanding (" + f.dues.length + " guests)",
+    subject: "Dues follow-up: " + bdt(f.duesTotal) + " outstanding (" + f.dueCount + " guests)",
     html,
   });
-  return { sent: true, count: f.dues.length, total: f.duesTotal };
+  return { sent: true, count: f.dueCount, total: f.duesTotal };
 }
 
 // Shared due computation for the morning step (plain helper, runs inside the
 // followupDues step - NOT a separate workflow step).
-async function shadowAuditInline(input: ChainInput): Promise<Pick<ShadowFindings, "dues" | "duesTotal">> {
+async function shadowAuditInline(input: ChainInput): Promise<Pick<ShadowFindings, "dues" | "duesTotal" | "dueCount">> {
   const sb = serviceClient();
+  // Same canonical rules as shadowAudit: full live book, receivables only.
   const { data: res, error } = await sb
     .from("reservations")
-    .select("id, room_ids, status, total_amount, discount, paid_amount, guest_name")
+    .select("id, room_ids, status, total_amount, discount, discount_amount, paid_amount, guest_name")
     .neq("status", "CANCELLED")
-    .lte("check_in", input.auditDate)
     .eq("tenant_id", input.tenantId);
   if (error) throw new Error("reservations read failed: " + error.message);
-  const dueOf = (r: NonNullable<typeof res>[number]) =>
-    (Number(r.total_amount) || 0) - (Number(r.discount) || 0) - (Number(r.paid_amount) || 0);
-  const dues: DueRow[] = (res || [])
-    .filter((r) => dueOf(r) > 0)
+  const all: DueRow[] = (res || [])
+    .filter((r) => isReceivable(r) && dueOf(r) > 0)
     .map((r) => ({
       guest_name: r.guest_name || "(no name)",
       room: Array.isArray(r.room_ids) && r.room_ids.length ? r.room_ids.join("+") : "?",
       due: dueOf(r),
       status: r.status,
     }))
-    .sort((a, b) => b.due - a.due)
-    .slice(0, 30);
-  return { dues, duesTotal: dues.reduce((a, d) => a + d.due, 0) };
+    .sort((a, b) => b.due - a.due);
+  // duesTotal/dueCount describe the FULL list; `dues` is the display slice.
+  return { dues: all.slice(0, 30), dueCount: all.length, duesTotal: all.reduce((a, d) => a + d.due, 0) };
 }
