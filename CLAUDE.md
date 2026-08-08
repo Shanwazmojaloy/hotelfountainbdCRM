@@ -11,14 +11,13 @@
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
 - After any bash `cat >>` append to a .tsx/.ts file, immediately verify with `tail -5` and `tsc --noEmit` — appends frequently corrupt files silently
-- After any Edit to `public/crm.html`, grep for `crm-bundle.js` AND `id="root"` AND `</html>` before `git add` — truncation regression check. (crm.html is now a thin LOADER; the React `createRoot` bootstrap lives in `crm-bundle.js`, NOT inline — do NOT grep for `ReactDOM.createRoot` here, it will false-flag.)
-- After EVERY Edit to `public/crm-src.jsx`: run `npm run build:crm` immediately. If Babel errors near line 5470+, tail is truncated — recover with Python splice anchored at `cur==='rooms'` line (see coding_conventions.md)
+- **LEGACY SPA DELETED (2026-08-08, commit 95105a2).** `public/crm-src.jsx`, `crm-bundle.js`, `crm.html`, `crm-boot.js`, `crm-config.js` and `scripts/bump-cache.js` no longer exist. The Next.js `/crm` app (`app/crm/*` + `src/components/*`) is the ONLY CRM surface. `/crm.html` and the four legacy assets 308-redirect to `/crm` via `next.config.mjs` `redirects()`. The old crm.html-truncation, crm-src.jsx-rebuild and `build:crm` rules are RETIRED — do not reintroduce them, and do not "restore" those files.
 - All git commits MUST originate from Windows PowerShell, NOT from the bash sandbox (`.git/*.lock` files are owned by Windows UID and cannot be removed from sandbox)
 - `_isRealPayment` MUST use positive match: `/payment|settlement|advance|deposit|bkash|bank\s*transfer/i` — exclusion-only allows charges (Stay Extension, Room Service) to count as revenue
 - Billing PAID column TODAY filter: use `_isPaymentTx` positive match — NOT a blanket exclusion of BCF. Stay Extension is a CHARGE not a payment.
 - `unifiedGroups` in BillingPage: always match TX → reservation by `reservation_id` FIRST, room+name fallback second — prevents cross-guest misattribution when two reservations share a room number
 - Record Payment auto-updates `reservation.paid_amount` server-side: the live `RecordPaymentModal` → `POST /api/crm/payment` inserts the TX and atomically bumps `paid_amount` via the `bump_paid_amount(LEAST(net, paid+a))` RPC (H3, 2026-06-18 — race-safe, no manual `UPDATE` needed). The old "manually `UPDATE reservations SET paid_amount`" step applied only to the legacy `crm-src.jsx` +PAY path, which is no longer served.
-- `computeBill` rawTotal: `canonical>0 ? canonical : sub` — `total_amount` (canonical) ALREADY includes folio extras after an Add-Charge resync (`recalcResTotal`/`recalcResTotalServer` fold folios into `total_amount`), so do NOT add `+ extras` on top — that double-counts. The room-only portion is `canonical − extras` (see `src/lib/printDocs.js`). Matches live `computeBill` (crm-src.jsx ~L3332).
+- `computeBill` rawTotal: `canonical>0 ? canonical : sub` — `total_amount` (canonical) ALREADY includes folio extras after an Add-Charge resync (`recalcResTotal`/`recalcResTotalServer` fold folios into `total_amount`), so do NOT add `+ extras` on top — that double-counts. The room-only portion is `canonical − extras` (see `src/lib/printDocs.js`). Live `computeBill` now lives in `app/billing/page.jsx` (the old `crm-src.jsx ~L3332` pointer died with the SPA on 2026-08-08).
 - NEVER update `paid_amount` directly in reservations without also INSERTing a matching row in `transactions` (type='Room Payment (Cash)', fiscal_day=today, reservation_id). Skipping the TX row makes Billing & Invoices page blind to the payment.
 - `ReservationDetail.save()` now auto-creates TX when `paid_amount` increases: `payIncrease = paidNum - prevPaid; if (payIncrease>0) dbPost('transactions',{type:'Advance Payment', amount:payIncrease,...})`. PERMANENT — do not remove.
 - Billing `activeRes` seed uses `txFallbackName` for null-name reservations — looks up TX guest_name by `reservation_id` so billing rows never show `—` when reservation.guest_name is null.
@@ -29,7 +28,7 @@
 - **TWO-TABLE PAYMENT SYMMETRY**: `transactions` and `payment_transactions` are mirrors (same row IDs, same content, `notes` mirrors `type`). Writes should go to both; reads against either are equivalent; `_isRealPayment` matches both.
 - **SMART FISCAL_DAY REMOVED (2026-06-02)**: `RecordPayModal._smartFiscalDay` now always returns `businessDate||todayStr()` regardless of reservation status. Payments collected today appear in today's BIZ DAY total even for checked-out stays. User can still back-date in the modal's DATE field if reconciling an offline payment. Old behavior (defaulting to check_out date for CHECKED_OUT) explicitly removed per owner instruction.
 - **BILLING REPORT — A4 PORTRAIT SINGLE-PAGE (2026-06-03)**: Download Report uses `@page{size:A4 portrait;margin:5mm 7mm}`. Compressed to fit single A4 portrait on 2026-06-03 — body 8px, h1 14px, stat val 14px/700w, sec-hdr 10.5px/700w, table th 7.5px/700w, table td 8.5px, closing final 11.5px (৳ value 14px), pm pills 7px/600w. The "Collected" column was DROPPED from Collected Transactions (redundant after group-by-reservation fix made it == "Paid"); table is now 7 columns. Print stylesheet includes `text-rendering:geometricPrecision`, `font-feature-settings:'tnum' 1, 'lnum' 1`, darker `color:#15110D`. NEVER add back the "Collected" column or revert to landscape — past attempts caused multi-page sprawl. If a future overflow happens at 40+ guests, prefer dropping "Payment Method" column (consolidate into row tooltip).
-- **DOWNLOAD REPORT NUMBERS MUST MATCH WEB BILLING & INVOICES (2026-06-02)**: PDF "Bill Total" column = `computeBill(r).total` (NET, post-discount) in BOTH the Collected Transactions and Pending Dues sections — NEVER raw `res.total_amount` (gross). PDF Collected Transactions "Paid" column = SUM of today's tx amounts grouped by reservation_id (mirrors web's filter=TODAY behavior) — NEVER lifetime `bill.paid`. Pending Dues "Paid" stays as lifetime `bill.paid` because the user wants to see partial historical payments against the outstanding balance. Bug source: previously `bill_total: bill ? ((+res.total_amount||0) || bill.sub) : 0` showed gross; web showed net via `computeBill.total`. Fixed at lines ~3355 and ~3371 in `public/crm-src.jsx`.
+- **DOWNLOAD REPORT NUMBERS MUST MATCH WEB BILLING & INVOICES (2026-06-02)**: PDF "Bill Total" column = `computeBill(r).total` (NET, post-discount) in BOTH the Collected Transactions and Pending Dues sections — NEVER raw `res.total_amount` (gross). PDF Collected Transactions "Paid" column = SUM of today's tx amounts grouped by reservation_id (mirrors web's filter=TODAY behavior) — NEVER lifetime `bill.paid`. Pending Dues "Paid" stays as lifetime `bill.paid` because the user wants to see partial historical payments against the outstanding balance. Bug source: previously `bill_total: bill ? ((+res.total_amount||0) || bill.sub) : 0` showed gross; web showed net via `computeBill.total`. (Originally fixed in `public/crm-src.jsx`; that file was deleted 2026-08-08 — the RULE still stands, enforce it in `app/billing/page.jsx` + `src/lib/printDocs.js`.)
 - **PDF COLLECTED TRANSACTIONS — GROUP-BY-RESERVATION (2026-06-03)**: `enriched` must be built by grouping `realList` (today's txs) by `reservation_id` (or `guest_name|room_number` for orphans) and summing tx amounts into one PDF row per reservation. Without this, a reservation with multiple partial payments today (e.g. SADIA AHMED SUCHANA's ৳3,999 + ৳1) produces multiple rows — confusing for owners reading the report. Web BillingPage groups this way; PDF MUST match. Payment methods are aggregated as a unique-set comma-joined string (`Cash + bKash` when mixed). The previous per-tx `realList.map(tx => …)` pattern is anti-pattern and must not be reintroduced.
 - **BOOKING CONFIRMATION PRINT — WHATSAPP QR + FULL-PAGE FLEX LAYOUT (2026-06-03)**: `printConfirmation()` uses `@page{size:A4 portrait;margin:8mm 10mm}` and a `@media print` block that makes `.page` a `display:flex;flex-direction:column;min-height:calc(297mm - 16mm)` container, with `.ftr{margin-top:auto}` pushing the WhatsApp-QR-bearing footer to the bottom of the A4 page so the layout fills the sheet elegantly instead of bunching at the top. Footer uses `align-items:center` so the left contact text vertically aligns with the right QR. Key sizes (print): body 12px, h1 21px, logo 54×54, doc-title 18px, .box padding 12×14, table th/td 9×11 (font 9/11.5), .totals 290px width with bal 14px/700w, .terms margin-top 22px/font 9.5px, .ftr font 9.5px/border-top .8px. QR is 68×68 in print (img fetched at 160×160 source for 300+ DPI sharpness). Print trigger is image-load-aware: counts all `<img>` `load`/`error` events and only calls `window.print()` once all images settle (+120ms buffer), with a 2.5s hard cap. NEVER revert to fixed `setTimeout(()=>print(), 350)` — QR sometimes hadn't fetched yet. NEVER remove the `min-height` + `margin-top:auto` pattern — it's what keeps the layout from collapsing to the top half of the page. Same QR pattern + full-page rule applied to `printInvoice` previously.
 - After `git filter-repo`, run `git reflog expire --expire=now --all && git gc --prune=now` before pushing
@@ -104,7 +103,7 @@ npm run lint
 
 - **NTFS index.lock**: `.git/*.lock` owned by Windows UID — cannot be deleted from Linux sandbox. All commits MUST originate from Windows PowerShell, not bash sandbox.
 - **Staged deletions guard**: Before every `git commit`, run `git diff --cached --name-only` and verify no critical files (`.env.local`, `facebook_post.py`, `ADD_FACEBOOK_TOKEN.bat`, `ruflo.config.json`, batch scripts) are staged for deletion. Use `git restore --staged <file>` if caught.
-- **crm.html truncation check**: After any Edit to `public/crm.html`, grep for `crm-bundle.js` AND `id="root"` AND `</html>` before `git add`. Missing any = truncation regression. (crm.html is a thin LOADER — the React `createRoot` bootstrap lives in `crm-bundle.js`, not inline. The old `ReactDOM.createRoot` check is RETIRED: it false-flagged a valid loader on 2026-06-12.)
+- ~~crm.html truncation check~~ — **RETIRED 2026-08-08**: `public/crm.html` was deleted with the legacy SPA. The corresponding blocks in `scripts/guard-onedrive-truncation.sh` are inert (each is wrapped in `if [ -f "$F" ]`, so they self-skip). The F:-drive corruption risk itself is NOT retired — it still applies to every file you edit; verify with a host `Read` + NUL/UTF-8 check after any large edit.
 
 ## Lumea CRM — Active Key Architecture (updated 2026-07-02)
 
@@ -122,9 +121,8 @@ npm run lint
 
 ## Vercel Build Script Rule (added 2026-05-12)
 
-- `"vercel-build": "next build"` in `package.json` is **required**. Vercel detects this script and uses it instead of `"build"`.
-- The `"build"` script runs `npm run build:crm && next build` which requires `babel.crm.json` at the repo root. `babel.crm.json` is now COMMITTED (verified 2026-07-19 build audit), so the full local `build` works on a clean clone too. The `vercel-build` bypass is still preferred (faster: skips the Babel/Terser step and ships the pre-built, committed `crm-bundle.js`) but is no longer strictly required.
-- **Never remove `vercel-build`** from `package.json`. Without it, Vercel falls back to `"build"` → `build:crm` → missing `babel.crm.json` → build fails.
+- **SUPERSEDED 2026-08-08.** `"build"` is now plain `"next build"` — the `build:crm` step (Babel + Terser + bump-cache over the legacy SPA) was removed with `crm-src.jsx`. `"build"` and `"vercel-build"` are therefore identical, and the original hazard (Vercel falling back to `"build"` → `build:crm` → missing `babel.crm.json`) no longer exists.
+- `"vercel-build": "next build"` is still present and harmless; keeping it is fine, and removing it is now also safe. `babel.crm.json` and the `@babel/cli`/`terser` devDependencies are unused leftovers — safe to delete in a later cleanup.
 
 ## Next.js app/ vs src/app/ Precedence Rule (added 2026-05-12)
 
@@ -330,7 +328,7 @@ npx @claude-flow/cli@latest doctor --fix
 - Statuses always UPPERCASE (enforced at DB level)
 
 ### File Locations
-- CRM: Hotel Fountain BD CRM/public/crm.html
+- CRM: `app/crm/*` (routes) + `src/components/*` (UI). The old `public/crm.html` SPA was DELETED 2026-08-08 — see the LEGACY SPA DELETED rule at the top of this file.
 - Ruflo wrapper: Hotel Fountain BD CRM/ruflo-mcp.js
 
 ### Active DB Objects
@@ -429,7 +427,7 @@ const activeTx = todayTxs.filter(t => {
 
 **Affects:** Dashboard `todayRev`, BillingPage `todayRevenue` (already uses `activeLedgerTx`), any future analytics aggregations.
 
-### Build Pipeline (crm-src.jsx)
-- **Edit method:** Python string replacement ONLY — Edit tool truncates at Windows mount boundary.
-- **Rebuild:** Node at `/tmp/babel-tools` with `@babel/preset-react` + Terser → `crm-bundle.js`.
-- **Commit:** PowerShell only — sandbox bash creates unremovable lock files.
+### Build Pipeline — RETIRED 2026-08-08
+- The `crm-src.jsx` → Babel → Terser → `crm-bundle.js` pipeline is gone with the legacy SPA. `npm run build` is plain `next build`.
+- **Still true, applies to ALL files:** for very large files on the F: mount, prefer Python string replacement over the Edit tool (truncation risk at the Windows mount boundary), and verify after with a NUL/UTF-8/EOF check.
+- **Commit:** PowerShell only — sandbox bash creates unremovable `.git/*.lock` files.

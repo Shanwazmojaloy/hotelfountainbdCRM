@@ -20,12 +20,20 @@ If count < 9, spawn missing agents from `ruflo.config.json`. Expected agents:
 - `security` (dev_maintenance, pre-commit)
 - `coder` (dev_maintenance, manual)
 
-## 2. Verify crm-bundle.js mount call
+## 2. Verify the working tree is sane
 
-```bash
-tail -3 public/crm-src.jsx
-# Must end with: ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+The legacy `crm-src.jsx` / `crm-bundle.js` bundle check that lived here was RETIRED
+2026-08-08 — the SPA was deleted and the Next.js `/crm` app is the only CRM surface.
+There is no build artifact to hand-verify any more. Instead:
+
+```powershell
+git status --short          # nothing unexpected staged/deleted
+npm run typecheck           # tsc --noEmit
 ```
+
+The F:-mount corruption risk is NOT retired — it applies to every file you edit.
+After any large edit, verify with a host `Read` plus a NUL/UTF-8/EOF check
+(`scripts/guard-onedrive-truncation.sh` runs this on commit).
 
 ## 3. Check pending tasks
 
@@ -39,13 +47,22 @@ If git commands fail with "index file corrupt":
 GIT_INDEX_FILE=/tmp/x git read-tree HEAD && cp /tmp/x .git/index
 ```
 
-## 5. Commit + push any pending bundle files
+## 5. Commit + push anything left from the last session
 
-If `crm-src.jsx` or `crm-bundle.js` were edited in the last session but not pushed:
+All commits MUST run from Windows PowerShell — the sandbox cannot remove
+Windows-owned `.git/*.lock` files. Canonical repo path (the old OneDrive path is
+dead):
+
 ```powershell
-cd "C:\Users\ahmed\OneDrive\Desktop\New folder\claude\hotelfountainbd-vercel\Hotel Fountain BD CRM"
-git status
-git add public/crm-src.jsx public/crm-bundle.js public/crm.html
+cd "F:\Hotel Fountain\Hotel Fountain Web CRM"
+git status --short
+# Stage EXPLICIT paths, never `git add -A` — unrelated work-in-progress and
+# generated artifacts live in this tree.
+git add <paths>
 git commit -m "fix: [describe change]"
 git push origin main
 ```
+
+Before committing, confirm no critical file is staged for deletion:
+`git diff --cached --name-only` (guard: `.env.local`, `facebook_post.py`,
+`ADD_FACEBOOK_TOKEN.bat`, `ruflo.config.json`, batch scripts).
