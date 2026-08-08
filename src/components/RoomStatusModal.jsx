@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useAuth } from './AuthGate';
-import { isAdmin } from '@/lib/permissions';
+import { isAdmin, isOwnerAdmin } from '@/lib/permissions';
 import { CATEGORIES } from './RoomFormModal';
 
 // Safe, non-reservation statuses only (no OCCUPIED/RESERVED — those follow bookings).
@@ -19,11 +19,13 @@ const OPTIONS = [
 export default function RoomStatusModal({ room, onClose, onSaved }) {
   const { user } = useAuth();
   const admin = isAdmin(user?.role);
+  const owner = isOwnerAdmin(user?.role); // stricter than `admin` — owner/admin only, NOT manager
   const [status, setStatus] = useState(OPTIONS.some((o) => o.v === room.status) ? room.status : 'AVAILABLE');
   const [roomNumber, setRoomNumber] = useState(room.room_number || '');
   const [category, setCategory] = useState(room.category || 'Fountain Deluxe');
   const [price, setPrice] = useState(room.price ?? 0);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState('');
 
   const detailsChanged = admin && (
@@ -54,6 +56,24 @@ export default function RoomStatusModal({ room, onClose, onSaved }) {
     } catch (e) {
       setErr(e.message || String(e));
       setSaving(false);
+    }
+  }
+
+  async function deleteRoom() {
+    if (!window.confirm(`Delete Room ${room.room_number}? This can't be undone.`)) return;
+    setErr(''); setDeleting(true);
+    try {
+      const r = await fetch('/api/crm/room', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: room.id }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) throw new Error(j.error || 'Could not delete room.');
+      onSaved?.();
+      onClose?.();
+    } catch (e) {
+      setErr(e.message || String(e));
+      setDeleting(false);
     }
   }
 
@@ -105,9 +125,17 @@ export default function RoomStatusModal({ room, onClose, onSaved }) {
 
         {err && <div className="mb-3 text-sm" style={{ color: '#FF6B6B' }}>{err}</div>}
 
-        <div className="flex justify-end gap-3 iv-foot">
-          <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="iv-btn" onClick={save} disabled={saving || nothingToSave}>{saving ? 'Saving…' : (admin && detailsChanged ? 'Save Changes' : 'Update Status')}</button>
+        <div className="flex items-center justify-between gap-3 iv-foot">
+          {owner ? (
+            <button title="Delete this room permanently" onClick={deleteRoom} disabled={saving || deleting}
+              style={{ background: 'none', border: '1px solid rgba(255,107,107,.4)', borderRadius: 8, padding: '9px 14px', color: '#FF6B6B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              {deleting ? 'Deleting…' : 'Delete Room'}
+            </button>
+          ) : <span />}
+          <div className="flex gap-3">
+            <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving || deleting}>Cancel</button>
+            <button className="iv-btn" onClick={save} disabled={saving || deleting || nothingToSave}>{saving ? 'Saving…' : (admin && detailsChanged ? 'Save Changes' : 'Update Status')}</button>
+          </div>
         </div>
       </div>
     </div>
