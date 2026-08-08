@@ -9,13 +9,17 @@ import { getSupabaseClient } from '@/lib/supabase/client';
 const BASE = 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// `id` is matched against workflow_runs.workflow_name — it must be the name the edge
+// function actually WRITES, which is not always the function slug. The wf-* ids below
+// silently stopped resolving around 2026-07-19/20 when the functions switched to
+// canonical run names, leaving three cards permanently blank while the jobs ran fine.
+// Retired 2026-08-08: Morning Briefing (Vercel cron removed in 349763a) and
+// Monthly Report (pg_cron job hf-monthly-report unscheduled) — both schedules deleted.
 const WORKFLOWS = [
-  { id: 'wf-morning-briefing', label: 'Morning Briefing', slug: 'wf-morning-briefing', time: '7:00 AM daily', body: '{}' },
   { id: 'evening-revenue', label: 'Evening Revenue Report', slug: 'wf-evening-report', time: '9:00 PM daily', body: '{}' },
   { id: 'weekly-summary', label: 'Weekly Summary', slug: 'wf-period-reports', time: 'Mon 8:00 AM', body: '{"mode":"weekly"}' },
-  { id: 'monthly-report', label: 'Monthly Report', slug: 'wf-period-reports', time: '1st of month', body: '{"mode":"monthly"}' },
-  { id: 'wf-competitor-monitor', label: 'Competitor Monitor', slug: 'wf-competitor-monitor', time: '6:00 AM daily', body: '{}' },
-  { id: 'wf-backup-verify', label: 'Backup Verification', slug: 'wf-backup-verify', time: 'Sunday 11 PM', body: '{}' },
+  { id: 'competitor-monitor', label: 'Competitor Monitor', slug: 'wf-competitor-monitor', time: 'Mon 6:00 AM', body: '{}' },
+  { id: 'backup-verification', label: 'Backup Verification', slug: 'wf-backup-verify', time: 'Sunday 11 PM', body: '{}' },
 ];
 
 const fmtTime = (ts) => (ts ? new Date(ts).toLocaleString('en', { timeZone: 'Asia/Dhaka', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never');
@@ -29,8 +33,12 @@ export default function WorkflowMonitor() {
 
   async function load() {
     try {
+      // limit must stay well clear of the busiest workflow's run count: this is a flat
+      // "most recent N rows" fetch that we reduce to latest-per-workflow client-side, so a
+      // high-frequency job crowds infrequent ones out of the window and blanks their card.
+      // At 50, competitor-monitor alone held 14 slots and pushed monthly/weekly reports out.
       const { data } = await getSupabaseClient().from('workflow_runs')
-        .select('workflow_name, status, duration_ms, records_processed, ran_at').order('ran_at', { ascending: false }).limit(50);
+        .select('workflow_name, status, duration_ms, records_processed, ran_at').order('ran_at', { ascending: false }).limit(500);
       setRuns(data || []);
     } catch { /* table may be empty */ } finally { setLoading(false); }
   }
