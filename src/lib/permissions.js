@@ -32,9 +32,11 @@ export const isAdmin = (role) => ADMIN_WRITE_ROLES.includes(norm(role));
 // '/crm/billing' removed from all roles (owner decision 2026-07-31 — Billing tab retired;
 // the route itself now redirects to /crm).
 const ROLE_ROUTES = {
-  manager:               ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/housekeeping', '/crm/reports'],
-  front_desk_supervisor: ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/housekeeping', '/crm/reports'],
-  receptionist:          ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/housekeeping'],
+  // '/crm/referrals' added 2026-08-09 — front-desk sender for the referral queue. Guest PII
+  // (name + phone), so it stays off housekeeping/restaurant roles; the API re-checks the role.
+  manager:               ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/referrals', '/crm/housekeeping', '/crm/reports'],
+  front_desk_supervisor: ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/referrals', '/crm/housekeeping', '/crm/reports'],
+  receptionist:          ['/crm', '/crm/rooms', '/crm/reservations', '/crm/guests', '/crm/referrals', '/crm/housekeeping'],
   restaurant_supervisor: ['/crm/restaurant', '/crm/rooms'],
   restaurant_staff:      ['/crm/restaurant'],
   housekeeping:          ['/crm/housekeeping', '/crm/rooms'],
