@@ -23,6 +23,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from '@supabase/supabase-js';
+import { posPhase2 } from '@/flags';
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -56,4 +57,32 @@ export async function tenantFlags(tenantId: string = HOME_TENANT): Promise<Recor
 export async function tenantFlag(tenantId: string = HOME_TENANT, key: string): Promise<boolean> {
   const flags = await tenantFlags(tenantId);
   return flags[key] === true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POS Phase 2 — two-layer gate (2026-08-09)
+//
+// LAYER 1 (authoritative, fail-CLOSED): tenants.feature_flags.pos_phase2
+//   Decides WHO gets the feature. Unknown/missing/DB error = OFF.
+// LAYER 2 (org kill switch, fail-OPEN): Vercel flag `pos-phase2`
+//   Decides WHETHER ANYONE does. Flip Off in the Vercel dashboard to kill POS
+//   Phase 2 for every tenant instantly without a deploy or a DB write.
+//
+// Layer 1 runs FIRST and short-circuits: when a tenant is off (the normal case
+// in prod), the Vercel SDK is never called — no per-request cost, preserving
+// the reason tenants.feature_flags exists. The kill switch fails OPEN because
+// a Vercel outage must not disable a working money feature; Layer 1 still
+// guarantees nothing leaks to a tenant that was never enabled.
+//
+// INVARIANT: the Vercel `pos-phase2` flag must sit ON in production. Off means
+// "kill", not "default". If you see POS Phase 2 dark for an enabled tenant,
+// check the Vercel flag BEFORE debugging the database.
+// ─────────────────────────────────────────────────────────────────────────────
+export async function posPhase2Enabled(tenantId: string = HOME_TENANT): Promise<boolean> {
+  if (!(await tenantFlag(tenantId, 'pos_phase2'))) return false; // fail-closed, short-circuits
+  try {
+    return await posPhase2(); // fail-open: only an explicit `false` kills it
+  } catch {
+    return true;
+  }
 }
