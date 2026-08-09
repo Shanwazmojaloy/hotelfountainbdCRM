@@ -332,6 +332,6 @@ export const config = {
   matcher: [
     // .well-known/workflow/ excluded: Workflow SDK internal resume/queue endpoints
     // must not pass through the CSP/perimeter middleware or runs stall.
-    '/((?!_next/static|_next/image|favicon.ico|.well-known/workflow/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.well-known/workflow/|.well-known/vercel/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
