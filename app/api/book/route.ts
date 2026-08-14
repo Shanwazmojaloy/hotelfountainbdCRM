@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendCapiEvent, fbCookiesFrom } from '@/lib/capi';
 import { ROOMS } from '@/lib/rooms';
+import { notifyNewBooking } from '@/lib/notify-booking';
 
 // Server-side public booking endpoint.
 // Replaces the old client-side direct-Supabase insert that could fail silently
@@ -169,6 +170,25 @@ export async function POST(req: Request) {
           city: address || null, country: 'bd',
         },
       });
+    }
+
+    // ---- 4. notify the hotel: WhatsApp (Cloud API) + front-desk email. ----
+    //      Awaited, not fire-and-forget: a serverless function can be frozen the
+    //      moment the response is flushed, which silently drops in-flight sends.
+    //      Both legs are fail-soft inside notifyNewBooking, so a dead SMTP or an
+    //      expired Meta token can never fail a reservation that is already saved.
+    if (reservationId) {
+      const delivered = await notifyNewBooking({
+        reservationId,
+        name, email, phone, address,
+        roomType, checkIn, checkOut, guests,
+        valueBDT: predictedValueBDT(roomType, checkIn, checkOut),
+      });
+      if (!delivered.whatsapp || !delivered.email) {
+        console.error('[/api/book] booking saved but notification partially failed:', {
+          reservationId, ...delivered,
+        });
+      }
     }
 
     return NextResponse.json({ ok: true, reservationId });
