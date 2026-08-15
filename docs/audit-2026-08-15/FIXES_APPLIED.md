@@ -118,7 +118,15 @@ The payload no longer travels in the URL, so it can't be edited in the address b
 | Supabase security advisor | ✅ no ERROR lints; only the 5 intentional routing-function WARNs |
 | NUL bytes / md5 parity on every committed file | ✅ |
 
-**Not verified:** no build, no typecheck, no runtime test — the repo's `node_modules` is a pnpm store that does not resolve through the device bridge, and there is no CI. Run `npm run typecheck && npm test` Windows-side before pushing.
+**Not verified:** no build, no typecheck, no runtime test — the repo's `node_modules` is a pnpm store that does not resolve through the device bridge. Run `npm run typecheck && npm test` Windows-side before pushing.
+
+> **RETRACTED 2026-08-15 — "and there is no CI" was false.** `.github/workflows/ci.yml`
+> already ran guard + typecheck + test + lint + build on every push, and
+> `.github/workflows/e2e.yml` held a Playwright suite behind `workflow_dispatch`. The
+> claim came from judging the repo off an incompletely staged file set — the same
+> mistake that produced H-25. Two guards have since been *added* to the existing
+> workflow; it was never absent. Recommendations 5 below and the matching items in
+> CODE_REVIEW.md and ARCHITECTURE.md inherit the same error.
 
 ---
 
@@ -128,7 +136,7 @@ The payload no longer travels in the URL, so it can't be edited in the address b
 2. Set `WEBHOOK_SECRET` in Supabase Edge Function secrets. Until it is set, `booking-webhook` now returns **503** by design — that is the correct fail-closed state, but it does mean the endpoint is off until configured.
 3. Rotate `ADMIN_SECRET`. Every copy previously emailed is still valid.
 4. Remaining highs, in order: H-2 (`sync_paid_amount`), H-3/H-4 (`paid_amount` read-modify-write), H-6 (`checked_in_at`), H-16 (five indexes), H-1 (server-side capability gates).
-5. Add `.github/workflows/ci.yml` running `typecheck` + `test` + the conformance query from the reconciliation migration.
+5. ~~Add `.github/workflows/ci.yml`~~ — it already existed (see the retraction above). **Done instead:** two guards added to it, `check-edge-mail-invariants.mjs` and `check-edge-deploy-manifest.mjs`. Still genuinely missing: the ADR-P3 conformance query from the reconciliation migration as a CI step.
 
 ---
 
@@ -194,6 +202,13 @@ produces another false positive.
 
 Unchanged from the list above: H-2 (`sync_paid_amount`), H-3/H-4 (`paid_amount`
 read-modify-write), H-6 (`checked_in_at`), H-16 (five indexes), H-1 (server-side
-capability gates), and CI. The CI item matters more now than it did this
-morning: nothing in this repo mechanically enforces that a deployed edge
-function matches the committed one.
+capability gates).
+
+The "add CI" item is struck: CI existed all along and the audit was wrong to
+say otherwise. What was genuinely missing — a mechanical check that a deployed
+edge function matches the committed one — now exists as
+`supabase/functions/DEPLOYED.json` plus `scripts/check-edge-deploy-manifest.mjs`,
+wired into both the pre-commit hook and the existing workflow. It catches an
+edit that was never redeployed. It cannot catch a deploy that was never
+committed; nothing local can, which is why the manifest names the 23 deployed
+functions that have no source in this repo at all.

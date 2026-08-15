@@ -355,7 +355,7 @@ Whichever is chosen, **write the cron manifest into a reviewed file** rather tha
 4. [ ] **C-5** — generate `00000000000000_baseline.sql` from `pg_dump --schema-only`; retarget `20260515`; add the missing `tenant_users` / `tenants.owner_id`.
 5. [ ] **ADR-P4** — choose retire vs restore-behind-gates; record the cron manifest in a reviewed file.
 6. [ ] **ADR-P2** — design the unified `fn_guard_and_book` signature; migrate callers one at a time, starting with `booking-webhook`.
-7. [ ] Add `.github/workflows/ci.yml` — `typecheck` + `test` + `lint` + the ADR-P3 conformance query.
+7. [~] ~~Add `.github/workflows/ci.yml`~~ — **retracted: already present** and running `typecheck` + `test` + `lint` + build. Two edge guards added to it 2026-08-15. Outstanding: the ADR-P3 conformance query as a CI step.
 8. [ ] Update `MEMORY_LOG.md` / project docs with ADR-005's real state (crons **deleted**, not paused) and the `@eslint/eslintrc` fix.
 
 ---

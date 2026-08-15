@@ -717,4 +717,4 @@ Calibration matters — these were checked and are genuinely well-built.
 
 **Sprint 3 — resilience.** H-16 (five indexes, `CONCURRENTLY`), C-5 (baseline migration), H-12 (mailer migration + dead-man's-switch), C-8 (retire one channel writer), H-8 (LLM output validation).
 
-**Standing.** Add `.github/workflows/ci.yml` running `typecheck` + `test` + `lint` on every push — with H-5's bug currently *asserted as correct* in the only test file, the suite is worse than no suite until it is rebased on `src/`.
+**Standing.** ~~Add `.github/workflows/ci.yml` running `typecheck` + `test` + `lint` on every push~~ — **retracted 2026-08-15: it already existed and does exactly this.** The finding was produced from an incompletely staged file set, the same way H-25 was. The real point stands on its own: with H-5's bug *asserted as correct* in the only test file, a green CI run is worse than no suite until it is rebased on `src/`.
