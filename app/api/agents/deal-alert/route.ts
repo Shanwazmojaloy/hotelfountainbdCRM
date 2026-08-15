@@ -16,6 +16,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 import { assertCron } from '@/lib/workflow-trigger';
+import { sendMail } from '@/lib/mailer';
 const TENANT        = process.env.NEXT_PUBLIC_TENANT_ID    || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const SHAN_EMAIL    = process.env.ALERT_EMAIL              || 'shanwazahmed@fountainbd.com';
 const SHAN_NAME     = process.env.ALERT_NAME               || 'Hotel Owner';
@@ -245,24 +246,33 @@ export async function POST(req: Request) {
   // ── Send alert email to Shan ──────────────────────────────────────────────
   const subject = `🔥 Deal-Ready: ${payload.company_name} — Score ${payload.score}/10`;
 
-  const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'api-key': (process.env.BREVO_API_KEY || '').trim(),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      sender:      { name: SENDER_NAME,  email: SENDER_EMAIL },
-      to:          [{ email: SHAN_EMAIL, name: SHAN_NAME }],
-      replyTo:     { name: SENDER_NAME,  email: SENDER_EMAIL },
+  // Google Workspace SMTP, not Brevo. That account has been rejecting sends since
+  // ~2026-06-28 while returning 2xx on some paths, so this alert has been reaching
+  // nobody -- and deal-alert is how the owner learns a lead went deal-ready at all.
+  // Matches reply-digest and changeNotify. Audit 2026-08-15 H-12 (missed in the
+  // first pass, which only covered the Deno functions).
+  //
+  // sendMail THROWS on rejection, unlike the edge mailer which returns { ok }.
+  // emailOk must therefore come from the catch, not from a response flag -- and it
+  // still gates deal_mark_alert_sent below, so a failed send is never recorded as
+  // an alert delivered.
+  let emailOk = false;
+  let messageId: string | null = null;
+  try {
+    const info = await sendMail({
+      to:        `"${SHAN_NAME}" <${SHAN_EMAIL}>`,
+      fromName:  SENDER_NAME,
+      fromEmail: SENDER_EMAIL,
+      replyTo:   SENDER_EMAIL,
       subject,
-      htmlContent: buildAlertHtml(payload, confirmHref),
-      textContent: buildAlertText(payload),
-    }),
-  });
-
-  const emailOk  = brevoRes.ok;
-  const brevoOut = await brevoRes.json().catch(() => ({})) as Record<string, unknown>;
+      html:      buildAlertHtml(payload, confirmHref),
+      text:      buildAlertText(payload),
+    });
+    emailOk = true;
+    messageId = info?.messageId ?? null;
+  } catch (e) {
+    console.error('[deal-alert] alert send failed:', e instanceof Error ? e.message : String(e));
+  }
 
   // ── Mark alert sent via SECURITY DEFINER RPC ──────────────────────────────
   if (emailOk) {
@@ -312,7 +322,7 @@ export async function POST(req: Request) {
     company:    payload.company_name,
     score:      payload.score,
     alerted_to: SHAN_EMAIL,
-    messageId:  brevoOut.messageId ?? null,
+    messageId,
     timestamp:  new Date().toISOString(),
   });
 }

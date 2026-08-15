@@ -80,18 +80,20 @@ const KNOWN_VIOLATIONS = [
       'pattern on the Supabase side, where the variable is NOT set, is what has been failing ' +
       'outreach sends since July. Delete the fallback rather than relying on an env var staying set.',
   })),
-  ...['deal-alert', 'follow-up-bot', 'outreach-bot'].map((r) => ({
+  // deal-alert migrated to Google Workspace SMTP on 2026-08-15 and removed from this list.
+  ...['follow-up-bot', 'outreach-bot'].map((r) => ({
     file: `app/api/agents/${r}/route.ts`,
     rule: 'brevo-endpoint',
     why:
       'STILL ON THE DEAD BREVO ACCOUNT. The 2026-08-15 H-12 remediation moved the five Deno ' +
-      'report functions, reply-digest, fb-token-check and changeNotify onto Resend, and stopped ' +
-      'there. These three were missed, and the guard written to prevent exactly this only ' +
-      'scanned supabase/functions, so it did not catch them either. deal-alert emails the owner ' +
-      '(internal, safe to migrate). follow-up-bot and outreach-bot email real corporate leads, ' +
-      'so migrating them turns a silently failing campaign into a sending one - the same ' +
-      'decision that gates the outreach-bot edge function. Both are on daily Vercel crons ' +
-      '(04:00 and 03:00 UTC) that were re-enabled on 2026-08-15.',
+      'report functions, reply-digest, fb-token-check and changeNotify off Brevo, and stopped ' +
+      'there. Three Next.js routes were missed, and the guard written to prevent exactly this ' +
+      'only scanned supabase/functions, so it did not catch them either. deal-alert was ' +
+      'migrated to Google Workspace SMTP on 2026-08-15 because it emails only the owner. ' +
+      'These two email real corporate leads, so moving them to a working transport turns a ' +
+      'silently failing campaign into a sending one - the same decision that gates the ' +
+      'outreach-bot edge function. Both run on daily Vercel crons (04:00 and 03:00 UTC) that ' +
+      'were re-enabled on 2026-08-15.',
   })),
   {
     file: 'supabase/functions/outreach-bot/index.ts',
