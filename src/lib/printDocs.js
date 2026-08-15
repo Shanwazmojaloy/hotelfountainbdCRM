@@ -11,6 +11,36 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const fmt = (n) => '৳' + Number(n || 0).toLocaleString('en-BD');
 const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return String(d).slice(0, 10); } };
 const nightsCount = (ci, co) => { if (!ci || !co) return 0; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : 0; };
+// hotel_settings stores the standard times as 24h "HH:MM" under check_in / check_out.
+const hhmmTo12 = (hhmm) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm == null ? '' : hhmm).trim());
+  if (!m) return '';
+  const h = Number(m[1]);
+  if (h > 23 || Number(m[2]) > 59) return '';
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m[2]} ${suffix}`;
+};
+// Date + time for the check-in / check-out boxes. Owner's rule (2026-08-16): show the
+// ACTUAL movement time once one exists (checked_in_at / checked_out_at, stamped by the
+// trg_stamp_movement_times trigger) and fall back to the hotel's standard time from
+// hotel_settings for a stay that has not happened yet.
+// `dateVal` always supplies the DATE: check_in / check_out are BOOKED DATES and must
+// never be read for a time — that conflation is what 5fc1500 removed from the check route.
+const fmtDateTime = (dateVal, actualTs, stdHHMM) => {
+  const datePart = fmtDate(dateVal);
+  if (datePart === '—') return '—';
+  let timePart = '';
+  if (actualTs) {
+    try {
+      timePart = new Date(actualTs)
+        .toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: true })
+        .toUpperCase();
+    } catch { timePart = ''; }
+  }
+  if (!timePart) timePart = hhmmTo12(stdHHMM);
+  return timePart ? `${datePart} · ${timePart}` : datePart;
+};
 
 // Resolve full guest objects for a reservation from a guests lookup (guest_ids order preserved).
 const resolveGuests = (res, guests) => (res.guest_ids || []).map((id) => (guests || []).find((g) => String(g.id) === String(id))).filter(Boolean);
@@ -23,7 +53,8 @@ const guestDetailsHTML = (guestObjs) => {
     const addr = [g.address, g.city, g.country].filter(Boolean).join(', ') || '—';
     const idNum = g.id_number || g.id_card || '—';
     return `<div class="gd-card">
-      <div class="gd-name">${guestObjs.length > 1 ? (i + 1) + '. ' : ''}${esc(g.name || '—')}</div>
+      ${guestObjs.length > 1 ? `<div class="gd-role">${i === 0 ? 'Primary Guest' : i === 1 ? 'Secondary Guest' : 'Guest ' + (i + 1)}</div>` : ''}
+      <div class="gd-name">${esc(g.name || '—')}</div>
       <div class="gd-fields">
         <div><span class="gd-l">ID Type</span><span class="gd-v">${esc(g.id_type || '—')}</span></div>
         <div><span class="gd-l">ID Number</span><span class="gd-v">${esc(idNum)}</span></div>
@@ -39,6 +70,7 @@ const GD_CSS = `
   .gd-hdr{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:10px;font-weight:600}
   .gd-card{border:2px solid #D9CFB8;background:#FFFDF7;border-radius:3px;padding:14px 18px;margin-bottom:12px}
   .gd-card:last-child{margin-bottom:0}
+  .gd-role{font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:#9C7A3E;font-weight:600;margin-bottom:3px}
   .gd-name{font-size:14px;font-weight:600;color:#1F1B16;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #F2EEE4}
   .gd-fields{display:grid;grid-template-columns:1fr 1fr;gap:9px 24px}
   .gd-fields>div{display:flex;flex-direction:column;min-width:0}
@@ -49,13 +81,23 @@ const GD_CSS = `
     .gd-sec{margin-bottom:12px}
     .gd-hdr{margin-bottom:6px}
     .gd-card{padding:8px 14px;margin-bottom:7px}
+    .gd-role{font-size:8px;margin-bottom:2px}
     .gd-name{font-size:12px;margin-bottom:6px;padding-bottom:5px}
     .gd-fields{gap:4px 24px}
     .gd-l{font-size:8px}
     .gd-v{font-size:10.5px}
   }`;
 
-export function printConfirmation(res, rooms, guestName, guests) {
+// `settings` is the hotel_settings key/value map (vat_rate, service_charge, check_in,
+// check_out). Optional so existing callers keep working; the fallbacks below are the
+// values live in prod on 2026-08-16. Owner's rule: the voucher reads these LIVE rather
+// than hardcoding a rate, so changing it once in Settings updates every future document.
+export function printConfirmation(res, rooms, guestName, guests, settings) {
+  const st = settings || {};
+  const vatPct = String(st.vat_rate ?? '15').trim();
+  const svcPct = String(st.service_charge ?? '5').trim();
+  const stdIn = st.check_in || '11:00';
+  const stdOut = st.check_out || '12:00';
   const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
   // Resolve EVERY guest on the reservation (guest_ids→guests lookup, full objects). When no
   // lookup is available, fall back to name-only cards from the passed name/array or guest_name
@@ -99,8 +141,13 @@ export function printConfirmation(res, rooms, guestName, guests) {
   .meta{text-align:right;font-size:11px;color:#5A544A;line-height:1.7;font-variant-numeric:tabular-nums}
   .meta .conf{color:#9C7A3E;font-weight:500;font-size:12px}
   .doc-title{font-size:22px;font-weight:600;letter-spacing:.5px;margin-bottom:6px}
-  .doc-sub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:32px}
+  .doc-sub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8A8276}
+  /* Title and Confirmation No. share one baseline row, number hard right on the page. */
+  .title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:32px}
+  .title-left{min-width:0}
+  .conf-block{text-align:right;flex:none;padding-top:4px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
+  .grid.grid-3{grid-template-columns:1fr 1fr 1fr}
   .box{border:2px solid #D9CFB8;background:#FFFDF7;padding:18px 20px;border-radius:3px}
   .lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:6px}
   .val{font-size:15px;font-weight:500;color:#1F1B16}
@@ -134,7 +181,9 @@ export function printConfirmation(res, rooms, guestName, guests) {
     .doc-title{font-size:18px !important}
     .ftr{margin-top:auto !important;padding-top:14px !important;align-items:center !important}
     .ftr img{width:68px !important;height:68px !important}
-    .doc-sub{margin-bottom:14px !important}
+    .doc-sub{margin-bottom:0 !important}
+    .title-row{margin-bottom:14px !important}
+    .conf-block{padding-top:2px !important}
     .grid{gap:12px !important;margin-bottom:12px !important}
     .box{padding:9px 14px !important}
     .lbl{margin-bottom:3px !important}
@@ -159,18 +208,24 @@ export function printConfirmation(res, rooms, guestName, guests) {
       </div>
     </div>
     <div class="meta">
-      <div class="conf">${esc(confNo)}</div>
       <div>Issued ${esc(issued)} BST</div>
       <div style="margin-top:8px"><span class="stamp">${esc(res.status || 'Reserved')}</span></div>
     </div>
   </div>
-  <div class="doc-title">Booking Confirmation</div>
-  <div class="doc-sub">Reservation Voucher · Not a Tax Invoice</div>
+  <div class="title-row">
+    <div class="title-left">
+      <div class="doc-title">Booking Confirmation</div>
+      <div class="doc-sub">Reservation Voucher · Including VAT ${esc(vatPct)}% &amp; Service Charge ${esc(svcPct)}%</div>
+    </div>
+    <div class="conf-block">
+      <div class="lbl">Confirmation No.</div>
+      <div class="val mono">${esc(confNo)}</div>
+    </div>
+  </div>
   ${guestDetailsHTML(guestObjs)}
-  <div class="grid">
-    <div class="box"><div class="lbl">Confirmation No.</div><div class="val mono">${esc(confNo)}</div></div>
-    <div class="box"><div class="lbl">Check-In</div><div class="val mono">${esc(fmtDate(res.check_in))}</div></div>
-    <div class="box"><div class="lbl">Check-Out</div><div class="val mono">${esc(fmtDate(res.check_out))}</div></div>
+  <div class="grid grid-3">
+    <div class="box"><div class="lbl">Check-In</div><div class="val mono">${esc(fmtDateTime(res.check_in, res.checked_in_at, stdIn))}</div></div>
+    <div class="box"><div class="lbl">Check-Out</div><div class="val mono">${esc(fmtDateTime(res.check_out, res.checked_out_at, stdOut))}</div></div>
     <div class="box"><div class="lbl">Nights</div><div class="val mono">${nights || 0}</div></div>
   </div>
   <table>
@@ -187,7 +242,7 @@ export function printConfirmation(res, rooms, guestName, guests) {
   ${res.notes ? `<div class="notes">${esc(res.notes)}</div>` : ''}
   <div class="terms">
     <h4>Reservation Terms</h4>
-    Standard check-in 2:00 PM · check-out 12:00 PM. Early check-in / late check-out subject to availability. Balance due payable at check-in. Cancellation policy applies as per booking agreement. This document is a booking confirmation and does not constitute a VAT invoice; a tax invoice will be issued at check-out.
+    Standard check-in ${esc(hhmmTo12(stdIn) || '11:00 AM')} · check-out ${esc(hhmmTo12(stdOut) || '12:00 PM')}. Early check-in / late check-out subject to availability. Rates shown are inclusive of VAT ${esc(vatPct)}% and service charge ${esc(svcPct)}%. Balance due payable at check-in. Cancellation policy applies as per booking agreement. This document is a booking confirmation and does not constitute a VAT invoice; a tax invoice will be issued at check-out.
   </div>
   <div class="ftr" style="align-items:center">
     <div style="line-height:1.8">

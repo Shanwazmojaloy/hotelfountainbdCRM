@@ -43,6 +43,10 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
   const [showCharge, setShowCharge] = useState(false);
   const [showPay, setShowPay] = useState(false);
   const [detailGuestId, setDetailGuestId] = useState(null);
+  // hotel_settings key/value map, for the printed voucher. The confirmation reads
+  // vat_rate / service_charge / check_in / check_out LIVE rather than hardcoding them,
+  // so changing a rate in Settings updates every document printed afterwards.
+  const [hotelSettings, setHotelSettings] = useState(null);
 
   const gn = (guests || []).find((g) => String(g.id) === String((res.guest_ids || [])[0] || ''))?.name || res.guest_name || 'Unknown';
 
@@ -68,6 +72,20 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
       });
     return () => { cancelled = true; };
   }, [res?.id, reload]);
+
+  // Settings for the printed voucher. Non-fatal: printConfirmation falls back to the
+  // current live values (VAT 15 / service 5, check-in 11:00, check-out 12:00) if this
+  // never resolves, so Print always works.
+  useEffect(() => {
+    let cancelled = false;
+    getSupabaseClient().from('hotel_settings').select('key, value').eq('tenant_id', TENANT)
+      .then(({ data, error }) => {
+        if (error) { console.error('[ResEdit] settings fetch:', error); return; }
+        if (cancelled) return;
+        setHotelSettings(Object.fromEntries((data || []).map((r) => [r.key, r.value])));
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const resFolioExtras = chargeRows.reduce((a, f) => a + (+f.amount || 0), 0);
 
@@ -239,7 +257,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
             <button className="iv-btn iv-btn--ghost" onClick={() => setShowCharge(true)}>+ Add Charge</button>
             <button className="iv-btn iv-btn--ghost" onClick={() => setShowPay(true)}>Record Payment</button>
             <button className="iv-btn iv-btn--ghost" title="Print booking confirmation voucher"
-              onClick={() => printConfirmation({ ...res, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), total_amount: totalAmt, discount_amount: discountNum, paid_amount: paidNum, notes, status, guest_name: gn }, rooms, gn, guests)}>Print</button>
+              onClick={() => printConfirmation({ ...res, check_in: checkInDate, check_out: checkOut, room_ids: roomArr.filter(Boolean), total_amount: totalAmt, discount_amount: discountNum, paid_amount: paidNum, notes, status, guest_name: gn, checked_in_at: res.checked_in_at, checked_out_at: res.checked_out_at }, rooms, gn, guests, hotelSettings)}>Print</button>
           </div>
           <div className="flex gap-2">
             <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
