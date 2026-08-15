@@ -37,7 +37,8 @@ const hashOf = (p) => createHash('sha256').update(readFileSync(p, 'utf8').replac
 const stale = [];
 const missing = [];
 
-for (const [name, entry] of Object.entries(manifest.verified ?? {})) {
+const sections = { ...(manifest.verified ?? {}), ...(manifest.tracked ?? {}) };
+for (const [name, entry] of Object.entries(sections)) {
   const abs = join(root, entry.path);
   if (!existsSync(abs)) {
     missing.push({ name, path: entry.path });
@@ -74,6 +75,6 @@ if (stale.length || missing.length) process.exit(1);
 
 const orphans = manifest.deployed_without_source?.slugs?.length ?? 0;
 console.log(
-  `✓ edge deploy manifest matches for ${Object.keys(manifest.verified ?? {}).length} tracked files` +
+  `✓ edge deploy manifest matches for ${Object.keys(sections).length} tracked files` +
   (orphans ? ` (${orphans} deployed functions still have no source in this repo)` : '')
 );

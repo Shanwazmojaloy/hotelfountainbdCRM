@@ -29,6 +29,18 @@ jobs:
         # corrupt crm.html reach production before this was wired up.
         run: bash scripts/guard-onedrive-truncation.sh
 
+      - name: Guard — edge mail invariants
+        # H-12 ratchet. The report functions spent ~6 weeks posting to a dead Brevo
+        # account while logging 'success', so the CRM health dot stayed green over
+        # zero delivered mail. This fails if that pattern reappears in any form.
+        run: node scripts/check-edge-mail-invariants.mjs
+
+      - name: Guard — edge deploy manifest
+        # `git push` does NOT deploy Supabase edge functions. This fails when a
+        # function's source changes without supabase/functions/DEPLOYED.json being
+        # updated — i.e. when someone edits one and forgets to redeploy it.
+        run: node scripts/check-edge-deploy-manifest.mjs
+
       - name: Typecheck
         run: npm run typecheck
 

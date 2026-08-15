@@ -67,18 +67,172 @@
   ],
   "deployed_without_source": {
     "_note": [
-      "Live on project mynwfkgksqqwlqowlscj with NO source in this repo (checked 2026-08-15).",
-      "23 of the 34 deployed functions. Each is code running against production data that",
-      "cannot be reviewed, diffed or restored from here. Pull each one down with",
-      "`supabase functions download <slug>` and commit it, or delete it if it is dead."
+      "RESOLVED 2026-08-15: all 23 are now committed under \"tracked\" above.",
+      "Kept as a record of what the gap was, and of the fact that a repo can be missing",
+      "two thirds of the code running against its own production database without anything",
+      "in the toolchain noticing."
     ],
-    "slugs": [
-      "ai-agents", "b2b-agents", "brevo-bounce-webhook", "ceo-escalation-email",
-      "check-gemini-models", "content-approval-email", "import-guests", "lead-gen-swarm",
-      "lead-reply-alert", "outreach-bot", "plan-g-upsell", "process-checkout",
-      "send-booking-email", "send-email", "send-expo-push", "send-push", "send-whatsapp",
-      "seo-geo-agent", "sync-to-sheets", "vercel-deploy", "verify-device-token",
-      "weekly-retention", "wf-flash-nudge"
-    ]
-  }
+    "slugs": []
+  },
+  "tracked": {
+    "ai-agents": {
+      "path": "supabase/functions/ai-agents/index.ts",
+      "version": 38,
+      "sha256": "d86985f0183beda104a18d98194e5f74bcd6282d11e616084322538a6bfffaf0",
+      "pulled_at": "2026-08-15"
+    },
+    "b2b-agents": {
+      "path": "supabase/functions/b2b-agents/index.ts",
+      "version": 30,
+      "sha256": "4f0a5b2a983ee1a11de33c67e7374dcba78f6e1ec5953e9306d201424e464d8a",
+      "pulled_at": "2026-08-15"
+    },
+    "brevo-bounce-webhook": {
+      "path": "supabase/functions/brevo-bounce-webhook/index.ts",
+      "version": 4,
+      "sha256": "a893d912700d9dae9355babc8d41fa31525af25bb7b40fc829849044cf893007",
+      "pulled_at": "2026-08-15"
+    },
+    "ceo-escalation-email": {
+      "path": "supabase/functions/ceo-escalation-email/index.ts",
+      "version": 23,
+      "sha256": "38e1cec0bb4942bfc794d1fabf5aecb1b75bdcb317bb00f5429ae5c3441572db",
+      "pulled_at": "2026-08-15"
+    },
+    "check-gemini-models": {
+      "path": "supabase/functions/check-gemini-models/index.ts",
+      "version": 29,
+      "sha256": "060fa811532c7b6bdfe015ff45a4597e6f272b86c2ea74d234f37619c4351ab5",
+      "pulled_at": "2026-08-15"
+    },
+    "content-approval-email": {
+      "path": "supabase/functions/content-approval-email/index.ts",
+      "version": 19,
+      "sha256": "6764aff84000f8f998a2b62fa803376c0beab2dfe22d70d9efe734646cb79540",
+      "pulled_at": "2026-08-15"
+    },
+    "import-guests": {
+      "path": "supabase/functions/import-guests/index.ts",
+      "version": 37,
+      "sha256": "22edb86adc08f6f4f52afae67b86ce0a1698b7d21acdbfa257e5b984cf0d481f",
+      "pulled_at": "2026-08-15",
+      "repo_differs_from_deployed": true,
+      "redaction": "NT_TOKEN held a live Netlify personal access token in plaintext. Replaced with Deno.env.get('NETLIFY_TOKEN') plus a 503 guard. ROTATE the old token."
+    },
+    "lead-gen-swarm": {
+      "path": "supabase/functions/lead-gen-swarm/index.ts",
+      "version": 30,
+      "sha256": "550e9d1fba69988108190fd98b8d066dfe166fc7864e44175c2234c26aece6db",
+      "pulled_at": "2026-08-15",
+      "note": "Live source is a 410 tombstone (retired 2026-08-08). The real v29 implementation is not in Supabase."
+    },
+    "lead-reply-alert": {
+      "path": "supabase/functions/lead-reply-alert/index.ts",
+      "version": 7,
+      "sha256": "103f1e9cf8bb61c7113a73e7248825a2e6a87b8fbcfe62f0020f2d1524e4f0b9",
+      "pulled_at": "2026-08-15"
+    },
+    "outreach-bot": {
+      "path": "supabase/functions/outreach-bot/index.ts",
+      "version": 21,
+      "sha256": "a1d2d0b4dd84590ccb253cd42fdae0d61a0c2bca71f858513ea2fffcd0f58aa8",
+      "pulled_at": "2026-08-15",
+      "note": "Committed unmodified despite a confirmed gmail-sender bug - see KNOWN_VIOLATIONS in scripts/check-edge-mail-invariants.mjs."
+    },
+    "plan-g-upsell": {
+      "path": "supabase/functions/plan-g-upsell/index.ts",
+      "version": 29,
+      "sha256": "c6a2cd119085992a1f2c6e0825b04e237923fc1eb4c59bc70f2adefbdb680f85",
+      "pulled_at": "2026-08-15"
+    },
+    "process-checkout": {
+      "path": "supabase/functions/process-checkout/index.ts",
+      "version": 26,
+      "sha256": "1319ee8468fe0c0568d8b8977810a950ede6a91f85eb6b8423173513f6c1515d",
+      "pulled_at": "2026-08-15"
+    },
+    "send-booking-email": {
+      "path": "supabase/functions/send-booking-email/index.ts",
+      "version": 32,
+      "sha256": "1d05e9208af63940ba113619650a56d480bebadf378bec9f938aad65547cadaa",
+      "pulled_at": "2026-08-15"
+    },
+    "send-email": {
+      "path": "supabase/functions/send-email/index.ts",
+      "version": 32,
+      "sha256": "51f624a030e4adaa04a926a1057b93b14c5df6d26dcfcb92bce326be36c02d3e",
+      "pulled_at": "2026-08-15"
+    },
+    "send-expo-push": {
+      "path": "supabase/functions/send-expo-push/index.ts",
+      "version": 6,
+      "sha256": "e9723d3e533f2589cd7bc846dac43cabd8ef243b8b206d4ec4dc0f63f78bebc5",
+      "pulled_at": "2026-08-15"
+    },
+    "send-push": {
+      "path": "supabase/functions/send-push/index.ts",
+      "version": 9,
+      "sha256": "d0ee83366a9cc4311a8a5f9d04ed5e412bd7f2d6c688971c73293ce0b2bb847c",
+      "pulled_at": "2026-08-15",
+      "repo_differs_from_deployed": true,
+      "redaction": "VAPID_PRIVATE_KEY had the private key as a hardcoded fallback (public key too). Fallbacks removed; setVapidDetails is now conditional and the handler 503s when unset, instead of web-push throwing at boot. ROTATE the VAPID keypair."
+    },
+    "send-whatsapp": {
+      "path": "supabase/functions/send-whatsapp/index.ts",
+      "version": 10,
+      "sha256": "137169d79342e0f775d211755ce627ff7bbd4116cf693e678cff9c51744a236b",
+      "pulled_at": "2026-08-15"
+    },
+    "seo-geo-agent": {
+      "path": "supabase/functions/seo-geo-agent/index.ts",
+      "version": 29,
+      "sha256": "e8f2a3f63b8cf7eed6d2f445419f1c7b3c8c47290d5bb092ae3ce76f65a01df4",
+      "pulled_at": "2026-08-15"
+    },
+    "sync-to-sheets": {
+      "path": "supabase/functions/sync-to-sheets/index.ts",
+      "version": 36,
+      "sha256": "36e9b025ecf07714b330c2bf275c74e77ec6d27b47f717dd68e9e3d17d225516",
+      "pulled_at": "2026-08-15"
+    },
+    "vercel-deploy": {
+      "path": "supabase/functions/vercel-deploy/index.ts",
+      "version": 34,
+      "sha256": "f1a8596428f85b41de0183a0293ff052f48b004b6726e3677a1017660421577f",
+      "pulled_at": "2026-08-15",
+      "repo_differs_from_deployed": true,
+      "redaction": "VERCEL_TOKEN held a live Vercel API token in plaintext on a verify_jwt:false endpoint - anyone who could reach the URL could create and deploy projects under team_l1SAECyZJ9giIw4o2SGxjpqd. Replaced with Deno.env.get('VERCEL_TOKEN') plus a 503 guard. ROTATE the old token."
+    },
+    "verify-device-token": {
+      "path": "supabase/functions/verify-device-token/index.ts",
+      "version": 21,
+      "sha256": "aa39075d7f5f99f1f7881184ec69bd07287295fb0d395c1b808062e64bfa2122",
+      "pulled_at": "2026-08-15"
+    },
+    "weekly-retention": {
+      "path": "supabase/functions/weekly-retention/index.ts",
+      "version": 18,
+      "sha256": "4b0f2ca0a90924e06b237a528059d36cd3307f5e20d322b8ef764815783332ff",
+      "pulled_at": "2026-08-15"
+    },
+    "wf-flash-nudge": {
+      "path": "supabase/functions/wf-flash-nudge/index.ts",
+      "version": 1,
+      "sha256": "757897265b4e57fde6b1a977dcf813cef420c8c0619773ced40330349a0bd2b1",
+      "pulled_at": "2026-08-15"
+    }
+  },
+  "_tracked_provenance": [
+    "Pulled 2026-08-15 from the running source via the Supabase Management API, closing the",
+    "23-function gap this manifest previously only described. These entries are hash-guarded",
+    "exactly like \"verified\": editing one without redeploying fails the build.",
+    "",
+    "They are listed separately from \"verified\" because the provenance is weaker. \"verified\"",
+    "means the function was deployed from this repo and then invoked to confirm it works.",
+    "\"tracked\" means the source was read back out of production and committed. Three entries",
+    "carry repo_differs_from_deployed: their live source contained plaintext credentials that",
+    "must never enter git history, so the committed copy substitutes env lookups. For those",
+    "three the repo is deliberately NOT byte-identical to production until the tokens are",
+    "rotated, the env vars set, and the function redeployed."
+  ]
 }
