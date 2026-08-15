@@ -396,6 +396,72 @@ deploy: `workflow_runs` now records `total_rooms: 28, email_sent: true` where th
 caught the drift before the commit and `DEPLOYED.json` was updated to v40 with
 the new hash — the guard did exactly what it was built for.
 
+## D-16 · The Checkout button cannot succeed, and no invoice has been raised since May — HIGH
+
+`BillingCard.jsx` is the one component that actually wires up a billing hook:
+
+```jsx
+const checkout = useCheckout();                                  // :23
+const summary = await checkout.mutateAsync({ reservation_id });  // :34
+```
+
+`useCheckout` opens with:
+
+```ts
+const { data: { session }, error } = await supabase.auth.getSession();
+if (error || !session) throw new Error('No active session');
+```
+
+**Nothing in this repo ever creates a Supabase Auth session.** `signInWithPassword`,
+`signInWithOtp`, `setSession`, `signInAnonymously` — zero occurrences across
+`src/` and `app/`. Staff sign in through the custom `staff` / `session_v` / OTP
+scheme, which Supabase Auth knows nothing about. So `getSession()` always returns
+null and the Checkout button throws every time it is pressed.
+
+The edge function behind it is wired the same way — `process-checkout` calls
+`anonClient.auth.getUser(callerJwt)` and rejects without a real user — so even a
+fixed caller would need a different auth path.
+
+**What actually happens on checkout.** `app/api/crm/check/route.ts` sets
+`status = 'CHECKED_OUT'` with a plain update. It never touches `billing_invoices`.
+That path works, which is why checkouts are recorded normally:
+
+| month | checked out |
+| --- | --- |
+| 2026-04 | 200 |
+| 2026-05 | 269 |
+| 2026-06 | 286 |
+| 2026-07 | 270 |
+| 2026-08 (partial) | 91 |
+
+**And what does not happen.** `process_checkout()` — the function that raises the
+invoice, snapshots the folio and computes VAT/SC totals — is never called. The
+evidence is unambiguous:
+
+- `billing_invoices`: 814 rows, **every one created on 2026-05-02**, none since.
+  That is a one-day backfill, not organic activity.
+- `invoice_line_items`: **0 rows, ever.**
+- ~650 checkouts since 1 June have produced **no invoice at all**.
+
+`useCheckoutBalance` reads `billing_invoices` for the folio balance, so with no
+invoice row there is nothing for it to show either. The whole formal-invoice half
+of billing has been dormant since 2 May while checkouts carried on.
+
+**Not fixed — this one needs a decision, not a patch.** The code fix is small: add
+a `checkout` action to `/api/crm/billing` that calls the `process_checkout` DB
+function with the service role, gated by the staff session, the same shape as the
+other six actions. But two things make it more than a bug fix:
+
+1. `process_checkout(p_reservation_id uuid, p_checked_out_by uuid, …)` wants a
+   **uuid** for the operator. The staff session id is an integer. Something has to
+   give — a nullable operator, a uuid column on `staff`, or a mapping.
+2. Turning it on starts raising invoices on every checkout for the first time in
+   three and a half months. That is a business change, and the ~650 checkouts
+   already past are a separate backfill question with real financial meaning.
+
+Neither is mine to choose. Recorded with the evidence so the choice can be made
+quickly.
+
 ---
 
 ## Scope note
