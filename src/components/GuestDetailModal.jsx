@@ -10,9 +10,9 @@
 // known it fetches the row through the session-gated read route — guest PII is never read
 // with the public anon key (C3).
 import { useState, useEffect } from 'react';
+import { idDocHref, isPdfUrl } from '@/lib/idUpload';
 
 const zPad = { position: 'fixed', inset: 0, background: 'rgba(7,9,14,0.62)', zIndex: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 };
-const isPdf = (u) => /\.pdf($|\?)/i.test(String(u || ''));
 
 function Row({ label, value, mono }) {
   return (
@@ -89,15 +89,15 @@ export default function GuestDetailModal({ guest, guestId, onClose }) {
             <div className="mb-2">
               <label style={lbl}>ID Document</label>
               {!doc && <div style={{ fontSize: 12, color: 'var(--iv-ink3)' }}>No ID document uploaded for this guest.</div>}
-              {doc && isPdf(doc) && (
-                <a className="iv-btn iv-btn--ghost" href={doc} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, padding: '7px 12px', textDecoration: 'none', display: 'inline-block' }}>
+              {doc && isPdfUrl(doc) && (
+                <a className="iv-btn iv-btn--ghost" href={idDocHref(doc)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, padding: '7px 12px', textDecoration: 'none', display: 'inline-block' }}>
                   📄 Open ID document (PDF)
                 </a>
               )}
-              {doc && !isPdf(doc) && (
-                <a href={doc} target="_blank" rel="noopener noreferrer" title="Open full size" style={{ display: 'block' }}>
+              {doc && !isPdfUrl(doc) && (
+                <a href={idDocHref(doc)} target="_blank" rel="noopener noreferrer" title="Open full size" style={{ display: 'block' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={doc} alt="Guest ID document" style={{ width: '100%', borderRadius: 10, border: '1px solid var(--iv-border)', display: 'block' }} />
+                  <img src={idDocHref(doc)} alt="Guest ID document" style={{ width: '100%', borderRadius: 10, border: '1px solid var(--iv-border)', display: 'block' }} />
                 </a>
               )}
             </div>

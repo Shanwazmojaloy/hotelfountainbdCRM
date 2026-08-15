@@ -11,7 +11,9 @@
 //
 // PDFs cannot be canvas-compressed, so they pass through untouched under a hard size cap.
 // The upload itself goes through the session-gated /api/crm/guest-id route — the browser
-// never talks to storage directly.
+// never talks to storage directly, and since 2026-08-15 the bucket is PRIVATE: what gets
+// stored in guests.id_image_url is an object PATH, and viewing one means asking that same
+// route for a short-lived signed URL. idDocHref() below is the only thing that needs to know.
 
 export const ID_ACCEPT = '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,image/webp,application/pdf';
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB — what we accept BEFORE compression
@@ -34,8 +36,20 @@ export function typeOf(file) {
   return '';
 }
 
+// Works on both a stored path (<tenant>/<uuid>.pdf) and a legacy absolute URL.
 export function isPdfUrl(url) {
   return /\.pdf($|\?)/i.test(String(url || ''));
+}
+
+// Turn a stored guests.id_image_url into something an <img src> / <a href> can use.
+//   private path  -> /api/crm/guest-id?path=…  (route 307s to a 5-minute signed URL)
+//   legacy http…  -> returned as-is, so documents uploaded to the old public bucket keep
+//                    rendering until that guest's ID is re-uploaded.
+export function idDocHref(value) {
+  const v = String(value || '');
+  if (!v) return '';
+  if (/^https?:\/\//i.test(v)) return v;
+  return `/api/crm/guest-id?path=${encodeURIComponent(v)}`;
 }
 
 function loadImage(file) {
@@ -92,15 +106,23 @@ export async function compressIdFile(file) {
   return { blob, contentType, bytes: blob.size };
 }
 
-// Compress + upload. Resolves to the stored file's public URL.
-export async function uploadGuestId(file, { guestId, replaceUrl } = {}) {
+// Compress + upload. Resolves to the stored object PATH (not a URL — the bucket is private).
+// `replacing` is the guest's current id_image_url; a private path is deleted server-side once
+// the new object lands, a legacy public URL is simply dropped from the record.
+export async function uploadGuestId(file, { guestId, replacing } = {}) {
   const { blob, contentType } = await compressIdFile(file);
   const data = await blobToBase64(blob);
+  const prev = String(replacing || '');
   const r = await fetch('/api/crm/guest-id', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data, content_type: contentType, guest_id: guestId || null, replace_url: replaceUrl || null }),
+    body: JSON.stringify({
+      data,
+      content_type: contentType,
+      guest_id: guestId || null,
+      replace_path: /^https?:\/\//i.test(prev) ? null : (prev || null),
+    }),
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok || j.error || !j.url) throw new Error(j.error || 'Could not upload the ID document.');
-  return j.url;
+  if (!r.ok || j.error || !j.path) throw new Error(j.error || 'Could not upload the ID document.');
+  return j.path;
 }

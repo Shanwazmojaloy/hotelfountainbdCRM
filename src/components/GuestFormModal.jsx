@@ -12,7 +12,7 @@
 // render on the guest profile card.
 import { useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
-import { ID_ACCEPT, uploadGuestId, isPdfUrl } from '@/lib/idUpload';
+import { ID_ACCEPT, uploadGuestId, isPdfUrl, idDocHref } from '@/lib/idUpload';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const ID_TYPES = ['NID', 'Passport', 'Driving License', 'Birth Certificate', 'Other'];
@@ -38,8 +38,8 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
     if (!file) return;
     setErr(''); setUploading(true);
     try {
-      const url = await uploadGuestId(file, { guestId: guest?.id || null, replaceUrl: f.id_image_url || null });
-      setF((p) => ({ ...p, id_image_url: url }));
+      const path = await uploadGuestId(file, { guestId: guest?.id || null, replacing: f.id_image_url || null });
+      setF((p) => ({ ...p, id_image_url: path }));
     } catch (e2) {
       setErr(e2.message || String(e2));
     } finally {
@@ -138,7 +138,7 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
               </label>
               {f.id_image_url && (
                 <>
-                  <a href={f.id_image_url} target="_blank" rel="noopener noreferrer" className="iv-btn iv-btn--ghost" style={{ fontSize: 12, padding: '9px 12px', textDecoration: 'none' }}>View</a>
+                  <a href={idDocHref(f.id_image_url)} target="_blank" rel="noopener noreferrer" className="iv-btn iv-btn--ghost" style={{ fontSize: 12, padding: '9px 12px', textDecoration: 'none' }}>View</a>
                   <button type="button" title="Remove ID document" onClick={() => setF((p) => ({ ...p, id_image_url: '' }))}
                     style={{ color: '#FF6B6B', background: 'transparent', border: '1px solid rgba(255,107,107,0.25)', borderRadius: 8, padding: '0 10px', minHeight: 38 }}>✕</button>
                 </>
@@ -149,7 +149,7 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
             </div>
             {f.id_image_url && !isPdfUrl(f.id_image_url) && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={f.id_image_url} alt="Guest ID document" style={{ marginTop: 8, width: '100%', maxHeight: 160, objectFit: 'contain', borderRadius: 10, border: '1px solid var(--iv-border)', background: 'rgba(255,255,255,.04)' }} />
+              <img src={idDocHref(f.id_image_url)} alt="Guest ID document" style={{ marginTop: 8, width: '100%', maxHeight: 160, objectFit: 'contain', borderRadius: 10, border: '1px solid var(--iv-border)', background: 'rgba(255,255,255,.04)' }} />
             )}
           </div>
         </div>
