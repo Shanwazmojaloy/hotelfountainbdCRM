@@ -497,7 +497,7 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
                 {/* ── PRINT-ONLY: full day-closing detail report (same template as the live report) ── */}
         {renderPrint('CLOSED · ' + fmtTime(closeRow.closed_at))}
         <style>{PRINT_CSS}</style>
-        {detailResId && <ReservationDetailModal reservationId={detailResId} txs={txs} onClose={() => setDetailResId(null)} onSaved={fetchData} />}
+        {detailResId && <ReservationDetailModal reservationId={detailResId} txs={txs} onClose={() => setDetailResId(null)} onSaved={onClosed} />}
       </>
     );
   }
@@ -607,7 +607,7 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
             {/* ── PRINT-ONLY: one-page A4 day report (Download → window.print) ── */}
       {renderPrint(onOpenDay ? 'LIVE — OPEN DAY' : 'HISTORICAL')}
       <style>{PRINT_CSS}</style>
-      {detailResId && <ReservationDetailModal reservationId={detailResId} txs={txs} onClose={() => setDetailResId(null)} onSaved={fetchData} />}
+      {detailResId && <ReservationDetailModal reservationId={detailResId} txs={txs} onClose={() => setDetailResId(null)} onSaved={onClosed} />}
     </>
   );
 }
