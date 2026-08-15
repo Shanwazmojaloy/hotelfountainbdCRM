@@ -57,8 +57,12 @@ export const supabase = new Proxy({} as SupabaseClient, {
   },
 });
 
+// tenantScoped's insert takes `Record<string, unknown>` so it can spread the caller's
+// values and stamp tenant_id last. A plain interface has no index signature and is not
+// assignable to that, hence the widening here — it is a typing formality, not a cast away
+// from a real check: stamp() still applies tenant_id after these fields.
 export async function insertLead(lead: Lead) {
-  const { data, error } = await db().from("leads").insert([lead]).select().single();
+  const { data, error } = await db().from("leads").insert([{ ...lead } as Record<string, unknown>]).select().single();
   if (error) throw error;
   return data;
 }
@@ -70,7 +74,7 @@ export async function getLeadByEmail(email: string) {
 }
 
 export async function insertTransaction(transaction: Transaction) {
-  const { data, error } = await db().from("transactions").insert([transaction]).select().single();
+  const { data, error } = await db().from("transactions").insert([{ ...transaction } as Record<string, unknown>]).select().single();
   if (error) throw error;
   return data;
 }
