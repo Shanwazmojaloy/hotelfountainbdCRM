@@ -2,7 +2,7 @@
   "version": 2,
   "framework": "nextjs",
   "outputDirectory": ".next",
-  "ignoreCommand": "BASE=${VERCEL_GIT_PREVIOUS_SHA:-}; if [ -z \"$BASE\" ] || ! git cat-file -e \"$BASE^{commit}\" 2>/dev/null; then BASE=$(git rev-parse HEAD^ 2>/dev/null || true); fi; if [ -z \"$BASE\" ]; then exit 1; fi; git diff --quiet \"$BASE\" HEAD -- . \":(exclude)docs\" \":(exclude)*.md\"",
+  "ignoreCommand": "bash scripts/vercel-ignore.sh",
   "regions": [
     "iad1"
   ],
