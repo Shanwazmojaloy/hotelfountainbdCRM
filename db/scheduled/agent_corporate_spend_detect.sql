@@ -33,7 +33,10 @@ BEGIN
     'CORPORATE', 'GENERATED', false, NULL, NULL,
     'Call within 24h — offer corporate account',
     CURRENT_DATE + 1,
-    NULLIF(regexp_replace(COALESCE(substring(l.notes::text from '৳([0-9,]+)'), ''), ',', '', 'g'), '')::integer,
+    COALESCE(
+      NULLIF(regexp_replace(COALESCE(substring(l.notes::text from '৳([0-9,]+)'), ''), ',', '', 'g'), ''),
+      NULLIF(regexp_replace(COALESCE(substring(l.notes::text from 'spent ([0-9,]+)'), ''), ',', '', 'g'), '')
+    )::integer,
     l.tenant_id
   FROM leads l
   LEFT JOIN ceo_pipeline cp ON cp.lead_id = l.id

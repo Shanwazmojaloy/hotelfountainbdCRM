@@ -212,3 +212,34 @@ wired into both the pre-commit hook and the existing workflow. It catches an
 edit that was never redeployed. It cannot catch a deploy that was never
 committed; nothing local can, which is why the manifest names the 23 deployed
 functions that have no source in this repo at all.
+
+---
+
+## D-2 backfill · `ceo_pipeline.deal_value_bdt`
+
+The D-2 fix corrected the expression going forward; it did not touch rows the
+broken expression had already written. 10 of 238 `ceo_pipeline` rows still held
+`0` or `1` instead of a taka amount.
+
+All 10 were recomputed from the source lead's `notes`, using the same two-branch
+parse the function now uses. Every one resolved to a real amount — none fell
+through to NULL:
+
+| guest | value written |
+| --- | --- |
+| MONOJIR TANIA | ৳17,500 |
+| SANO FUMIYOSHI | ৳22,500 |
+| ARULNAYAGAN YASOTHAR ×2 | ৳52,000 |
+| V. DINESH KUMAR SIR ×2 | ৳18,000 |
+| TOMAS GUSTAVO VEGA PACHECO ×2 | ৳130,500 |
+| MD HAFIZUR RAHMAN ×2 | ৳27,000 |
+
+Post-check: `238` rows total, `0` still in `(0,1)`, `0` NULL, min `17,500`,
+max `6,380,000`. The `UPDATE` was guarded on `deal_value_bdt IN (0,1) AND
+parsed IS NOT NULL`, so no row outside those 10 was touched — `rows_updated`
+came back exactly `10`.
+
+The `×2` rows are not a backfill artefact. They are duplicate leads for the same
+guest, created by two cron jobs that both detect corporate spend on the same
+schedule. See **D-9** in `DB_AGENT_FINDINGS.md`; the duplication itself is still
+open and needs a decision on which job to drop.

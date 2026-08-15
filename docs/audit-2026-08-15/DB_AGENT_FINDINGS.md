@@ -133,8 +133,52 @@ properly; the others were not.
 ## D-8 · `agent_ota_monitor()` runs twice per cycle — LOW
 
 `lumea-ota-monitor` (jobid 31) and `lumea-ota-run` (jobid 40) have the same
-schedule `0 */4 * * *` and the identical command. It is the only exact duplicate
-among the 51 jobs. Drop one.
+schedule `0 */4 * * *` and the identical command. It is the only *textually*
+identical pair among the 51 jobs — see D-9 for a functional duplicate that does
+not look like one. Drop one.
+
+## D-9 · Two cron jobs detect the same corporate prospect — MEDIUM
+
+`lumea-corporate-detect` (jobid 30) and `lumea-corp-detect` (jobid 32) both run
+`0 */6 * * *`. They are not textually identical — jobid 30 is an inline
+`INSERT INTO leads`, jobid 32 calls `agent_corporate_spend_detect()` — but they
+select the same guests with the same predicate (`total_amount >= 15000`,
+`status = 'CHECKED_OUT'`, valid BD phone) and each inserts its own lead row.
+
+Each has a dedupe guard (`LEFT JOIN leads ... WHERE l.id IS NULL`), but the guard
+only sees rows committed before its own tick. Firing in the same minute, neither
+sees the other, so every newly-qualifying guest gets **two** `CORPORATE_DETECT`
+leads milliseconds apart. Only the phrasing differs:
+
+| writer | note written |
+| --- | --- |
+| jobid 32 → `agent_corporate_spend_detect()` | `High spend guest — ৳52000 on 2026-05-22 …` |
+| jobid 30 → inline SQL | `High spend: spent 52000 in one stay on 2026-05-22 …` |
+
+Observed: all 10 `CORPORATE_DETECT` leads are 4 duplicate pairs plus 2
+singletons from 2026-05-12 (before jobid 30 was scheduled). Confirmed same
+guest by identical `name` + `phone`, created 2–18 ms apart:
+
+- ARULNAYAGAN YASOTHAR · ৳52,000 · 2026-05-22
+- V. DINESH KUMAR SIR · ৳18,000 · 2026-06-21
+- TOMAS GUSTAVO VEGA PACHECO · ৳130,500 · 2026-07-18
+- MD HAFIZUR RAHMAN · ৳27,000 · 2026-08-05
+
+This also explains D-2's `0` vs `1` split exactly. `agent_corporate_spend_detect`
+is the **only** writer of `ceo_pipeline`, so it promotes both writers' leads and
+parses `notes` for the amount. The old boolean cast
+`(notes ~ '৳([0-9,]+)')::integer` returned `1` for jobid 32's own notes and `0`
+for jobid 30's ৳-less notes — the two populations, not two bugs.
+
+**Fixed (parse only):** `agent_corporate_spend_detect` now falls back to
+`substring(notes from 'spent ([0-9,]+)')`, so jobid 30's leads no longer promote
+with a NULL deal value.
+
+**Not fixed — needs a decision:** dropping one of the two jobs. Both are still
+scheduled, so the next guest to cross ৳15,000 will again produce two leads and
+two pipeline rows. Recommendation is to unschedule jobid 30 (the inline copy),
+since jobid 32 also writes `analyst_brief`, pushes to `ceo_pipeline`, alerts the
+CEO agent, and logs a run — the inline job does none of that.
 
 ---
 
@@ -144,4 +188,6 @@ among the 51 jobs. Drop one.
 every midnight. Not every function reachable from those was extracted — the
 snapshot covers what pg_cron invokes directly, not the full call graph.
 
-Nothing here was changed in the database. These are findings, not fixes.
+D-2 and D-7 have since been fixed in the database (commit `9be0d94`) and D-9's
+parse fallback in the commit that added this section. Everything else on this
+page is still a finding, not a fix.
