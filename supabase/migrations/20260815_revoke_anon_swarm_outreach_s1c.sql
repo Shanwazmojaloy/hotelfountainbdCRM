@@ -1,0 +1,51 @@
+-- Audit 2026-08-15, S-1c. Applied to prod 2026-08-15 via apply_migration
+-- (migration name: revoke_anon_swarm_leads_outreach_log_s1c). Third and last of
+-- the tables S-1 and S-1b missed. Companions:
+--   20260815_revoke_anon_billing_grants_s1.sql   (guest_ledger, billing_invoices)
+--   20260815_revoke_anon_leads_grants_s1b.sql    (leads, corporate_leads)
+--
+-- Both tables carry `tenant_isolation FOR ALL TO public USING (tenant_id =
+-- current_tenant_id())`, and current_tenant_id() resolves from the caller-supplied
+-- x-tenant-host header. The policy is therefore NOT a barrier to anon — only the
+-- absent GRANT is. anon and authenticated each held SELECT/INSERT/UPDATE/DELETE.
+--
+-- No code change was required, so unlike S-1 and S-1b there is no deploy-ordering
+-- risk here. (S-1's revoke landed ~90s ahead of its code; S-1b's landed 53 minutes
+-- ahead of its code because that deploy failed to build. Rule: deploy → confirm
+-- Ready → revoke. It simply does not bind when nothing uses anon.)
+--
+-- Consumers audited BEFORE applying — this verification is the whole job:
+--
+--   swarm_leads   The only writer was the lead-gen-swarm edge function, RETIRED
+--                 2026-08-08; it now returns 410 Gone with an archived-source
+--                 note. No live consumer.
+--
+--   outreach_log  All three Next writers (outreach-bot, follow-up-bot,
+--                 reply-intake) go through SECURITY DEFINER RPCs owned by
+--                 postgres — outreach_log_entry, outreach_get_pending_leads,
+--                 outreach_update_lead_status. anon cannot even EXECUTE them, and
+--                 SECURITY DEFINER means the caller's table grants are irrelevant
+--                 anyway. The outreach-bot Deno edge function connects with
+--                 SUPABASE_SERVICE_ROLE_KEY, not the anon key.
+--
+-- crm_tenant (the CRM API role) and service_role keep their grants untouched.
+--
+-- Verified after applying:
+--   anon, authenticated  -> no grants on either table
+--   crm_tenant           -> DELETE,INSERT,SELECT,UPDATE     (unchanged)
+--   service_role         -> full                            (unchanged)
+--   row counts           -> swarm_leads 55, outreach_log 297 (unchanged)
+--
+-- SCOPE WARNING: a full sweep of the public schema found 44 tables granting anon
+-- INSERT/UPDATE/DELETE, ~26 of which anon genuinely reaches by this same
+-- x-tenant-host route — including tenant_users (SELECT/UPDATE/DELETE),
+-- tenant_reservations, tenant_guests, tenant_rooms and the b2b_* money tables.
+-- These two were chosen because their absence of anon consumers is verified.
+-- The rest each need a consumer audit and MUST NOT be revoked blind: some are
+-- plausibly written by the browser (push_subscriptions) or the public site
+-- (event_inquiries). See project memory: anon_write_exposure_full_sweep_2026_08_15.
+-- The pattern to generalise is already in this schema — `tenants` uses
+-- tenant_no_client_insert/update/delete and `profiles` uses block_anon_*.
+
+REVOKE ALL ON TABLE public.swarm_leads  FROM anon, authenticated;
+REVOKE ALL ON TABLE public.outreach_log FROM anon, authenticated;
