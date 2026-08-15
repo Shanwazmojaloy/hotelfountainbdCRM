@@ -34,7 +34,7 @@ export async function billingGet(
 }
 
 export async function billingPost(
-  action: 'ensure_invoice' | 'charge' | 'payment' | 'void' | 'expand' | 'issue_invoice',
+  action: 'ensure_invoice' | 'charge' | 'payment' | 'void' | 'expand' | 'issue_invoice' | 'checkout',
   body: Record<string, unknown>,
   label: string,
 ) {

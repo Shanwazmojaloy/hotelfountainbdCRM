@@ -484,8 +484,44 @@ That is rewriting financial history, not filling a gap.
 **Recommendation: fix forward, do not backfill.** Make `process_checkout` the
 single checkout path behind a session-gated `checkout` action, leave the 650 past
 checkouts exactly as they are, and treat historical invoices as a separate
-reporting question if they are ever needed. Detail and sequencing in the response
-that accompanied this commit.
+reporting question if they are ever needed.
+
+### D-16 · PARTIALLY FIXED 2026-08-15 — step 1 only, by choice
+
+Shipped the caller fix and **deliberately left the old path in place**:
+
+- `/api/crm/billing` gains a `checkout` action — asserts the reservation is in
+  tenant, then calls `process_checkout(p_reservation_id, p_checked_out_by => null,
+  [p_actual_checkout])` with the service role. `p_checked_out_by` stays null:
+  it defaults to null already and only feeds attribution columns, and `staff.id`
+  is an integer with no uuid to give it.
+- `useCheckout` now calls that action. The dead `supabase.auth.getSession()` and
+  the direct edge-function POST are gone.
+- `app/api/crm/check/route.ts` is **untouched**. The existing checkout button still
+  flips status and still raises no invoice.
+
+So the two paths now coexist on purpose. `BillingCard`'s Checkout button is the
+one that raises a proper invoice; the old button is unchanged. Nothing about the
+front desk's current routine changes unless someone uses the folio screen.
+
+The cost of that choice is a failure mode worth naming: a reservation closed by
+the old button **cannot** then be checked out through the new one, because
+`process_checkout` raises unless the status is still `CHECKED_IN`. Rather than
+pass the Postgres message through, the route returns 409 with:
+
+> This reservation is not checked in, so it cannot be checked out here. If it
+> already shows as checked out, it was closed by the older checkout button, which
+> does not raise an invoice.
+
+**Still to decide** (step 2, unchanged): whether `process_checkout` becomes the
+only checkout path. Until it does, which invoices exist depends on which button
+staff happen to press — a coin-flip that shows up in the numbers later. Step 1 was
+chosen because it is reversible and changes nothing operationally; step 2 is the
+one that actually settles the question.
+
+**Still untested by me.** As with the rest of the billing refactor, there is no
+way to exercise this from here. It is the money path: run it against one real
+reservation before it becomes anybody's habit.
 
 ---
 

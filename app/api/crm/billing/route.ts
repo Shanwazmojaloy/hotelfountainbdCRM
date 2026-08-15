@@ -338,6 +338,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, inserted: Number(data ?? 0) });
     }
 
+    // ─── full checkout ─────────────────────────────────────────────────────
+    // Replaces the browser's direct call to the process-checkout edge function,
+    // which could never succeed: it authenticates with supabase.auth.getUser(),
+    // and nothing in this app ever creates a Supabase Auth session (staff sign in
+    // through the custom staff/session_v/OTP scheme). See D-16.
+    //
+    // process_checkout() does the whole thing in one transaction — locks the
+    // reservation, raises the invoice, posts room/SC/VAT charges, issues the
+    // invoice, sets status = 'CHECKED_OUT' and frees the rooms.
+    //
+    // NOTE: app/api/crm/check/route.ts still flips status directly, and that path
+    // is deliberately left in place for now. The two cannot both run on one
+    // reservation — process_checkout raises unless the status is still CHECKED_IN.
+    // That is why the 409 below spells the situation out rather than passing the
+    // raw Postgres message through: on a desk where both buttons exist, hitting
+    // the other one first is the most likely way this fails.
+    if (action === 'checkout') {
+      const guard = await assertReservation(db, body.reservation_id);
+      if (guard) return bad(guard);
+
+      const rpcParams: Record<string, unknown> = {
+        p_reservation_id: body.reservation_id,
+        // uuid DEFAULT NULL, used only for attribution (posted_by / voided_by /
+        // issued_by). staff.id is an integer and staff has no uuid column, so this
+        // stays null until someone decides the attribution is worth a column.
+        p_checked_out_by: null,
+      };
+      if (typeof body.actual_checkout === 'string' && body.actual_checkout) {
+        rpcParams.p_actual_checkout = body.actual_checkout;
+      }
+
+      const { data: result, error } = await raw.rpc('process_checkout', rpcParams);
+      if (error) {
+        const m = error.message ?? '';
+        if (m.includes('not found')) return bad('Reservation not found.', 404);
+        if (m.includes('must be CHECKED_IN')) {
+          return NextResponse.json({
+            error: 'This reservation is not checked in, so it cannot be checked out here. If it already shows as checked out, it was closed by the older checkout button, which does not raise an invoice.',
+            detail: m,
+          }, { status: 409 });
+        }
+        throw new Error(m);
+      }
+      return NextResponse.json({ ok: true, summary: result });
+    }
     // ─── snapshot the ledger and issue the invoice ─────────────────────────
     if (action === 'issue_invoice') {
       const invoiceId = body.invoice_id;
