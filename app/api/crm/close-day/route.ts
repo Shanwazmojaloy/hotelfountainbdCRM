@@ -42,12 +42,29 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { /* empty */ }
   const notes = typeof body.notes === 'string' ? body.notes.slice(0, 500) : null;
   // Manual cash-drawer inputs from the closing form (RPC doesn't compute these).
-  const opening_token = Math.max(0, Number(body.opening_token) || 0);
-  const payouts = Math.max(0, Number(body.payouts) || 0);
+  // ABSENT must not mean ZERO. A re-close of a past day (the route explicitly supports
+  // body.audit_date, and close-day-chain treats re-closes as intentional) does not resend
+  // these fields, and `Number(undefined) || 0` used to overwrite the stored values with 0 —
+  // silently destroying the Closing Balance the 20260625 migration exists to preserve.
+  // Audit 2026-08-15 M-1.
+  const drawer: Record<string, number> = {};
+  if (body.opening_token != null) drawer.opening_token = Math.max(0, Number(body.opening_token) || 0);
+  if (body.payouts != null) drawer.payouts = Math.max(0, Number(body.payouts) || 0);
 
   // ── resolve the OPEN business day (latest closed + 1), unless an explicit
   //    audit_date is passed (re-close of a past day) ──
-  const { data: closes } = await db.from('night_audit_log').select('audit_date, status');
+  const { data: closes, error: closesErr } = await db.from('night_audit_log').select('audit_date, status');
+  if (closesErr) {
+    // Never guess the business day. A failed read used to leave `closes` undefined, and
+    // openBusinessDay(undefined) falls back to TODAY rather than last-closed + 1 — so a
+    // backlogged close would silently target the wrong date. This is exactly how the
+    // 2026-07-04 missing-grant incident stayed invisible. Audit 2026-08-15 C-4.
+    console.error('[crm/close-day] night_audit_log read failed:', closesErr.message);
+    return NextResponse.json(
+      { error: 'Could not read the audit history — the day was NOT closed. Retry, or contact support if this persists.' },
+      { status: 503 },
+    );
+  }
   const openDay = openBusinessDay(closes, dhakaToday());
   const auditDate = (typeof body.audit_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.audit_date)) ? body.audit_date : openDay;
 
@@ -70,8 +87,29 @@ export async function POST(req: NextRequest) {
 
   // Persist the manual cash-drawer inputs so closed-day re-downloads reconstruct the exact
   // Closing Balance (Opening Token + Cash - Payouts). The RPC owns every computed column;
-  // this UPDATE only touches the two manual ones.
-  await db.from('night_audit_log').update({ opening_token, payouts }).eq('audit_date', auditDate);
+  // this UPDATE only touches the manual ones the caller actually supplied.
+  //
+  // The return value used to be discarded. crm_tenant held no UPDATE grant on this table
+  // (the nal_tenant_update POLICY existed, the GRANT behind it did not), so every one of
+  // these writes failed 42501 and reported success — closed days re-downloaded with
+  // opening_token = 0. Grant restored 2026-08-15; the error check keeps it honest.
+  // Audit 2026-08-15 C-4.
+  if (Object.keys(drawer).length > 0) {
+    const { error: drawerErr } = await db
+      .from('night_audit_log')
+      .update(drawer)
+      .eq('audit_date', auditDate);
+    if (drawerErr) {
+      // The audit itself is committed by the RPC — do not fail the close. But the
+      // operator must know the drawer figures did not persist.
+      console.error('[crm/close-day] drawer persist failed:', drawerErr.message, drawerErr.code);
+      return NextResponse.json({
+        ok: true,
+        warning: 'Day closed, but the Opening Token / Payouts figures could not be saved. Re-enter them before the next close.',
+        detail: drawerErr.code || null,
+      }, { status: 207 });
+    }
+  }
 
   // Return the persisted row (preserves the existing { ok, close } response shape).
   const { data: saved } = await db

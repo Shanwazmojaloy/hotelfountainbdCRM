@@ -1,22 +1,35 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// PaymentConfirm Agent  —  GET /api/agents/payment-confirm
+// PaymentConfirm Agent  —  /api/agents/payment-confirm
 //
-// Shan's ONE-TAP activation link — embedded in the deal-alert email.
-// When Shan sees a payment screenshot (bKash/bank/Nagad), he clicks this link.
+// Shan's activation link, embedded in the deal-alert email.
+// When Shan sees a payment screenshot (bKash/bank/Nagad), he opens this link.
 //
 // URL format:
-//   /api/agents/payment-confirm?token=ADMIN_SECRET&lead_id=xxx&plan=starter
-//   &slug=xxx&hotel_name=xxx&contact_email=xxx&contact_name=xxx
-//   &hotel_city=Dhaka&room_count=24
+//   /api/agents/payment-confirm?t=<single-use-uuid>
 //
 // Flow:
-//   1. Validate token (ADMIN_SECRET)
-//   2. Call /api/admin/onboard-tenant internally (idempotent — 409 OK)
-//   3. Send activation email to client via Brevo
-//   4. Update lead status → 'activated' in Supabase
-//   5. Return success HTML page to Shan's browser
+//   GET  → peek the nonce (no side effects) and render a confirmation screen
+//   POST → consume the nonce ATOMICALLY, then:
+//            1. call /api/admin/onboard-tenant internally (idempotent — 409 OK)
+//            2. send the activation email to the client
+//            3. update lead status → 'activated'
+//            4. return the success page
 //
-// Auth: ADMIN_SECRET passed as ?token= query param (one-time magic link)
+// SECURITY — rewritten 2026-08-15 (audit C-6). Two defects were fixed together:
+//
+//   1. Auth was `?token=<ADMIN_SECRET>`, i.e. the platform Bearer token for
+//      /api/admin/onboard-tenant and /api/admin/logs, emailed in plaintext and
+//      therefore retained by Brevo, Gmail, Vercel access logs and browser history,
+//      with no expiry. It is now a single-use, 14-day nonce scoped to ONE lead,
+//      resolved server-side via consume_activation_token().
+//
+//   2. The side effect (tenant creation + "your dashboard is live" email to the
+//      prospect) ran on GET. Any link scanner, mail-security prefetch or accidental
+//      browser prefetch activated the tenant BEFORE payment was confirmed. The side
+//      effect now requires an explicit POST from the confirmation screen.
+//
+// The activation payload is no longer carried in the URL, so it can no longer be
+// edited in the address bar between the email and the click.
 // ─────────────────────────────────────────────────────────────────────────────
 import { logEvent } from '@/lib/audit';
 import { sendMail } from '@/lib/mailer';
@@ -213,40 +226,47 @@ function shanSuccessPage(
 </body></html>`;
 }
 
-// ── GET handler ───────────────────────────────────────────────────────────────
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+// ── Activation payload, resolved server-side from the nonce ───────────────────
+interface ActivationPayload {
+  lead_id?:       string;
+  plan?:          string;
+  slug?:          string;
+  hotel_name?:    string;
+  contact_email?: string;
+  contact_name?:  string;
+  hotel_city?:    string;
+  room_count?:    number;
+}
 
-  // ── Auth: token = ADMIN_SECRET ────────────────────────────────────────────
-  const token = searchParams.get('token');
-  const requestId = req.headers.get('x-request-id');
-  if (!token || token !== process.env.ADMIN_SECRET) {
-    void logEvent({
-      event_type:    'status_change',
-      action_target: 'GET /api/agents/payment-confirm',
-      status_code:   401,
-      result:        'denied',
-      role:          'anon',
-      tenant_id:     TENANT,
-      request_id:    requestId,
-      ip:            (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null,
-      payload_summary: { reason: 'bad_token' },
-    });
-    return new Response('Unauthorized — invalid token', { status: 401 });
-  }
+// ── Token helpers (service-role only; activation_tokens is REVOKEd from everyone else) ──
+function tokenRpc(fn: string, params: Record<string, unknown>) {
+  const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
+  const SB_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (!SB_KEY) return Promise.resolve(null);
+  return fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+}
 
-  // ── Parse params ──────────────────────────────────────────────────────────
-  const lead_id       = searchParams.get('lead_id')       ?? '';
-  const plan          = searchParams.get('plan')          ?? 'starter';
-  const slug          = searchParams.get('slug')          ?? '';
-  const hotel_name    = searchParams.get('hotel_name')    ?? '';
-  const contact_email = searchParams.get('contact_email') ?? '';
-  const contact_name  = searchParams.get('contact_name')  ?? '';
-  const hotel_city    = searchParams.get('hotel_city')    ?? 'Dhaka';
-  const room_count    = parseInt(searchParams.get('room_count') ?? '24', 10);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ── The actual activation. Only ever reached from POST. ───────────────────────
+async function runActivation(payload: ActivationPayload, requestId: string | null): Promise<Response> {
+  const lead_id       = payload.lead_id       ?? '';
+  const plan          = payload.plan          ?? 'starter';
+  const slug          = payload.slug          ?? '';
+  const hotel_name    = payload.hotel_name    ?? '';
+  const contact_email = payload.contact_email ?? '';
+  const contact_name  = payload.contact_name  ?? '';
+  const hotel_city    = payload.hotel_city    ?? 'Dhaka';
+  const room_count    = Number(payload.room_count ?? 24);
 
   if (!slug || !hotel_name || !contact_email) {
-    return new Response('Missing required params: slug, hotel_name, contact_email', { status: 400 });
+    return new Response('Activation payload incomplete: slug, hotel_name and contact_email are required', { status: 400 });
   }
 
   const planLabel = PLAN_LABELS[plan] ?? 'Starter';
@@ -359,4 +379,106 @@ export async function GET(req: Request) {
     shanSuccessPage(hotel_name, slug, planLabel, contact_name, tenantOk, emailOk),
     { status: 200, headers: { 'Content-Type': 'text/html' } },
   );
+}
+
+// ── Confirmation screen (GET — NO side effects) ───────────────────────────────
+function confirmPage(t: string, p: ActivationPayload): string {
+  const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+  return `<!doctype html><html><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Confirm activation — ${esc(p.hotel_name)}</title>
+<style>
+  body{margin:0;background:#07090E;color:#EEE9E2;font-family:'DM Sans',system-ui,sans-serif;
+       display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+  .card{max-width:520px;width:100%;background:#0D1117;border:1px solid #EAE6DD22;padding:2rem}
+  h1{font-family:'Libre Baskerville',Georgia,serif;font-size:20px;margin:0 0 4px}
+  .sub{color:#8b8b7a;font-size:12px;margin-bottom:20px}
+  .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #EAE6DD14;font-size:13px}
+  .k{color:#8b8b7a}.v{font-family:'IBM Plex Mono',monospace}
+  button{margin-top:22px;width:100%;background:#22c55e;color:#07090E;border:0;padding:14px;
+         font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
+         transition:opacity .2s cubic-bezier(0.4,0,0.2,1)}
+  button:hover{opacity:.88}
+  .warn{margin-top:16px;font-size:11px;color:#f59e0b;line-height:1.6}
+</style></head><body>
+<div class="card">
+  <h1>Confirm payment received</h1>
+  <div class="sub">Nothing has happened yet. Review, then activate.</div>
+  <div class="row"><span class="k">Hotel</span><span class="v">${esc(p.hotel_name)}</span></div>
+  <div class="row"><span class="k">Subdomain</span><span class="v">${esc(p.slug)}.fountainbd.com</span></div>
+  <div class="row"><span class="k">Plan</span><span class="v">${esc(PLAN_LABELS[p.plan ?? 'starter'] ?? 'Starter')}</span></div>
+  <div class="row"><span class="k">Contact</span><span class="v">${esc(p.contact_name)}</span></div>
+  <div class="row"><span class="k">Email</span><span class="v">${esc(p.contact_email)}</span></div>
+  <div class="row"><span class="k">Rooms</span><span class="v">${esc(p.room_count ?? 24)}</span></div>
+  <form method="POST" action="/api/agents/payment-confirm">
+    <input type="hidden" name="t" value="${esc(t)}"/>
+    <button type="submit">Activate ${esc(p.hotel_name)}</button>
+  </form>
+  <div class="warn">
+    This creates the tenant and emails the client that their dashboard is live.
+    Single-use link — it stops working the moment you press the button.
+  </div>
+</div></body></html>`;
+}
+
+// GET is now SAFE: it peeks the nonce and renders a form. Prefetching it does nothing.
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const t = (searchParams.get('t') || '').trim();
+  if (!UUID_RE.test(t)) return new Response('Invalid or missing activation token', { status: 400 });
+
+  const payload = (await tokenRpc('peek_activation_token', { p_token: t })) as ActivationPayload | null;
+  if (!payload) {
+    return new Response(
+      'This activation link is invalid, already used, or expired. Activate manually from /admin/onboard.',
+      { status: 410, headers: { 'Content-Type': 'text/plain' } },
+    );
+  }
+  return new Response(confirmPage(t, payload), {
+    status: 200,
+    headers: { 'Content-Type': 'text/html', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
+  });
+}
+
+// POST performs the side effect. The nonce is consumed ATOMICALLY (UPDATE ... WHERE
+// used_at IS NULL RETURNING payload), so a double-submit or a replayed request cannot
+// activate twice.
+export async function POST(req: Request) {
+  const requestId = req.headers.get('x-request-id');
+  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null;
+
+  let t = '';
+  const ctype = req.headers.get('content-type') || '';
+  try {
+    if (ctype.includes('application/json')) {
+      t = String(((await req.json()) as Record<string, unknown>)?.t ?? '').trim();
+    } else {
+      t = String((await req.formData()).get('t') ?? '').trim();
+    }
+  } catch { /* fall through to the 400 below */ }
+
+  if (!UUID_RE.test(t)) return new Response('Invalid or missing activation token', { status: 400 });
+
+  const payload = (await tokenRpc('consume_activation_token', { p_token: t, p_ip: ip })) as ActivationPayload | null;
+  if (!payload) {
+    void logEvent({
+      event_type:    'status_change',
+      action_target: 'POST /api/agents/payment-confirm',
+      status_code:   410,
+      result:        'denied',
+      role:          'anon',
+      tenant_id:     TENANT,
+      request_id:    requestId,
+      ip,
+      payload_summary: { reason: 'token_invalid_used_or_expired' },
+    });
+    return new Response(
+      'This activation link is invalid, already used, or expired. Activate manually from /admin/onboard.',
+      { status: 410, headers: { 'Content-Type': 'text/plain' } },
+    );
+  }
+
+  return runActivation(payload, requestId);
 }

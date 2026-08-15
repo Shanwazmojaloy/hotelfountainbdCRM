@@ -51,23 +51,67 @@ function sbRpc(rpcName: string, params: Record<string, unknown>) {
 }
 
 // ── Build Shan's one-tap activation link ──────────────────────────────────────
-function confirmUrl(p: DealAlertPayload): string {
-  const APP_URL    = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fountainbd.com';
-  const token      = process.env.ADMIN_SECRET        ?? '';
-  const slug       = p.company_name.toLowerCase()
+// SECURITY (audit 2026-08-15 C-6): this used to interpolate ADMIN_SECRET directly into
+// the URL. Every deal-ready lead therefore put a long-lived platform credential — the
+// Bearer token for /api/admin/onboard-tenant and /api/admin/logs — into Brevo's outbound
+// store, Google's mail store, Vercel's HTTP access log (query strings ARE logged) and
+// Shan's browser history, with no expiry and no scoping.
+//
+// It now mints a single-use, 14-day nonce that holds the activation payload server-side
+// in public.activation_tokens. The email carries only an opaque uuid, and the payload
+// can no longer be tampered with in the URL bar before clicking.
+async function mintConfirmUrl(p: DealAlertPayload): Promise<string | null> {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fountainbd.com';
+  const SB_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mynwfkgksqqwlqowlscj.supabase.co';
+  const SB_KEY  = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+
+  // activation_tokens is service-role only by design. Without that key we must NOT fall
+  // back to embedding a secret — the alert simply ships without an activation button.
+  if (!SB_KEY) {
+    console.error('[deal-alert] SUPABASE_SERVICE_ROLE_KEY missing — activation link omitted');
+    return null;
+  }
+
+  const slug = p.company_name.toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .substring(0, 30);
-  const params = new URLSearchParams({
-    token,
-    lead_id:       p.lead_id,
-    plan:          'starter',              // Shan can change the URL before clicking
-    slug,
-    hotel_name:    p.company_name,
-    contact_email: p.contact_email ?? '',
-    contact_name:  p.contact_name  ?? '',
-  });
-  return `${APP_URL}/api/agents/payment-confirm?${params.toString()}`;
+
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/activation_tokens`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${SB_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify({
+        lead_id: p.lead_id,
+        payload: {
+          lead_id:       p.lead_id,
+          plan:          'starter',
+          slug,
+          hotel_name:    p.company_name,
+          contact_email: p.contact_email ?? '',
+          contact_name:  p.contact_name  ?? '',
+          hotel_city:    'Dhaka',
+          room_count:    24,
+        },
+      }),
+    });
+    if (!res.ok) {
+      console.error('[deal-alert] mint activation token failed:', res.status, await res.text());
+      return null;
+    }
+    const rows = await res.json();
+    const token = Array.isArray(rows) ? rows[0]?.token : rows?.token;
+    if (!token) return null;
+    return `${APP_URL}/api/agents/payment-confirm?t=${encodeURIComponent(token)}`;
+  } catch (e) {
+    console.error('[deal-alert] mint activation token threw:', e);
+    return null;
+  }
 }
 
 function scoreColor(score: number): string {
@@ -76,7 +120,7 @@ function scoreColor(score: number): string {
   return '#6b7280';
 }
 
-function buildAlertHtml(p: DealAlertPayload): string {
+function buildAlertHtml(p: DealAlertPayload, confirmHref: string | null): string {
   const signalsList = (p.signals ?? []).map(s => `<li style="padding:4px 0;color:#EEE9E2;font-size:13px">${s}</li>`).join('');
   const color = scoreColor(p.score);
   const now = new Date().toLocaleString('en-BD', { timeZone: 'Asia/Dhaka', dateStyle: 'full', timeStyle: 'short' });
@@ -139,10 +183,18 @@ function buildAlertHtml(p: DealAlertPayload): string {
       </a>
     </div>
     <div style="margin-bottom:20px">
-      <a href="${confirmUrl(p)}"
-         style="display:inline-block;background:#22c55e;color:#07090E;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:12px 28px">
-        ✅ Confirm Payment Received — Activate Now
-      </a>
+      ${confirmHref
+        ? `<a href="${confirmHref}"
+             style="display:inline-block;background:#22c55e;color:#07090E;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;padding:12px 28px">
+            ✅ Confirm Payment Received — Review &amp; Activate
+          </a>
+          <div style="font-size:11px;color:#6a6a5a;margin-top:8px">
+            Single-use link, expires in 14 days. Opening it shows a confirmation screen —
+            nothing is activated until you press the button on that page.
+          </div>`
+        : `<div style="font-size:12px;color:#f59e0b;border:1px solid rgba(245,158,11,.3);padding:12px 16px">
+            ⚠ Activation link could not be generated. Activate manually from /admin/onboard.
+          </div>`}
     </div>
     <div style="font-size:11px;color:#6a6a5a">
       This alert was generated automatically by the Lumea CEO Auditor agent.<br/>
@@ -186,6 +238,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
+  // ── Mint the single-use activation nonce BEFORE composing the email ───────
+  // (audit 2026-08-15 C-6 — the email must never carry ADMIN_SECRET)
+  const confirmHref = await mintConfirmUrl(payload);
+
   // ── Send alert email to Shan ──────────────────────────────────────────────
   const subject = `🔥 Deal-Ready: ${payload.company_name} — Score ${payload.score}/10`;
 
@@ -200,7 +256,7 @@ export async function POST(req: Request) {
       to:          [{ email: SHAN_EMAIL, name: SHAN_NAME }],
       replyTo:     { name: SENDER_NAME,  email: SENDER_EMAIL },
       subject,
-      htmlContent: buildAlertHtml(payload),
+      htmlContent: buildAlertHtml(payload, confirmHref),
       textContent: buildAlertText(payload),
     }),
   });

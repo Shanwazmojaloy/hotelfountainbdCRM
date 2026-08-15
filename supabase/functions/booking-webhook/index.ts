@@ -136,6 +136,18 @@ function matchRoomType(incoming: string): string {
 
 // ── Main Handler ──────────────────────────────────────────────────────────────
 
+// Constant-time string comparison. Deno's std timingSafeEqual throws on unequal
+// lengths, so length is folded into the result rather than short-circuiting on it.
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  let diff = ab.length ^ bb.length;
+  const n = Math.max(ab.length, bb.length);
+  for (let i = 0; i < n; i++) diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
+  return diff === 0;
+}
+
 Deno.serve(async (req: Request) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
@@ -154,10 +166,22 @@ Deno.serve(async (req: Request) => {
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   const secret = Deno.env.get('WEBHOOK_SECRET');
-  if (secret) {
+  // FAIL CLOSED. This used to be `if (secret) { ...verify... }`, so an unset
+  // WEBHOOK_SECRET skipped verification entirely and the only remaining gate was the
+  // platform's verify_jwt — which accepts the ANON key, and that key is hardcoded in
+  // this repo (src/lib/workflow-trigger.ts). Anyone who had read the repo or a client
+  // bundle could POST arbitrary bookings, guests and total_amounts into production.
+  // Audit 2026-08-15 C-7.
+  if (!secret) {
+    console.error('[booking-webhook] WEBHOOK_SECRET is not configured — refusing all requests');
+    return new Response(JSON.stringify({ error: 'Webhook not configured' }), { status: 503 });
+  }
+  {
     const auth = req.headers.get('Authorization') || req.headers.get('X-Webhook-Secret') || '';
     const token = auth.replace('Bearer ', '').trim();
-    if (token !== secret) {
+    // Constant-time compare — a plain !== leaks the secret one byte at a time to an
+    // attacker who can measure response latency across many attempts.
+    if (!timingSafeEqualStr(token, secret)) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
   }

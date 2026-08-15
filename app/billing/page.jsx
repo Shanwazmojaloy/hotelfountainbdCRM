@@ -9,6 +9,7 @@ import QueryProvider from "@/providers/QueryProvider";
 import { C, Card as DSCard, Badge } from "@/components/dskit";
 import RecordPaymentModal from "@/components/RecordPaymentModal";
 import UiFonts from "../components/UiFonts";
+import { isRealPayment, txDay, discountOf } from "@/lib/dues";
 
 function FRow({ label, value, color, sub }) {
   return (
@@ -40,6 +41,7 @@ function BillingPageInner() {
   const [activeId, setActiveId] = useState(null);
   const [q, setQ] = useState("");
   const [payFolio, setPayFolio] = useState(null);
+  const [orphans, setOrphans] = useState([]); // unattributable transactions — surfaced, never merged
 
   useEffect(() => {
     fetchBillingData();
@@ -47,6 +49,7 @@ function BillingPageInner() {
 
   async function fetchBillingData() {
     setBillingData([]); // immediate cleanup before network round-trip
+    setOrphans([]);
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
@@ -69,27 +72,23 @@ function BillingPageInner() {
         unifiedGroups[res.id] = { res, txs: [] };
       });
 
+      // RESERVATION-CENTRIC ANCHOR (house rule). A transaction belongs to a folio only
+      // via reservation_id. The previous fallback re-attached orphans by room_number +
+      // date overlap, which merged a DELETED booking's money into whoever occupied the
+      // room next — the exact 13,600 BDT failure the rule exists to prevent. Both range
+      // ends were inclusive, so on a changeover day an orphan always landed on the
+      // ARRIVING guest (reservations are fetched check_in.desc, so .find() hit them
+      // first). Orphans are now surfaced, never silently merged. Audit 2026-08-15 C-3.
+      const orphanTxs = [];
+
       transactions.forEach((tx) => {
-        // Primary: match by reservation_id (UUID anchor)
         if (tx.reservation_id && unifiedGroups[tx.reservation_id]) {
           unifiedGroups[tx.reservation_id].txs.push(tx);
           return;
         }
-        // Fallback: match orphan TXs by room_number + date overlap
-        const roomNum = tx.room_number;
-        const txDate = tx.created_at ? tx.created_at.slice(0, 10) : null;
-        if (!roomNum || !txDate) return;
-        const matchingRes = reservations.find((r) => {
-          const inRoom = Array.isArray(r.room_ids)
-            ? r.room_ids.includes(roomNum)
-            : r.room_number === roomNum;
-          const ciDate = r.check_in ? r.check_in.slice(0, 10) : null;
-          const coDate = r.check_out ? r.check_out.slice(0, 10) : null;
-          return inRoom && ciDate && coDate && txDate >= ciDate && txDate <= coDate;
-        });
-        if (matchingRes && unifiedGroups[matchingRes.id]) {
-          unifiedGroups[matchingRes.id].txs.push(tx);
-        }
+        // No reservation_id, or it points at a reservation outside the fetched window.
+        // Either way this is not attributable — flag it for a human.
+        orphanTxs.push(tx);
       });
 
       // 🔥 THE DHAKA ANCHOR
@@ -124,22 +123,21 @@ function BillingPageInner() {
         .map(grp => {
           const invoice = grp.res;
           const totalAmount = Number(invoice?.total_amount || 0);
-          const discountAmount = Number(invoice?.discount_amount || invoice?.discount || 0);
+          const discountAmount = discountOf(invoice);
           const billTotal = totalAmount - discountAmount;
 
           // Use paid_amount from reservations table (DB-authoritative)
           const totalPaidEver = Number(invoice?.paid_amount || 0);
           const balanceDue = Math.max(0, billTotal - totalPaidEver);
 
-          // Payments collected within the active date range.
-          // Exclude "Balance Carried Forward" — accounting entries, not real cash.
-          // Mirrors daily-ops revenue-manager logic so email report == billing page.
+          // Payments collected within the active date range. POSITIVE match via the
+          // canonical isRealPayment() — the old exclusion-only filter ("anything that
+          // isn't Balance Carried Forward") counted CHARGES as cash: on 2026-08-07 that
+          // reported 63,000 BDT against 41,500 BDT actually collected, because five
+          // `Stay Extension (+1 night)` rows passed it. Migration 20260808 fixed the RPC
+          // and Billing.jsx; this page was missed. Audit 2026-08-15 H-7.
           const collectionToday = grp.txs
-            .filter(t => {
-              if (/balance carried forward/i.test(t.type ?? '')) return false;
-              const d = (t.fiscal_day || t.created_at || '').slice(0, 10);
-              return d >= dateFrom && d <= dateTo;
-            })
+            .filter((t) => { const d = txDay(t); return isRealPayment(t) && d >= dateFrom && d <= dateTo; })
             .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
           return { ...grp, billTotal, collectionToday, balanceDue, paidInReportPeriod: collectionToday, status: invoice?.status };
@@ -154,6 +152,7 @@ function BillingPageInner() {
       const occupancy = rooms.length > 0 ? Math.round((occupiedRooms / rooms.length) * 100) : 0;
 
       setBillingData(displayList);
+      setOrphans(orphanTxs);
       setStats({ revenue, occupancy });
     } catch (error) {
       console.error("Billing fetch error:", error);
@@ -183,16 +182,45 @@ function BillingPageInner() {
 
   let mCash = 0, mDigital = 0;
   billingData.forEach((g) => (g.txs || []).forEach((t) => {
-    if (/balance carried forward/i.test(t.type ?? '')) return;
-    if ((t.fiscal_day || t.created_at || '').slice(0, 10) !== dhaka) return;
+    if (!isRealPayment(t)) return;          // audit 2026-08-15 H-7 — was exclusion-only
+    if (txDay(t) !== dhaka) return;
     const amt = Number(t.amount) || 0;
     const blob = ((t.type || '') + ' ' + (t.payment_method || '')).toLowerCase();
     if (/cash/.test(blob)) mCash += amt; else if (/bkash|card|bank/.test(blob)) mDigital += amt; else mCash += amt;
   }));
   const mTotal = (mCash + mDigital) || 1;
 
+  const orphanTotal = orphans.reduce((a, t) => a + (Number(t.amount) || 0), 0);
+
   return (
     <Layout>
+      {orphans.length > 0 && (
+        <div
+          role="alert"
+          style={{
+            border: '1px solid #B45309', background: '#FEF6E7', padding: '12px 16px',
+            marginBottom: 12, fontSize: 12, color: '#7C2D12',
+            transition: 'all .2s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          <strong style={{ letterSpacing: '.04em', textTransform: 'uppercase', fontSize: 11 }}>
+            ⚠ {orphans.length} unattributed transaction{orphans.length === 1 ? '' : 's'} · {bdt(orphanTotal)}
+          </strong>
+          <div style={{ marginTop: 6, lineHeight: 1.5 }}>
+            These rows carry no <code>reservation_id</code>, so they belong to no folio. They are
+            deliberately <em>not</em> merged into any guest&rsquo;s bill and are excluded from the
+            figures below. Reconcile them before the next day close.
+          </div>
+          <div className="iv-mono" style={{ marginTop: 8, fontSize: 11, color: '#92400E' }}>
+            {orphans.slice(0, 8).map((t) => (
+              <div key={t.id ?? `${t.created_at}-${t.amount}`}>
+                {txDay(t)} · room {t.room_number || '—'} · {t.type || 'unknown'} · {bdt(t.amount)}
+              </div>
+            ))}
+            {orphans.length > 8 && <div>… and {orphans.length - 8} more</div>}
+          </div>
+        </div>
+      )}
       <div className="iv-bill-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start' }}>
         {/* LEFT — folio search + invoice */}
         <div>
