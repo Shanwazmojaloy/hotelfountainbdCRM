@@ -357,50 +357,53 @@ machine: a clean tree already reports 2,965 errors from an incomplete
 `node_modules` install. Every changed file was parse-checked individually; CI's
 Typecheck step is the real gate.
 
-### S-1b · Still open — `leads` and `corporate_leads`
+### S-1b · FIXED 2026-08-15 — `leads` and `corporate_leads`
 
-The same `anon` DML grants remain on `leads` and `corporate_leads`, and those
-were *not* revoked, because `src/services/supabase.ts` genuinely uses the browser
-client against `leads` — an `insert` (a public lead-capture form, which
-legitimately needs anon INSERT) and a `getLeadByEmail` **select**. The insert is
-defensible; the select is a PII read of any lead by email address, from the
-browser, unauthenticated. Narrowing this to `INSERT` only, and moving the lookup
-server-side, is the same fix at a smaller scale. Not done here — it is a
-different surface from the billing hooks.
+The first write-up of this assumed `src/services/supabase.ts` was browser code
+serving a public lead-capture form, and concluded the `anon` INSERT was
+"defensible". Checking the callers showed otherwise: its **only** importers are
+`app/api/orchestrate/route.ts` and `app/api/hardware-check/route.ts` — both
+server routes. There is no public form. The module was simply reaching
+tenant-isolated tables as the browser role for no reason.
 
-Reassuring counter-check: the sensitive tables that have **no** anon grant —
-`user_credentials`, `activation_tokens`, `tenant_billing`, `expo_push_tokens` —
-have RLS enabled with no policy, i.e. default-deny. The advisor flags them as
-"RLS enabled, no policy" but that is the safe direction: locked to everyone but
-`service_role`. INFO-level noise, not a hole.
+Switched it to the service role via `tenantClient` / `tenantScoped`, behind a
+`typeof window !== 'undefined'` guard so it can never be pulled into a client
+bundle, then revoked the grants
+(`supabase/migrations/20260815_revoke_anon_leads_grants_s1b.sql`).
 
-### Noise, listed for completeness
+| | before | after |
+| --- | --- | --- |
+| `GET /leads?select=id,name,phone` + `x-tenant-host` | `200` + real names and phone numbers | `401` `42501 permission denied for table leads` |
 
-- **RLS enabled, no policy** on ~15 `_backup_*` / `*_backup_*` tables — leftover
-  snapshots from earlier migrations. Default-deny, so harmless, but they are also
-  what inflates the lead/table counts. Dropping the backups would clear both this
-  and the "no primary key" performance notices in one pass — a cleanup, not a fix.
-- **SECURITY DEFINER functions callable by anon/authenticated** —
-  `current_tenant_id`, `get_my_tenant_id`, `current_staff_role`, `is_admin`,
-  `lumea_pre_request`. These are the tenant-resolution helpers; being callable is
-  by design (RLS policies invoke them). No action.
-- **Unused indexes** (~25) and **`net._http_response` bloat** — the bloat is the
-  async-HTTP response log this audit has been reading from; it self-trims. The
-  unused indexes are mostly on the empty `bgqs_raw`/archive schemas.
+`leads` row count unchanged at 2,229.
 
-### S-2 · The legacy `anon` / `service_role` keys were disabled on 2026-05-01
+Two things fell out of this that are worth keeping:
 
-Discovered while testing S-1: the project's legacy API keys are disabled
-(`"Legacy API keys are disabled … disabled on 2026-05-01T03:24:30Z"`). Only the
-publishable key `sb_publishable_v2XOo…` still authenticates.
+**`insertLead()` was almost certainly already broken.** The `tenant_isolation`
+policy on `leads` has a **NULL `with_check`**, so Postgres applies the `USING`
+expression to INSERTs too: `tenant_id = current_tenant_id()`. A server-side call
+sends no `x-tenant-host`, so `current_tenant_id()` was NULL and the check could
+never pass. Routing the write through `tenantScoped` — which stamps `tenant_id`
+after spreading the caller's values — repairs that path as a side effect. It also
+prevents the opposite failure: `service_role` bypasses RLS, so without the stamp
+this change would have started writing leads with a NULL `tenant_id`, which is
+the orphan-row class D-1 was about.
 
-The 51 pg_cron job bodies still embed the dead legacy key as `'apikey', '<ANON_KEY>'`.
-Ten of them POST to edge functions and work anyway — those functions are deployed
-`verify_jwt: false`, so the apikey header is ignored. **Any cron job or code path
-that uses that key against `/rest/v1/` has been returning 401 since 2026-05-01
-and would have failed silently for three and a half months.** None of the ten
-appear to, but this is worth a sweep of app code and env vars for the old key
-before it bites something less visible. Not investigated further here.
+**Two tables that look alarming in the grant table are actually fail-closed.**
+`tenants` and `authorized_devices` both still grant `anon` full DML, which reads
+badly for a tenant registry and a device-authorisation table. Neither is
+reachable: `tenants` has explicit `false` policies for INSERT/UPDATE/DELETE and a
+SELECT policy requiring `uid() IS NOT NULL` (nobody signs in to Supabase Auth
+here), and `authorized_devices` has a single policy scoped `TO service_role`. The
+grants are noise worth cleaning, not holes. Recorded so the next reader does not
+raise them as findings — as this audit nearly did.
 
-Net: nothing on this page changed the database. S-1 is confirmed and needs an
-architectural decision; S-2 is a fact worth knowing before the next thing breaks.
+### Still open after S-1 / S-1b
+
+21 components import the browser client (`@/lib/supabase/client`) and still run as
+`anon` with the header-derived tenant. What they can actually reach is now small:
+`rooms` (SELECT) and `folios` (SELECT). `guests`, `reservations`, `transactions`,
+`payment_transactions` and `staff` already had no anon DML before this audit
+started. Closing the remaining two means the same treatment — move the reads
+behind `/api/crm/*` — but they are inventory and folio *reads*, not financial
+writes, so the urgency is different. Recorded, not fixed.
