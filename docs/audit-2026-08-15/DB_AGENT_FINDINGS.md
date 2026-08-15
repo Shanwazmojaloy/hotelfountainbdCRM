@@ -389,6 +389,13 @@ divide-by-zero guard. Same defect family as D-7, which found six DB functions
 dividing by a literal `28`; this is the edge-function half of it, and the literal
 there was not even the right number.
 
+**Deployed 2026-08-15** as v40 (two files — `index.ts` plus the shared
+`_shared/mailer.ts` it imports). Verified by live invoke rather than by a clean
+deploy: `workflow_runs` now records `total_rooms: 28, email_sent: true` where the
+15:00 run the same day recorded `total_rooms: 24`. The deploy-manifest guard
+caught the drift before the commit and `DEPLOYED.json` was updated to v40 with
+the new hash — the guard did exactly what it was built for.
+
 ---
 
 ## Scope note

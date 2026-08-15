@@ -32,10 +32,10 @@
     },
     "wf-evening-report": {
       "path": "supabase/functions/wf-evening-report/index.ts",
-      "version": 35,
-      "sha256": "f4f08778e0aa06a660cffe5b24b8507643aad9d94c301be6c2428991e37c211a",
+      "version": 40,
+      "sha256": "43e2fdf41ee0a62d0b38cf5b72546cd1bd941dd81ac3cb8eb06e2a6745bce20a",
       "deployed_at": "2026-08-15",
-      "verified_by": "live invoke, workflow_runs.email_sent = true"
+      "verified_by": "live invoke 2026-08-15, workflow_runs.email_sent = true and total_rooms = 28 (was a hardcoded 24)"
     },
     "wf-period-reports": {
       "path": "supabase/functions/wf-period-reports/index.ts",
