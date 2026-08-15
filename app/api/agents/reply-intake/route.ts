@@ -72,8 +72,18 @@ export async function POST(req: Request) {
   // Brevo inbound parsing doesn't support HMAC headers, so we secure via a
   // shared secret in the query string. Set BREVO_WEBHOOK_TOKEN in Vercel and
   // configure the Brevo webhook URL to include ?token=<value>.
+  //
+  // FAIL CLOSED (2026-08-15). This used to be `if (webhookToken) { ...verify... }`,
+  // i.e. an unset env var skipped verification entirely and left an unauthenticated
+  // POST that writes outreach_log and invokes CEOAuditor. The "backward compat" that
+  // bought expired at multi-tenant launch. BREVO_WEBHOOK_TOKEN is set in all
+  // environments today, so this is behaviour-preserving — it only removes the
+  // footgun where deleting or mistyping the var silently opens the endpoint.
   const webhookToken = process.env.BREVO_WEBHOOK_TOKEN;
-  if (webhookToken) {
+  if (!webhookToken) {
+    return NextResponse.json({ error: 'BREVO_WEBHOOK_TOKEN not configured' }, { status: 503 });
+  }
+  {
     const url = new URL(req.url);
     const providedToken = url.searchParams.get('token') ?? '';
     let tokenValid = false;

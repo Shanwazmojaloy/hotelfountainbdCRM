@@ -7,9 +7,17 @@ import { insertLead, getLeadByEmail, insertTransaction } from '@/services/supaba
 import { backupTransaction } from '@/services/make';
 
 export async function POST(req: Request) {
-  // Auth guard — only CRON_SECRET callers allowed
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Auth guard — only CRON_SECRET callers allowed. FAIL CLOSED when the secret is
+  // unset: the bare `auth !== \`Bearer ${process.env.CRON_SECRET}\`` form this replaces
+  // interpolated to the literal string "Bearer undefined", so an unconfigured env var
+  // turned the guard into a guessable password on a route that creates leads and
+  // inserts transactions. Same invariant as /api/agents/* (73d2e35) — this route was
+  // the only caller still missing the presence check.
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  }
+  if (req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
