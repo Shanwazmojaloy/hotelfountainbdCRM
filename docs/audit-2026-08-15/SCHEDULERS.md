@@ -8,7 +8,7 @@ no such job exists in `vercel.json`.
 `vercel.json` holds 13 cron jobs. The audit treated that file as the schedule.
 It is roughly a fifth of it.
 
-`cron.job` in Postgres holds **56 active pg_cron jobs**. Ten of them POST directly
+`cron.job` in Postgres holds **51 active pg_cron jobs**. Ten of them POST directly
 to Supabase edge functions, bypassing Vercel entirely:
 
 | pg_cron job | Schedule (UTC) | Invokes |
@@ -24,7 +24,7 @@ to Supabase edge functions, bypassing Vercel entirely:
 | `weekly-retention-monday` | `0 3 * * 1` | `weekly-retention` |
 | `lumea-flash-nudge` | `15 11 * * *` | `wf-flash-nudge` |
 
-The other 46 call SQL functions directly — `agent_*_selfheal()`,
+The other 41 call SQL functions directly — `agent_*_selfheal()`,
 `run_all_agents()`, `ceo_process_inbox()`, `agent_dynamic_pricing()` and so on.
 
 ## Why it matters: "the crons are paused" was never true
@@ -87,7 +87,9 @@ The morning-briefing Vercel cron was removed in `349763a` as retired.
 3. Consider a CI check that diffs `vercel.json` crons against `cron.job` and
    fails on overlap. The tooling to do this does not exist yet.
 
-> Not investigated here: the 46 SQL-only pg_cron jobs. They call functions with
+> Since resolved: the SQL-only pg_cron jobs were pulled down on 2026-08-15 into
+> `db/scheduled/`, and the findings are in DB_AGENT_FINDINGS.md. The original note read:
+> Not investigated here: the 41 SQL-only pg_cron jobs. They call functions with
 > names like `run_all_agents()` and `agent_flash_sale()` on schedules as tight as
 > every 15 minutes, against production data, and none of them appear in this
 > repository. That is the same class of gap the 23 orphan edge functions were,
