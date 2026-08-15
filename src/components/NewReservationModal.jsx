@@ -3,8 +3,14 @@
 // NewReservationModal — WRITE flow (booking + check-in). Mirrors legacy NewReservationModal.
 // Includes the double-booking overlap guard. On check-in: sets rooms OCCUPIED. On paid>0:
 // records a payment transaction (with idempotency key). Touches reservations + rooms + transactions.
+//
+// Guest rows (2026-08-15): row 0 is the PRIMARY guest and is mandatory; row 1 is the SECONDARY
+// guest and is optional — both are always visible so staff never have to discover "+ Add Guest"
+// to record a couple. Extra rows (3rd guest onward) are still available via + Add Guest. Each
+// row carries a "View Details" button into the guest's profile + ID document.
 import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import GuestDetailModal from './GuestDetailModal';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const bdt = (n) => '৳' + Number(n || 0).toLocaleString('en-US');
@@ -14,7 +20,7 @@ const shortDate = (s) => { if (!s) return ''; const d = String(s).slice(0, 10); 
 
 export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   const [f, setF] = useState({
-    guests: [{ id: '', name: '' }], roomNos: [''], checkIn: todayStr(), checkOut: '',
+    guests: [{ id: '', name: '' }, { id: '', name: '' }], roomNos: [''], checkIn: todayStr(), checkOut: '',
     total: '', paid: '', discount: '', method: 'Cash', notes: '', officer: '', stayType: 'CHECK_IN', breakfast: false,
   });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -24,9 +30,13 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   const [guestQuery, setGuestQuery] = useState('');
   const [guestHits, setGuestHits] = useState([]);
   const [activeGuest, setActiveGuest] = useState(-1); // row index whose dropdown is open
+  const [detailGuest, setDetailGuest] = useState(null); // {id,name} whose profile is open
 
   const selectedGuests = f.guests.filter((g) => g.id);
-  const primaryGuest = selectedGuests[0] || null;
+  // The PRIMARY guest is row 0 specifically — not "the first row that happens to be filled".
+  // Otherwise a secondary-only selection would silently be saved as the booking's main guest.
+  const primaryGuest = f.guests[0]?.id ? f.guests[0] : null;
+  const guestLabel = (idx) => (idx === 0 ? 'Primary Guest *' : idx === 1 ? 'Secondary Guest (optional)' : `Guest ${idx + 1} (optional)`);
 
   const winIn = f.checkIn || todayStr();
   const winOut = f.checkOut || (() => { const d = new Date(winIn + 'T00:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
@@ -84,7 +94,7 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
   useEffect(() => { if (autoTotal > 0) setF((p) => ({ ...p, total: String(autoTotal) })); }, [autoTotal]);
 
   async function save() {
-    if (!primaryGuest) return setErr('Select a guest.');
+    if (!primaryGuest) return setErr('Select the primary guest.');
     const guestIds = selectedGuests.map((g) => g.id);
     const sel = f.roomNos.filter(Boolean);
     if (!sel.length) return setErr('Select at least one room.');
@@ -151,17 +161,27 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
 
         <div className="mb-4">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <label style={{ ...lbl, marginBottom: 0 }}>Guest(s) *</label>
+            <label style={{ ...lbl, marginBottom: 0 }}>Guest(s)</label>
             <button onClick={() => setF((p) => ({ ...p, guests: [...p.guests, { id: '', name: '' }] }))} className="iv-btn iv-btn--ghost" style={{ padding: '3px 10px', fontSize: 11.5, borderRadius: 999 }}>+ Add Guest</button>
           </div>
           {f.guests.map((g, idx) => (
-            <div key={idx} style={{ position: 'relative', marginBottom: idx < f.guests.length - 1 ? 8 : 0 }}>
+            <div key={idx} style={{ position: 'relative', marginBottom: idx < f.guests.length - 1 ? 10 : 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: idx === 0 ? 'var(--iv-gold)' : 'var(--iv-ink3)', marginBottom: 4 }}>{guestLabel(idx)}</div>
               <div className="flex gap-2">
-                <input style={{ ...field, flex: 1 }} placeholder={idx === 0 ? 'Type name or phone…' : 'Additional guest…'}
+                <input style={{ ...field, flex: 1 }} placeholder={idx === 0 ? 'Type name or phone…' : 'Type name or phone… (leave blank if none)'}
                   value={g.id ? g.name : (activeGuest === idx ? guestQuery : '')}
                   onFocus={() => { setActiveGuest(idx); setGuestQuery(''); setGuestHits([]); }}
                   onChange={(e) => { setActiveGuest(idx); setGuestQuery(e.target.value); setF((p) => { const a = [...p.guests]; a[idx] = { id: '', name: '' }; return { ...p, guests: a }; }); }} />
-                {f.guests.length > 1 && <button onClick={() => setF((p) => ({ ...p, guests: p.guests.filter((_, i) => i !== idx) }))} style={{ color: '#FF6B6B', border: '1px solid rgba(255,107,107,0.25)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
+                {/* View Details — reads the selected guest's profile + ID document without leaving
+                    the booking form. Disabled until a guest is actually picked from the dropdown. */}
+                <button type="button" className="iv-btn iv-btn--ghost" disabled={!g.id}
+                  title={g.id ? `View ${g.name}'s details` : 'Select a guest first'}
+                  onClick={() => g.id && setDetailGuest({ id: g.id, name: g.name })}
+                  style={{ fontSize: 11.5, padding: '0 12px', whiteSpace: 'nowrap', opacity: g.id ? 1 : 0.4, cursor: g.id ? 'pointer' : 'not-allowed' }}>
+                  View Details
+                </button>
+                {/* Rows 0 and 1 are permanent (primary + secondary); only extras can be removed. */}
+                {idx > 1 && <button onClick={() => setF((p) => ({ ...p, guests: p.guests.filter((_, i) => i !== idx) }))} style={{ color: '#FF6B6B', border: '1px solid rgba(255,107,107,0.25)', borderRadius: 8, padding: '0 10px' }}>✕</button>}
               </div>
               {activeGuest === idx && !g.id && guestHits.length > 0 && (
                 <div className="iv-card" style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, marginTop: 2, padding: 4, maxHeight: 200, overflowY: 'auto' }}>
@@ -231,6 +251,8 @@ export default function NewReservationModal({ rooms = [], onClose, onSaved }) {
           <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : (f.stayType === 'CHECK_IN' ? '✓ Check In Now' : 'Create Reservation')}</button>
         </div>
       </div>
+
+      {detailGuest && <GuestDetailModal guestId={detailGuest.id} onClose={() => setDetailGuest(null)} />}
     </div>
   );
 }

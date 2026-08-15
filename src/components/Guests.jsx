@@ -4,6 +4,7 @@
 // Searchable, paginated. Add/Edit via GuestFormModal. Live data.
 import { useState, useEffect, useMemo } from 'react';
 import GuestFormModal from './GuestFormModal';
+import GuestDetailModal from './GuestDetailModal';
 import { Card, Table, Badge, Avatar, TD, MONO, C, bdt } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 
@@ -17,6 +18,7 @@ export default function Guests() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(!_cached);
   const [modalGuest, setModalGuest] = useState(undefined); // undefined=closed · null=add · object=edit
+  const [detailGuest, setDetailGuest] = useState(null);    // read-only profile card (ID document)
 
   useEffect(() => {
     if (!getSnap('guests')) {
@@ -103,7 +105,15 @@ export default function Guests() {
                 </td>
                 <td style={{ ...TD, ...MONO, color: C.ink3 }}>{g.phone || '—'}</td>
                 <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>{g.email || '—'}</td>
-                <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>{g.id_type ? `${g.id_type}: ${g.id_number || ''}` : (g.id_card || '—')}</td>
+                {/* ID column (2026-08-15): the document is now the record of truth. Guests
+                    captured before the upload flow still show their typed number. */}
+                <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>
+                  {g.id_image_url ? (
+                    <button className="iv-btn iv-btn--ghost" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => setDetailGuest(g)}>
+                      {g.id_type || 'ID'} · View
+                    </button>
+                  ) : (g.id_number || g.id_card ? `${g.id_type ? g.id_type + ': ' : ''}${g.id_number || g.id_card}` : '—')}
+                </td>
                 <td style={{ ...TD, fontSize: 11, color: C.ink3 }}>{g.city || '—'}</td>
                 <td style={{ ...TD, ...MONO, color: b > 0 ? C.rose : C.grn }}>{b > 0 ? bdt(b) : '—'}</td>
                 <td style={TD}>{g.vip ? <Badge tone="gold">VIP</Badge> : null}</td>
@@ -130,6 +140,7 @@ export default function Guests() {
       {modalGuest !== undefined && (
         <GuestFormModal guest={modalGuest} onClose={() => setModalGuest(undefined)} onSaved={fetchData} />
       )}
+      {detailGuest && <GuestDetailModal guest={detailGuest} onClose={() => setDetailGuest(null)} />}
     </div>
   );
 }

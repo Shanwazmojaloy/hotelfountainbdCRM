@@ -12,6 +12,7 @@ import { useAuth } from './AuthGate';
 import { isAdmin } from '@/lib/permissions';
 import AddChargeModal from './AddChargeModal';
 import RecordPaymentModal from './RecordPaymentModal';
+import GuestDetailModal from './GuestDetailModal';
 import { printConfirmation } from '@/lib/printDocs';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
@@ -41,8 +42,18 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
   const [err, setErr] = useState('');
   const [showCharge, setShowCharge] = useState(false);
   const [showPay, setShowPay] = useState(false);
+  const [detailGuestId, setDetailGuestId] = useState(null);
 
   const gn = (guests || []).find((g) => String(g.id) === String((res.guest_ids || [])[0] || ''))?.name || res.guest_name || 'Unknown';
+
+  // Every guest on the booking, in the reservation's own order (primary first). The `guests`
+  // prop is the id+name projection the Reservations tab already holds, so this costs nothing;
+  // View Details fetches the full profile (incl. the ID document) on demand.
+  const guestRows = (res.guest_ids || []).filter(Boolean).map((gid, i) => ({
+    id: gid,
+    name: (guests || []).find((g) => String(g.id) === String(gid))?.name || (i === 0 ? (res.guest_name || 'Unknown') : 'Guest'),
+    role: i === 0 ? 'Primary' : 'Secondary',
+  }));
 
   useEffect(() => {
     let cancelled = false;
@@ -140,6 +151,30 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
             <div className="iv-mono" style={{ fontSize: 20, fontWeight: 700, color: balance > 0 ? '#FF6B6B' : '#7BE04A' }}>{bdt(balance)}</div></div>
         </div>
 
+        {/* ── Guests on this booking — each with a jump into their full profile + ID document.
+            Falls back to the denormalised guest_name for legacy rows with no guest_ids link. ── */}
+        <div className="mb-4">
+          <label style={lbl}>Guest{guestRows.length > 1 ? 's' : ''}</label>
+          {guestRows.length === 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: 'var(--iv-ink)' }}>{gn}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--iv-ink3)' }}>No linked guest record</div>
+              </div>
+            </div>
+          )}
+          {guestRows.map((g, i) => (
+            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < guestRows.length - 1 ? '1px solid var(--iv-border2)' : 'none' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: 'var(--iv-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.name}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--iv-ink3)' }}>{g.role} guest</div>
+              </div>
+              <button type="button" className="iv-btn iv-btn--ghost" style={{ fontSize: 11.5, padding: '4px 11px', whiteSpace: 'nowrap' }}
+                onClick={() => setDetailGuestId(g.id)}>View Details</button>
+            </div>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
           <div><label style={lbl}>Check-In{!admin && <span style={lockHint}> · locked</span>}</label>
             <input type="date" style={admin ? field : fieldLocked} value={checkInDate} disabled={!admin} title={admin ? '' : 'Only management can change the check-in date'} onChange={(e) => admin && setCheckInDate(e.target.value)} /></div>
@@ -221,6 +256,7 @@ export default function ReservationEditModal({ reservation, guests, rooms, onClo
         <RecordPaymentModal reservation={{ ...res, guest_name: gn, total_amount: totalAmt, discount_amount: discountNum, paid_amount: paidNum }}
           onClose={() => setShowPay(false)} onSaved={() => { setShowPay(false); onSaved?.(); }} />
       )}
+      {detailGuestId && <GuestDetailModal guestId={detailGuestId} onClose={() => setDetailGuestId(null)} />}
     </div>
   );
 }

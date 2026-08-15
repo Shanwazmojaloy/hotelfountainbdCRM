@@ -3,8 +3,16 @@
 // GuestFormModal — first WRITE flow ported to the Next.js app.
 // Add (insert) or Edit (update) a guest. Non-money, low-risk. Mirrors legacy
 // AddGuestModal / EditGuestModal. Uses the host-routed supabase client (RLS-scoped).
+//
+// 2026-08-15 (owner decision): the typed "ID Number" box is REPLACED by an ID document
+// upload (jpg/jpeg/png/pdf). Photos are compressed in the browser before upload — see
+// src/lib/idUpload.js — so a 4 MB phone snap of an NID lands at ~60-140 KB and the guest
+// read stays light. The form no longer SENDS id_number at all, so numbers already on file
+// for older guests are preserved (the server only writes keys the caller names) and still
+// render on the guest profile card.
 import { useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { ID_ACCEPT, uploadGuestId, isPdfUrl } from '@/lib/idUpload';
 
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const ID_TYPES = ['NID', 'Passport', 'Driving License', 'Birth Certificate', 'Other'];
@@ -13,12 +21,31 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
   const isEdit = Boolean(guest && guest.id);
   const [f, setF] = useState({
     name: guest?.name || '', phone: guest?.phone || '', email: guest?.email || '',
-    id_type: guest?.id_type || 'NID', id_number: guest?.id_number || guest?.id_card || '',
+    id_type: guest?.id_type || 'NID', id_image_url: guest?.id_image_url || '',
     nationality: guest?.nationality || '', city: guest?.city || '', address: guest?.address || '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState('');
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  // Upload happens on FILE SELECT, not on save: staff see the scan land (or fail fast on a bad
+  // file) before committing the record, and a brand-new guest gets a document URL to store
+  // alongside their row without a two-step create-then-attach dance.
+  async function pickId(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // allow re-selecting the same file after a failure
+    if (!file) return;
+    setErr(''); setUploading(true);
+    try {
+      const url = await uploadGuestId(file, { guestId: guest?.id || null, replaceUrl: f.id_image_url || null });
+      setF((p) => ({ ...p, id_image_url: url }));
+    } catch (e2) {
+      setErr(e2.message || String(e2));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function save() {
     if (!f.name.trim()) return setErr('Full name is required.');
@@ -30,7 +57,7 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
         phone: f.phone?.trim() || null,
         email: f.email?.trim() || null,
         id_type: f.id_type,
-        id_number: f.id_number?.trim() || null,
+        id_image_url: f.id_image_url || null,
         nationality: f.nationality?.trim() || null,
         city: f.city?.trim() || null,
         address: f.address?.trim() || null,
@@ -102,7 +129,29 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
           <div><label style={lbl}>ID Type</label>
             <select style={field} value={f.id_type} onChange={set('id_type')}>{ID_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
           </div>
-          <div><label style={lbl}>ID Number</label><input style={field} value={f.id_number} onChange={set('id_number')} placeholder="ID number" /></div>
+          <div>
+            <label style={lbl}>ID Document</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 42 }}>
+              <label className="iv-btn iv-btn--ghost" style={{ fontSize: 12, padding: '9px 14px', cursor: uploading ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                {uploading ? 'Uploading…' : (f.id_image_url ? '↻ Replace' : '⬆ Upload ID')}
+                <input type="file" accept={ID_ACCEPT} onChange={pickId} disabled={uploading} style={{ display: 'none' }} />
+              </label>
+              {f.id_image_url && (
+                <>
+                  <a href={f.id_image_url} target="_blank" rel="noopener noreferrer" className="iv-btn iv-btn--ghost" style={{ fontSize: 12, padding: '9px 12px', textDecoration: 'none' }}>View</a>
+                  <button type="button" title="Remove ID document" onClick={() => setF((p) => ({ ...p, id_image_url: '' }))}
+                    style={{ color: '#FF6B6B', background: 'transparent', border: '1px solid rgba(255,107,107,0.25)', borderRadius: 8, padding: '0 10px', minHeight: 38 }}>✕</button>
+                </>
+              )}
+            </div>
+            <div style={{ fontSize: 10.5, color: 'var(--iv-ink3)', marginTop: 6 }}>
+              {f.id_image_url ? (isPdfUrl(f.id_image_url) ? 'PDF attached' : 'Image attached · compressed') : 'JPG, PNG or PDF · images are auto-compressed'}
+            </div>
+            {f.id_image_url && !isPdfUrl(f.id_image_url) && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={f.id_image_url} alt="Guest ID document" style={{ marginTop: 8, width: '100%', maxHeight: 160, objectFit: 'contain', borderRadius: 10, border: '1px solid var(--iv-border)', background: 'rgba(255,255,255,.04)' }} />
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div><label style={lbl}>Nationality</label><input style={field} value={f.nationality} onChange={set('nationality')} placeholder="e.g. Bangladeshi" /></div>
@@ -126,7 +175,7 @@ export default function GuestFormModal({ guest, onClose, onSaved }) {
           </div>
           <div className="flex gap-3">
             <button className="iv-btn iv-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
-            <button className="iv-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : (isEdit ? 'Save Changes' : 'Add Guest')}</button>
+            <button className="iv-btn" onClick={save} disabled={saving || uploading}>{saving ? 'Saving…' : (uploading ? 'Uploading ID…' : (isEdit ? 'Save Changes' : 'Add Guest'))}</button>
           </div>
         </div>
       </div>

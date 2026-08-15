@@ -145,13 +145,11 @@ export default function Dashboard() {
   const [stats, setStats] = useState(_cached?.stats || { revenue: 0, occupancy: 0, occupied: 0, totalRooms: 0, checkins: 0, outstanding: 0, dueCount: 0 });
   const [rev14, setRev14] = useState(_cached?.rev14 || []);
   const [total14, setTotal14] = useState(_cached?.total14 || 0);
-  const [catOcc, setCatOcc] = useState(_cached?.catOcc || []);
   const [desk, setDesk] = useState(_cached?.desk || { arrivals: [], departures: [], inhouse: [] });
   const [roomsList, setRoomsList] = useState(_cached?.roomsList || []);
   const [peakInfo, setPeakInfo] = useState(_cached?.peakInfo || { date: '', val: 0, adr: 0, occupancy: 0 });
   const [loading, setLoading] = useState(!_cached);
   const [deskTab, setDeskTab] = useState('arrivals');
-  const [roomTab, setRoomTab] = useState('rooms'); // 'rooms' heatmap | 'category' bars
   const [modal, setModal] = useState(null); // {kind:'pay'|'checkin'|'checkout', res}
 
   useEffect(() => {
@@ -159,7 +157,7 @@ export default function Dashboard() {
       const warm = warmSnap(SNAP_KEY); // localStorage tier — instant paint after full reload
       if (warm) {
         setStats(warm.stats || {}); setRev14(warm.rev14 || []); setTotal14(warm.total14 || 0);
-        setCatOcc(warm.catOcc || []); setDesk(warm.desk || { arrivals: [], departures: [], inhouse: [] });
+        setDesk(warm.desk || { arrivals: [], departures: [], inhouse: [] });
         setRoomsList(warm.roomsList || []); setPeakInfo(warm.peakInfo || {});
         setLoading(false);
       }
@@ -261,12 +259,6 @@ export default function Dashboard() {
       const sum14 = series.reduce((a, d) => a + d.v, 0);
       const peak = series.reduce((a, d) => (d.v > a.v ? d : a), series[0] || { v: 0, ds: '' });
 
-      // per-category occupancy
-      const catMap = {};
-      rms.forEach((r) => { const c = r.category || 'Uncategorized'; (catMap[c] = catMap[c] || { total: 0, occ: 0 }).total++; if (r.status === 'OCCUPIED') catMap[c].occ++; });
-      const palette = [GOLD, GRN, SKY, AMB, '#C08BFF', TEAL];
-      const cats = Object.entries(catMap).map(([name, v], i) => ({ name, pct: v.total ? Math.round((v.occ / v.total) * 100) : 0, color: palette[i % palette.length] })).sort((a, b) => b.pct - a.pct).slice(0, 6);
-
       // ——— KPI trends (Concept A) ———
       // last-7 slices of the same series; deltas vs yesterday. Stays-per-day is derived from
       // reservation date ranges (a room-night existed on d if ci<=d<co and the stay is real).
@@ -298,9 +290,9 @@ export default function Dashboard() {
       const peakObj = { date: peak.ds, val: peak.v, adr: rms.length ? Math.round(rms.reduce((a, r) => a + (Number(r.price) || 0), 0) / rms.length) : 0, occupancy };
       setStats(statsObj);
       setRev14(bars); setTotal14(sum14);
-      setCatOcc(cats); setDesk(deskObj); setRoomsList(rmList);
+      setDesk(deskObj); setRoomsList(rmList);
       setPeakInfo(peakObj);
-      setSnap(SNAP_KEY, { stats: statsObj, rev14: bars, total14: sum14, catOcc: cats, desk: deskObj, roomsList: rmList, peakInfo: peakObj });
+      setSnap(SNAP_KEY, { stats: statsObj, rev14: bars, total14: sum14, desk: deskObj, roomsList: rmList, peakInfo: peakObj });
     } catch (e) {
       console.error('[Dashboard] fetch error:', e);
     } finally {
@@ -359,9 +351,11 @@ export default function Dashboard() {
           : <StatCard icon="🧹" label="Rooms to Clean" accent={AMB} value={loading ? '—' : (stats.totalRooms - stats.occupied)} sub="vacant / awaiting service" />}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: showRevenue ? '3fr 2fr' : '1fr', gap: 16, flexShrink: 0, alignItems: 'start' }} className="iv-chart-grid">
+      {/* Revenue growth — full width since the Rooms live-status panel was retired (owner
+          decision 2026-08-15); Today's Front Desk now sits directly beneath it. */}
+      {showRevenue && <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, flexShrink: 0, alignItems: 'start' }} className="iv-chart-grid">
         {/* 14-day revenue — THE lime card (Orbix signature: neon panel, dark bars & text). Revenue-gated. */}
-        {showRevenue && <section style={{ background: LIME, border: '1px solid rgba(23,26,5,.1)', borderRadius: 20, padding: '18px 20px', boxShadow: '0 16px 44px rgba(223,255,69,.14), 0 2px 8px rgba(0,0,0,.3)', overflow: 'visible' }}>
+        <section style={{ background: LIME, border: '1px solid rgba(23,26,5,.1)', borderRadius: 20, padding: '18px 20px', boxShadow: '0 16px 44px rgba(223,255,69,.14), 0 2px 8px rgba(0,0,0,.3)', overflow: 'visible' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <h3 style={{ margin: 0, fontSize: 16.5, fontWeight: 800, color: LIME_INK, letterSpacing: '-.02em' }}>Revenue growth</h3>
             {!loading && stats.revDelta != null && stats.revDelta !== 0 && (
@@ -380,73 +374,8 @@ export default function Dashboard() {
             <span>Peak {peakInfo.date ? `${peakInfo.date} · ${bdt(peakInfo.val)}` : '—'}</span>
             <span>ADR {bdt(peakInfo.adr)} · RevPAR {bdt(revPAR)}</span>
           </div>
-        </section>}
-
-        {/* rooms — live heatmap (Concept D) with the old category bars as a second tab */}
-        <DSCard title={roomTab === 'rooms' ? 'Rooms —' : 'Category'} titleAccent={roomTab === 'rooms' ? 'Live Status' : 'Occupancy'}
-          action={
-            <div style={{ display: 'flex', gap: 2, background: 'var(--iv-sunken)', border: '1px solid var(--iv-border)', borderRadius: 9, padding: 3 }}>
-              {[['rooms', 'Rooms'], ['category', 'Categories']].map(([k, t]) => (
-                <button key={k} onClick={() => setRoomTab(k)} style={{ fontFamily: 'var(--iv-body)', fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 999, cursor: 'pointer', color: roomTab === k ? LIME_INK : 'var(--iv-ink3)', background: roomTab === k ? LIME : 'transparent', border: '1px solid transparent', transition: 'all .25s var(--iv-ease)' }}>{t}</button>
-              ))}
-            </div>
-          }>
-          {roomTab === 'rooms' ? (
-            <div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {!loading && roomsList.length === 0 && <div style={{ color: 'var(--iv-ink3)', fontSize: 12 }}>No rooms.</div>}
-                {(() => {
-                  const CELL = {
-                    OCCUPIED: { background: LIME, border: `1px solid ${LIME}`, color: LIME_INK, fontWeight: 700 },
-                    RESERVED: { background: 'rgba(192,139,255,.13)', border: '1px solid rgba(192,139,255,.35)', color: PUR, fontWeight: 600 },
-                    DIRTY: { background: 'rgba(245,169,59,.13)', border: '1px solid rgba(245,169,59,.35)', color: AMB, fontWeight: 600 },
-                    OUT_OF_ORDER: { background: 'rgba(255,107,107,.12)', border: '1px solid rgba(255,107,107,.32)', color: ROSE, fontWeight: 500 },
-                  };
-                  const floors = {};
-                  roomsList.forEach((r) => {
-                    const digits = String(r.room_number || '').replace(/\D/g, '');
-                    const f = digits.length >= 3 ? digits.slice(0, digits.length - 2) : '·';
-                    (floors[f] = floors[f] || []).push(r);
-                  });
-                  return Object.keys(floors).sort((a, b) => (+a || 999) - (+b || 999)).map((f) => (
-                    <div key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      <span style={{ fontFamily: 'var(--iv-mono)', fontSize: 10, color: 'var(--iv-ink3)', width: 40, flexShrink: 0, paddingTop: 9 }}>FLR {f}</span>
-                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                        {floors[f].sort((a, b) => String(a.room_number).localeCompare(String(b.room_number), undefined, { numeric: true })).map((r) => (
-                          <a key={r.room_number} href="/crm/rooms" title={`${r.room_number} · ${(r.status || '').replace('_', ' ')}`}
-                            style={{ width: 40, height: 30, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--iv-mono)', fontSize: 10, textDecoration: 'none', background: 'rgba(255,255,255,.04)', border: '1px solid var(--iv-border)', color: 'var(--iv-ink2)', transition: 'transform .15s var(--iv-ease)', ...(CELL[(r.status || '').toUpperCase()] || {}) }}>
-                            {r.room_number}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-              <div style={{ display: 'flex', gap: 14, marginTop: 14, fontSize: 10, color: 'var(--iv-ink2)', flexWrap: 'wrap' }}>
-                {[[LIME, 'Occupied'], ['rgba(255,255,255,.1)', 'Available'], ['rgba(192,139,255,.35)', 'Reserved'], ['rgba(245,169,59,.35)', 'Dirty'], ['rgba(255,107,107,.32)', 'Out of order']].map(([c, t]) => (
-                  <span key={t}><span style={{ width: 9, height: 9, borderRadius: 3, display: 'inline-block', marginRight: 5, verticalAlign: -1, background: c, border: '1px solid var(--iv-border)' }} />{t}</span>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {!loading && catOcc.length === 0 && <div style={{ color: 'var(--iv-ink3)', fontSize: 12 }}>No room categories.</div>}
-              {catOcc.map((o) => (
-                <div key={o.name}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 500, color: 'var(--iv-ink)' }}>{o.name}</span>
-                    <span style={{ fontFamily: 'var(--iv-mono)', color: o.color, fontSize: 10 }}>{o.pct}%</span>
-                  </div>
-                  <div style={{ height: 7, background: 'var(--iv-border2)', borderRadius: 99, overflow: 'hidden' }}>
-                    <div className="iv-grow-x" style={{ height: '100%', width: `${o.pct}%`, background: o.color, borderRadius: 99, transition: 'width .4s var(--iv-ease)' }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </DSCard>
-      </div>
+        </section>
+      </div>}
 
       {/* Front-desk panel (Concept C) — hidden from housekeeping (guest personal details + money) */}
       {showGuestDetails && (() => {

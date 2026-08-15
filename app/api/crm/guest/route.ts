@@ -31,11 +31,18 @@ export async function POST(req: NextRequest) {
   const s = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
   const id = body.id;
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     name: s(body.name), phone: s(body.phone), email: (s(body.email) || '').toLowerCase() || null,
-    id_type: s(body.id_type) || 'NID', id_number: s(body.id_number),
+    id_type: s(body.id_type) || 'NID',
     nationality: s(body.nationality), city: s(body.city), address: s(body.address),
   };
+  // id_number / id_image_url are OPTIONAL-BY-KEY (2026-08-15). The guest form now captures an
+  // uploaded ID document instead of a typed number, so it no longer sends id_number — and an
+  // unconditional `id_number: null` in the update payload would WIPE every number already on
+  // file. Only write a column the caller actually named.
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(body, k);
+  if (has('id_number')) payload.id_number = s(body.id_number);
+  if (has('id_image_url')) payload.id_image_url = s(body.id_image_url);
 
   try {
     if (action === 'create') {

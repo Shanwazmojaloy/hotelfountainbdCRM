@@ -12,11 +12,14 @@ import { Tabs, Card, StatCard, Table, Badge, TD, MONO, C, bdt } from './dskit';
 import { getSnap, warmSnap, setSnap } from '@/lib/snap';
 import { openBusinessDay, nextDay } from '@/lib/businessDay';
 import { outstandingList } from '@/lib/dues';
+import ReservationDetailModal from './ReservationDetailModal';
 
 const dhakaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const addDays = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(t); };
 const fmtLong = (d) => { try { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }); } catch { return d; } };
 const fmtTime = (iso) => { try { return new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: true }); } catch { return ''; } };
+// Compact calendar date for the split Check-In / Check-Out movement columns (e.g. "15 Aug 26").
+const fmtDMY = (d) => { if (!d) return ''; try { return new Date(String(d).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }); } catch { return String(d).slice(0, 10); } };
 // POSITIVE payment match (house rule) — exclusion-only filters let charges (Stay Extension,
 // Room Service) count as collections. Name kept for the 5 call sites; semantics hardened.
 const REAL_PAY = /payment|settlement|advance|deposit|bkash|nagad|bank\s*transfer|cash|card/i;
@@ -101,6 +104,7 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
   const [payouts, setPayouts] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [detailResId, setDetailResId] = useState(null); // movement/dues row → full reservation
 
   // PERF: index eligible (non-BCF) txs by reservation_id ONCE. Previously collectedFor() and
   // _txTimeFor() each scanned the FULL transactions array for every reservation, and the movement
@@ -140,6 +144,64 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
   // Collections are stamped with the open day at write-time, so `=== date` already captures
   // every calendar day's payments that belong to this business day.
   const collectedFor = (r) => (_txByRes.get(r.id) || []).filter((t) => (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+
+  // ── AS-OF (historical) balances ────────────────────────────────────────────────────────
+  // Stepping back to an earlier day used to render TODAY's live balances, so an old report
+  // showed dues that had since been settled (and hid ones that were open at the time). On any
+  // day other than the open one, every balance is rebuilt from the payments actually recorded
+  // up to that business day:  due(D) = total − discount − Σ payments with fiscal_day ≤ D.
+  // The OPEN day keeps the exact live math (dueOf / outstandingList) untouched, so today's
+  // figures stay byte-identical — a money page must not shift under a refactor.
+  // Caveat: total_amount is the reservation's CURRENT total, so a charge posted after D is
+  // included in D's balance. night_audit_log persists only a due TOTAL (carried_over_dues),
+  // never the per-guest list, so this is the finest-grained history available.
+  // "Live book" = the open business day or anything ahead of it (stepping › past the open day
+  // is still the present, not history). Only genuinely PAST days get the as-of reconstruction.
+  const liveBook = date >= openDay;
+  // The calendar day this report's window actually ENDS on — a business day runs past midnight,
+  // so it is today while the day is open and the close morning once it is closed. Used to decide
+  // "had this guest arrived by this business day?" without an off-by-one on post-midnight walk-ins.
+  const dayEnd = liveBook ? calToday : closeBoundary;
+  // Payments recorded AFTER this business day, per reservation. History is reconstructed by
+  // ROLLING THESE BACK off the authoritative `paid_amount` — not by re-summing payments from
+  // scratch. Re-summing would drop any payment whose `type` the REAL_PAY house filter does not
+  // recognise (Rocket / Upay / cheque, or a legacy row whose paid_amount was set with no
+  // transaction) and conjure a balance the guest never owed. Anchoring on paid_amount means the
+  // worst case is a payment we cannot roll back (history reads slightly too settled) — never
+  // money shown as owed that was in fact already collected. On the open day nothing is rolled
+  // back, so dueAsOf() collapses to dueOf() exactly.
+  // Known caveats of anchoring on the CURRENT record (same family as total_amount being the
+  // current total): a payment made before D that is later VOIDED drops out of paid_amount with
+  // no offsetting row to roll back, so D reads high; and a charge posted after D is included in
+  // D's balance. night_audit_log persists only a due TOTAL, never the per-guest list, so this
+  // remains the finest-grained history the data supports.
+  const paidAfterMap = useMemo(() => {
+    const mp = new Map();
+    if (liveBook) return mp; // live book never rolls anything back — skip the whole scan
+    for (const [rid, list] of _txByRes) {
+      const after = list
+        .filter((t) => (t.fiscal_day || t.created_at || '').slice(0, 10) > date)
+        .reduce((a, t) => a + (Number(t.amount) || 0), 0);
+      if (after !== 0) mp.set(rid, after); // !== 0, not > 0: a post-date REFUND nets negative and must roll back too
+    }
+    return mp;
+  }, [_txByRes, date, liveBook]);
+  // O(1) per reservation — the sort/filter/render below call this many times per keystroke in
+  // the Opening Token / Payouts fields, so it must not re-scan the transaction list (the same
+  // pathology the _txByRes index above was introduced to kill).
+  const dueAsOf = (r) => {
+    const paidThen = (+r.paid_amount || 0) - (paidAfterMap.get(r.id) || 0); // no inner clamp: with an empty map this is dueOf() exactly
+    return Math.max(0, (+r.total_amount || 0) - (+r.discount_amount || +r.discount || 0) - paidThen);
+  };
+  // Historical receivables must use the SAME definition as the live book (owner decision
+  // 2026-06-12: CHECKED_IN / CHECKED_OUT only), plus "had they actually arrived by this day?".
+  // Without the status gate a RESERVED/PENDING booking that never converted would surface as a
+  // historical receivable it never was.
+  const isReceivableNow = (r) => { const st = String(r.status || '').toUpperCase(); return st === 'CHECKED_IN' || st === 'CHECKED_OUT'; };
+  const arrivedBy = (r) => { const d = r.checked_in_at ? dhakaDateOf(r.checked_in_at) : (r.check_in || '').slice(0, 10); return !!d && d <= dayEnd; };
+  // The single accessor every balance / status cell on this report reads.
+  const dueAt = (r) => (liveBook ? dueOf(r) : dueAsOf(r));
+
   const ins = res.filter((r) => inDayRange((r.check_in || '').slice(0, 10)) && beforeClose(r.checked_in_at)).map((r) => ({ ...r, _type: 'IN' }));
   const outs = res.filter((r) => inDayRange((r.check_out || '').slice(0, 10))).map((r) => ({ ...r, _type: 'OUT' }));
   const _mv = [...ins, ...outs];
@@ -156,7 +218,7 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
   // already-settled guest (collection shown on its Check-In row, nothing owed) is hidden — without
   // this it renders as a blank "—/—/Settled" ghost row. The filter MUST use the DEDUPED collection
   // (`_movesColl`), not the raw per-reservation `collectedFor`, or the duplicate row slips through.
-  const _keep = _moves.map((m, i) => dueOf(m) > 0 || _movesColl[i] > 0);
+  const _keep = _moves.map((m, i) => dueAt(m) > 0 || _movesColl[i] > 0);
   // A row whose check_out DATE is in range is only a real "Check-Out" once the guest actually
   // departed WITHIN this business day. On the open day that's live status; on a CLOSED day it's
   // checked_out_at ≤ closed_at — a guest who left AFTER the close stays "Due Out" here forever
@@ -170,16 +232,42 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
   const timeOf = (m) => m._type === 'IN' ? (m.checked_in_at || null) : m._type === 'OUT' ? (isDeparted(m) ? (m.checked_out_at || null) : null) : _txTimeFor(m);
   const typeLabel = (m) => m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : (isDeparted(m) ? 'Check-Out' : 'Due Out');
   const typeTone = (m) => m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : (isDeparted(m) ? 'teal' : 'amber');
+  // Split Check-In / Check-Out cells (owner request 2026-08-15). One "Time" column could not
+  // say WHICH action a stamp belonged to, so each movement now carries both, each as
+  // scheduled-date + actual-stamp. No stamp = the action hasn't happened (or happened after
+  // this day's close), which reads as the scheduled date with an em-dash under it.
+  // When an ACTUAL stamp is shown, the date shown with it is that stamp's own Dhaka date — not
+  // the scheduled date. A guest booked for the 14th who walked in 01:15 on the 15th must read
+  // "15 Aug · 01:15 AM", not "14 Aug · 01:15 AM" (which is also what the detail modal shows).
+  // With no usable stamp the cell falls back to the scheduled date over an em-dash.
+  const _cell = (ts, scheduled) => (ts ? { d: dhakaDateOf(ts), t: fmtTime(ts) } : { d: (scheduled || '').slice(0, 10), t: '' });
+  const ciCell = (m) => _cell((m.checked_in_at && beforeClose(m.checked_in_at)) ? m.checked_in_at : null, m.check_in);
+  const coCell = (m) => _cell((isDeparted(m) && m.checked_out_at) ? m.checked_out_at : null, m.check_out);
+  // Post-close "New Movements" lists activity recorded AFTER the close, so beforeClose/isDeparted
+  // would blank EVERY stamp there by construction. That table uses the live stamps instead.
+  const ciCellLive = (m) => _cell(m.checked_in_at || null, m.check_in);
+  const coCellLive = (m) => _cell(m.checked_out_at || null, m.check_out);
+  // …and its Type badge must be live too. isDeparted() requires checked_out_at <= closed_at, which
+  // is false for EVERY post-close row by construction — leaving it there labelled a guest who
+  // demonstrably left on the 13th as amber "Due Out" right next to their own 13:20 departure stamp.
+  const isDepartedLive = (m) => String(m.status || '').toUpperCase() === 'CHECKED_OUT';
+  const typeLabelLive = (m) => m._type === 'IN' ? 'Check-In' : m._type === 'PAY' ? 'Payment' : (isDepartedLive(m) ? 'Check-Out' : 'Due Out');
+  const typeToneLive = (m) => m._type === 'IN' ? 'green' : m._type === 'PAY' ? 'gold' : (isDepartedLive(m) ? 'teal' : 'amber');
   // Keep the attention/money rows, then sort chronologically by action time (nulls last) so staff
   // read today's sequence top-down. Indices keep `moves`/`moveColl` aligned through the sort.
   const _keptIdx = _moves.map((_, i) => i).filter((i) => _keep[i]).sort((a, b) => { const ta = timeOf(_moves[a]), tb = timeOf(_moves[b]); if (!ta && !tb) return 0; if (!ta) return 1; if (!tb) return -1; return new Date(ta) - new Date(tb); });
   const moves = _keptIdx.map((i) => _moves[i]);
   const moveColl = _keptIdx.map((i) => _movesColl[i]);
   const collected = txs.filter((t) => notBCF(t) && (t.fiscal_day || t.created_at || '').slice(0, 10) === date).reduce((a, t) => a + (Number(t.amount) || 0), 0);
-  // Due/Outstanding is ALWAYS the full live book (every reservation with a balance) — visible
-  // on every day's report, not just guests who moved today.
-  const allDue = outstandingList(res); // receivables only (CHECKED_IN/CHECKED_OUT) - owner decision 2026-06-12
-  const totalDue = allDue.reduce((a, r) => a + dueOf(r), 0);
+  // Due/Outstanding is the full book of receivables (every reservation with a balance) —
+  // visible on every day's report, not just guests who moved that day. On the OPEN day that's
+  // the canonical live list; on a historical day it's rebuilt as of that day (see dueAsOf).
+  const allDue = liveBook
+    ? outstandingList(res) // receivables only (CHECKED_IN/CHECKED_OUT) - owner decision 2026-06-12
+    : res
+        .filter((r) => isReceivableNow(r) && arrivedBy(r) && dueAsOf(r) > 0)
+        .sort((a, b) => dueAsOf(b) - dueAsOf(a));
+  const totalDue = allDue.reduce((a, r) => a + dueAt(r), 0);
   const tok = parseInt(token || (closeRow && closeRow.opening_token) || '0', 10) || 0;
   const payout = parseInt(payouts || (closeRow && closeRow.payouts) || '0', 10) || 0;
   // Closing Balance = Opening Token (float) + Cash Collection − Payouts (owner spec 2026-06-24).
@@ -234,21 +322,33 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
       <div className="pr-panel">
         <div className="pr-panel-h"><span className="pr-panel-t">Daily Movements</span><span className="pr-panel-s">{moves.length} movement{moves.length === 1 ? '' : 's'} · {bdt(_collected)} collected</span></div>
         <table className="pr-tbl">
-          <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th className="r">Collected</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
+          {/* Check-In / Check-Out are SEPARATE printed columns (owner request 2026-08-15) —
+              the old single "Type + time" cell left the owner guessing which action a
+              timestamp belonged to on the downloaded invoice/report. */}
+          <thead><tr><th>Guest</th><th>Room</th><th>Type</th><th>Check-In</th><th>Check-Out</th><th className="r">Collected</th><th className="r">Balance Due</th><th>Status</th></tr></thead>
           <tbody>
-            {moves.map((m, i) => { const due = dueOf(m); return (
-              <tr key={i}><td>{m.guest_name || 'Guest'}</td><td>{roomOf(m)}</td><td>{typeLabel(m)}{timeOf(m) ? <><br /><span style={{ fontSize: '0.82em', color: '#8a7d6a' }}>{fmtTime(timeOf(m))}</span></> : ''}</td><td className="r">{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td><td className="r">{due > 0 ? bdt(due) : '—'}</td><td>{due > 0 ? 'Balance Due' : 'Settled'}</td></tr>
+            {moves.map((m, i) => { const due = dueAt(m); const ci = ciCell(m); const co = coCell(m); return (
+              <tr key={i}>
+                <td>{m.guest_name || 'Guest'}</td>
+                <td>{roomOf(m)}</td>
+                <td>{typeLabel(m)}{m._type === 'PAY' && timeOf(m) ? <><br /><span style={{ fontSize: '0.82em', color: '#8a7d6a' }}>{fmtTime(timeOf(m))}</span></> : ''}</td>
+                <td>{fmtDMY(ci.d) || '—'}{ci.t ? <><br /><span style={{ fontSize: '0.82em', color: '#8a7d6a' }}>{ci.t}</span></> : ''}</td>
+                <td>{fmtDMY(co.d) || '—'}{co.t ? <><br /><span style={{ fontSize: '0.82em', color: '#8a7d6a' }}>{co.t}</span></> : ''}</td>
+                <td className="r">{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td>
+                <td className="r">{due > 0 ? bdt(due) : '—'}</td>
+                <td>{due > 0 ? 'Balance Due' : 'Settled'}</td>
+              </tr>
             ); })}
           </tbody>
         </table>
       </div>
       <div className="pr-panel">
-        <div className="pr-panel-h pr-panel-h--due"><span className="pr-panel-t">Outstanding Dues</span><span className="pr-panel-s">{allDue.length} reservation{allDue.length === 1 ? '' : 's'} · {bdt(totalDue)} due</span></div>
+        <div className="pr-panel-h pr-panel-h--due"><span className="pr-panel-t">Outstanding Dues{liveBook ? '' : ` — as of ${fmtDMY(date)}`}</span><span className="pr-panel-s">{allDue.length} reservation{allDue.length === 1 ? '' : 's'} · {bdt(totalDue)} due</span></div>
         <table className="pr-tbl">
           <thead><tr><th>Guest</th><th>Room</th><th>Status</th><th className="r">Balance Due</th></tr></thead>
           <tbody>
             {allDue.map((r, i) => (
-              <tr key={i}><td>{r.guest_name || 'Guest'}</td><td>{roomOf(r)}</td><td>{r.status || '—'}</td><td className="r">{bdt(dueOf(r))}</td></tr>
+              <tr key={i}><td>{r.guest_name || 'Guest'}</td><td>{roomOf(r)}</td><td>{r.status || '—'}</td><td className="r">{bdt(dueAt(r))}</td></tr>
             ))}
             <tr className="pr-tot-row"><td colSpan={3}>Total Outstanding</td><td className="r">{bdt(totalDue)}</td></tr>
           </tbody>
@@ -292,8 +392,11 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
     const newIns = res.filter((r) => (r.check_in || '').slice(0, 10) > date).map((r) => ({ ...r, _type: 'IN' }));
     const newOuts = res.filter((r) => (r.check_out || '').slice(0, 10) > date).map((r) => ({ ...r, _type: 'OUT' }));
     const newMoves = [...newIns, ...newOuts].sort((a, b) => ((a._type === 'IN' ? a.check_in : a.check_out) || '').localeCompare((b._type === 'IN' ? b.check_in : b.check_out) || ''));
-    const outstanding = outstandingList(res); // receivables only - shared helper
-    const totalOutstanding = outstanding.reduce((a, r) => a + dueOf(r), 0);
+    // Outstanding on a CLOSED day is the as-of book computed above, not the live one. Stepping
+    // back to an old closed day used to paint TODAY's dues here — the exact complaint this
+    // change fixes. `allDue`/`totalDue` already resolve to the as-of list for any non-open day.
+    const outstanding = allDue;
+    const totalOutstanding = totalDue;
 
     return (
       <>
@@ -323,18 +426,31 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
           <StatCard label="Outstanding Due" value={bdt(totalOutstanding)} accent={C.rose} sub={`${outstanding.length} reservation${outstanding.length === 1 ? '' : 's'}`} />
         </div>
 
+        {/* Basis note: this panel is LIVE (it lists activity recorded after the close), while the
+            Outstanding Dues card below is AS-OF the closed day. The same guest can legitimately
+            appear in both with different balances, so each card states which book it is reading. */}
         <Card title="New" titleAccent="Movements" accent={C.sky} bodyStyle={{ padding: 0 }}>
-          <Table head={['Guest', 'Room', 'Type', 'Date', 'Balance', 'Status']}>
-            {newMoves.length === 0 && <tr><td colSpan={6} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No new check-ins or check-outs after this close.</td></tr>}
+          <div style={{ padding: '10px 18px', fontSize: 11, color: C.ink3, borderBottom: '1px solid var(--iv-border2)' }}>
+            Live balances — activity recorded <strong>after</strong> this close.
+          </div>
+          <Table head={['Guest', 'Room', 'Type', 'Check-In', 'Check-Out', 'Balance', 'Status']}>
+            {newMoves.length === 0 && <tr><td colSpan={7} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No new check-ins or check-outs after this close.</td></tr>}
             {newMoves.map((m, i) => {
+              // Post-close rows are activity dated AFTER `date`, so their payments all carry a
+              // later fiscal_day. Rolling those back (dueAt) would show every one of them at full
+              // gross — this panel is live-book by definition.
               const due = dueOf(m);
-              const dt = (m._type === 'IN' ? m.check_in : m.check_out || '').slice(0, 10);
+              const ci = ciCellLive(m); const co = coCellLive(m);
               return (
-                <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+                <tr key={i} onClick={() => setDetailResId(m.id)} title="Open full reservation details"
+                  style={{ borderBottom: '1px solid var(--iv-border2)', cursor: 'pointer', transition: 'background .18s var(--iv-ease)' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <td style={TD}>{m.guest_name || 'Guest'}</td>
                   <td style={TD}><Badge tone="blue">{roomOf(m)}</Badge></td>
-                  <td style={TD}><Badge tone={typeTone(m)}>{typeLabel(m)}</Badge></td>
-                  <td style={{ ...TD, ...MONO, color: C.ink3 }}>{dt}</td>
+                  <td style={TD}><Badge tone={typeToneLive(m)}>{typeLabelLive(m)}</Badge></td>
+                  <td style={{ ...TD, ...MONO, color: C.ink3 }}><DTCell {...ci} /></td>
+                  <td style={{ ...TD, ...MONO, color: C.ink3 }}><DTCell {...co} /></td>
                   <td style={{ ...TD, ...MONO, color: due > 0 ? C.rose : C.ink3 }}>{due > 0 ? bdt(due) : '—'}</td>
                   <td style={TD}>{due > 0 ? <Badge tone="amber">Balance Due</Badge> : <Badge tone="green">Settled</Badge>}</td>
                 </tr>
@@ -358,15 +474,21 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
           </Table>
         </Card>
 
-        <Card title="Outstanding" titleAccent="Due (carried)" accent={C.rose} bodyStyle={{ padding: 0 }}>
+        <Card title="Outstanding" titleAccent={`Due — as of ${fmtDMY(date)}`} accent={C.rose} bodyStyle={{ padding: 0 }}>
+          <div style={{ padding: '10px 18px', fontSize: 11, color: C.ink3, borderBottom: '1px solid var(--iv-border2)' }}>
+            Balances as they stood on {fmtLong(date)} — rebuilt from the payments recorded up to that business day, not today&apos;s live book.
+          </div>
           <Table head={['Guest', 'Room', 'Status', 'Balance Due']}>
-            {outstanding.length === 0 && <tr><td colSpan={4} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No outstanding balances. ✓</td></tr>}
+            {outstanding.length === 0 && <tr><td colSpan={4} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No outstanding balances on this day. ✓</td></tr>}
             {outstanding.map((r, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+              <tr key={i} onClick={() => setDetailResId(r.id)} title="Open full reservation details"
+                style={{ borderBottom: '1px solid var(--iv-border2)', cursor: 'pointer', transition: 'background .18s var(--iv-ease)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                 <td style={TD}>{r.guest_name || 'Guest'}</td>
                 <td style={TD}><Badge tone="blue">{roomOf(r)}</Badge></td>
                 <td style={TD}><Badge tone="neutral">{r.status || '—'}</Badge></td>
-                <td style={{ ...TD, ...MONO, color: C.rose }}>{bdt(dueOf(r))}</td>
+                <td style={{ ...TD, ...MONO, color: C.rose }}>{bdt(dueAt(r))}</td>
               </tr>
             ))}
           </Table>
@@ -375,6 +497,7 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
                 {/* ── PRINT-ONLY: full day-closing detail report (same template as the live report) ── */}
         {renderPrint('CLOSED · ' + fmtTime(closeRow.closed_at))}
         <style>{PRINT_CSS}</style>
+        {detailResId && <ReservationDetailModal reservationId={detailResId} txs={txs} onClose={() => setDetailResId(null)} />}
       </>
     );
   }
@@ -403,24 +526,35 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
         {(fb || []).length > 0 && <StatCard label="F&B (Restaurant)" value={bdt((fb || []).filter((o) => o.payment_status !== 'VOID').reduce((a, o) => a + (Number(o.grand_total_bdt) || 0), 0))} accent={C.gold} sub="restaurant sales today" />}
       </div>
 
+      {/* Movements: Time → separate Check-In / Check-Out date-time columns, and every row opens
+          the full reservation (guest details included) on click. */}
       <Card title="Daily" titleAccent="Movements" bodyStyle={{ padding: 0 }}>
-        <Table head={['Guest', 'Room', 'Type', 'Time', 'Collected', 'Balance', 'Status']}>
+        <Table head={['Guest', 'Room', 'Type', 'Check-In', 'Check-Out', 'Collected', 'Balance', 'Status']}>
           {/* Skeleton rows reserve realistic height during load so the fill-in doesn't shift
               the cards below (Outstanding Dues / Closing Ledger) — fixes the /crm/reports CLS. */}
           {loading && Array.from({ length: 6 }).map((_, i) => (
             <tr key={`skm${i}`} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
-              <td colSpan={7} style={{ padding: '13px 12px' }}><div style={{ height: 12, borderRadius: 6, background: 'var(--iv-border2)', opacity: 0.5 }} /></td>
+              <td colSpan={8} style={{ padding: '13px 12px' }}><div style={{ height: 12, borderRadius: 6, background: 'var(--iv-border2)', opacity: 0.5 }} /></td>
             </tr>
           ))}
-          {!loading && moves.length === 0 && <tr><td colSpan={7} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No movements or collections on {fmtLong(date)}.</td></tr>}
+          {!loading && moves.length === 0 && <tr><td colSpan={8} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No movements or collections on {fmtLong(date)}.</td></tr>}
           {moves.map((m, i) => {
-            const due = dueOf(m);
+            const due = dueAt(m);
+            const ci = ciCell(m); const co = coCell(m);
             return (
-              <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+              <tr key={i} onClick={() => setDetailResId(m.id)} title="Open full reservation details"
+                style={{ borderBottom: '1px solid var(--iv-border2)', cursor: 'pointer', transition: 'background .18s var(--iv-ease)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                 <td style={TD}>{m.guest_name || 'Guest'}</td>
                 <td style={TD}><Badge tone="blue">{roomOf(m)}</Badge></td>
-                <td style={TD}><Badge tone={typeTone(m)}>{typeLabel(m)}</Badge></td>
-                <td style={{ ...TD, ...MONO, color: C.ink3 }}>{timeOf(m) ? fmtTime(timeOf(m)) : '—'}</td>
+                {/* A Payment row has no check-in/out of its own to show, so its transaction time
+                    (which is also what the table sorts by) rides under the Type badge. */}
+                <td style={TD}><Badge tone={typeTone(m)}>{typeLabel(m)}</Badge>
+                  {m._type === 'PAY' && timeOf(m) ? <div style={{ ...MONO, fontSize: 10, color: C.ink3, marginTop: 3 }}>{fmtTime(timeOf(m))}</div> : null}
+                </td>
+                <td style={{ ...TD, ...MONO, color: C.ink3 }}><DTCell {...ci} /></td>
+                <td style={{ ...TD, ...MONO, color: C.ink3 }}><DTCell {...co} /></td>
                 <td style={{ ...TD, ...MONO, color: moveColl[i] > 0 ? C.grn : C.ink3 }}>{moveColl[i] > 0 ? bdt(moveColl[i]) : '—'}</td>
                 <td style={{ ...TD, ...MONO, color: due > 0 ? C.rose : C.ink3 }}>{due > 0 ? bdt(due) : '—'}</td>
                 <td style={TD}>{due > 0 ? <Badge tone="amber">Balance Due</Badge> : <Badge tone="green">Settled</Badge>}</td>
@@ -430,8 +564,14 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
         </Table>
       </Card>
 
-      {/* Outstanding dues — always visible on every day's report (full live book) */}
-      <Card title="Outstanding" titleAccent="Dues" accent={C.rose} bodyStyle={{ padding: 0 }}>
+      {/* Outstanding dues — the full receivables book for THIS report day (live on the open
+          day, rebuilt as-of the picked date on any historical day). */}
+      <Card title="Outstanding" titleAccent={liveBook ? 'Dues' : `Dues — as of ${fmtDMY(date)}`} accent={C.rose} bodyStyle={{ padding: 0 }}>
+        {!liveBook && (
+          <div style={{ padding: '10px 18px', fontSize: 11, color: C.ink3, borderBottom: '1px solid var(--iv-border2)' }}>
+            Balances as they stood on {fmtLong(date)} — rebuilt from the payments recorded up to that business day, not today&apos;s live book.
+          </div>
+        )}
         <Table head={['Guest', 'Room', 'Status', 'Balance Due']}>
           {/* Loading skeleton (this table had none) — the 0→N-row jump was the main CLS driver. */}
           {loading && Array.from({ length: 8 }).map((_, i) => (
@@ -439,13 +579,16 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
               <td colSpan={4} style={{ padding: '13px 12px' }}><div style={{ height: 12, borderRadius: 6, background: 'var(--iv-border2)', opacity: 0.5 }} /></td>
             </tr>
           ))}
-          {!loading && allDue.length === 0 && <tr><td colSpan={4} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No outstanding balances. ✓</td></tr>}
+          {!loading && allDue.length === 0 && <tr><td colSpan={4} style={{ padding: 16, color: C.ink3, fontSize: 12 }}>No outstanding balances{liveBook ? '' : ' on this day'}. ✓</td></tr>}
           {allDue.slice(0, 200).map((r, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid var(--iv-border2)' }}>
+            <tr key={i} onClick={() => setDetailResId(r.id)} title="Open full reservation details"
+              style={{ borderBottom: '1px solid var(--iv-border2)', cursor: 'pointer', transition: 'background .18s var(--iv-ease)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
               <td style={TD}>{r.guest_name || 'Guest'}</td>
               <td style={TD}><Badge tone="blue">{roomOf(r)}</Badge></td>
               <td style={TD}><Badge tone="neutral">{r.status || '—'}</Badge></td>
-              <td style={{ ...TD, ...MONO, color: C.rose }}>{bdt(dueOf(r))}</td>
+              <td style={{ ...TD, ...MONO, color: C.rose }}>{bdt(dueAt(r))}</td>
             </tr>
           ))}
         </Table>
@@ -464,6 +607,17 @@ function Daily({ txs, res, closes, fb, loading, onClosed }) {
             {/* ── PRINT-ONLY: one-page A4 day report (Download → window.print) ── */}
       {renderPrint(onOpenDay ? 'LIVE — OPEN DAY' : 'HISTORICAL')}
       <style>{PRINT_CSS}</style>
+      {detailResId && <ReservationDetailModal reservationId={detailResId} txs={txs} onClose={() => setDetailResId(null)} />}
+    </>
+  );
+}
+
+// Two-line date/time cell for the split Check-In / Check-Out movement columns.
+function DTCell({ d, t }) {
+  return (
+    <>
+      <div style={{ whiteSpace: 'nowrap' }}>{fmtDMY(d) || '—'}</div>
+      <div style={{ fontSize: 10, opacity: t ? 0.75 : 0.45, whiteSpace: 'nowrap' }}>{t || '—'}</div>
     </>
   );
 }
