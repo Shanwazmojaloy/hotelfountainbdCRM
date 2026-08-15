@@ -7,9 +7,9 @@ DECLARE
   v_available integer; v_occupancy numeric;
   v_discount integer; v_friday date;
 BEGIN
-  SELECT COUNT(*) INTO v_available FROM rooms WHERE status='AVAILABLE';
-  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/28*100,1)
-  INTO v_occupancy FROM rooms;
+  SELECT COUNT(*) INTO v_available FROM rooms WHERE tenant_id = fountain_tenant_id() AND status='AVAILABLE';
+  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/NULLIF(COUNT(*),0)*100,1)
+  INTO v_occupancy FROM rooms WHERE tenant_id = fountain_tenant_id();
 
   v_discount := CASE
     WHEN v_occupancy < 30 THEN 20

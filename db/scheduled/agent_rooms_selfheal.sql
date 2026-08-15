@@ -20,21 +20,21 @@ BEGIN
       WHERE res.status='CHECKED_IN' AND r.room_number=ANY(res.room_ids));
   GET DIAGNOSTICS v_mismatch=ROW_COUNT;
 
-  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/28*100,1)
-  INTO v_occupancy_rate FROM rooms;
+  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/NULLIF(COUNT(*),0)*100,1)
+  INTO v_occupancy_rate FROM rooms WHERE tenant_id = fountain_tenant_id();
 
   INSERT INTO agent_pattern_memory(agent_id,pattern_key,pattern_desc,times_seen,times_correct,confidence,metadata)
   VALUES('lumea-rooms','occupancy_trend','Daily occupancy tracking',1,1,0.9,
     jsonb_build_object('rate',v_occupancy_rate,'date',CURRENT_DATE,
-      'available',(SELECT COUNT(*) FROM rooms WHERE status='AVAILABLE'),
-      'occupied',(SELECT COUNT(*) FROM rooms WHERE status='OCCUPIED'),
-      'dirty',(SELECT COUNT(*) FROM rooms WHERE status='DIRTY')))
+      'available',(SELECT COUNT(*) FROM rooms WHERE tenant_id = fountain_tenant_id() AND status='AVAILABLE'),
+      'occupied',(SELECT COUNT(*) FROM rooms WHERE tenant_id = fountain_tenant_id() AND status='OCCUPIED'),
+      'dirty',(SELECT COUNT(*) FROM rooms WHERE tenant_id = fountain_tenant_id() AND status='DIRTY')))
   ON CONFLICT(pattern_key) DO UPDATE SET
     times_seen=agent_pattern_memory.times_seen+1,
     metadata=jsonb_build_object('rate',v_occupancy_rate,'date',CURRENT_DATE,
-      'available',(SELECT COUNT(*) FROM rooms WHERE status='AVAILABLE'),
-      'occupied',(SELECT COUNT(*) FROM rooms WHERE status='OCCUPIED'),
-      'dirty',(SELECT COUNT(*) FROM rooms WHERE status='DIRTY')),
+      'available',(SELECT COUNT(*) FROM rooms WHERE tenant_id = fountain_tenant_id() AND status='AVAILABLE'),
+      'occupied',(SELECT COUNT(*) FROM rooms WHERE tenant_id = fountain_tenant_id() AND status='OCCUPIED'),
+      'dirty',(SELECT COUNT(*) FROM rooms WHERE tenant_id = fountain_tenant_id() AND status='DIRTY')),
     updated_at=NOW();
 
   PERFORM agent_record_feedback('lumea-rooms','occupied_no_reservation',

@@ -8,8 +8,8 @@ DECLARE
   v_strategy text; v_week date; v_tid uuid; v_month integer;
 BEGIN
   v_tid := fountain_tenant_id();
-  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/28*100,1),
-    COUNT(CASE WHEN status='AVAILABLE' THEN 1 END) INTO v_occ,v_avail FROM rooms;
+  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/NULLIF(COUNT(*),0)*100,1),
+    COUNT(CASE WHEN status='AVAILABLE' THEN 1 END) INTO v_occ,v_avail FROM rooms WHERE tenant_id = fountain_tenant_id();
   v_month:=EXTRACT(MONTH FROM CURRENT_DATE);
   v_week:=DATE_TRUNC('week',CURRENT_DATE)::date;
   v_season:=CASE WHEN v_month IN (4,5) THEN 'RAMADAN_EID'

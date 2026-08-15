@@ -28,8 +28,8 @@ BEGIN
   SELECT COALESCE(SUM(paid_amount),0) INTO v_revenue_mtd
   FROM reservations WHERE check_out>=DATE_TRUNC('month',NOW()) AND status='CHECKED_OUT';
 
-  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/28*100,1)
-  INTO v_occupancy FROM rooms;
+  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/NULLIF(COUNT(*),0)*100,1)
+  INTO v_occupancy FROM rooms WHERE tenant_id = fountain_tenant_id();
 
   SELECT COALESCE(SUM(deal_value_bdt),0) INTO v_pipeline_value
   FROM ceo_pipeline WHERE stage!='CLOSED';

@@ -16,8 +16,8 @@ BEGIN
   SELECT COALESCE(dynamic_rate,4000) INTO v_dyn FROM dynamic_pricing_log
   WHERE category='Fountain Deluxe' AND effective_date=CURRENT_DATE LIMIT 1;
   SELECT COUNT(CASE WHEN status='AVAILABLE' THEN 1 END),
-    ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/28*100,1)
-  INTO v_avail, v_occ FROM rooms;
+    ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/NULLIF(COUNT(*),0)*100,1)
+  INTO v_avail, v_occ FROM rooms WHERE tenant_id = fountain_tenant_id();
   v_tid := fountain_tenant_id();
 
   DELETE FROM content_variations WHERE content_id=p_content_id;

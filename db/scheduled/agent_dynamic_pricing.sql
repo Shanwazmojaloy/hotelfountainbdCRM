@@ -7,8 +7,8 @@ DECLARE v_day text; v_month integer; v_mult numeric; v_season text; v_occ numeri
 BEGIN
   v_day:=TRIM(TO_CHAR(CURRENT_DATE,'Day'));
   v_month:=EXTRACT(MONTH FROM CURRENT_DATE);
-  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/28*100,1)
-  INTO v_occ FROM rooms;
+  SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/NULLIF(COUNT(*),0)*100,1)
+  INTO v_occ FROM rooms WHERE tenant_id = fountain_tenant_id();
 
   v_season:=CASE WHEN v_month IN (4,5) THEN 'RAMADAN_EID'
     WHEN v_month IN (12,1) THEN 'WINTER_PEAK'
