@@ -37,7 +37,7 @@ BEGIN
     format('Weekend %s%% off at Hotel Fountain BD. %s rooms from BDT %s.',
       v_discount,v_available,ROUND(4000*(1-v_discount::numeric/100))),
     v_available, v_discount, v_friday,
-    (SELECT tenant_id FROM reservations LIMIT 1)
+    fountain_tenant_id()
   FROM (VALUES ('FACEBOOK'),('WHATSAPP')) AS t(platform)
   WHERE NOT EXISTS(
     SELECT 1 FROM social_content_queue

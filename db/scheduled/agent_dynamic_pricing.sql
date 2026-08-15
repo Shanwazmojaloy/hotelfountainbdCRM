@@ -27,7 +27,7 @@ BEGIN
   SELECT CURRENT_DATE,v_day,v_season,cat,base,
     ROUND(base*v_mult/100)*100,v_mult,
     format('%s | %s | occ:%s%%',v_day,v_season,v_occ),
-    (SELECT tenant_id FROM reservations LIMIT 1)
+    fountain_tenant_id()
   FROM (VALUES
     ('Fountain Deluxe',4000),('Premium Deluxe',4500),
     ('Superior Deluxe',5000),('Twin Deluxe',6000),('Royal Suite',9000)

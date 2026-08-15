@@ -20,7 +20,7 @@ BEGIN
     VALUES('WHATSAPP','REVIEW_REQUEST',
       E'আমাদের সাথে থাকার জন্য ধন্যবাদ! 🏨\nGoogle review দিন:\ng.page/hotelfountainbd\nমাত্র ৩০ সেকেন্ড। ধন্যবাদ! 🙏',
       'Thanks for staying at Hotel Fountain BD! Leave a review: g.page/hotelfountainbd',
-      0,0,CURRENT_DATE,(SELECT tenant_id FROM reservations LIMIT 1))
+      0,0,CURRENT_DATE,fountain_tenant_id())
     ON CONFLICT DO NOTHING;
   END IF;
 

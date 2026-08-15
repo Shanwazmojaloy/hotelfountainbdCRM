@@ -7,7 +7,7 @@ DECLARE
   v_occ numeric; v_avail integer; v_season text;
   v_strategy text; v_week date; v_tid uuid; v_month integer;
 BEGIN
-  SELECT tenant_id INTO v_tid FROM reservations LIMIT 1;
+  v_tid := fountain_tenant_id();
   SELECT ROUND(COUNT(CASE WHEN status='OCCUPIED' THEN 1 END)::numeric/28*100,1),
     COUNT(CASE WHEN status='AVAILABLE' THEN 1 END) INTO v_occ,v_avail FROM rooms;
   v_month:=EXTRACT(MONTH FROM CURRENT_DATE);
