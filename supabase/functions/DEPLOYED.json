@@ -117,7 +117,9 @@
       "sha256": "22edb86adc08f6f4f52afae67b86ce0a1698b7d21acdbfa257e5b984cf0d481f",
       "pulled_at": "2026-08-15",
       "repo_differs_from_deployed": true,
-      "redaction": "NT_TOKEN held a live Netlify personal access token in plaintext. Replaced with Deno.env.get('NETLIFY_TOKEN') plus a 503 guard. ROTATE the old token."
+      "redaction": "NT_TOKEN held a live Netlify personal access token in plaintext. Replaced with Deno.env.get('NETLIFY_TOKEN') plus a 503 guard. ROTATE the old token.",
+      "deleted_from_supabase": "2026-08-15",
+      "note": "DELETED from the project on 2026-08-15. Dead scaffolding, verify_jwt:false, with a plaintext credential in its source. Kept here as the record of what ran. The hash guard still applies so the file is not edited unnoticed."
     },
     "lead-gen-swarm": {
       "path": "supabase/functions/lead-gen-swarm/index.ts",
@@ -201,7 +203,9 @@
       "sha256": "f1a8596428f85b41de0183a0293ff052f48b004b6726e3677a1017660421577f",
       "pulled_at": "2026-08-15",
       "repo_differs_from_deployed": true,
-      "redaction": "VERCEL_TOKEN held a live Vercel API token in plaintext on a verify_jwt:false endpoint - anyone who could reach the URL could create and deploy projects under team_l1SAECyZJ9giIw4o2SGxjpqd. Replaced with Deno.env.get('VERCEL_TOKEN') plus a 503 guard. ROTATE the old token."
+      "redaction": "VERCEL_TOKEN held a live Vercel API token in plaintext on a verify_jwt:false endpoint - anyone who could reach the URL could create and deploy projects under team_l1SAECyZJ9giIw4o2SGxjpqd. Replaced with Deno.env.get('VERCEL_TOKEN') plus a 503 guard. ROTATE the old token.",
+      "deleted_from_supabase": "2026-08-15",
+      "note": "DELETED from the project on 2026-08-15. Dead scaffolding, verify_jwt:false, with a plaintext credential in its source. Kept here as the record of what ran. The hash guard still applies so the file is not edited unnoticed."
     },
     "verify-device-token": {
       "path": "supabase/functions/verify-device-token/index.ts",

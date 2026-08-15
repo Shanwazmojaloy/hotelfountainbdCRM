@@ -118,3 +118,64 @@ re-investigates them:
   contains the literal `re_`, which matches the Resend key pattern.
 - `app/admin/onboard/page.tsx:41` — `'xkeysib-...'` is a UI placeholder in an
   onboarding form, not a key.
+
+---
+
+## Correction — 2026-08-15, after checking the provider dashboards
+
+Three of the five findings above were stated with more confidence than the
+evidence supported. Corrected here rather than quietly edited.
+
+### S-1 and S-2 · "live" was an assumption, not a finding
+
+I described the Vercel and Netlify tokens as **live**. I had not checked. What I
+actually observed was a plaintext credential in deployed source; I inferred the
+rest.
+
+Checked directly on 2026-08-15:
+
+| Provider | Page | Result |
+|---|---|---|
+| Vercel | Account → Tokens, filter **All** | One token: *"Vercel Dashboard from Chrome on Windows (current)"* — the browser session. No API token. |
+| Netlify | User settings → Applications → Personal access tokens | **No tokens exist.** |
+
+So both were almost certainly revoked already. The exposure was real — plaintext
+secrets in a `verify_jwt:false` function is a genuine defect regardless — but the
+*severity* I assigned assumed a working credential, and that assumption was
+wrong. S-1 was called CRITICAL on that basis. It should have read: "plaintext
+credential in deployed source, validity unverified."
+
+Caveat in the other direction: absence from those pages is strong evidence, not
+proof. A token issued under a different account would not appear. Neither
+function exists any more, so this is now moot either way.
+
+**Both functions were deleted from Supabase on 2026-08-15**, which is what S-4
+recommended. Their source stays in `supabase/functions/` as the record.
+
+### S-3 · The VAPID keypair still needs rotating, and the secret names are wrong
+
+Unchanged in substance: a VAPID private key does not get "revoked" — it stays
+valid until the keypair is replaced and subscriptions are re-created.
+
+Two secrets were added to the project on 2026-08-15 named `VAPID` and
+`VAPID PUBLIC`. Neither is read by anything. `send-push` reads exactly
+`VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`, and `VAPID PUBLIC` contains a space,
+which is not a valid environment variable name. Redeploying `send-push` against
+those two would 503 on the `VAPID_READY` guard.
+
+### S-5 · now confirmed at the source, not inferred
+
+`HOTEL_SENDER_EMAIL` does not appear in the project's Edge Function secrets. The
+gmail fallback in `outreach-bot` is therefore the value in use — previously
+deduced from the `[SEND-FAIL …]` rows, now confirmed directly.
+
+### Two things noticed on the secrets page
+
+`BREVO_API_KEY` is still present. Nothing reads it since the H-12 migration; it
+is the credential for the account that spent six weeks rejecting sends. Safe to
+delete.
+
+`VITE_SUPABASE_SERVICE_ROLE_KEY` holds a service-role key under a `VITE_` prefix.
+As a Supabase Edge Function secret it is not exposed to a browser — but in any
+Vite build, `VITE_`-prefixed variables are inlined into client bundles by design.
+The name is a trap for whoever copies it next. Rename it.
