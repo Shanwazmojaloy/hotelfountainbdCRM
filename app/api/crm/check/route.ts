@@ -39,8 +39,21 @@ export async function POST(req: NextRequest) {
 
     const resStatus = action === 'checkin' ? 'CHECKED_IN' : 'CHECKED_OUT';
     const roomStatus = action === 'checkin' ? 'OCCUPIED' : 'DIRTY';
+    // `check_in` is the BOOKED arrival date and one half of the night count that prices
+    // the stay — it is not a movement timestamp and must never be stamped here. The real
+    // arrival moment is already captured by the `trg_stamp_movement_times` trigger into
+    // `checked_in_at` (COALESCE(NEW.checked_in_at, now()) on the flip to CHECKED_IN), so
+    // the line removed here was pure loss:
+    //
+    //   if (action === 'checkin') resPatch.check_in = new Date().toISOString();
+    //
+    // It rewrote the booked date to the walk-in wall-clock time. 406 of 1,732 reservations
+    // carry a check_in that is not the canonical 06:00 Dhaka booking midnight, and 84 of
+    // those now compute check_out - check_in <= 0 nights (vs 1.8% in the untouched set —
+    // an 11x enrichment). No money has moved yet, but recalcResTotal floors nights to 1,
+    // so the next edit that changes dates or rooms on one of those rows would silently
+    // reprice a multi-night stay as a single night.
     const resPatch: Record<string, unknown> = { status: resStatus };
-    if (action === 'checkin') resPatch.check_in = new Date().toISOString();
 
     const { error: rErr } = await db.from('reservations').update(resPatch).eq('id', resId);
     if (rErr) throw rErr;
