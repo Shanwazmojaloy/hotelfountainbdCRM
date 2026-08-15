@@ -13,10 +13,9 @@ const CORS = {
 };
 const SB_URL = Deno.env.get('SUPABASE_URL') ?? 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const BREVO  = Deno.env.get('BREVO_API_KEY') ?? '';
 const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const SENDER_EMAIL = 'hotellfountainbd@gmail.com';
+const SENDER_EMAIL = Deno.env.get('CRM_FROM_EMAIL') ?? 'reservations@fountainbd.com';  // gmail.com is NOT a verified Resend domain - verified by live invoke 2026-08-15 (H-12)
 const TO_EMAIL = 'shanwazahmed@fountainbd.com';
 const HOTEL = 'Hotel Fountain BD';
 const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
@@ -46,7 +45,6 @@ async function gemini(prompt: string): Promise<string> {
   } catch { return ''; }
 }
 async function sendBrevo(subject: string, html: string, text: string) {
-  if (!BREVO) return { ok: false, error: 'BREVO_API_KEY not set' };
   // Resend via the shared mailer. Audit 2026-08-15 H-12.
   return await sendMail({ to: TO_EMAIL, subject, html, text, fromName: `${HOTEL} CRM`, fromEmail: SENDER_EMAIL });
 }
@@ -105,7 +103,8 @@ Deno.serve(async (req: Request) => {
     const email = await sendBrevo(`[${HOTEL}] Competitor Monitor — ${date}`, html,
       `${HOTEL} Competitor Monitor — ${date}\nOur avg rate: ৳${avgRate} · Occupancy: ${occupancyRate}%\n\n${intel || 'AI snapshot unavailable.'}`);
 
-    await log('competitor-monitor', 'success', total, { ...summary, email_sent: email.ok });
+    // status mirrors the real send outcome - a green dot must mean delivered. H-12.
+    await log('competitor-monitor', email.ok ? 'success' : 'partial', total, { ...summary, email_sent: email.ok, email_error: email.error ?? null });
     return new Response(JSON.stringify({ ok: true, summary, email }), { headers: { ...CORS, 'Content-Type': 'application/json' } });
   } catch (e: any) {
     await log('competitor-monitor', 'error', 0, { error: e.message }).catch(() => {});

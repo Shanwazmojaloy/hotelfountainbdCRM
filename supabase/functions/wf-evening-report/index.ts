@@ -9,9 +9,11 @@ const CORS = {
 
 const SB_URL  = Deno.env.get('SUPABASE_URL') ?? 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const BREVO   = Deno.env.get('BREVO_API_KEY') ?? '';
 const TENANT  = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const TO_EMAIL = 'shanwazahmed@fountainbd.com';
+// gmail.com is NOT a verified Resend domain - a live invoke on 2026-08-15 returned
+// "The gmail.com domain is not verified". fountainbd.com is verified. (H-12)
+const SENDER_EMAIL = Deno.env.get('CRM_FROM_EMAIL') ?? 'reservations@fountainbd.com';
 const HOTEL   = 'Hotel Fountain BD';
 
 const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
@@ -78,8 +80,10 @@ Deno.serve(async (req: Request) => {
       occupancy_pct: occupancyPct,
     };
 
-    // Send email if Brevo key available
-    if (BREVO) {
+    // Always attempt the send; the shared mailer reports a missing RESEND_API_KEY in
+    // its return value rather than silently skipping. Was `if (BREVO)`, which quietly
+    // did nothing whenever that (dead) key was absent. Audit 2026-08-15 H-12.
+    {
       const subject = `[${HOTEL}] Evening Report — ${date}`;
       const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f1ec;font-family:Arial,sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ec;padding:40px 0">
@@ -122,7 +126,7 @@ Deno.serve(async (req: Request) => {
         html,
         text: `${HOTEL} Evening Report — ${date}\nRevenue: ৳${revenue.toLocaleString()} (${(txs ?? []).length} txns)\nOccupancy: ${occupancyPct}% (${occupied}/${totalRooms} rooms)`,
         fromName: `${HOTEL} CRM`,
-        fromEmail: 'hotellfountainbd@gmail.com',
+        fromEmail: SENDER_EMAIL,
       });
       if (!mailResult.ok) console.error('[wf-evening-report] send failed:', mailResult.error);
     }

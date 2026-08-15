@@ -13,9 +13,8 @@ const CORS = {
 };
 const SB_URL = Deno.env.get('SUPABASE_URL') ?? 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const BREVO  = Deno.env.get('BREVO_API_KEY') ?? '';
 const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const SENDER_EMAIL = 'hotellfountainbd@gmail.com';
+const SENDER_EMAIL = Deno.env.get('CRM_FROM_EMAIL') ?? 'reservations@fountainbd.com';  // gmail.com is NOT a verified Resend domain - verified by live invoke 2026-08-15 (H-12)
 const TO_EMAIL = 'shanwazahmed@fountainbd.com';
 const HOTEL = 'Hotel Fountain BD';
 const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
@@ -31,7 +30,6 @@ async function log(name: string, status: string, records: number, summary: objec
   }).catch(() => {});
 }
 async function sendBrevo(subject: string, html: string, text: string) {
-  if (!BREVO) return { ok: false, error: 'BREVO_API_KEY not set' };
   // Resend via the shared mailer. Was Brevo, which has been refusing sends since
   // ~2026-06-28 while some paths still returned 2xx. Audit 2026-08-15 H-12.
   return await sendMail({ to: TO_EMAIL, subject, html, text, fromName: `${HOTEL} CRM`, fromEmail: SENDER_EMAIL });
@@ -89,7 +87,9 @@ Deno.serve(async (req: Request) => {
       `${HOTEL} Backup Verification — ${date}\nStatus: ${healthy ? 'HEALTHY' : 'EMPTY'} · ${total} total rows\n` +
       Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join(' · '));
 
-    await log('backup-verification', healthy ? 'success' : 'partial', total, { ...summary, email_sent: email.ok });
+    // 'success' requires BOTH healthy data and a delivered email. A green dot that
+    // only means "rows exist" hides the report never arriving. H-12.
+    await log('backup-verification', healthy && email.ok ? 'success' : 'partial', total, { ...summary, email_sent: email.ok, email_error: email.error ?? null });
     return new Response(JSON.stringify({ ok: true, summary, email }), { headers: { ...CORS, 'Content-Type': 'application/json' } });
   } catch (e: any) {
     await log('backup-verification', 'error', 0, { error: e.message }).catch(() => {});

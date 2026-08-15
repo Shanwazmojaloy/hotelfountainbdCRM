@@ -9,9 +9,8 @@ const CORS = {
 
 const SB_URL   = Deno.env.get('SUPABASE_URL') ?? 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const SB_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const BREVO    = Deno.env.get('BREVO_API_KEY') ?? '';
 const TENANT   = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
-const SENDER_EMAIL = 'hotellfountainbd@gmail.com';
+const SENDER_EMAIL = Deno.env.get('CRM_FROM_EMAIL') ?? 'reservations@fountainbd.com';  // gmail.com is NOT a verified Resend domain - verified by live invoke 2026-08-15 (H-12)
 const TO_EMAIL = 'shanwazahmed@fountainbd.com';
 const HOTEL    = 'Hotel Fountain BD';
 
@@ -72,7 +71,9 @@ Deno.serve(async (req: Request) => {
     const summary = { mode, period_start: periodStart, period_end: dhakaDate, revenue,
       transactions: (txs ?? []).length, reservations: (reservations ?? []).length, checkins, pending };
 
-    if (BREVO) {
+    // Always attempt the send; a missing key surfaces in mailResult, not as a silent
+    // skip. Was `if (BREVO)`. Audit 2026-08-15 H-12.
+    {
       const subject = `[${HOTEL}] ${label} — ${periodStart} to ${dhakaDate}`;
       const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f1ec;font-family:Arial,sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ec;padding:40px 0"><tr><td align="center">
