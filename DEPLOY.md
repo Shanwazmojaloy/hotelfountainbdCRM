@@ -1,7 +1,11 @@
 # Lumea CRM — Operator Deploy Runbook
 
-> Last updated: 2026-05-20  
+> Last updated: 2026-08-15  
 > Environment: Next.js 15 on Vercel Hobby · Supabase PostgreSQL · Windows dev machine
+>
+> **2026-08-08 — the legacy `crm.html` SPA was deleted (95105a2).** The Next.js `/crm` app is the
+> only CRM surface. Sections referencing `crm-src.jsx`, `crm-bundle.js` or `build:crm` were
+> corrected on 2026-08-15; they had described a pipeline that no longer existed.
 
 ---
 
@@ -9,43 +13,40 @@
 
 | Tool | Check command | Required version |
 |---|---|---|
-| Node.js | `node -v` | ≥ 18 |
+| Node.js | `node -v` | 20 (CI pins 20) |
 | npm | `npm -v` | ≥ 9 |
 | Git | `git --version` | any |
 | Vercel CLI | `npx vercel --version` | ≥ 32 |
 
 Working directory (PowerShell):
 ```powershell
-cd "C:\Users\ahmed\OneDrive\Desktop\New folder\claude\hotelfountainbd-vercel\Hotel Fountain BD CRM"
+cd "C:\Users\ahmed\OneDrive\Desktop\New folder\claude\Hotel Fountain CRM New"
 ```
 
 ---
 
-## 2. CRM Bundle Rebuild (crm-src.jsx → crm-bundle.js)
+## 2. Local Verification (run what CI runs)
 
-Run this **any time `public/crm-src.jsx` is edited**:
+> **RETIRED 2026-08-08 — there is no CRM bundle step.** This section used to document
+> `npm run build:crm` (Babel → Terser → `bump-cache.js`). That script and the files it
+> operated on were deleted with the legacy SPA. A stale copy of that step also survived in
+> `.github/workflows/ci.yml` and failed every CI run from 2026-08-09 to 2026-08-15
+> (fixed in `e502aec`). Do not reintroduce it.
+
+Before pushing, run the same five steps CI runs — catching a failure here is faster than
+waiting on the pipeline:
 
 ```powershell
-npm run build:crm
+npm install
+bash scripts/guard-onedrive-truncation.sh   # file-integrity guard (also a pre-commit hook)
+npm run typecheck                            # tsc --noEmit
+npm test                                     # vitest run
+npm run lint                                 # next lint (warnings do not fail the build)
+npm run vercel-build                         # next build
 ```
 
-What it does:
-1. Babel transpiles `crm-src.jsx` → `crm-bundle.js`
-2. Terser minifies `crm-bundle.js` in-place
-3. `scripts/bump-cache.js` stamps `?v=YYYYMMDDHHMMSS` in `crm.html`
-
-**Verify after build:**
-```powershell
-# Must end with ReactDOM.createRoot(...)
-Get-Content public/crm-src.jsx -Tail 3
-# Check bundle size (~279KB)
-(Get-Item public/crm-bundle.js).Length / 1KB
-```
-
-If the tail is missing the `ReactDOM.createRoot(...)` mount call, the CRM will show a blank screen. Restore from git immediately:
-```powershell
-git checkout HEAD -- public/crm-src.jsx
-```
+All five must pass. `npm run build` and `npm run vercel-build` are now identical
+(both plain `next build`).
 
 ---
 
@@ -59,9 +60,9 @@ git commit -m "fix: describe the change"
 git push origin main
 ```
 
-### Common files to stage after a CRM bundle rebuild:
+### Common files to stage after a CRM change:
 ```powershell
-git add public/crm-src.jsx public/crm-bundle.js public/crm.html
+git add app/crm/ src/components/
 ```
 
 ### After adding a new API route or env var:
@@ -94,7 +95,7 @@ npx vercel --prod
 ```powershell
 npx vercel ls
 ```
-Or visit: https://vercel.com/ahmedshanwaz5/hotel-fountain-crm
+Or visit: https://vercel.com/shanwaz-ahmeds-projects/hotelfountainbd-crm
 
 ### Build logs:
 Vercel Dashboard → Deployments → click latest → Build Logs
@@ -161,7 +162,13 @@ mcp__752c5d26-6bdf-4c9a-b4f2-62ff2e6bb963__list_migrations
 
 ## 7. Cron Jobs (Vercel)
 
-Defined in `vercel.json`. All schedules are UTC; BDT = UTC+6.
+> **⚠ ALL CRONS ARE PAUSED as of 2026-08-14 (`eff3731`).** `vercel.json` has no `crons`
+> key, so **zero cron jobs are registered** — nothing in the table below is firing. The 13
+> paused definitions are preserved verbatim in `scripts/crons.paused.2026-08-14.json`.
+> To restore, copy that array back under a `crons` key in `vercel.json` and redeploy.
+> Note `vercel.json` rejects unknown top-level keys — do not park them under a renamed key.
+
+Schedules below are the *paused* definitions, for reference. All times UTC; BDT = UTC+6.
 
 | Path | Schedule (UTC) | BDT | Purpose |
 |---|---|---|---|
@@ -201,8 +208,8 @@ Invoke-WebRequest -Uri "https://fountainbd.com/api/agents/daily-ops" -Headers @{
 After every production deploy, verify:
 
 - [ ] `https://fountainbd.com` loads (landing page)
-- [ ] `https://fountainbd.com/crm.html` loads CRM without blank screen
-- [ ] Browser DevTools Network: `crm-bundle.js` returns 200 (not stale 304)
+- [ ] `https://fountainbd.com/crm` loads the CRM without a blank screen
+- [ ] `https://fountainbd.com/crm.html` 308-redirects to `/crm` (legacy URL still honoured)
 - [ ] CRM Dashboard → TODAY'S REVENUE matches Billing → BIZ DAY total
 - [ ] Vercel Runtime Logs: no 400/500 errors in last 10 minutes
 - [ ] Supabase → Table Editor → transactions → INSERT a test row, then DELETE it
@@ -223,12 +230,13 @@ Supabase has no auto-rollback. Write a reverse migration:
 ALTER TABLE transactions DROP COLUMN IF EXISTS bad_column;
 ```
 
-### Rollback crm-bundle.js:
+### Rollback a bad CRM change:
 ```powershell
-git checkout <last-good-commit> -- public/crm-bundle.js public/crm.html
-git commit -m "revert: restore crm-bundle.js to <commit>"
+git revert <bad-commit>
 git push origin main
 ```
+Prefer **Promote to Production** on the last good Vercel deployment for an instant fix,
+then revert in git so the next deploy does not reintroduce the bug.
 
 ---
 
@@ -238,10 +246,12 @@ git push origin main
 |---|---|
 | Supabase project ref | `mynwfkgksqqwlqowlscj` |
 | Supabase staging branch ref | `szaffsybjomkvtecupks` |
-| Vercel project name | `hotel-fountain-crm` |
-| Vercel account | `ahmedshanwaz5` |
+| Vercel project name | `hotelfountainbd-crm` |
+| Vercel project ID | `prj_BvTsXnp2GWgXsp6smJOXAm5gLgdr` |
+| Vercel team slug | `shanwaz-ahmeds-projects` |
+| Vercel team ID | `team_l1SAECyZJ9giIw4o2SGxjpqd` |
 | Production URL | `https://fountainbd.com` |
-| CRM URL | `https://fountainbd.com/crm.html` |
+| CRM URL | `https://fountainbd.com/crm` |
 | Tenant UUID | `46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8` |
 | Alert email | `ahmedshanwaz5@gmail.com` |
 
@@ -250,7 +260,7 @@ git push origin main
 ## 11. Authentication
 
 Staff login is handled by the OTP flow:
-- Frontend modal in `crm.html` → calls `/api/crm/send-otp` (server-side Brevo email).
+- Frontend gate in `src/components/AuthGate.jsx` → calls `/api/crm/send-otp` (server-side Brevo email).
 - Magic code stored in `auth_otps` table with short TTL; verified server-side.
 - Permanent owner: `ahmedshanwaz5@gmail.com` (see `memory/admin_account_protection.md` — never reset).
-- Hardcoded passwords in legacy HTML files (`crm_live.html`, `hotel-fountain-crm.html`) are **not in use** and not Vercel-served. Only `public/crm.html` is live.
+- Hardcoded passwords in legacy HTML files (`crm_live.html`, `hotel-fountain-crm.html`) are **not in use** and not Vercel-served. `public/crm.html` was deleted 2026-08-08; the live surface is the Next.js `/crm` route.
