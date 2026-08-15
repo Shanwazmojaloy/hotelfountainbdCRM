@@ -129,3 +129,71 @@ The payload no longer travels in the URL, so it can't be edited in the address b
 3. Rotate `ADMIN_SECRET`. Every copy previously emailed is still valid.
 4. Remaining highs, in order: H-2 (`sync_paid_amount`), H-3/H-4 (`paid_amount` read-modify-write), H-6 (`checked_in_at`), H-16 (five indexes), H-1 (server-side capability gates).
 5. Add `.github/workflows/ci.yml` running `typecheck` + `test` + the conformance query from the reconciliation migration.
+
+---
+
+## Session 2 addendum — 2026-08-15, after the follow-up remediation pass
+
+Everything in the "Next" list above except items 4 and 5 has now been done, plus
+three findings that only surfaced by exercising the code against production.
+
+### Completed
+
+| Item | State |
+|---|---|
+| Commit + push the audit fixes | ✅ `3ccd51d`, `4b70246`, `a4310c2`, `70dbdc0`, `2893ce1` |
+| `WEBHOOK_SECRET` set in Supabase Edge Function secrets | ✅ `booking-webhook` no longer 503s |
+| `ADMIN_SECRET` rotated | ✅ old value invalid; it is no longer placed in any URL or email (see `deal-alert`) |
+| H-8 — CEO auditor trusted an unvalidated LLM `score` | ✅ non-finite / out-of-range scores fall back to `runHeuristicAudit` |
+| H-8/M-16 — `payment-send` could double-send | ✅ claims via the `claim_payment_send` RPC; zero rows claimed ⇒ `{ok:true, skipped:true}` and no send |
+| M-14 — `follow-up-bot` regressed status to `pending` on send failure | ✅ writes `contacted` unconditionally; adds RFC 8058 `List-Unsubscribe` |
+| H-12 — report mail went to a dead Brevo account | ✅ all six functions on the shared Resend mailer, deployed and verified by live invoke |
+| Vercel Cron Jobs | ✅ re-enabled 2026-08-15 after the above; all 13 jobs live |
+
+### Three things only a live invoke would have caught
+
+**1. A successful deploy is not a successful send.** All five report functions
+deployed cleanly on the new Resend mailer. Invoking `wf-morning-briefing` once
+returned:
+
+> The gmail.com domain is not verified. Please, add and verify your domain on
+> https://resend.com/domains
+
+`hotellfountainbd@gmail.com` had been the `from` address for every report. Had
+the deploy been trusted, the H-12 fix would have replaced one silent failure
+with another. Sender is now `CRM_FROM_EMAIL ?? reservations@fountainbd.com`.
+All six re-invoked; `workflow_runs.summary->>'email_sent' = true` for each.
+
+**2. Two functions still lied about the outcome.** `wf-competitor-monitor`
+wrote `status = 'success'` unconditionally and `wf-backup-verify` keyed it on
+"rows exist" — so the CRM Settings health dot could stay green while the report
+reached nobody. Both now require `email.ok`. This is the same defect class as
+H-12 itself, surviving inside the H-12 fix.
+
+**3. The fix reopened the drift it was diagnosing.** The corrected sender was
+deployed to Supabase before it was written back to the repo, so for roughly
+twenty minutes prod and `main` disagreed again. Closed by `2893ce1`. The lesson
+generalises: *deploy and commit are one operation, not two.*
+
+### Deployed versions, verified sending
+
+| Function | Version |
+|---|---|
+| `wf-morning-briefing` | 34 |
+| `wf-evening-report` | 35 |
+| `wf-period-reports` | 36 |
+| `wf-backup-verify` | 34 |
+| `wf-competitor-monitor` | 34 |
+
+`supabase/functions/weekly-report/` is **not deployed to this project** —
+confirmed against the live function list. It is dead code and still carries the
+old gmail sender. Delete it or deploy it; leaving it is how the next audit
+produces another false positive.
+
+### Still open
+
+Unchanged from the list above: H-2 (`sync_paid_amount`), H-3/H-4 (`paid_amount`
+read-modify-write), H-6 (`checked_in_at`), H-16 (five indexes), H-1 (server-side
+capability gates), and CI. The CI item matters more now than it did this
+morning: nothing in this repo mechanically enforces that a deployed edge
+function matches the committed one.
