@@ -87,6 +87,9 @@ importers:
       '@babel/preset-react':
         specifier: ^7.23.5
         version: 7.29.7(@babel/core@7.29.7)
+      '@eslint/eslintrc':
+        specifier: ^3.3.6
+        version: 3.3.6
       '@tailwindcss/postcss':
         specifier: ^4.0.0
         version: 4.3.3

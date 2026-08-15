@@ -1,4 +1,4 @@
-﻿import { dirname } from "path";
+import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 
@@ -42,7 +42,18 @@ const eslintConfig = [
       "src/hooks/billing/usePostPayment.ts",
       "src/hooks/billing/useRoomStatusSync.ts",
       "src/app/components/NotificationBell.tsx",
+      // Third-party bundles we ship verbatim - minified vendor code trips
+      // no-this-alias / no-require-imports 60+ times and we own none of it.
+      "public/vendor/**",
+      // Claude Code tooling helpers (CommonJS, never bundled into the app).
+      ".claude/**",
     ],
+  },
+  {
+    // One-off Node ops scripts are CommonJS by design - `require` is correct
+    // there, so the rule is relaxed rather than the files skipped entirely.
+    files: ["scripts/**/*.js", "scripts/**/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
   },
 ];
 
