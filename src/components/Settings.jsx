@@ -44,10 +44,17 @@ export default function Settings() {
   }
 
   // Presence stays live while the Staff tab is open — refresh the roster every 60s.
+  // PERF (2026-08-15): gated on tab visibility, same as NotificationBell/AuthGate. A Staff tab
+  // left open in a background window was 43k function invocations/month for a roster nobody
+  // was looking at. Reload on regaining focus so presence is current the moment it's read.
   useEffect(() => {
     if (tab !== 'users') return;
-    const iv = setInterval(reloadStaff, 60000);
-    return () => clearInterval(iv);
+    const iv = setInterval(() => {
+      if (document.visibilityState === 'visible') reloadStaff();
+    }, 60000);
+    const onVis = () => { if (document.visibilityState === 'visible') reloadStaff(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', onVis); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 

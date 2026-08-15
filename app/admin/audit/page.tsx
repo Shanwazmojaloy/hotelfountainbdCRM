@@ -274,11 +274,18 @@ export default function AdminAuditPage() {
     if (authed) void fetchRows();
   }, [authed, winSel, fetchRows]);
 
-  // Live polling — every 3s while liveMode is on
+  // Live polling — every 3s while liveMode is on AND the tab is actually being looked at.
+  // PERF (2026-08-15): same gate as NotificationBell/AuthGate. Ungated, a LIVE tab left open
+  // is 28,800 function invocations/day (~864k/month) — on its own more than 2x the entire
+  // month's budget on Hobby. Refetch immediately on regaining focus so LIVE is never stale.
   useEffect(() => {
     if (!authed || !liveMode) return;
-    const handle = setInterval(() => { void fetchRows({ silent: true }); }, 3000);
-    return () => clearInterval(handle);
+    const handle = setInterval(() => {
+      if (document.visibilityState === 'visible') void fetchRows({ silent: true });
+    }, 3000);
+    const onVis = () => { if (document.visibilityState === 'visible') void fetchRows({ silent: true }); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(handle); document.removeEventListener('visibilitychange', onVis); };
   }, [authed, liveMode, fetchRows]);
 
   const handleLogin = async (e: React.FormEvent) => {
