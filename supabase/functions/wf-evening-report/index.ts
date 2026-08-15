@@ -68,8 +68,13 @@ Deno.serve(async (req: Request) => {
       `reservations?tenant_id=eq.${TENANT}&status=eq.CHECKED_IN&select=id`
     );
     const occupied = (checkedIn ?? []).length;
-    const totalRooms = 24;
-    const occupancyPct = Math.round((occupied / totalRooms) * 100);
+
+    // Was a hardcoded 24. The rooms table holds 28 for this tenant (and 33 across
+    // all tenants), so the literal understated the denominator and overstated
+    // occupancy by ~17%. Count the real inventory, scoped to the tenant.
+    const roomRows = await dbGet(`rooms?tenant_id=eq.${TENANT}&select=id`);
+    const totalRooms = (roomRows ?? []).length;
+    const occupancyPct = totalRooms > 0 ? Math.round((occupied / totalRooms) * 100) : 0;
 
     const summary = {
       date,

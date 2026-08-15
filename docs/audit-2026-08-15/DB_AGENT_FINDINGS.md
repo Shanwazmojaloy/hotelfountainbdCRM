@@ -340,10 +340,54 @@ grown without limit. Also unordered, the same class as the tenant `LIMIT 1`.
   `review_batch` cannot drift apart, and the batch is capped at 10 in the
   function too, since a caller's `LIMIT` has already failed to bind once.
 
-**NOT DEPLOYED — deliberately.** Deploying this makes 25 emails go out to real
-guests on the next 15-minute tick. That is a send to external recipients and is
-the owner's call, not the audit's. The repo now holds the fix; prod still returns
-`unknown_mode` until someone deploys it.
+**Deployed 2026-08-15 on the owner's explicit go-ahead** (v38 → v40). Deploying
+it uncovered two further defects that only a real run could expose, both fixed in
+the same session:
+
+*v38 → v39.* The first batch sent 1 and skipped 8 as `guest_has_no_email` — but
+all 8 carried a deliverable address in `review_queue.guest_email`. `sendReviewFor`
+read only `guests.email`; the queue had captured the address at queue time and the
+sender threw it away. Now `toAddr = guests.email || review_queue.guest_email`, and
+`notifications_log.metadata.email_source` records which one was used. The 8 rows
+wrongly skipped by v38 were restored to `pending` before continuing — scoped to
+rows skipped in the preceding 25 minutes *and* holding a queue email, so the 1,347
+genuine historical skips were untouched. Verified: exactly 8 restored.
+
+*v39 → v40.* The queue then stalled at 5 pending that never moved. All 5 point at
+reservations that have since been deleted. `reservation_not_found` returned
+without updating the row, so those 5 stayed `pending` — and being the oldest, they
+permanently occupied the front of an `ORDER BY send_after` batch. The queue could
+never drain. They are now marked `skipped`.
+
+Final state of a queue that had never sent anything:
+
+| status | rows |
+| --- | --- |
+| `sent` | 18 |
+| `failed` | 2 |
+| `skipped` | 1,352 |
+| `pending` | 0 |
+
+The 2 failures are junk addresses — one guest record holds the literal string
+`1`. Resend rejected them and both were recorded as `failed` with the provider's
+message, which is the point: the failure is loud. Job 10 was paused for the
+duration of the fix and re-enabled after the queue drained.
+
+## D-15 · Evening report divided occupancy by a hardcoded 24 — MEDIUM
+
+`wf-evening-report` computed `const totalRooms = 24`. `rooms` holds **28** for
+this tenant (33 across both tenants). The literal understated the denominator, so
+every evening report the owner has read overstated occupancy by about 17% — 10
+occupied rooms reported as 42% rather than 36%.
+
+`wf-morning-briefing` was already correct: it counts
+`rooms?tenant_id=eq.${TENANT}` and takes `.length`. The two reports disagreed
+with each other daily and neither flagged it.
+
+Fixed the same way — count the real inventory scoped to the tenant, with a
+divide-by-zero guard. Same defect family as D-7, which found six DB functions
+dividing by a literal `28`; this is the edge-function half of it, and the literal
+there was not even the right number.
 
 ---
 

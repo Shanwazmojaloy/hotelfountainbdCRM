@@ -99,7 +99,14 @@ Deno.serve(async (req: Request) => {
     if (!reservationId) return { reservation_id: reservationId, sent: false, skipped: true, reason: 'no_reservation_id' }
 
     const { data: res } = await sb.from('reservations').select('*').eq('id', reservationId).single()
-    if (!res) return { reservation_id: reservationId, sent: false, skipped: true, reason: 'reservation_not_found' }
+    if (!res) {
+      // The reservation was deleted after the row was queued. Nothing can ever be
+      // sent for it, and leaving it 'pending' meant it was re-selected on every
+      // run - permanently occupying the oldest slots of an ORDER BY send_after
+      // batch, so the queue could never drain.
+      await sb.from('review_queue').update({ status: 'skipped', sent_at: new Date().toISOString() }).eq('reservation_id', reservationId).eq('status', 'pending')
+      return { reservation_id: reservationId, sent: false, skipped: true, reason: 'reservation_not_found' }
+    }
 
     const guestId = (res.guest_ids || [])[0]
     if (!guestId) {
@@ -108,18 +115,26 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: guest } = await sb.from('guests').select('name,email').eq('id', guestId).single()
-    if (!guest?.email) {
+
+    // review_queue captured guest_email at queue time. The guests row can be
+    // blank or have been cleared since; falling through to 'guest_has_no_email'
+    // on that basis threw away addresses the queue was already holding.
+    const { data: qrow } = await sb.from('review_queue').select('guest_email').eq('reservation_id', reservationId).eq('status', 'pending').limit(1).maybeSingle()
+    const toAddr = (guest?.email || '').trim() || (qrow?.guest_email || '').trim()
+
+    if (!toAddr) {
       await sb.from('review_queue').update({ status: 'skipped', sent_at: new Date().toISOString() }).eq('reservation_id', reservationId).eq('status', 'pending')
       return { reservation_id: reservationId, sent: false, skipped: true, reason: 'guest_has_no_email' }
     }
+    const guestName = (guest?.name || '').trim() || 'Guest'
 
     const rooms = (res.room_ids || []).join(', ')
     const nights = Math.max(1, Math.round((new Date(res.check_out).getTime() - new Date(res.check_in).getTime()) / 86400000))
-    const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#07090E;font-family:'Helvetica Neue',sans-serif;"><table width="100%" style="background:#07090E;padding:24px 16px;"><tr><td align="center"><table width="600" style="max-width:600px;"><tr><td style="background:#0D1117;border:1px solid rgba(200,169,110,.15);padding:28px 36px 18px;"><div style="font-family:Georgia,serif;font-size:22px;color:#C8A96E;">Hotel <em>Fountain</em></div><div style="font-size:8px;color:#4A4538;letter-spacing:.2em;text-transform:uppercase;margin-top:3px;">Thank You for Your Stay</div></td></tr><tr><td style="background:#0D1117;border:1px solid rgba(200,169,110,.15);border-top:none;padding:32px 36px;"><p style="font-family:Georgia,serif;font-size:24px;color:#EEE9E2;">Dear ${guest.name},</p><p style="font-size:13px;color:#8A8070;line-height:1.9;">Thank you for choosing ${hotelName} for your ${nights}-night stay in Room ${rooms}. Your feedback helps us serve every guest better.</p><div style="text-align:center;margin:28px 0;"><div style="font-size:24px;margin-bottom:14px;letter-spacing:6px;">★★★★★</div><a href="${reviewLink}" style="display:inline-block;background:#C8A96E;color:#07090E;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:14px 36px;text-decoration:none;">Leave a Google Review →</a></div><p style="font-size:12px;color:#4A4538;">Or reply to this email to share feedback directly.<br/>${hotelPhone}</p></td></tr><tr><td style="background:#0B0D14;border:1px solid rgba(200,169,110,.1);border-top:none;padding:14px 36px;"><p style="font-size:10px;color:#4A4538;">${hotelName} · Dhaka, Bangladesh · Lumea CRM</p></td></tr></table></td></tr></table></body></html>`
+    const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#07090E;font-family:'Helvetica Neue',sans-serif;"><table width="100%" style="background:#07090E;padding:24px 16px;"><tr><td align="center"><table width="600" style="max-width:600px;"><tr><td style="background:#0D1117;border:1px solid rgba(200,169,110,.15);padding:28px 36px 18px;"><div style="font-family:Georgia,serif;font-size:22px;color:#C8A96E;">Hotel <em>Fountain</em></div><div style="font-size:8px;color:#4A4538;letter-spacing:.2em;text-transform:uppercase;margin-top:3px;">Thank You for Your Stay</div></td></tr><tr><td style="background:#0D1117;border:1px solid rgba(200,169,110,.15);border-top:none;padding:32px 36px;"><p style="font-family:Georgia,serif;font-size:24px;color:#EEE9E2;">Dear ${guestName},</p><p style="font-size:13px;color:#8A8070;line-height:1.9;">Thank you for choosing ${hotelName} for your ${nights}-night stay in Room ${rooms}. Your feedback helps us serve every guest better.</p><div style="text-align:center;margin:28px 0;"><div style="font-size:24px;margin-bottom:14px;letter-spacing:6px;">★★★★★</div><a href="${reviewLink}" style="display:inline-block;background:#C8A96E;color:#07090E;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:14px 36px;text-decoration:none;">Leave a Google Review →</a></div><p style="font-size:12px;color:#4A4538;">Or reply to this email to share feedback directly.<br/>${hotelPhone}</p></td></tr><tr><td style="background:#0B0D14;border:1px solid rgba(200,169,110,.1);border-top:none;padding:14px 36px;"><p style="font-size:10px;color:#4A4538;">${hotelName} · Dhaka, Bangladesh · Lumea CRM</p></td></tr></table></td></tr></table></body></html>`
 
-    const result = await sendEmail(sb, guest.email, `Thank you for staying at ${hotelName}, ${guest.name.split(' ')[0]}! ⭐ Share your experience`, html)
+    const result = await sendEmail(sb, toAddr, `Thank you for staying at ${hotelName}, ${guestName.split(' ')[0]}! ⭐ Share your experience`, html)
     await sb.from('review_queue').update({ status: result.ok ? 'sent' : 'failed', sent_at: new Date().toISOString() }).eq('reservation_id', reservationId).eq('status', 'pending')
-    await sb.from('notifications_log').insert({ workflow: 'review-request', recipient_email: guest.email, subject: `Review Request after stay`, status: result.ok ? 'sent' : 'failed', error_msg: result.ok ? null : result.error, triggered_by: 'checkout', metadata: { reservation_id: res.id, guest_name: guest.name, nights }, tenant_id: TENANT })
+    await sb.from('notifications_log').insert({ workflow: 'review-request', recipient_email: toAddr, subject: `Review Request after stay`, status: result.ok ? 'sent' : 'failed', error_msg: result.ok ? null : result.error, triggered_by: 'checkout', metadata: { reservation_id: res.id, guest_name: guestName, email_source: guest?.email ? 'guests' : 'review_queue', nights }, tenant_id: TENANT })
     return { reservation_id: reservationId, sent: result.ok, skipped: false, reason: result.ok ? null : result.error }
   }
 
