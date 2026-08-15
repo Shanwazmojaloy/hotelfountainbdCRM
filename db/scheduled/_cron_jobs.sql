@@ -113,9 +113,13 @@ select cron.schedule('hf-review-request', '*/15 * * * *', $job$
       'mode', 'review_batch',
       'reservation_ids', (
         SELECT jsonb_agg(reservation_id)
-        FROM review_queue
-        WHERE status = 'pending' AND send_after <= NOW()
-        LIMIT 10
+        FROM (
+          SELECT reservation_id
+          FROM review_queue
+          WHERE status = 'pending' AND send_after <= NOW()
+          ORDER BY send_after
+          LIMIT 10
+        ) q
       )
     ),
     timeout_milliseconds := 30000

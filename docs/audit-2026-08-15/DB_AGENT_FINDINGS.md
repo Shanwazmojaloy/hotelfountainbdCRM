@@ -290,6 +290,61 @@ an external process. Re-proposing a known company on a later pass may well be
 intended. Recorded rather than acted on, because the source is not visible from
 here.
 
+## D-14 · No review-request email has ever been sent — HIGH
+
+pg_cron job 10 `hf-review-request` fires every 15 minutes and POSTs
+`{"mode": "review_batch", "reservation_ids": [...]}` to `wf-guest-emails`.
+
+`wf-guest-emails` — deployed version 37, and the committed source agrees —
+handles exactly two modes, `confirmation` and `review`. `review_batch` is not
+one of them, so every call for the life of this queue has fallen through to:
+
+```
+return new Response(JSON.stringify({ success: true, skipped: true, reason: 'unknown_mode' }), { headers: CORS })
+```
+
+HTTP 200, `success: true`. pg_cron records the POST as queued, `net._http_response`
+records a 200, and the CRM health surface sees a working workflow. 96 no-op calls
+a day.
+
+The queue proves it. `review_queue` holds **1,372 rows and not one has ever
+reached `sent`**:
+
+| status | rows | note |
+| --- | --- | --- |
+| `skipped` | 1,347 | correct — the guest genuinely has no email on file |
+| `pending` | 25 | deliverable, all 25 carry a `guest_email`; oldest queued 2026-05-03 |
+| `sent` | 0 | — |
+
+The 1,347 skips are honest behaviour recorded honestly. The 25 pending are real
+review requests that have sat unsent for up to 104 days.
+
+A second defect sits inside the same job. The batch was built as:
+
+```sql
+SELECT jsonb_agg(reservation_id) FROM review_queue
+WHERE status = 'pending' AND send_after <= NOW()
+LIMIT 10
+```
+
+`LIMIT 10` there bounds the *aggregate's* output — one row — not the rows being
+aggregated. The array was unbounded: it would have carried all 25, not 10, and
+grown without limit. Also unordered, the same class as the tenant `LIMIT 1`.
+
+**Fixed 2026-08-15 (the parts that send nothing):**
+
+- job 10's batch now uses `FROM (SELECT … ORDER BY send_after LIMIT 10) q` —
+  verified to return 10 rather than 25.
+- `supabase/functions/wf-guest-emails/index.ts` gains a `review_batch` handler.
+  The review send is lifted into a shared `sendReviewFor()` so `review` and
+  `review_batch` cannot drift apart, and the batch is capped at 10 in the
+  function too, since a caller's `LIMIT` has already failed to bind once.
+
+**NOT DEPLOYED — deliberately.** Deploying this makes 25 emails go out to real
+guests on the next 15-minute tick. That is a send to external recipients and is
+the owner's call, not the audit's. The repo now holds the fix; prod still returns
+`unknown_mode` until someone deploys it.
+
 ---
 
 ## Scope note

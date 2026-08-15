@@ -92,27 +92,25 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ success: true, workflow: 'booking-confirmation', emails_sent: sent }), { headers: CORS })
   }
 
-  // ─── MODE: REVIEW ─────────────────────────────────────────────────────────
-  if (mode === 'review') {
-    const reservationId = body.reservation_id
-
-    if (!reservationId)
-      return new Response(JSON.stringify({ success: true, skipped: true, reason: 'no_reservation_id' }), { headers: CORS })
+  // ─── REVIEW SEND ──────────────────────────────────────────────────────────
+  // One reservation -> one review email. Returns a plain result rather than a
+  // Response so both `review` and `review_batch` can share it.
+  const sendReviewFor = async (reservationId: string) => {
+    if (!reservationId) return { reservation_id: reservationId, sent: false, skipped: true, reason: 'no_reservation_id' }
 
     const { data: res } = await sb.from('reservations').select('*').eq('id', reservationId).single()
-    if (!res)
-      return new Response(JSON.stringify({ success: true, skipped: true, reason: 'reservation_not_found' }), { headers: CORS })
+    if (!res) return { reservation_id: reservationId, sent: false, skipped: true, reason: 'reservation_not_found' }
 
     const guestId = (res.guest_ids || [])[0]
     if (!guestId) {
       await sb.from('review_queue').update({ status: 'skipped', sent_at: new Date().toISOString() }).eq('reservation_id', reservationId).eq('status', 'pending')
-      return new Response(JSON.stringify({ success: true, skipped: true, reason: 'no_guest_on_reservation' }), { headers: CORS })
+      return { reservation_id: reservationId, sent: false, skipped: true, reason: 'no_guest_on_reservation' }
     }
 
     const { data: guest } = await sb.from('guests').select('name,email').eq('id', guestId).single()
     if (!guest?.email) {
       await sb.from('review_queue').update({ status: 'skipped', sent_at: new Date().toISOString() }).eq('reservation_id', reservationId).eq('status', 'pending')
-      return new Response(JSON.stringify({ success: true, skipped: true, reason: 'guest_has_no_email' }), { headers: CORS })
+      return { reservation_id: reservationId, sent: false, skipped: true, reason: 'guest_has_no_email' }
     }
 
     const rooms = (res.room_ids || []).join(', ')
@@ -122,7 +120,34 @@ Deno.serve(async (req: Request) => {
     const result = await sendEmail(sb, guest.email, `Thank you for staying at ${hotelName}, ${guest.name.split(' ')[0]}! ⭐ Share your experience`, html)
     await sb.from('review_queue').update({ status: result.ok ? 'sent' : 'failed', sent_at: new Date().toISOString() }).eq('reservation_id', reservationId).eq('status', 'pending')
     await sb.from('notifications_log').insert({ workflow: 'review-request', recipient_email: guest.email, subject: `Review Request after stay`, status: result.ok ? 'sent' : 'failed', error_msg: result.ok ? null : result.error, triggered_by: 'checkout', metadata: { reservation_id: res.id, guest_name: guest.name, nights }, tenant_id: TENANT })
-    return new Response(JSON.stringify({ success: true, workflow: 'review-request', sent: result.ok, skipped: false }), { headers: CORS })
+    return { reservation_id: reservationId, sent: result.ok, skipped: false, reason: result.ok ? null : result.error }
+  }
+
+  // ─── MODE: REVIEW ─────────────────────────────────────────────────────────
+  if (mode === 'review') {
+    const r = await sendReviewFor(body.reservation_id)
+    return new Response(JSON.stringify({ success: true, workflow: 'review-request', ...r }), { headers: CORS })
+  }
+
+  // ─── MODE: REVIEW_BATCH ───────────────────────────────────────────────────
+  // pg_cron job 10 (hf-review-request, */15) has posted this mode since the
+  // queue was built. It was never handled, so it fell through to unknown_mode
+  // and returned 200 — every review request ever queued sat unsent.
+  if (mode === 'review_batch') {
+    const ids: string[] = Array.isArray(body.reservation_ids) ? body.reservation_ids.filter(Boolean) : []
+    if (ids.length === 0)
+      return new Response(JSON.stringify({ success: true, workflow: 'review-request', skipped: true, reason: 'empty_batch' }), { headers: CORS })
+
+    // Cap defensively: the caller's LIMIT does not bind (it limits the
+    // aggregate row, not the rows aggregated), so the array can be unbounded.
+    const batch = ids.slice(0, 10)
+    const results = []
+    for (const id of batch) results.push(await sendReviewFor(id))
+    const sent = results.filter(r => r.sent).length
+    return new Response(JSON.stringify({
+      success: true, workflow: 'review-request', emails_sent: sent,
+      attempted: batch.length, deferred: ids.length - batch.length, results
+    }), { headers: CORS })
   }
 
   return new Response(JSON.stringify({ success: true, skipped: true, reason: 'unknown_mode' }), { headers: CORS })
