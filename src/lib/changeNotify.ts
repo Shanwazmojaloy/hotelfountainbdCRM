@@ -7,6 +7,8 @@
 // IMPORTANT: this file is intentionally ASCII-only on disk. The Cowork F: mount corrupts/empties
 // files when multibyte UTF-8 is written. Runtime glyphs use String.fromCharCode (Taka, em-dash)
 // and HTML entities in markup -- both pure ASCII bytes. Do NOT paste literal glyphs here.
+import { sendMail } from '@/lib/mailer';
+
 type Actor = { id: number; name: string; role: string };
 type ResLike = Record<string, unknown>;
 
@@ -153,23 +155,29 @@ export async function notifyReservationDeleted(opts: { prev: ResLike; actor: Act
   await sendAdminMail(BREVO_KEY, `Reservation DELETED - ${guest} (Room ${rooms}) by ${opts.actor.name}`, html, text);
 }
 
-// Shared Brevo transactional send to the admin inbox. Swallows all errors.
-async function sendAdminMail(brevoKey: string, subject: string, html: string, text: string): Promise<void> {
+// Shared transactional send to the admin inbox.
+//
+// Was Brevo, which accepted sends with HTTP 200 and delivered nothing (see
+// src/lib/mailer.ts). That mattered more here than anywhere else: this module is the
+// audit trail for reservation EDITS and DELETES, so a silent transport meant money-
+// affecting changes happened with no notification, and no trace that the notification
+// itself had failed. Now Google Workspace SMTP. Audit 2026-08-15 H-12.
+//
+// Still deliberately non-throwing: a mail failure must never fault the reservation
+// write that triggered it. But the failure is logged at error level now, not warn,
+// because a missing audit notice is a real problem rather than noise.
+async function sendAdminMail(_legacyKeyUnused: string, subject: string, html: string, text: string): Promise<void> {
   try {
-    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sender:  { name: SENDER_NAME, email: SENDER_EMAIL },
-        to:      [{ email: ADMIN_EMAIL }],
-        replyTo: { name: SENDER_NAME, email: SENDER_EMAIL },
-        subject,
-        htmlContent: html,
-        textContent: text,
-      }),
+    await sendMail({
+      to: ADMIN_EMAIL,
+      fromName: SENDER_NAME,
+      fromEmail: SENDER_EMAIL,
+      replyTo: SENDER_EMAIL,
+      subject,
+      html,
+      text,
     });
-    if (!r.ok) console.warn('[changeNotify] Brevo', r.status, await r.text().catch(() => ''));
   } catch (e) {
-    console.warn('[changeNotify]', e instanceof Error ? e.message : e);
+    console.error('[changeNotify] admin notification FAILED:', e instanceof Error ? e.message : e);
   }
 }

@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { sendMail } from '../_shared/mailer.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +32,7 @@ async function logRun(workflowName: string, status: string, records: number, sum
 }
 
 Deno.serve(async (req: Request) => {
+  let mailResult: { ok: boolean; error?: string } | null = null;
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
   // Parse mode BEFORE try so catch block has access
@@ -96,20 +98,24 @@ Deno.serve(async (req: Request) => {
   <p style="font-size:10px;color:#5a5a4a;margin:0">Automated report from ${HOTEL} CRM</p>
 </td></tr></table></td></tr></table></body></html>`;
 
-      await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: { 'api-key': BREVO, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender: { name: `${HOTEL} CRM`, email: SENDER_EMAIL },
-          to: [{ email: TO_EMAIL, name: 'Shan Ahmed' }],
-          subject,
-          htmlContent: html,
-          textContent: `${HOTEL} ${label}\n${periodStart} → ${dhakaDate}\nRevenue: ৳${revenue.toLocaleString()} (${(txs ?? []).length} txns)\nReservations: ${(reservations ?? []).length} (${checkins} stayed, ${pending} upcoming)`,
-        }),
-      }).catch(() => {});
+      // Resend via the shared mailer, result kept. Audit 2026-08-15 H-12.
+      mailResult = await sendMail({
+        to: TO_EMAIL,
+        subject,
+        html,
+        text: `${HOTEL} ${label}\n${periodStart} → ${dhakaDate}\nRevenue: ৳${revenue.toLocaleString()} (${(txs ?? []).length} txns)\nReservations: ${(reservations ?? []).length} (${checkins} stayed, ${pending} upcoming)`,
+        fromName: `${HOTEL} CRM`,
+        fromEmail: SENDER_EMAIL,
+      });
+      if (!mailResult.ok) console.error('[wf-period-reports] send failed:', mailResult.error);
     }
 
-    await logRun(workflowName, 'success', (txs ?? []).length, summary);
+    await logRun(
+      workflowName,
+      mailResult === null || mailResult.ok ? 'success' : 'partial',
+      (txs ?? []).length,
+      mailResult === null ? summary : { ...summary, email_sent: mailResult.ok, email_error: mailResult.error ?? null },
+    );
     return new Response(JSON.stringify({ ok: true, summary }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     });

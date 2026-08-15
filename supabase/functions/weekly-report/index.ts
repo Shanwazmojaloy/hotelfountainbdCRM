@@ -10,7 +10,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 //   • Average Daily Rate  — total room revenue / room nights sold
 //   • Carry-Over Dues     — old unpaid reservations (prior month, balance > 0)
 //
-// Sends a styled HTML email via Brevo to the hotel owner.
+// Sends a styled HTML email via Resend to the hotel owner (was Brevo - audit 2026-08-15 H-12).
 
 import {
   buildWeeklyReportEmail,
@@ -18,6 +18,7 @@ import {
   type RoomBreakdown,
   type WeeklyReportData,
 } from './email-template.ts';
+import { sendMail } from '../_shared/mailer.ts';
 
 // ── Env & constants ────────────────────────────────────────────────────────────
 const SB_URL   = Deno.env.get('SUPABASE_URL') ?? '';
@@ -305,43 +306,23 @@ function computeRoomNightStats(
   return { totalRoomNights, totalRoomRevenue: Math.round(totalRoomRevenue), breakdown };
 }
 
-// ── 6. Send email via Brevo ────────────────────────────────────────────────────
+// ── 6. Send email ─────────────────────────────────────────────────────────────
+// Was Brevo. That account has been refusing sends since ~2026-06-28 while some paths
+// still returned 2xx, so reports appeared to go out and did not. Now Resend, via the
+// shared edge mailer. Name kept so call sites are untouched. Audit 2026-08-15 H-12.
 async function sendBrevoEmail(
   to: string,
   subject: string,
   htmlContent: string,
 ): Promise<{ ok: boolean; messageId?: string; error?: string }> {
-  if (!BREVO_KEY) {
-    return { ok: false, error: 'BREVO_API_KEY not configured' };
-  }
-
-  const body = {
-    sender: { name: SENDER_NAME, email: SENDER_EMAIL },
-    to: [{ email: to }],
+  const res = await sendMail({
+    to,
     subject,
-    htmlContent,
-  };
-
-  const r = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'api-key': BREVO_KEY,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify(body),
+    html: htmlContent,
+    fromName: SENDER_NAME,
+    fromEmail: SENDER_EMAIL,
   });
-
-  const d = await r.json().catch(() => ({}));
-
-  if (!r.ok) {
-    return {
-      ok: false,
-      error: d?.message ?? `Brevo ${r.status}`,
-    };
-  }
-
-  return { ok: true, messageId: d?.messageId };
+  return { ok: res.ok, messageId: res.id, error: res.error };
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────────

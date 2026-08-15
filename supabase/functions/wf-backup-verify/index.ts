@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { sendMail } from '../_shared/mailer.ts';
 
 // ── Backup Verification ───────────────────────────────────────────────────────
 // Scheduled Sunday 11:00 PM Asia/Dhaka. Counts rows across core tables, confirms
@@ -31,12 +32,9 @@ async function log(name: string, status: string, records: number, summary: objec
 }
 async function sendBrevo(subject: string, html: string, text: string) {
   if (!BREVO) return { ok: false, error: 'BREVO_API_KEY not set' };
-  const r = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST', headers: { 'api-key': BREVO, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sender: { name: `${HOTEL} CRM`, email: SENDER_EMAIL }, to: [{ email: TO_EMAIL, name: 'Shan Ahmed' }], subject, htmlContent: html, textContent: text }),
-  });
-  const d = await r.json().catch(() => ({}));
-  return r.ok ? { ok: true, id: d.messageId } : { ok: false, error: JSON.stringify(d) };
+  // Resend via the shared mailer. Was Brevo, which has been refusing sends since
+  // ~2026-06-28 while some paths still returned 2xx. Audit 2026-08-15 H-12.
+  return await sendMail({ to: TO_EMAIL, subject, html, text, fromName: `${HOTEL} CRM`, fromEmail: SENDER_EMAIL });
 }
 
 Deno.serve(async (req: Request) => {

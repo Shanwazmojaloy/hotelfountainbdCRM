@@ -8,6 +8,7 @@
 // title, message snippet, and suggested next action.
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from 'next/server';
+import { sendMail } from '@/lib/mailer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -122,21 +123,19 @@ async function runReplyDigest() {
   const dateStr = new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'long', year: 'numeric' });
   const subject = `[${HOTEL_NAME}] ${replies.length} new repl${replies.length === 1 ? 'y' : 'ies'} — ${dateStr}`;
 
-  const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sender:      { name: `${HOTEL_NAME} CRM`, email: SENDER_EMAIL },
-      to:          [{ email: DIGEST_TO, name: process.env.ALERT_NAME || 'Hotel Owner' }],
+  // Google Workspace SMTP, not Brevo — the Brevo account accepts sends with HTTP 200
+  // and delivers nothing (see src/lib/mailer.ts). Audit 2026-08-15 H-12.
+  try {
+    await sendMail({
+      to: DIGEST_TO,
+      fromName: `${HOTEL_NAME} CRM`,
+      fromEmail: SENDER_EMAIL,
       subject,
-      htmlContent: buildDigestHtml(replies, dateStr),
-      textContent: buildDigestText(replies, dateStr),
-    }),
-  });
-
-  if (!brevoRes.ok) {
-    const err = await brevoRes.json().catch(() => ({})) as Record<string, unknown>;
-    return { ok: false, error: `Brevo ${brevoRes.status}: ${String(err?.message ?? 'unknown')}` };
+      html: buildDigestHtml(replies, dateStr),
+      text: buildDigestText(replies, dateStr),
+    });
+  } catch (e) {
+    return { ok: false, error: `Digest send failed: ${e instanceof Error ? e.message : String(e)}` };
   }
 
   return {

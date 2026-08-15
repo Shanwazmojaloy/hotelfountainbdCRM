@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { sendMail } from '../_shared/mailer.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -48,6 +49,7 @@ async function logRun(status: string, records: number, summary: object) {
 }
 
 Deno.serve(async (req: Request) => {
+  let mailResult: { ok: boolean; error?: string } | null = null;
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
   try {
@@ -110,20 +112,28 @@ Deno.serve(async (req: Request) => {
 </table></td></tr></table>
 </body></html>`;
 
-      await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: { 'api-key': BREVO, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender: { name: `${HOTEL} CRM`, email: 'hotellfountainbd@gmail.com' },
-          to: [{ email: TO_EMAIL, name: 'Shan Ahmed' }],
-          subject,
-          htmlContent: html,
-          textContent: `${HOTEL} Evening Report — ${date}\nRevenue: ৳${revenue.toLocaleString()} (${(txs ?? []).length} txns)\nOccupancy: ${occupancyPct}% (${occupied}/${totalRooms} rooms)`,
-        }),
-      }).catch(() => {});
+      // Resend via the shared mailer, and the result is KEPT. This used to be a
+      // fire-and-forget fetch to Brevo with `.catch(() => {})`, followed by an
+      // unconditional logRun('success') -- so the CRM health dot stayed green while
+      // the report was delivered to nobody. Audit 2026-08-15 H-12.
+      mailResult = await sendMail({
+        to: TO_EMAIL,
+        subject,
+        html,
+        text: `${HOTEL} Evening Report — ${date}\nRevenue: ৳${revenue.toLocaleString()} (${(txs ?? []).length} txns)\nOccupancy: ${occupancyPct}% (${occupied}/${totalRooms} rooms)`,
+        fromName: `${HOTEL} CRM`,
+        fromEmail: 'hotellfountainbd@gmail.com',
+      });
+      if (!mailResult.ok) console.error('[wf-evening-report] send failed:', mailResult.error);
     }
 
-    await logRun('success', (txs ?? []).length, summary);
+    // 'success' only when the mail actually went. 'partial' means the figures were
+    // computed but the owner never saw them -- a state worth alerting on.
+    await logRun(
+      mailResult === null || mailResult.ok ? 'success' : 'partial',
+      (txs ?? []).length,
+      mailResult === null ? summary : { ...summary, email_sent: mailResult.ok, email_error: mailResult.error ?? null },
+    );
     return new Response(JSON.stringify({ ok: true, summary }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     });

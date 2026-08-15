@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { sendMail, isMailConfigured } from '@/lib/mailer';
 
 const CRON_SECRET   = process.env.CRON_SECRET
 const FB_TOKEN      = process.env.FACEBOOK_PAGE_TOKEN
@@ -7,7 +8,8 @@ const FB_PAGE_ID    = process.env.FACEBOOK_PAGE_ID
 // Set in Vercel: FACEBOOK_APP_ID + FACEBOOK_APP_SECRET (get from developers.facebook.com → App Dashboard).
 const FB_APP_ID     = process.env.FACEBOOK_APP_ID
 const FB_APP_SECRET = process.env.FACEBOOK_APP_SECRET
-const BREVO_API_KEY = process.env.BREVO_API_KEY
+// BREVO_API_KEY removed 2026-08-15 (H-12): the account accepts sends with 200 and
+// delivers nothing. Alerts now go through src/lib/mailer.ts (Google Workspace SMTP).
 const ALERT_EMAIL   = process.env.ALERT_EMAIL  || 'shanwazahmed@fountainbd.com'
 const ALERT_NAME    = process.env.ALERT_NAME   || 'Hotel Owner'
 const HOTEL_NAME    = process.env.HOTEL_NAME   || 'Hotel Fountain'
@@ -72,8 +74,10 @@ export async function GET(req: Request) {
   }
 
   const needsAlert = tokenError !== null || (daysLeft !== null && daysLeft < WARN_DAYS)
+  // Reports whether the warning actually went out, not whether one was warranted.
+  let alertSent = false
 
-  if (needsAlert && BREVO_API_KEY) {
+  if (needsAlert && isMailConfigured()) {
     const subject = tokenError
       ? `🚨 ${HOTEL_NAME}: Facebook Page Token INVALID`
       : `⚠️ ${HOTEL_NAME}: Facebook Token expires in ${daysLeft} days`
@@ -82,21 +86,27 @@ export async function GET(req: Request) {
       ? `The FACEBOOK_PAGE_TOKEN is invalid or expired.\n\nError: ${tokenError}\n\nRenew immediately via Graph API Explorer:\nhttps://developers.facebook.com/tools/explorer/\n\nPage: ${HOTEL_NAME} (ID: ${FB_PAGE_ID})\n\nUpdate FACEBOOK_PAGE_TOKEN in Vercel Settings → Environment Variables.`
       : `Your Facebook Page Token expires in ${daysLeft} days (${new Date((expiresAt! * 1000)).toISOString().slice(0,10)}).\n\nRenew via Graph API Explorer before it expires:\nhttps://developers.facebook.com/tools/explorer/\n\nPage: ${HOTEL_NAME} (ID: ${FB_PAGE_ID})\n\nUpdate FACEBOOK_PAGE_TOKEN in Vercel Settings → Environment Variables.`
 
+    // Google Workspace SMTP, not Brevo. src/lib/mailer.ts documents why: the Brevo
+    // account was never validated and had been ACCEPTING sends with HTTP 200 while
+    // delivering nothing since ~2026-06-28. This route is the Facebook-token expiry
+    // warning — the one alert whose whole job is to reach a human before a token dies —
+    // so a transport that silently drops mail defeats the point entirely.
+    // Audit 2026-08-15 H-12.
     try {
-      await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'api-key': BREVO_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sender: { name: 'Lumea CRM', email: SENDER_EMAIL },
-          to: [{ email: ALERT_EMAIL, name: ALERT_NAME }],
-          subject,
-          textContent: body,
-        }),
+      await sendMail({
+        to: ALERT_EMAIL,
+        fromName: 'Lumea CRM',
+        fromEmail: SENDER_EMAIL,
+        subject,
+        text: body,
       })
-    } catch { /* non-fatal — log but don't fail */ }
+      alertSent = true
+    } catch (e) {
+      // Still non-fatal, but it must be VISIBLE. The old code swallowed this and the
+      // response below then reported `alert_sent: needsAlert` — the NEED, not the
+      // OUTCOME — so a dead mailer looked identical to a delivered warning.
+      console.error('[fb-token-check] alert email FAILED:', e instanceof Error ? e.message : e)
+    }
   }
 
   return NextResponse.json({
@@ -107,6 +117,7 @@ export async function GET(req: Request) {
     token_error: tokenError,
     expires_at: expiresAt ? new Date(expiresAt * 1000).toISOString() : null,
     days_remaining: daysLeft,
-    alert_sent: needsAlert,
+    alert_needed: needsAlert,
+    alert_sent: alertSent,   // the OUTCOME, not the need — audit 2026-08-15 H-12
   })
 }
