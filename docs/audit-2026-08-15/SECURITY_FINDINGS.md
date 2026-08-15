@@ -407,3 +407,25 @@ raise them as findings — as this audit nearly did.
 started. Closing the remaining two means the same treatment — move the reads
 behind `/api/crm/*` — but they are inventory and folio *reads*, not financial
 writes, so the urgency is different. Recorded, not fixed.
+
+### Why S-1 mattered even though the CRM is IP-gated
+
+Worth recording, because at first glance the two facts look contradictory.
+
+`middleware.ts` puts an **office-IP perimeter** in front of `/crm` and
+`/api/crm/*` — per-tenant `office_ips` / `remote_roles`, with only
+`/api/crm/login` and `/api/crm/session` exempt so the handshake works off-site.
+An unauthenticated request from outside the hotel network gets
+`403 {"error":"Access restricted to the hotel network."}`. That was confirmed live
+against `fountainbd.com` while checking this deploy.
+
+That perimeter is real, and the new `/api/crm/billing` route inherits it. But it
+never protected the path S-1 exploited, because **the browser was not talking to
+the app** — it was talking to `mynwfkgksqqwlqowlscj.supabase.co` directly. A
+different origin, no Next.js middleware in front of it, reachable from anywhere.
+The IP gate guarded the front door while the billing hooks were going through a
+side door on a different building.
+
+Moving billing to `/api/crm/billing` is therefore not just an authentication fix.
+It puts financial reads and writes behind the IP perimeter *and* the session
+check, where the rest of the CRM already lived.
