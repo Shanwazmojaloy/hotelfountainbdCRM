@@ -219,3 +219,49 @@ That is either accurate (nobody is replying) or a capture failure in
 difference matters: one is a sales problem, the other is a bug quietly discarding
 replies to ~292 outreach emails. Worth establishing which, by sending a reply to
 one of the outreach addresses and seeing whether a row appears.
+
+---
+
+## S-ADV · Supabase advisor sweep (2026-08-15, post-fix)
+
+Ran the security and performance advisors after this session's DDL (the
+`referral_queue` unique index, the `(phone, source)` NOT-EXISTS rewrites, the
+function rewrites). **None of this session's changes raised a new advisor.** The
+notices below were all pre-existing; recorded here so they are not mistaken for
+regressions and so the one that matters gets a decision.
+
+### Worth a decision — `anon` holds DML on financial tables
+
+`billing_invoices`, `corporate_leads`, `guest_ledger` and `leads` grant
+`INSERT/UPDATE/DELETE` to the **`anon`** role (the browser's unauthenticated
+key). Row visibility is gated only by the `tenant_isolation` RLS policy
+(`tenant_id = current_tenant_id()`), and `current_tenant_id()` for an anon
+request resolves via `lumea_pre_request` from the request's host header. So the
+isolation boundary for writes to financial data rests entirely on RLS + a
+header-derived tenant id, not on authentication. That is a real surface and the
+kind of thing to close deliberately (revoke anon DML, or confirm the app truly
+needs anonymous writes here). Not changed — revoking grants on a live
+multi-tenant app is a behavioural change and the owner's call.
+
+Reassuring counter-check: the sensitive tables that have **no** anon grant —
+`user_credentials`, `activation_tokens`, `tenant_billing`, `expo_push_tokens` —
+have RLS enabled with no policy, i.e. default-deny. The advisor flags them as
+"RLS enabled, no policy" but that is the safe direction: locked to everyone but
+`service_role`. INFO-level noise, not a hole.
+
+### Noise, listed for completeness
+
+- **RLS enabled, no policy** on ~15 `_backup_*` / `*_backup_*` tables — leftover
+  snapshots from earlier migrations. Default-deny, so harmless, but they are also
+  what inflates the lead/table counts. Dropping the backups would clear both this
+  and the "no primary key" performance notices in one pass — a cleanup, not a fix.
+- **SECURITY DEFINER functions callable by anon/authenticated** —
+  `current_tenant_id`, `get_my_tenant_id`, `current_staff_role`, `is_admin`,
+  `lumea_pre_request`. These are the tenant-resolution helpers; being callable is
+  by design (RLS policies invoke them). No action.
+- **Unused indexes** (~25) and **`net._http_response` bloat** — the bloat is the
+  async-HTTP response log this audit has been reading from; it self-trims. The
+  unused indexes are mostly on the empty `bgqs_raw`/archive schemas.
+
+Net: nothing on this page changed the database. The only item that warrants an
+actual decision is the `anon` DML grant on the four financial tables.
