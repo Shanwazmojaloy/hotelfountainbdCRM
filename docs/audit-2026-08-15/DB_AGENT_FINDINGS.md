@@ -447,20 +447,45 @@ evidence is unambiguous:
 invoice row there is nothing for it to show either. The whole formal-invoice half
 of billing has been dormant since 2 May while checkouts carried on.
 
-**Not fixed — this one needs a decision, not a patch.** The code fix is small: add
-a `checkout` action to `/api/crm/billing` that calls the `process_checkout` DB
-function with the service role, gated by the staff session, the same shape as the
-other six actions. But two things make it more than a bug fix:
+### D-16 · what reading the function body actually showed
 
-1. `process_checkout(p_reservation_id uuid, p_checked_out_by uuid, …)` wants a
-   **uuid** for the operator. The staff session id is an integer. Something has to
-   give — a nullable operator, a uuid column on `staff`, or a mapping.
-2. Turning it on starts raising invoices on every checkout for the first time in
-   three and a half months. That is a business change, and the ~650 checkouts
-   already past are a separate backfill question with real financial meaning.
+The paragraph above originally called the uuid operator id a blocker. Reading
+`process_checkout`'s definition retires that and replaces it with a real one.
 
-Neither is mine to choose. Recorded with the evidence so the choice can be made
-quickly.
+**The operator id is a non-issue.** The signature is
+`process_checkout(p_reservation_id uuid, p_checked_out_by uuid DEFAULT NULL::uuid,
+p_actual_checkout timestamptz DEFAULT now())` — already optional, and used only
+for attribution columns (`posted_by`, `voided_by`, `issued_by`). Passing NULL
+works today. `staff.id` is an `integer` and there is no uuid on `staff`, so NULL
+is the answer until someone decides attribution is worth a column.
+
+**The real issue is that there would be two checkout paths.** `process_checkout`
+does the whole thing in one transaction: locks the reservation, raises the
+invoice, posts room/SC/VAT charges, issues the invoice, sets
+`status = 'CHECKED_OUT'`, and frees the rooms. Meanwhile
+`app/api/crm/check/route.ts` sets `CHECKED_OUT` with a bare update. They cannot
+both run — the function opens with:
+
+```sql
+IF v_res.status != 'CHECKED_IN' THEN
+  RAISE EXCEPTION 'Cannot checkout reservation % — current status is "%" (must be CHECKED_IN)', …
+```
+
+So whichever runs second fails. Wiring up the Checkout button is not additive;
+it means choosing which path owns checkout.
+
+**That same guard makes backfill the wrong word.** All ~650 past checkouts are
+already `CHECKED_OUT`, so the function refuses them. "Backfilling" would mean
+setting 650 live reservations back to `CHECKED_IN` and re-running charge
+computation months after the fact — against today's rates, posting fresh ledger
+and payment rows, producing totals that need not match what was actually charged.
+That is rewriting financial history, not filling a gap.
+
+**Recommendation: fix forward, do not backfill.** Make `process_checkout` the
+single checkout path behind a session-gated `checkout` action, leave the 650 past
+checkouts exactly as they are, and treat historical invoices as a separate
+reporting question if they are ever needed. Detail and sequencing in the response
+that accompanied this commit.
 
 ---
 
