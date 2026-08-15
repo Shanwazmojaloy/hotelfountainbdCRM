@@ -172,11 +172,11 @@ export async function POST(req: Request) {
       });
     }
 
-    // ---- 4. notify the hotel: WhatsApp (Cloud API) + front-desk email. ----
+    // ---- 4. notify the front desk by email. ----
     //      Awaited, not fire-and-forget: a serverless function can be frozen the
     //      moment the response is flushed, which silently drops in-flight sends.
-    //      Both legs are fail-soft inside notifyNewBooking, so a dead SMTP or an
-    //      expired Meta token can never fail a reservation that is already saved.
+    //      Fail-soft inside notifyNewBooking, so a dead SMTP can never fail a
+    //      reservation that is already saved.
     if (reservationId) {
       const delivered = await notifyNewBooking({
         reservationId,
@@ -184,10 +184,8 @@ export async function POST(req: Request) {
         roomType, checkIn, checkOut, guests,
         valueBDT: predictedValueBDT(roomType, checkIn, checkOut),
       });
-      if (!delivered.whatsapp || !delivered.email) {
-        console.error('[/api/book] booking saved but notification partially failed:', {
-          reservationId, ...delivered,
-        });
+      if (!delivered.email) {
+        console.error('[/api/book] booking saved but front-desk email failed:', { reservationId });
       }
     }
 

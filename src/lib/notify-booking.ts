@@ -1,38 +1,21 @@
 // ---------------------------------------------------------------------------
-// Website booking notifications  —  WhatsApp Cloud API + front-desk email.
+// Website booking notification  —  front-desk email.
 //
-// A reservation created from fountainbd.com must reach a human immediately on
-// two independent channels. Both are FAIL-SOFT: a notification failure must
-// never turn a successfully-persisted reservation into an error for the guest
-// (that is the ৳13,600-class "swallowed success" bug in reverse).
+// A reservation created from fountainbd.com must reach a human immediately.
+// This is FAIL-SOFT: a notification failure must never turn a successfully
+// persisted reservation into an error for the guest (that is the ৳13,600-class
+// "swallowed success" bug in reverse).
 //
-// Channel 1 — WhatsApp Cloud API (Meta Graph):
-//   WHATSAPP_PHONE_NUMBER_ID   WABA sender phone-number ID (NOT the recipient)
-//   WHATSAPP_TOKEN             permanent System User token with whatsapp_business_messaging
-//   HOTEL_WHATSAPP_TO          recipient MSISDN, digits only, no '+'  (default 8801322840799)
-//   WHATSAPP_BOOKING_TEMPLATE  approved template name (default new_booking_alert)
-//   WHATSAPP_TEMPLATE_LANG     template language code  (default en)
-//   WHATSAPP_GRAPH_VERSION     Graph API version       (default v21.0)
+// Delivery goes through the shared Google Workspace SMTP mailer (src/lib/mailer.ts).
+//   HOTEL_BOOKING_EMAIL   recipient (default hotellfountainbd@gmail.com)
 //
-//   Business-initiated messages outside a 24h customer-service window REQUIRE an
-//   approved template, so the template path is the default. Set
-//   WHATSAPP_ALLOW_TEXT=1 only if the desk number actively messages the WABA
-//   number (then a free-form text is cheaper and needs no template).
-//
-// Channel 2 — front-desk email via the existing Google Workspace SMTP mailer.
-//   HOTEL_BOOKING_EMAIL        recipient (default hotellfountainbd@gmail.com)
+// NOTE (2026-08-14): a WhatsApp Cloud API leg was built and then removed at the
+// owner's request — email only. Reinstating it would need a SECOND phone number
+// registered as the WABA sender (a Cloud-API number stops working in the normal
+// WhatsApp app, so the desk's own 8801322840799 can only ever be the recipient)
+// plus an approved message template. See git history for the original module.
 // ---------------------------------------------------------------------------
 import { sendMail, isMailConfigured } from '@/lib/mailer';
-
-const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || 'v21.0';
-const WA_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
-const WA_TOKEN = process.env.WHATSAPP_TOKEN || '';
-const WA_TEMPLATE = process.env.WHATSAPP_BOOKING_TEMPLATE || 'new_booking_alert';
-const WA_LANG = process.env.WHATSAPP_TEMPLATE_LANG || 'en';
-const WA_ALLOW_TEXT = process.env.WHATSAPP_ALLOW_TEXT === '1';
-
-/** Recipient MSISDN, digits only. Meta rejects a leading '+' or any separator. */
-const WA_TO = (process.env.HOTEL_WHATSAPP_TO || '8801322840799').replace(/\D/g, '');
 
 const BOOKING_EMAIL = process.env.HOTEL_BOOKING_EMAIL || 'hotellfountainbd@gmail.com';
 
@@ -56,96 +39,9 @@ export function nightsBetween(checkIn: string, checkOut: string): number {
   );
 }
 
-const bdt = (n: number) => `৳${Math.round(n).toLocaleString('en-US')}`;
+const bdt = (n: number) => `BDT ${Math.round(n).toLocaleString('en-US')}`;
 
-export function isWhatsAppConfigured(): boolean {
-  return Boolean(WA_PHONE_ID && WA_TOKEN && WA_TO);
-}
-
-/** Graph call with a hard timeout so a hung Meta edge can't eat the 30s budget. */
-async function graphPost(payload: unknown, timeoutMs = 8000) {
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), timeoutMs);
-  try {
-    const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${WA_PHONE_ID}/messages`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${WA_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      signal: ac.signal,
-    });
-    const text = await res.text();
-    if (!res.ok) throw new Error(`WhatsApp send failed: ${res.status} ${text}`);
-    return text;
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-/**
- * Send the new-booking alert to the hotel's WhatsApp.
- * Template body expects 6 ordered variables:
- *   {{1}} guest name  {{2}} phone  {{3}} room type
- *   {{4}} check-in    {{5}} check-out  {{6}} guests + nights + value
- */
-export async function sendBookingWhatsApp(b: BookingNotice): Promise<void> {
-  if (!isWhatsAppConfigured()) {
-    console.warn('[notify-booking] WhatsApp not configured — skipping (set WHATSAPP_PHONE_NUMBER_ID + WHATSAPP_TOKEN)');
-    return;
-  }
-
-  const nights = nightsBetween(b.checkIn, b.checkOut);
-  const summary = `${b.guests} guest(s), ${nights} night(s), est. ${bdt(b.valueBDT)}`;
-
-  if (WA_ALLOW_TEXT) {
-    await graphPost({
-      messaging_product: 'whatsapp',
-      to: WA_TO,
-      type: 'text',
-      text: {
-        preview_url: false,
-        body:
-          `🔔 NEW WEBSITE BOOKING\n\n` +
-          `Guest: ${b.name}\n` +
-          `Phone: ${b.phone || '—'}\n` +
-          `Email: ${b.email}\n` +
-          `Room: ${b.roomType || '—'}\n` +
-          `Check-in: ${b.checkIn}\n` +
-          `Check-out: ${b.checkOut}\n` +
-          `${summary}\n\n` +
-          `Ref: ${b.reservationId}`,
-      },
-    });
-    return;
-  }
-
-  await graphPost({
-    messaging_product: 'whatsapp',
-    to: WA_TO,
-    type: 'template',
-    template: {
-      name: WA_TEMPLATE,
-      language: { code: WA_LANG },
-      components: [
-        {
-          type: 'body',
-          parameters: [
-            { type: 'text', text: b.name },
-            { type: 'text', text: b.phone || 'not given' },
-            { type: 'text', text: b.roomType || 'not specified' },
-            { type: 'text', text: b.checkIn },
-            { type: 'text', text: b.checkOut },
-            { type: 'text', text: summary },
-          ],
-        },
-      ],
-    },
-  });
-}
-
-/** Send the new-booking alert to the front-desk mailbox. */
+/** Send the new-booking alert to the front-desk mailbox. Throws on SMTP rejection. */
 export async function sendBookingEmail(b: BookingNotice): Promise<void> {
   if (!isMailConfigured()) {
     console.warn('[notify-booking] SMTP not configured — skipping booking email');
@@ -161,7 +57,7 @@ export async function sendBookingEmail(b: BookingNotice): Promise<void> {
   <div style="background:#FBF9F4;padding:28px 0">
     <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #EAE6DD;border-radius:4px;padding:2rem">
       <div style="font:12px/1 -apple-system,Segoe UI,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#B08D57">Hotel Fountain — fountainbd.com</div>
-      <h1 style="margin:10px 0 20px;font:400 24px/1.3 'Libre Baskerville',Georgia,serif;color:#1C1510">New website reservation</h1>
+      <h1 style="margin:10px 0 20px;font:400 24px/1.3 Georgia,'Libre Baskerville',serif;color:#1C1510">New website reservation</h1>
       <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">
         ${row('Guest', b.name)}
         ${row('Phone', b.phone || '—')}
@@ -207,13 +103,13 @@ export async function sendBookingEmail(b: BookingNotice): Promise<void> {
   });
 }
 
-/**
- * Fire both channels concurrently, never throwing.
- * Returns per-channel outcome so the route can log precisely which leg failed.
- */
-export async function notifyNewBooking(b: BookingNotice): Promise<{ whatsapp: boolean; email: boolean }> {
-  const [wa, mail] = await Promise.allSettled([sendBookingWhatsApp(b), sendBookingEmail(b)]);
-  if (wa.status === 'rejected') console.error('[notify-booking] whatsapp leg failed:', wa.reason);
-  if (mail.status === 'rejected') console.error('[notify-booking] email leg failed:', mail.reason);
-  return { whatsapp: wa.status === 'fulfilled', email: mail.status === 'fulfilled' };
+/** Notify the front desk. Never throws — returns whether the email was accepted. */
+export async function notifyNewBooking(b: BookingNotice): Promise<{ email: boolean }> {
+  try {
+    await sendBookingEmail(b);
+    return { email: true };
+  } catch (e) {
+    console.error('[notify-booking] front-desk email failed:', e);
+    return { email: false };
+  }
 }
