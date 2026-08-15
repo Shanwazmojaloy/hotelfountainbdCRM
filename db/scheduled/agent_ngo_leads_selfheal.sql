@@ -6,7 +6,7 @@ AS $function$
 DECLARE v_new integer;
 BEGIN
   INSERT INTO leads(id, name, email, phone, company, source, status, notes, analyst_brief, tenant_id, created_at, updated_at)
-  VALUES
+  SELECT v.* FROM (VALUES
     (gen_random_uuid(), 'Admin & Logistics', 'dhaka@undp.org', '02-9853606',
      'UNDP Bangladesh', 'NGO_CORPORATE', 'NEW',
      'UN office near Gulshan/Nikunja. International staff need transit accommodation.',
@@ -36,7 +36,10 @@ BEGIN
      'IOM manages refugee/migrant transit — airport proximity critical.',
      'Pitch: transit housing for beneficiaries + staff. High volume potential.',
      fountain_tenant_id(), NOW(), NOW())
-  ON CONFLICT DO NOTHING;
+  ) AS v(id, name, email, phone, company, source, status, notes, analyst_brief, tenant_id, created_at, updated_at)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM leads l WHERE l.phone = v.phone AND l.source = v.source
+  );
   GET DIAGNOSTICS v_new = ROW_COUNT;
 
   INSERT INTO agent_run_log(agent_id, action, rows_affected, status, details)

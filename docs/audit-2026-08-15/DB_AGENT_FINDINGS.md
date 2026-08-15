@@ -210,12 +210,20 @@ an uncommitted concurrent insert.
 distinct `reservation_id`s — zero duplicates. The race needs a guest to check out
 in the window immediately before a midnight tick, which has not yet coincided.
 
-Not fixed. The clean fix is a pair, applied together: a unique index on
-`referral_queue(reservation_id)` plus `ON CONFLICT (reservation_id) DO NOTHING`
-on the insert. The index alone would turn a silent duplicate into an exception
-that aborts the whole midnight sweep, which is worse. jobids 31 and 32 were
-instead moved off the 00:00 slot (`0 4,8,12,16,20` and `0 6,12,18`) — the same
-treatment would work here but changes when the queue is built.
+**Fixed 2026-08-15**, as a pair in one transaction: unique index
+`referral_queue_reservation_id_key` on `(reservation_id)` plus
+`ON CONFLICT (reservation_id) DO NOTHING` on the insert. Applied together
+deliberately — the index alone would turn a silent duplicate into an exception
+that aborts the whole midnight sweep, which is worse than the bug. The redundant
+non-unique `idx_referral_queue_reservation_id` was dropped; the unique index
+serves the same lookups.
+
+Two things checked before applying it, because a unique index can break existing
+writers. `auto_referral_on_checkout` — the trigger that also inserts here — was
+already carrying a bare `ON CONFLICT DO NOTHING`, written against a constraint
+that did not exist, so it was a no-op guard that this index has now made real.
+And `app/api/crm/referrals/route.ts`, the only app-side toucher, does `SELECT`
+and `UPDATE` only. No writer can now throw on it.
 
 ## D-11 · `agent_copywriter_bn()` scheduled twice at different cadences — LOW
 
@@ -224,6 +232,63 @@ same function `0 7 * * *` (daily 07:00). They never share a minute, so there is
 no race — the daily job simply supersedes the weekly one, which has had no
 independent effect since jobid 48 was added. Left alone: which cadence is
 intended is a product question, not a bug.
+
+## D-12 · Three lead agents re-insert the same 15 leads on every run — HIGH
+
+`agent_ngo_leads_selfheal`, `agent_airline_leads_selfheal` and
+`agent_corporate_leads_selfheal` each held a hardcoded `VALUES` list of 5 leads
+with `gen_random_uuid()` as the id, terminated by `ON CONFLICT DO NOTHING`.
+
+The only unique constraint on `leads` is the primary key. `gen_random_uuid()`
+never collides with it. So the `ON CONFLICT` clause was decorative — it had
+nothing to conflict *on* — and all three functions inserted 5 brand-new rows on
+every single invocation, indefinitely.
+
+Measured before the fix:
+
+| source | rows | distinct phones | copies of each |
+| --- | --- | --- | --- |
+| `NGO_CORPORATE` | 575 | 5 | 115 |
+| `AIRLINE_CREW` | 575 | 5 | 115 |
+| `CORPORATE` | 575 | 5 | 115 |
+
+1,725 rows representing 15 real leads, accumulating since 2026-05-11 at roughly
+15/day — the daily `run_all_agents()` sweep, not the weekly jobs 25/26/27, is
+what set the cadence. `leads` currently holds 2,229 rows with a phone number
+against 274 distinct `(phone, source)` pairs.
+
+And each run logged `status = 'FIXED'`, `'Generated 5 NGO/corporate leads'`,
+because `v_new` was the raw `ROW_COUNT` — always 5. The same defect class as
+H-12 and D-9: **the failure reported itself as success**, so nothing in the
+health surface ever showed it.
+
+**Fixed 2026-08-15.** All three rewritten from `VALUES` to
+`SELECT v.* FROM (VALUES …) AS v(…) WHERE NOT EXISTS (SELECT 1 FROM leads l
+WHERE l.phone = v.phone AND l.source = v.source)`. Verified by running all three
+inside a rolled-back transaction: `leads before=2229 after=2229 inserted=0`.
+Previously the same three calls would have inserted 15. `v_new` is now honestly
+0, so the run log reports `OK` rather than `FIXED`.
+
+A unique index on `(phone, source)` would be the structural version of this
+guard, but it cannot be created while the 1,725 duplicates exist. That is a
+deletion, and deletions of live lead rows are the owner's call — see below.
+
+**Not fixed — needs a decision:** the ~1,955 existing duplicate lead rows. They
+are inert (the agents no longer add to them) but they inflate every lead count
+and any per-lead outreach would target the same 15 contacts over and over.
+
+## D-13 · `AI-*` lead sources re-propose contacts that already exist — LOW
+
+Five sources (`AI-embassy`, `AI-corporate`, `AI-airlines`, `AI-travel`,
+`AI-events`) gain 20 rows a week, most recently 2026-08-10, roughly half of them
+repeating a phone number already present under the same source — 230 excess rows
+across 439.
+
+Unlike D-12 this is not a broken guard: the writer is not in this repo and not
+in `pg_proc`, so it is one of the 23 deployed-but-uncommitted edge functions or
+an external process. Re-proposing a known company on a later pass may well be
+intended. Recorded rather than acted on, because the source is not visible from
+here.
 
 ---
 

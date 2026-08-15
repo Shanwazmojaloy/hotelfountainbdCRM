@@ -29,7 +29,8 @@ BEGIN
   WHERE r.status = 'CHECKED_OUT'
     AND is_valid_bd_phone(g.phone)
     AND rq.id IS NULL
-    AND r.check_out >= NOW() - INTERVAL '7 days';
+    AND r.check_out >= NOW() - INTERVAL '7 days'
+  ON CONFLICT (reservation_id) DO NOTHING;
   GET DIAGNOSTICS v_new = ROW_COUNT;
 
   PERFORM agent_record_feedback('lumea-guests','referral_queue',
