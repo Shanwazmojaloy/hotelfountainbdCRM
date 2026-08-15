@@ -1,5 +1,13 @@
 -- pg_cron schedule snapshot — Supabase project mynwfkgksqqwlqowlscj
 -- 51 jobs, ordered by jobid. Credentials replaced with <ANON_KEY> / <REDACTED>.
+--
+-- 2026-08-15: jobids 30 and 40 set active=false (kept, not unscheduled, so the
+-- definition survives and re-enabling is one cron.alter_job call). jobids 31
+-- and 32 moved off the 00:00 slot because run_all_agents() (jobid 21, 0 0 * * *)
+-- already invokes both of their functions at that hour, and the two would race.
+-- Restore: cron.alter_job(30, active := true); cron.alter_job(40, active := true);
+--          cron.alter_job(31, schedule := '0 */4 * * *');
+--          cron.alter_job(32, schedule := '0 */6 * * *');
 
 -- jobid 2 | active
 select cron.schedule('hf-checkout-reminder', '30 4 * * *', $job$
@@ -227,7 +235,7 @@ select cron.schedule('lumea-ceo-inbox', '0 * * * *', $job$
 SELECT ceo_process_inbox()
 $job$);
 
--- jobid 30 | active
+-- jobid 30 | DISABLED 2026-08-15 (D-9: duplicate of jobid 32)
 select cron.schedule('lumea-corporate-detect', '0 */6 * * *', $job$
 
   INSERT INTO leads(id,name,email,phone,company,source,status,notes,tenant_id,created_at,updated_at)
@@ -245,12 +253,12 @@ select cron.schedule('lumea-corporate-detect', '0 */6 * * *', $job$
 $job$);
 
 -- jobid 31 | active
-select cron.schedule('lumea-ota-monitor', '0 */4 * * *', $job$
+select cron.schedule('lumea-ota-monitor', '0 4,8,12,16,20 * * *', $job$
 SELECT agent_ota_monitor()
 $job$);
 
 -- jobid 32 | active
-select cron.schedule('lumea-corp-detect', '0 */6 * * *', $job$
+select cron.schedule('lumea-corp-detect', '0 6,12,18 * * *', $job$
 SELECT agent_corporate_spend_detect()
 $job$);
 
@@ -289,7 +297,7 @@ select cron.schedule('lumea-seo-review', '0 14 * * *', $job$
 SELECT agent_seo_review_request()
 $job$);
 
--- jobid 40 | active
+-- jobid 40 | DISABLED 2026-08-15 (D-8: duplicate of jobid 31)
 select cron.schedule('lumea-ota-run', '0 */4 * * *', $job$
 SELECT agent_ota_monitor()
 $job$);

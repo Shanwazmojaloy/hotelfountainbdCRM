@@ -137,6 +137,8 @@ schedule `0 */4 * * *` and the identical command. It is the only *textually*
 identical pair among the 51 jobs — see D-9 for a functional duplicate that does
 not look like one. Drop one.
 
+**Fixed 2026-08-15.** jobid 40 set `active = false`.
+
 ## D-9 · Two cron jobs detect the same corporate prospect — MEDIUM
 
 `lumea-corporate-detect` (jobid 30) and `lumea-corp-detect` (jobid 32) both run
@@ -174,11 +176,54 @@ for jobid 30's ৳-less notes — the two populations, not two bugs.
 `substring(notes from 'spent ([0-9,]+)')`, so jobid 30's leads no longer promote
 with a NULL deal value.
 
-**Not fixed — needs a decision:** dropping one of the two jobs. Both are still
-scheduled, so the next guest to cross ৳15,000 will again produce two leads and
-two pipeline rows. Recommendation is to unschedule jobid 30 (the inline copy),
-since jobid 32 also writes `analyst_brief`, pushes to `ceo_pipeline`, alerts the
-CEO agent, and logs a run — the inline job does none of that.
+**Fixed 2026-08-15.** jobid 30 set `active = false` — it was the inline copy,
+and jobid 32 does strictly more (writes `analyst_brief`, pushes to
+`ceo_pipeline`, alerts the CEO agent, logs a run). `active = false` rather than
+`cron.unschedule` so the definition survives and re-enabling is one call.
+
+The existing 4 duplicate pairs were **not** deleted — removing live lead rows is
+a separate decision.
+
+## D-10 · `run_all_agents()` re-runs six agents that have their own job — MEDIUM
+
+Disabling jobids 30 and 40 removed the two same-schedule duplicates, but not the
+whole class. `run_all_agents()` (jobid 21, `0 0 * * *`) invokes 17 agents, and
+six of them *also* hold their own pg_cron job whose schedule fires at 00:00:
+
+| jobid | job | function | own schedule |
+| --- | --- | --- | --- |
+| 13 | `lumea-billing-heal` | `agent_billing_selfheal` | `0 */6 * * *` |
+| 14 | `lumea-rooms-heal` | `agent_rooms_selfheal` | `*/30 * * * *` |
+| 15 | `lumea-reservations-heal` | `agent_reservations_selfheal` | `0 * * * *` |
+| 17 | `lumea-housekeeping-heal` | `agent_housekeeping_selfheal` | `*/15 * * * *` |
+| 29 | `lumea-ceo-inbox` | `ceo_process_inbox` | `0 * * * *` |
+| 34 | `lumea-referral-queue` | `agent_referral_queue_builder` | `*/30 * * * *` |
+
+pg_cron runs jobs concurrently, so at 00:00 each of these executes twice at once.
+Five are self-heal `UPDATE`s and re-running them is close to harmless. One is
+not: **`agent_referral_queue_builder` inserts** into `referral_queue`, guarded
+only by `LEFT JOIN referral_queue rq ON rq.reservation_id = r.id … AND rq.id IS
+NULL` — the same read-then-write guard that let D-9 through, and it cannot see
+an uncommitted concurrent insert.
+
+**Latent, not realised.** `referral_queue` currently holds 214 rows across 214
+distinct `reservation_id`s — zero duplicates. The race needs a guest to check out
+in the window immediately before a midnight tick, which has not yet coincided.
+
+Not fixed. The clean fix is a pair, applied together: a unique index on
+`referral_queue(reservation_id)` plus `ON CONFLICT (reservation_id) DO NOTHING`
+on the insert. The index alone would turn a silent duplicate into an exception
+that aborts the whole midnight sweep, which is worse. jobids 31 and 32 were
+instead moved off the 00:00 slot (`0 4,8,12,16,20` and `0 6,12,18`) — the same
+treatment would work here but changes when the queue is built.
+
+## D-11 · `agent_copywriter_bn()` scheduled twice at different cadences — LOW
+
+jobid 42 `lumea-copy-bn` runs it `30 8 * * 1` (Mondays 08:30); jobid 48 runs the
+same function `0 7 * * *` (daily 07:00). They never share a minute, so there is
+no race — the daily job simply supersedes the weekly one, which has had no
+independent effect since jobid 48 was added. Left alone: which cadence is
+intended is a product question, not a bug.
 
 ---
 

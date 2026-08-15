@@ -8,8 +8,9 @@ no such job exists in `vercel.json`.
 `vercel.json` holds 13 cron jobs. The audit treated that file as the schedule.
 It is roughly a fifth of it.
 
-`cron.job` in Postgres holds **51 active pg_cron jobs**. Ten of them POST directly
-to Supabase edge functions, bypassing Vercel entirely:
+`cron.job` in Postgres holds **51 pg_cron jobs** — 49 active as of 2026-08-15,
+after jobids 30 and 40 were deactivated as duplicates (D-8, D-9). Ten of them
+POST directly to Supabase edge functions, bypassing Vercel entirely:
 
 | pg_cron job | Schedule (UTC) | Invokes |
 |---|---|---|
