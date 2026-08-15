@@ -179,3 +179,43 @@ delete.
 As a Supabase Edge Function secret it is not exposed to a browser — but in any
 Vite build, `VITE_`-prefixed variables are inlined into client bundles by design.
 The name is a trap for whoever copies it next. Rename it.
+
+### Correction 2 — the deal-alert impact claim was unsupported
+
+Commit `43ef449` says *"the owner was not getting alerts"*, and I repeated that
+in conversation. I did not check before saying it. Checked afterwards:
+
+| Evidence | Result |
+|---|---|
+| `notifications_log` rows for `workflow = 'deal-alert'` | **0, ever** |
+| `outreach_log` rows with `is_deal_ready` | **0** |
+| `outreach_log` rows with `audited_at` set | **1**, on 2026-05-20 |
+| `notifications_log` rows for `payment-send` | **1**, on 2026-05-20 |
+
+The trigger chain is `reply-intake-poll` (Vercel cron, 01:00 UTC) →
+`ceo-auditor` → `deal-alert` → `payment-send`. `ceo-auditor` is on no cron of
+its own; it only runs when an inbound reply arrives. `outreach_log` holds 5
+inbound rows, the most recent dated 2026-05-21.
+
+So the chain has fired exactly once, in May — **before** the Brevo account
+started failing around 2026-06-28. No deal-ready alert was generated during the
+outage, therefore none was lost. The transport was genuinely dead and the fix
+was still required, because the next real deal-ready lead would have hit it. But
+the harm I described did not occur.
+
+That is the fourth claim this session stated more confidently than the evidence
+supported, after "the tokens are live", "the H-12 fix is complete", and "there is
+no CI". The pattern is consistent: reasoning from code to consequence without
+checking whether the consequence actually happened.
+
+### A larger question this raised
+
+The B2B pipeline is asymmetric. Outreach sends daily — 292 outbound rows, the
+most recent 2026-08-14. The response half has produced 5 inbound rows in total,
+none since 2026-05-21, and one audit in the same period.
+
+That is either accurate (nobody is replying) or a capture failure in
+`reply-intake` / `reply-intake-poll`. Nothing here distinguishes the two, and the
+difference matters: one is a sales problem, the other is a bug quietly discarding
+replies to ~292 outreach emails. Worth establishing which, by sending a reply to
+one of the outreach addresses and seeing whether a row appears.
