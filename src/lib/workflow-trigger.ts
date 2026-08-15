@@ -2,8 +2,19 @@
 // Used by the /api/agents/* cron routes so Vercel Cron can fire the same
 // edge functions the CRM Settings "Run" buttons call.
 //
-// The anon key is the public client key (already embedded in crm.html); it is
-// safe to use here. Override via SUPABASE_URL / SUPABASE_ANON_KEY env vars.
+// CREDENTIALS (corrected 2026-08-15): this file used to carry a hardcoded
+// legacy HS256 anon JWT as its fallback. That key is now DISABLED in Supabase
+// (Option B migration, 2026-07-02) — the only reason the forwarders still
+// worked is that their target edge functions run with verify_jwt=false. A
+// hardcoded, dead credential that happens to be ignored is not a fallback, so
+// it is gone. Resolution order is now env-only:
+//   SUPABASE_URL      -> NEXT_PUBLIC_SUPABASE_URL
+//   SUPABASE_ANON_KEY -> NEXT_PUBLIC_SUPABASE_ANON_KEY   (sb_publishable_...)
+// Both NEXT_PUBLIC_* vars are set in every Vercel environment, so nothing
+// changes operationally. If neither resolves we fail closed with a named
+// error rather than firing an unauthenticated request.
+// (The old comment claimed the key was "already embedded in crm.html" —
+// crm.html was deleted 2026-08-08.)
 
 import { NextResponse } from 'next/server';
 
@@ -24,11 +35,10 @@ export function assertCron(req: Request): NextResponse | null {
 }
 
 const BASE =
-  process.env.SUPABASE_URL ?? 'https://mynwfkgksqqwlqowlscj.supabase.co';
+  process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 
 const ANON =
-  process.env.SUPABASE_ANON_KEY ??
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15bndma2drc3Fxd2xxb3dsc2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODc3OTMsImV4cCI6MjA4NTQ2Mzc5M30.J6-Oc_oAoPDUAytj03e8wh50lIHLIXzmFhuwizTRiow';
+  process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 export interface TriggerResult {
   status: number;
@@ -40,6 +50,19 @@ export async function triggerEdgeFunction(
   slug: string,
   body: Record<string, unknown> = {},
 ): Promise<TriggerResult> {
+  // Fail closed, and say which var is missing. Checked here rather than at module
+  // scope so a missing env var can never break `next build` — only the call.
+  if (!BASE || !ANON) {
+    const missing = [!BASE && 'SUPABASE_URL', !ANON && 'SUPABASE_ANON_KEY'].filter(Boolean);
+    return {
+      status: 500,
+      ok: false,
+      data: {
+        error: `workflow-trigger: ${missing.join(' and ')} not configured`,
+        hint: 'Set SUPABASE_URL / SUPABASE_ANON_KEY (or the NEXT_PUBLIC_* equivalents) in the Vercel environment.',
+      },
+    };
+  }
   const r = await fetch(`${BASE}/functions/v1/${slug}`, {
     method: 'POST',
     headers: {
