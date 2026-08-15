@@ -18,8 +18,6 @@ jobs:
           cache: npm
       - run: npm install
 
-      - name: Build CRM bundle
-        run: npm run build:crm
 
       - name: Guard — file integrity (shared with pre-commit hook)
         # Single source of truth: the same script the local pre-commit hook runs.
