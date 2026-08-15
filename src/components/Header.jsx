@@ -90,7 +90,20 @@ export default function Header() {
       setPending(p); setNotifRooms(rms || []); setClashes(act);
     } catch (e) { console.error('[Header] notif fetch:', e); }
   }
-  useEffect(() => { loadNotifs(); const t = setInterval(loadNotifs, 60000); return () => clearInterval(t); }, []);
+  // PERF (2026-08-15): gate the poll on tab visibility. This bell mounts on EVERY /crm page
+  // and fired 2x /api/crm/data every 60s even in a backgrounded tab — ~86k Vercel function
+  // invocations/month from a single tab left open overnight, which is the dominant consumer
+  // of the Hobby Fluid Active CPU allowance (all 13 crons combined are ~260/month).
+  // Refresh on regaining focus so the bell is never stale when it is actually being looked at.
+  useEffect(() => {
+    loadNotifs();
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') loadNotifs();
+    }, 60000);
+    const onVis = () => { if (document.visibilityState === 'visible') loadNotifs(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVis); };
+  }, []);
 
   // rooms free for THIS booking's window: not OUT_OF_ORDER, no overlapping active stay
   const freeRoomsFor = (res) => {

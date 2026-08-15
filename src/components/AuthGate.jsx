@@ -76,7 +76,12 @@ export default function AuthGate({ children }) {
       } catch { /* offline/transient - keep the session */ }
     };
     ping();
-    const iv = setInterval(ping, 2 * 60 * 1000);
+    // PERF (2026-08-15): gate on visibility. The onVis/focus handlers below already re-ping
+    // the moment the tab is looked at again, so a hidden tab polling every 2 min bought
+    // nothing but Vercel invocations (~22k/month per tab left open).
+    const iv = setInterval(() => {
+      if (document.visibilityState === 'visible') ping();
+    }, 2 * 60 * 1000);
     const onVis = () => { if (typeof document !== 'undefined' && document.visibilityState === 'visible') ping(); };
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('focus', onVis);
