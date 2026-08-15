@@ -107,7 +107,15 @@ export function printConfirmation(res, rooms, guestName, guests, settings) {
   const svcPct = String(st.service_charge ?? '5').trim();
   const stdIn = st.check_in || '11:00';
   const stdOut = st.check_out || '12:00';
-  const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo.png';
+  // /logo-print.png is the EMBLEM ONLY, cropped from /logo.png. Two problems with the source:
+  // it is a 4724x4724 square in which the artwork occupies just 64% x 43%, so `object-fit:
+  // contain` in a square box drew the visible mark at 43% of the box height — hence "logo
+  // looks very small"; and the lower third of that artwork is a baked-in "HOTEL FOUNTAIN /
+  // Luxury In Comfort" wordmark, which this header already sets in live text beside it.
+  // Enlarging the whole lockup therefore printed the wordmark twice, the raster copy
+  // illegible at this size. Cropped at the empty band the artwork already contains (y=1370)
+  // to the emblem alone, 888x1370 -> 700x1080. Height-led in CSS because it is now portrait.
+  const logo = (typeof window !== 'undefined' ? window.location.origin : '') + '/logo-print.png';
   // Resolve EVERY guest on the reservation (guest_ids→guests lookup, full objects). When no
   // lookup is available, fall back to name-only cards from the passed name/array or guest_name
   // so the Guest Details section is never empty.
@@ -140,7 +148,9 @@ export function printConfirmation(res, rooms, guestName, guests, settings) {
   .page{max-width:780px;margin:0 auto;padding:48px 56px;background:#FBF8F1}
   .hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-bottom:2px solid #C8A96E;padding-bottom:28px;margin-bottom:32px}
   .brand{display:flex;align-items:center;gap:22px;flex:1;min-width:0}
-  .brand img.logo{width:84px;height:84px;object-fit:contain;flex:none;display:block}
+  /* Height-led, width auto: the emblem is portrait (0.648:1), so pinning height keeps it
+     optically matched to the two-line wordmark instead of letterboxing in a square. */
+  .brand img.logo{height:76px;width:auto;flex:none;display:block}
   .brand .txt{display:flex;flex-direction:column;min-width:0}
   .brand h1{font-family:'Inter',sans-serif;font-size:24px;font-weight:700;letter-spacing:.8px;color:#1F1B16;text-transform:uppercase;line-height:1.1}
   .brand h1 em{font-style:normal;color:#C8A96E;font-weight:500;letter-spacing:1px}
@@ -191,7 +201,7 @@ export function printConfirmation(res, rooms, guestName, guests, settings) {
     html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:12px !important;text-rendering:geometricPrecision !important;color:#1F1B16 !important}
     .page{padding:0 !important;max-width:none !important;width:100% !important;margin:0 !important;background:#fff !important;display:flex !important;flex-direction:column !important;min-height:calc(297mm - 16mm) !important}
     .hdr{padding-bottom:16px !important;margin-bottom:20px !important}
-    .brand img.logo{width:54px !important;height:54px !important}
+    .brand img.logo{height:58px !important;width:auto !important}
     .brand h1{font-size:21px !important}
     .doc-title{font-size:18px !important}
     .ftr{margin-top:auto !important;padding-top:14px !important;align-items:center !important}
