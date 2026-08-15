@@ -11,6 +11,10 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const fmt = (n) => '৳' + Number(n || 0).toLocaleString('en-BD');
 const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return String(d).slice(0, 10); } };
 const nightsCount = (ci, co) => { if (!ci || !co) return 0; const n = Math.round((new Date(co) - new Date(ci)) / 86400000); return n > 0 ? n : 0; };
+// Status arrives as a DB enum (CHECKED_OUT). Printing the raw token with its underscore
+// is the single most "unfinished" thing a document can do, so render it as words.
+const prettyStatus = (s) => String(s || 'Reserved').replace(/_/g, ' ').toLowerCase()
+  .replace(/\b\w/g, (c) => c.toUpperCase());
 // hotel_settings stores the standard times as 24h "HH:MM" under check_in / check_out.
 const hhmmTo12 = (hhmm) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm == null ? '' : hhmm).trim());
@@ -50,17 +54,21 @@ const resolveGuests = (res, guests) => (res.guest_ids || []).map((id) => (guests
 const guestDetailsHTML = (guestObjs) => {
   if (!guestObjs || !guestObjs.length) return '';
   const cards = guestObjs.map((g, i) => {
-    const addr = [g.address, g.city, g.country].filter(Boolean).join(', ') || '—';
-    const idNum = g.id_number || g.id_card || '—';
+    const addr = [g.address, g.city, g.country].filter(Boolean).join(', ');
+    // Only print fields that actually hold something. A card of four em-dashes reads as a
+    // broken form; one honest line reads as a document waiting on data.
+    const fields = [
+      ['ID Type', g.id_type], ['ID Number', g.id_number || g.id_card],
+      ['Nationality', g.nationality], ['Address', addr],
+    ].filter(([, v]) => v != null && String(v).trim() !== '');
+    const body = fields.length
+      ? `<div class="gd-fields">${fields.map(([l, v]) =>
+          `<div><span class="gd-l">${l}</span><span class="gd-v">${esc(v)}</span></div>`).join('')}</div>`
+      : `<div class="gd-empty">Identification to be recorded at check-in.</div>`;
     return `<div class="gd-card">
       ${guestObjs.length > 1 ? `<div class="gd-role">${i === 0 ? 'Primary Guest' : i === 1 ? 'Secondary Guest' : 'Guest ' + (i + 1)}</div>` : ''}
       <div class="gd-name">${esc(g.name || '—')}</div>
-      <div class="gd-fields">
-        <div><span class="gd-l">ID Type</span><span class="gd-v">${esc(g.id_type || '—')}</span></div>
-        <div><span class="gd-l">ID Number</span><span class="gd-v">${esc(idNum)}</span></div>
-        <div><span class="gd-l">Nationality</span><span class="gd-v">${esc(g.nationality || '—')}</span></div>
-        <div><span class="gd-l">Address</span><span class="gd-v">${esc(addr)}</span></div>
-      </div>
+      ${body}
     </div>`;
   }).join('');
   return `<div class="gd-sec"><div class="gd-hdr">Guest Details</div>${cards}</div>`;
@@ -76,6 +84,7 @@ const GD_CSS = `
   .gd-fields>div{display:flex;flex-direction:column;min-width:0}
   .gd-l{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#8A8276;margin-bottom:2px}
   .gd-v{font-size:12.5px;color:#1F1B16;font-weight:500;word-break:break-word}
+  .gd-empty{font-size:11.5px;color:#8A8276;font-style:italic}
   @media print{
     .gd-card,.gd-sec{page-break-inside:avoid}
     .gd-sec{margin-bottom:12px}
@@ -147,7 +156,9 @@ export function printConfirmation(res, rooms, guestName, guests, settings) {
   .title-left{min-width:0}
   .conf-block{text-align:right;flex:none;padding-top:4px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
-  .grid.grid-3{grid-template-columns:1fr 1fr 1fr}
+  /* Nights holds one digit — giving it a third of the row left a conspicuously empty
+     box beside two full ones. Narrower column, same baseline and height. */
+  .grid.grid-3{grid-template-columns:1fr 1fr .58fr}
   .box{border:2px solid #D9CFB8;background:#FFFDF7;padding:18px 20px;border-radius:3px}
   .lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8A8276;margin-bottom:6px}
   .val{font-size:15px;font-weight:500;color:#1F1B16}
@@ -160,12 +171,16 @@ export function printConfirmation(res, rooms, guestName, guests, settings) {
   td.rno{color:#9C7A3E;font-weight:600;letter-spacing:.5px}
   td.rtp{color:#5A544A}
   td.num{text-align:right;color:#1F1B16;font-weight:500;font-variant-numeric:tabular-nums}
-  .totals{margin-left:auto;width:300px}
-  .totals .row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;font-variant-numeric:tabular-nums}
-  .totals .row.disc{color:#9C7A3E}
-  .totals .row.bal{border-top:1px solid #EAE6DD;margin-top:6px;padding-top:14px;font-size:15px;font-weight:500}
-  .totals .row.bal.due{color:#B14D4D}
-  .totals .row.bal.paid{color:#4A7C59}
+  /* Summary lives INSIDE the table so every amount lands under the Subtotal column,
+     instead of a floated block whose left edge aligned to nothing on the page. */
+  tfoot td{padding:9px 14px;border-bottom:none;font-size:12.5px;color:#5A544A;font-variant-numeric:tabular-nums}
+  tfoot td:first-child{text-align:right;letter-spacing:.2px}
+  tfoot tr:first-child td{padding-top:14px;border-top:1px solid #EAE6DD}
+  tfoot tr.disc td{color:#9C7A3E}
+  tfoot tr.bal td{border-top:1px solid #D9CFB8;padding-top:13px;padding-bottom:15px;font-size:14px;font-weight:600;color:#1F1B16}
+  tfoot tr.bal.due td.num{color:#B14D4D}
+  tfoot tr.bal.paid td.num{color:#4A7C59}
+  .paid-pill{display:inline-block;margin-left:9px;padding:2px 8px;border:1px solid #4A7C59;color:#4A7C59;border-radius:2px;font-size:8.5px;letter-spacing:1.4px;text-transform:uppercase;font-weight:600;vertical-align:1.5px}
   .stamp{display:inline-block;border:1px solid #9C7A3E;color:#9C7A3E;padding:4px 12px;font-size:10px;letter-spacing:3px;text-transform:uppercase;font-weight:500;border-radius:1px}
   .notes{margin-top:8px;padding:16px 20px;border-left:2px solid #9C7A3E;background:#F7F2E6;font-size:12px;color:#5A544A;font-style:italic}
   .terms{margin-top:32px;font-size:10px;color:#8A8276;line-height:1.7}
@@ -190,10 +205,11 @@ export function printConfirmation(res, rooms, guestName, guests, settings) {
     .val{font-size:13px !important}
     table{margin-bottom:12px !important}
     thead th,tbody td{padding:8px 14px !important}
-    .totals .row{padding:5px 0 !important;font-size:12.5px !important}
-    .totals .row.bal{padding-top:10px !important;margin-top:4px !important}
+    tfoot td{padding:6px 14px !important;font-size:11.5px !important}
+    tfoot tr:first-child td{padding-top:10px !important}
+    tfoot tr.bal td{padding-top:9px !important;padding-bottom:10px !important;font-size:12.5px !important}
     .terms{margin-top:14px !important}
-    .ftr,.totals,table tr,.terms,.hdr,.grid{page-break-inside:avoid}
+    .ftr,table,table tr,.terms,.hdr,.grid{page-break-inside:avoid}
   }
   ${GD_CSS}
 </style></head><body>
@@ -209,7 +225,7 @@ export function printConfirmation(res, rooms, guestName, guests, settings) {
     </div>
     <div class="meta">
       <div>Issued ${esc(issued)} BST</div>
-      <div style="margin-top:8px"><span class="stamp">${esc(res.status || 'Reserved')}</span></div>
+      <div style="margin-top:8px"><span class="stamp">${esc(prettyStatus(res.status))}</span></div>
     </div>
   </div>
   <div class="title-row">
@@ -231,14 +247,17 @@ export function printConfirmation(res, rooms, guestName, guests, settings) {
   <table>
     <thead><tr><th>Room</th><th>Type</th><th class="num">Rate / Night</th><th class="num">Nights</th><th class="num">Subtotal</th></tr></thead>
     <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#8A8276;padding:24px">No rooms assigned</td></tr>`}</tbody>
+    <tfoot>
+      <tr class="tf"><td colspan="4">Subtotal</td><td class="num">${fmt(totalAmt)}</td></tr>
+      ${discountNum > 0 ? `<tr class="tf disc"><td colspan="4">Discount</td><td class="num">− ${fmt(discountNum)}</td></tr>` : ''}
+      <tr class="tf"><td colspan="4">Total Payable</td><td class="num">${fmt(totalAmt - discountNum)}</td></tr>
+      <tr class="tf"><td colspan="4">Advance Paid</td><td class="num">${fmt(paidNum)}</td></tr>
+      <tr class="tf bal ${balance > 0 ? 'due' : 'paid'}">
+        <td colspan="4">Balance Due${balance > 0 ? '' : ' <span class="paid-pill">Paid in full</span>'}</td>
+        <td class="num">${fmt(balance)}</td>
+      </tr>
+    </tfoot>
   </table>
-  <div class="totals">
-    <div class="row"><span>Subtotal</span><span>${fmt(totalAmt)}</span></div>
-    ${discountNum > 0 ? `<div class="row disc"><span>Discount</span><span>− ${fmt(discountNum)}</span></div>` : ''}
-    <div class="row"><span>Total Payable</span><span>${fmt(totalAmt - discountNum)}</span></div>
-    <div class="row"><span>Advance Paid</span><span>${fmt(paidNum)}</span></div>
-    <div class="row bal ${balance > 0 ? 'due' : 'paid'}"><span>${balance > 0 ? 'Balance Due' : 'Fully Paid'}</span><span>${fmt(balance)}</span></div>
-  </div>
   ${res.notes ? `<div class="notes">${esc(res.notes)}</div>` : ''}
   <div class="terms">
     <h4>Reservation Terms</h4>
