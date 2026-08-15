@@ -230,18 +230,69 @@ function rewrites). **None of this session's changes raised a new advisor.** The
 notices below were all pre-existing; recorded here so they are not mistaken for
 regressions and so the one that matters gets a decision.
 
-### Worth a decision — `anon` holds DML on financial tables
+### S-1 · CONFIRMED — unauthenticated read and delete on the guest ledger
 
-`billing_invoices`, `corporate_leads`, `guest_ledger` and `leads` grant
-`INSERT/UPDATE/DELETE` to the **`anon`** role (the browser's unauthenticated
-key). Row visibility is gated only by the `tenant_isolation` RLS policy
-(`tenant_id = current_tenant_id()`), and `current_tenant_id()` for an anon
-request resolves via `lumea_pre_request` from the request's host header. So the
-isolation boundary for writes to financial data rests entirely on RLS + a
-header-derived tenant id, not on authentication. That is a real surface and the
-kind of thing to close deliberately (revoke anon DML, or confirm the app truly
-needs anonymous writes here). Not changed — revoking grants on a live
-multi-tenant app is a behavioural change and the owner's call.
+The first pass of this section called the `anon` grants "worth a decision" on the
+strength of the grant table alone. That was too soft, and it was not verified.
+Re-tested end to end against this project's own REST API. It is exploitable.
+
+**Method.** Four requests from `pg_net`, same endpoint each time, varying only the
+headers. The key used is `sb_publishable_v2XOo…`, the project's *active
+publishable key* — the one shipped in the browser bundle and readable by anyone
+who loads the site. (The legacy `anon` JWT is disabled — see S-2 — so the first
+attempt returned 401 and had to be redone with the live key. Worth stating,
+because "the old key is dead" is exactly the kind of thing that makes an
+unverified claim look wrong for the wrong reason.)
+
+| # | Headers | Result |
+| --- | --- | --- |
+| A | `apikey` only | `200 []` — **zero rows** |
+| B | `apikey` + `x-tenant-host: hotelfountainbd.com` | `200` — real `leads` rows, names and phone numbers |
+| C | `apikey` + `x-forwarded-host: hotelfountainbd.com` | `200` — real `guest_ledger` rows |
+| D | `DELETE /guest_ledger?id=eq.<nil uuid>` + `x-tenant-host` | **`204 No Content` — the delete was authorised** |
+
+Probe D used a filter matching zero rows (verified `0` beforehand, and
+`guest_ledger` still holds 917 rows after), so nothing was destroyed. The `204`
+is the finding: PostgREST accepted the DELETE. A filter matching real rows would
+have removed them.
+
+**Why.** Three things compose:
+
+1. `authenticator` carries `pgrst.db_pre_request=public.lumea_pre_request`, so
+   that function runs on *every* PostgREST request including anonymous ones.
+2. `lumea_pre_request` reads `x-tenant-host` — or `x-forwarded-host` — from the
+   request, resolves it via `resolve_tenant_by_host`, and does
+   `set_config('app.current_tenant_id', …)`.
+3. `current_tenant_id()` returns that GUC **first**, ahead of the JWT claim and
+   the `tenant_users` lookup. The 50 `tenant_isolation` policies are
+   `FOR ALL TO public USING (tenant_id = current_tenant_id())` — no requirement
+   that the caller is signed in at all.
+
+So the tenant identity is caller-supplied, and nothing else is checked. Request A
+proves the default is fail-closed; the header is what opens it.
+
+**This is the app's actual design, not a stray grant.** `src/lib/supabase/client.ts`
+sets `x-tenant-host: window.location.host` as a global header on the browser
+client, and `usePostCharge` / `usePostPayment` / `useBillingInvoice` /
+`useGuestLedger` write to `guest_ledger` and `billing_invoices` straight from the
+browser. The CRM authenticates staff with its own `staff` + `session_v` + OTP
+scheme, **not** Supabase Auth — so `auth.uid()` is NULL and those hooks genuinely
+run as `anon`. The grants are load-bearing.
+
+**Therefore: not fixed, and deliberately not fixed here.** Revoking `anon` DML on
+`guest_ledger` / `billing_invoices` would break billing in the live CRM within
+minutes. Adding `auth.uid() IS NOT NULL` to the policies would do the same. This
+needs a decision between real options:
+
+| Option | Closes it | Breaks |
+| --- | --- | --- |
+| Move the four billing hooks behind the existing session-authenticated `app/api/crm/*` routes (service_role server-side) | Yes — fully | A refactor of 4 hooks; no user-visible change |
+| Adopt Supabase Auth for staff so `auth.uid()` is real, then require it in the policies | Yes | Replaces the custom `staff`/`session_v` login |
+| Reorder `current_tenant_id()` to prefer JWT / `tenant_users` and use the header only as fallback | Partially — helps signed-in users, anon path still open | Nothing, but it is not a fix on its own |
+| Revoke `anon` DML only | Yes for writes | Billing UI, immediately |
+
+Recommended: the first. It is the smallest change that actually closes it, and it
+matches how the rest of the app already works.
 
 Reassuring counter-check: the sensitive tables that have **no** anon grant —
 `user_credentials`, `activation_tokens`, `tenant_billing`, `expo_push_tokens` —
@@ -263,5 +314,19 @@ have RLS enabled with no policy, i.e. default-deny. The advisor flags them as
   async-HTTP response log this audit has been reading from; it self-trims. The
   unused indexes are mostly on the empty `bgqs_raw`/archive schemas.
 
-Net: nothing on this page changed the database. The only item that warrants an
-actual decision is the `anon` DML grant on the four financial tables.
+### S-2 · The legacy `anon` / `service_role` keys were disabled on 2026-05-01
+
+Discovered while testing S-1: the project's legacy API keys are disabled
+(`"Legacy API keys are disabled … disabled on 2026-05-01T03:24:30Z"`). Only the
+publishable key `sb_publishable_v2XOo…` still authenticates.
+
+The 51 pg_cron job bodies still embed the dead legacy key as `'apikey', '<ANON_KEY>'`.
+Ten of them POST to edge functions and work anyway — those functions are deployed
+`verify_jwt: false`, so the apikey header is ignored. **Any cron job or code path
+that uses that key against `/rest/v1/` has been returning 401 since 2026-05-01
+and would have failed silently for three and a half months.** None of the ten
+appear to, but this is worth a sweep of app code and env vars for the old key
+before it bites something less visible. Not investigated further here.
+
+Net: nothing on this page changed the database. S-1 is confirmed and needs an
+architectural decision; S-2 is a fact worth knowing before the next thing breaks.
