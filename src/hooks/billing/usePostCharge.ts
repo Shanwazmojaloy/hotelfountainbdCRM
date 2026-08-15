@@ -14,7 +14,7 @@
 // =============================================================================
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { billingPost } from './api';
 import { ledgerKeys } from './useGuestLedger';
 import { invoiceKeys } from './useCheckoutBalance';
 import { isValidBdtAmount, today } from '@/lib/money';
@@ -31,9 +31,11 @@ const TAXABLE_TYPES = new Set([
   'MISCELLANEOUS',
 ]);
 
+// `userId` is no longer sent: posted_by is taken from the staff session on the
+// server, so the browser cannot post a charge under someone else's name.
 async function postCharge(
   payload: PostChargePayload,
-  userId: string
+  _userId: string
 ): Promise<GuestLedgerEntry> {
   // Guard: reject float amounts at the edge before they ever reach the DB
   if (!isValidBdtAmount(payload.amount_bdt)) {
@@ -43,49 +45,20 @@ async function postCharge(
     );
   }
 
-  if (TAXABLE_TYPES.has(payload.entry_type)) {
-    // Use the PG function — it extracts net/SC/VAT and inserts three ledger rows atomically
-    const { data, error } = await supabase.rpc('post_extra_charge', {
-      p_reservation_id: payload.reservation_id,
-      p_guest_id:       payload.guest_id,
-      p_entry_type:     payload.entry_type,
-      p_description:    payload.description,
-      p_amount_bdt:     payload.amount_bdt,      // inclusive BDT
-      p_date:           payload.transaction_date ?? today(),
-      p_posted_by:      userId,
-      p_metadata:       payload.metadata ?? {},
-    });
-    if (error) throw new Error(`[usePostCharge] ${error.message}`);
-    // RPC returns the new ledger entry id; fetch the full row
-    const { data: row, error: fetchErr } = await supabase
-      .from('guest_ledger')
-      .select('*')
-      .eq('id', data as string)
-      .single();
-    if (fetchErr) throw new Error(`[usePostCharge] fetch: ${fetchErr.message}`);
-    return row as GuestLedgerEntry;
-  }
-
-  // Non-taxable entry (DISCOUNT, COMPLIMENTARY, MISCELLANEOUS without tax)
-  const { data, error } = await supabase
-    .from('guest_ledger')
-    .insert({
-      reservation_id:   payload.reservation_id,
-      guest_id:         payload.guest_id,
-      entry_type:       payload.entry_type,
-      description:      payload.description,
-      transaction_date: payload.transaction_date ?? today(),
-      amount_bdt:       payload.amount_bdt,
-      is_tax_entry:     false,
-      posted_by:        userId,
-      department:       payload.department ?? null,
-      metadata:         payload.metadata ?? {},
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(`[usePostCharge] ${error.message}`);
-  return data as GuestLedgerEntry;
+  // The taxable/non-taxable split, the post_extra_charge call and the ledger
+  // insert all moved server-side. TAXABLE_TYPES is mirrored there; it stays here
+  // only so the UI can label the charge before submitting.
+  const result = await billingPost('charge', {
+    reservation_id:   payload.reservation_id,
+    guest_id:         payload.guest_id,
+    entry_type:       payload.entry_type,
+    description:      payload.description,
+    transaction_date: payload.transaction_date ?? today(),
+    amount_bdt:       payload.amount_bdt,
+    department:       payload.department ?? null,
+    metadata:         payload.metadata ?? {},
+  }, 'usePostCharge');
+  return result.row as GuestLedgerEntry;
 }
 
 export function usePostCharge(userId: string) {

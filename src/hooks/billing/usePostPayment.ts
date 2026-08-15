@@ -16,15 +16,19 @@
 // =============================================================================
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { billingGet, billingPost } from './api';
 import { ledgerKeys } from './useGuestLedger';
 import { invoiceKeys } from './useCheckoutBalance';
-import { isValidBdtAmount, today } from '@/lib/money';
+import { isValidBdtAmount } from '@/lib/money';
 import type { PostPaymentPayload, PaymentTransaction } from '@/types/billing';
 
+// `userId` is no longer sent: processed_by / posted_by come from the staff session
+// on the server. The two-step insert (payment_transactions then the negative
+// ledger mirror), the 23505 idempotency replay and the cancel-on-failure rollback
+// all moved server-side with it.
 async function postPayment(
   payload: PostPaymentPayload,
-  userId: string
+  _userId: string
 ): Promise<PaymentTransaction> {
   // Guard: payments must always be a positive integer
   if (!isValidBdtAmount(payload.amount_bdt)) {
@@ -34,98 +38,27 @@ async function postPayment(
     );
   }
 
-  // Stable idempotency key: caller should pass a per-attempt UUID (generated when the
-  // modal opens) so retries reuse it; fall back to a fresh one if absent.
+  // Stable idempotency key: caller should pass a per-attempt UUID (generated when
+  // the modal opens) so retries reuse it. The server mints one if absent, but a
+  // client-side key is what makes a retry across a dropped connection safe.
   const idemKey =
     payload.idempotency_key ??
     (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined);
 
-  // Step 1: Insert payment transaction
-  const { data: payment, error: payErr } = await supabase
-    .from('payment_transactions')
-    .insert({
-      reservation_id:         payload.reservation_id,
-      guest_id:               payload.guest_id,
-      payment_method:         payload.payment_method,
-      payment_method_details: payload.metadata ?? {},
-      amount_bdt:             payload.amount_bdt,
-      status:                 'COMPLETED',
-      completed_at:           new Date().toISOString(),
-      is_advance_payment:     payload.is_advance_payment ?? false,
-      invoice_id:             payload.invoice_id ?? null,
-      payment_reference:      payload.payment_reference ?? null,
-      processed_by:           userId,
-      notes:                  payload.notes ?? null,
-      idempotency_key:        idemKey ?? null,
-    })
-    .select()
-    .single();
+  const result = await billingPost('payment', {
+    reservation_id:     payload.reservation_id,
+    guest_id:           payload.guest_id,
+    payment_method:     payload.payment_method,
+    amount_bdt:         payload.amount_bdt,
+    is_advance_payment: payload.is_advance_payment ?? false,
+    invoice_id:         payload.invoice_id ?? null,
+    payment_reference:  payload.payment_reference ?? null,
+    notes:              payload.notes ?? null,
+    idempotency_key:    idemKey ?? null,
+    metadata:           payload.metadata ?? {},
+  }, 'usePostPayment');
 
-  if (payErr) {
-    // 23505 = unique_violation on uq_payment_tx_idempotency: this exact payment already
-    // landed (double-submit / retry). Treat as success — return the existing row, do NOT
-    // insert a duplicate or post a second ledger credit (that double-count is the ghost-bleed).
-    if (payErr.code === '23505' && idemKey) {
-      const { data: existing } = await supabase
-        .from('payment_transactions')
-        .select('*')
-        .eq('idempotency_key', idemKey)
-        .eq('status', 'COMPLETED')
-        .single();
-      if (existing) return existing as PaymentTransaction;
-    }
-    throw new Error(`[usePostPayment] payment insert: ${payErr.message}`);
-  }
-
-  // Step 2: Mirror as a negative ledger entry (credit to guest account)
-  // amount_bdt is NEGATIVE here — reduces what the guest owes.
-  const entryType = payload.is_advance_payment ? 'ADVANCE_PAYMENT' : 'PAYMENT';
-  const { error: ledgerErr } = await supabase
-    .from('guest_ledger')
-    .insert({
-      reservation_id:         payload.reservation_id,
-      guest_id:               payload.guest_id,
-      entry_type:             entryType,
-      description:            `Payment — ${formatMethodLabel(payload.payment_method)}`,
-      transaction_date:       today(),
-      amount_bdt:             -Math.abs(payload.amount_bdt),   // always negative
-      is_tax_entry:           false,
-      payment_transaction_id: payment.id,
-      posted_by:              userId,
-      metadata: {
-        payment_id:       payment.id,
-        payment_method:   payload.payment_method,
-        payment_reference: payload.payment_reference,
-      },
-    });
-
-  if (ledgerErr) {
-    // Ledger insert failed — attempt to roll back the payment record
-    await supabase
-      .from('payment_transactions')
-      .update({ status: 'CANCELLED' })
-      .eq('id', payment.id);
-    throw new Error(
-      `[usePostPayment] ledger insert failed (payment cancelled): ${ledgerErr.message}`
-    );
-  }
-
-  // DB trigger fn_recalculate_paid_total fires here automatically.
-  return payment as PaymentTransaction;
-}
-
-function formatMethodLabel(method: string): string {
-  const labels: Record<string, string> = {
-    CASH:           'Cash',
-    CARD:           'Card',
-    MOBILE_BANKING: 'Mobile Banking (bKash/Nagad)',
-    BANK_TRANSFER:  'Bank Transfer',
-    CHEQUE:         'Cheque',
-    CITY_LEDGER:    'City Ledger',
-    VOUCHER:        'Voucher',
-    LOYALTY_POINTS: 'Loyalty Points',
-  };
-  return labels[method] ?? method;
+  return result.row as PaymentTransaction;
 }
 
 export function usePostPayment(userId: string) {
@@ -161,13 +94,8 @@ export function usePaymentHistory(reservationId: string | null | undefined) {
   return useQuery({
     queryKey: ['payments', reservationId],
     queryFn:  async () => {
-      const { data, error } = await supabase
-        .from('payment_transactions')
-        .select('*')
-        .eq('reservation_id', reservationId!)
-        .order('initiated_at', { ascending: false });
-      if (error) throw new Error(error.message);
-      return data as PaymentTransaction[];
+      const payload = await billingGet('payments', { reservation_id: reservationId! }, 'usePaymentHistory');
+      return (payload.rows ?? []) as PaymentTransaction[];
     },
     enabled: Boolean(reservationId),
   });

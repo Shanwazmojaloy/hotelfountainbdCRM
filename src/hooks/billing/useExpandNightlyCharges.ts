@@ -16,7 +16,7 @@
 // =============================================================================
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { billingPost } from './api';
 import { ledgerKeys } from './useGuestLedger';
 import { invoiceKeys } from './useCheckoutBalance';
 import { ensureInvoiceExists } from './useCheckoutBalance';
@@ -40,12 +40,10 @@ async function expandCharges(payload: ExpandChargesPayload): Promise<number> {
 
   // 2. Expand nightly room charges via DB function
   //    Returns the number of ROOM_CHARGE rows inserted (one per room per night)
-  const { data, error } = await supabase.rpc('expand_nightly_charges', {
-    p_reservation_id: payload.reservation_id,
-  });
-
-  if (error) throw new Error(`[useExpandNightlyCharges] ${error.message}`);
-  return data as number;
+  const result = await billingPost('expand', {
+    reservation_id: payload.reservation_id,
+  }, 'useExpandNightlyCharges');
+  return Number(result.inserted ?? 0);
 }
 
 export function useExpandNightlyCharges() {

@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { billingGet } from './api';
 import type { GuestLedgerEntry, LedgerEntryWithTax } from '@/types/billing';
 
 // ---------------------------------------------------------------------------
@@ -27,16 +27,8 @@ export const ledgerKeys = {
 // in chronological order on the folio
 // ---------------------------------------------------------------------------
 async function fetchLedger(reservationId: string): Promise<GuestLedgerEntry[]> {
-  const { data, error } = await supabase
-    .from('guest_ledger')
-    .select('*')
-    .eq('reservation_id', reservationId)
-    .eq('is_voided', false)
-    .order('transaction_date', { ascending: true })
-    .order('posted_at',        { ascending: true });
-
-  if (error) throw new Error(`[useGuestLedger] ${error.message}`);
-  return data as GuestLedgerEntry[];
+  const payload = await billingGet('ledger', { reservation_id: reservationId }, 'useGuestLedger');
+  return (payload.rows ?? []) as GuestLedgerEntry[];
 }
 
 // ---------------------------------------------------------------------------
@@ -77,36 +69,20 @@ export function useGuestLedger(reservationId: string | null | undefined) {
     queryFn:   () => fetchLedger(reservationId!),
     enabled:   Boolean(reservationId),
     select:    groupLedgerEntries,
+    // Replaces the Realtime channel — see the note below.
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
 
-  // Realtime subscription — invalidate cache whenever any row changes.
-  // The subscription fires for INSERT, UPDATE, and DELETE on this reservation.
+  // Was a Supabase Realtime subscription on guest_ledger. Realtime enforces RLS
+  // through the browser's publishable key, which is exactly the access being
+  // withdrawn — so the subscription would have gone quiet without erroring, and
+  // the folio would have looked stale rather than broken. Poll instead: explicit,
+  // and it fails visibly. `refetchInterval` on the query below does the work; this
+  // effect only keeps the sibling invoice query in step after a local mutation.
   useEffect(() => {
     if (!reservationId) return;
-
-    const channel = supabase
-      .channel(`ledger:${reservationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event:  '*',
-          schema: 'public',
-          table:  'guest_ledger',
-          filter: `reservation_id=eq.${reservationId}`,
-        },
-        () => {
-          // Invalidate both the ledger and the invoice balance —
-          // the DB trigger will have updated invoice totals already.
-          queryClient.invalidateQueries({ queryKey: ledgerKeys.all(reservationId) });
-          queryClient.invalidateQueries({ queryKey: ['invoice', reservationId] });
-        }
-      )
-      .subscribe();
-
-    // Cleanup: remove channel when component unmounts or reservationId changes.
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    queryClient.invalidateQueries({ queryKey: ['invoice', reservationId] });
   }, [reservationId, queryClient]);
 
   return query;

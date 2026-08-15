@@ -16,36 +16,29 @@
 // =============================================================================
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { billingPost } from './api';
 import { ledgerKeys } from './useGuestLedger';
 import { invoiceKeys } from './useCheckoutBalance';
 import type { VoidEntryPayload } from '@/types/billing';
 
+// `userId` is no longer sent — voided_by comes from the staff session. Voiding is
+// additionally gated server-side to supervisor roles and up, which the browser
+// could not enforce for itself.
 async function voidEntry(
   payload: VoidEntryPayload,
-  userId: string
+  _userId: string
 ): Promise<number> {
   if (!payload.void_reason?.trim()) {
     throw new Error('[useVoidEntry] void_reason is required');
   }
 
-  const { data, error } = await supabase.rpc('void_ledger_entry', {
-    p_entry_id:  payload.ledger_entry_id,
-    p_reason:    payload.void_reason.trim(),
-    p_voided_by: userId,
-  });
+  const result = await billingPost('void', {
+    reservation_id:  payload.reservation_id,
+    ledger_entry_id: payload.ledger_entry_id,
+    void_reason:     payload.void_reason.trim(),
+  }, 'useVoidEntry');
 
-  if (error) throw new Error(`[useVoidEntry] ${error.message}`);
-
-  // data = number of rows voided (parent + tax children)
-  const count = data as number;
-  if (count === 0) {
-    throw new Error(
-      `[useVoidEntry] Entry ${payload.ledger_entry_id} was not found or already voided.`
-    );
-  }
-
-  return count;
+  return Number(result.voided ?? 0);
 }
 
 export function useVoidEntry(userId: string) {

@@ -10,7 +10,7 @@
 // =============================================================================
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { billingGet, billingPost } from './api';
 import type { BillingInvoice, GuestLedgerEntry, InvoiceLineItem } from '@/types/billing';
 
 export interface InvoiceWithLineItems extends BillingInvoice {
@@ -20,23 +20,9 @@ export interface InvoiceWithLineItems extends BillingInvoice {
 async function fetchInvoiceWithItems(
   invoiceId: string
 ): Promise<InvoiceWithLineItems> {
-  const { data, error } = await supabase
-    .from('billing_invoices')
-    .select(`
-      *,
-      line_items:invoice_line_items (
-        *
-      )
-    `)
-    .eq('id', invoiceId)
-    .order('sort_order', { referencedTable: 'invoice_line_items', ascending: true })
-    .single();
-
-  if (error) throw new Error(`[useBillingInvoice] ${error.message}`);
-  return {
-    ...(data as BillingInvoice & { line_items: InvoiceLineItem[] }),
-    line_items: (data as BillingInvoice & { line_items: InvoiceLineItem[] }).line_items ?? [],
-  };
+  const payload = await billingGet('invoice_detail', { invoice_id: invoiceId }, 'useBillingInvoice');
+  const row = payload.row as InvoiceWithLineItems;
+  return { ...row, line_items: row.line_items ?? [] };
 }
 
 export function useBillingInvoice(invoiceId: string | null | undefined) {
@@ -55,83 +41,16 @@ export function useBillingInvoice(invoiceId: string | null | undefined) {
 // the invoice from DRAFT → ISSUED.
 // This is called at checkout or when the guest requests a formal invoice.
 // ---------------------------------------------------------------------------
+// `issuedBy` is no longer sent — issued_by comes from the staff session. The
+// ledger snapshot, the line-item build and the DRAFT → ISSUED transition all
+// moved server-side, so a browser can no longer write invoice_line_items (which
+// has no tenant_id column of its own and was therefore the weakest of the four).
 export async function issueInvoice(
   invoiceId: string,
-  issuedBy:  string
+  _issuedBy: string
 ): Promise<BillingInvoice> {
-  // 1. Fetch the current ledger entries for this invoice's reservation
-  const { data: invoice } = await supabase
-    .from('billing_invoices')
-    .select('reservation_id')
-    .eq('id', invoiceId)
-    .single();
-
-  if (!invoice) throw new Error('[issueInvoice] Invoice not found');
-
-  const { data: ledger, error: ledgerErr } = await supabase
-    .from('guest_ledger')
-    .select('*')
-    .eq('reservation_id', invoice.reservation_id)
-    .eq('is_voided', false)
-    .order('transaction_date', { ascending: true })
-    .order('posted_at',        { ascending: true });
-
-  if (ledgerErr) throw new Error(`[issueInvoice] ledger fetch: ${ledgerErr.message}`);
-
-  // 2. Build line items from non-tax ledger entries
-  //    Tax children are summarised per parent in sc_amount_bdt / vat_amount_bdt
-  const ledgerRows = (ledger ?? []) as GuestLedgerEntry[];
-  const parentEntries = ledgerRows.filter((e: GuestLedgerEntry) => !e.is_tax_entry);
-  const childMap = new Map<string, { sc: number; vat: number }>();
-  ledgerRows
-    .filter((e: GuestLedgerEntry) => e.is_tax_entry && e.parent_ledger_id)
-    .forEach((child: GuestLedgerEntry) => {
-      const key = child.parent_ledger_id!;
-      const existing = childMap.get(key) ?? { sc: 0, vat: 0 };
-      if (child.entry_type === 'SERVICE_CHARGE') existing.sc += child.amount_bdt;
-      if (child.entry_type === 'TAX')            existing.vat += child.amount_bdt;
-      childMap.set(key, existing);
-    });
-
-  const lineItems = parentEntries.map((entry, idx) => {
-    const tax = childMap.get(entry.id) ?? { sc: 0, vat: 0 };
-    return {
-      invoice_id:       invoiceId,
-      ledger_entry_id:  entry.id,
-      description:      entry.description,
-      entry_type:       entry.entry_type,
-      transaction_date: entry.transaction_date,
-      quantity:         1,
-      unit_amount_bdt:  entry.amount_bdt,
-      total_amount_bdt: entry.amount_bdt,
-      sc_amount_bdt:    tax.sc,
-      vat_amount_bdt:   tax.vat,
-      sort_order:       idx,
-    };
-  });
-
-  // 3. Insert all line items
-  if (lineItems.length > 0) {
-    const { error: itemErr } = await supabase
-      .from('invoice_line_items')
-      .insert(lineItems);
-    if (itemErr) throw new Error(`[issueInvoice] line items: ${itemErr.message}`);
-  }
-
-  // 4. Transition invoice to ISSUED
-  const { data: updated, error: updateErr } = await supabase
-    .from('billing_invoices')
-    .update({
-      status:    'ISSUED',
-      issued_by: issuedBy,
-      issued_at: new Date().toISOString(),
-    })
-    .eq('id', invoiceId)
-    .select()
-    .single();
-
-  if (updateErr) throw new Error(`[issueInvoice] status update: ${updateErr.message}`);
-  return updated as BillingInvoice;
+  const payload = await billingPost('issue_invoice', { invoice_id: invoiceId }, 'issueInvoice');
+  return payload.row as BillingInvoice;
 }
 
 // ---------------------------------------------------------------------------

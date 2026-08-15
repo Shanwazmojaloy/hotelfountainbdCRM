@@ -294,6 +294,80 @@ needs a decision between real options:
 Recommended: the first. It is the smallest change that actually closes it, and it
 matches how the rest of the app already works.
 
+### S-1 · FIXED 2026-08-15
+
+Took the recommended option.
+
+**Server route.** `app/api/crm/billing/route.ts` — same shape as
+`/api/crm/referrals`: signed session cookie, `session_v` re-check against the DB,
+role gate, then service-role queries through `tenantScoped` so every statement
+carries the tenant filter structurally. `GET ?view=ledger|invoice|invoice_detail|payments`
+and `POST {action: ensure_invoice|charge|payment|void|expand|issue_invoice}` — a
+fixed allowlist of actions, no table name ever taken from the client.
+
+Three things the browser no longer decides:
+
+| | before | now |
+| --- | --- | --- |
+| `tenant_id` | `x-tenant-host`, caller-supplied | the staff session |
+| `posted_by` / `processed_by` / `voided_by` / `issued_by` | a `userId` argument from the client | the staff session |
+| which reservation | any id the caller names | asserted in-tenant before any RPC runs |
+
+That last one mattered more than expected: `post_extra_charge`,
+`void_ledger_entry` and `expand_nightly_charges` all take bare ids and do no
+tenant check of their own. Voiding is additionally gated to supervisor roles and
+up — something the browser could never enforce for itself.
+
+**Hooks.** All seven now go through `src/hooks/billing/api.ts`
+(`credentials: 'same-origin'` is what carries the session cookie). Signatures are
+unchanged so no caller had to move; the now-unused `userId` / `issuedBy` /
+`tenantId` parameters are renamed with a leading underscore and documented as
+ignored.
+
+One deliberate behaviour change: `useGuestLedger` and `useCheckoutBalance` used
+Supabase **Realtime** on `guest_ledger` / `billing_invoices`. Realtime enforces
+RLS through the browser's publishable key — precisely the access being withdrawn
+— so those channels would have gone *quiet without erroring* and the folio would
+have looked stale rather than broken. Replaced with a 15s `refetchInterval` plus
+refetch-on-focus: less elegant, but it fails visibly.
+
+**Grants revoked**, `supabase/migrations/20260815_revoke_anon_billing_grants_s1.sql`.
+`REVOKE ALL … FROM anon, authenticated` on `guest_ledger`, `billing_invoices`,
+`invoice_line_items`, `payment_transactions`. `service_role` and `crm_tenant`
+keep theirs, so both server paths are untouched.
+
+**Verified by re-running the probes that had succeeded:**
+
+| | before | after |
+| --- | --- | --- |
+| `GET /guest_ledger` + `x-forwarded-host` | `200` + rows | `401` `42501 permission denied for table guest_ledger` |
+| `DELETE /guest_ledger` + `x-tenant-host` | `204 No Content` | `401` `42501 permission denied` |
+
+`guest_ledger` row count unchanged at 917 throughout.
+
+**What is NOT verified:** the CRM billing UI itself. There is no way to exercise
+it from here. Two things say the risk is low — `BillingCard.jsx` imports only
+`useCheckout`, so none of the seven refactored hooks is wired into a component;
+and no `guest_ledger` row since 2026-06-01 has `posted_by` set (every one carries
+`metadata.dual_write_from: "folios"`, i.e. the trigger, not a hook). Treat that as
+evidence, not proof, and click through the folio screen after deploying.
+
+Also note the local `tsc -p tsconfig.json` is **not** a usable gate on this
+machine: a clean tree already reports 2,965 errors from an incomplete
+`node_modules` install. Every changed file was parse-checked individually; CI's
+Typecheck step is the real gate.
+
+### S-1b · Still open — `leads` and `corporate_leads`
+
+The same `anon` DML grants remain on `leads` and `corporate_leads`, and those
+were *not* revoked, because `src/services/supabase.ts` genuinely uses the browser
+client against `leads` — an `insert` (a public lead-capture form, which
+legitimately needs anon INSERT) and a `getLeadByEmail` **select**. The insert is
+defensible; the select is a PII read of any lead by email address, from the
+browser, unauthenticated. Narrowing this to `INSERT` only, and moving the lookup
+server-side, is the same fix at a smaller scale. Not done here — it is a
+different surface from the billing hooks.
+
 Reassuring counter-check: the sensitive tables that have **no** anon grant —
 `user_credentials`, `activation_tokens`, `tenant_billing`, `expo_push_tokens` —
 have RLS enabled with no policy, i.e. default-deny. The advisor flags them as
