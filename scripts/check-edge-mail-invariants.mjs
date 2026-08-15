@@ -23,6 +23,13 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FN_DIR = join(root, 'supabase', 'functions');
 
+// The Deno edge functions were only half the mail surface. Three Next.js routes
+// under app/api/agents/ were still POSTing to the dead Brevo account on
+// 2026-08-15, six weeks into the outage, and this guard could not see them
+// because it only ever looked at supabase/functions. A ratchet with a blind spot
+// over half the senders is not a ratchet.
+const APP_DIRS = [join(root, 'app', 'api'), join(root, 'src', 'lib')];
+
 // Functions that POST to Resend directly instead of going through
 // _shared/mailer.ts. This is a DEBT REGISTER, not an approval list: it may
 // shrink, never grow. Migrate one to the shared mailer and delete its line.
@@ -48,6 +55,44 @@ const DIRECT_RESEND_ALLOWLIST = new Set([
 // build. Anything not here does fail. An entry that stops matching also fails, so a
 // fix cannot leave a stale excuse behind to quietly cover a future regression.
 const KNOWN_VIOLATIONS = [
+  // Verified on the Vercel dashboard 2026-08-15: HOTEL_SENDER_EMAIL IS set for
+  // Production, Preview and Development. The `|| 'hotellfountainbd@gmail.com'`
+  // fallback in these files is therefore dead code on Vercel, NOT a live failure —
+  // unlike the Supabase edge side, where the same variable is absent and the
+  // fallback is what outreach-bot actually sends from.
+  //
+  // Recorded rather than fixed because the value behind that variable is masked; it
+  // is set, but nobody outside the dashboard can see what to. Left as a warning so
+  // the fallback is deleted rather than trusted.
+  ...[
+    'app/api/agents/deal-alert/route.ts',
+    'app/api/agents/fb-token-check/route.ts',
+    'app/api/agents/follow-up-bot/route.ts',
+    'app/api/agents/payment-confirm/route.ts',
+    'app/api/agents/reply-digest/route.ts',
+    'src/lib/changeNotify.ts',
+  ].map((f) => ({
+    file: f,
+    rule: 'sender-gmail',
+    why:
+      'Dead fallback, not a live bug. HOTEL_SENDER_EMAIL is set in Vercel for all three ' +
+      'environments, so the gmail default never applies here. It is still a trap: the same ' +
+      'pattern on the Supabase side, where the variable is NOT set, is what has been failing ' +
+      'outreach sends since July. Delete the fallback rather than relying on an env var staying set.',
+  })),
+  ...['deal-alert', 'follow-up-bot', 'outreach-bot'].map((r) => ({
+    file: `app/api/agents/${r}/route.ts`,
+    rule: 'brevo-endpoint',
+    why:
+      'STILL ON THE DEAD BREVO ACCOUNT. The 2026-08-15 H-12 remediation moved the five Deno ' +
+      'report functions, reply-digest, fb-token-check and changeNotify onto Resend, and stopped ' +
+      'there. These three were missed, and the guard written to prevent exactly this only ' +
+      'scanned supabase/functions, so it did not catch them either. deal-alert emails the owner ' +
+      '(internal, safe to migrate). follow-up-bot and outreach-bot email real corporate leads, ' +
+      'so migrating them turns a silently failing campaign into a sending one - the same ' +
+      'decision that gates the outreach-bot edge function. Both are on daily Vercel crons ' +
+      '(04:00 and 03:00 UTC) that were re-enabled on 2026-08-15.',
+  })),
   {
     file: 'supabase/functions/outreach-bot/index.ts',
     rule: 'sender-gmail',
@@ -78,10 +123,10 @@ const fnDirs = readdirSync(FN_DIR, { withFileTypes: true })
   .map((e) => e.name)
   .sort();
 
-const filesOf = (dir) => {
+const filesOf = (dir, maxDepth = 2) => {
   const out = [];
   const walk = (d, depth = 0) => {
-    if (depth > 2) return;
+    if (depth > maxDepth) return;
     for (const e of readdirSync(d, { withFileTypes: true })) {
       const p = join(d, e.name);
       if (e.isDirectory()) walk(p, depth + 1);
@@ -92,8 +137,12 @@ const filesOf = (dir) => {
   return out;
 };
 
-for (const fn of fnDirs) {
-  for (const file of filesOf(join(FN_DIR, fn))) {
+const targets = [];
+for (const fn of fnDirs) for (const f of filesOf(join(FN_DIR, fn))) targets.push({ file: f, fn, isEdge: true });
+for (const d of APP_DIRS) if (existsSync(d)) for (const f of filesOf(d, 6)) targets.push({ file: f, fn: null, isEdge: false });
+
+{
+  for (const { file, fn, isEdge } of targets) {
     const src = readFileSync(file, 'utf8');
     const rel = file.slice(root.length + 1).replace(/\\/g, '/');
     const lines = src.split('\n');
@@ -114,20 +163,22 @@ for (const fn of fnDirs) {
       if (!/@gmail\.com/.test(l)) return;
       if (!/\b(from|sender|SENDER)\w*\s*[:=]/i.test(l)) return;
       add('sender-gmail', i + 1,
-        'uses a gmail.com address as the SENDER. gmail.com is not a verified Resend domain — ' +
-        'the send fails and the mail reaches nobody. Use CRM_FROM_EMAIL ?? ' +
-        "'reservations@fountainbd.com'.");
+        'has a gmail.com address in a SENDER position. gmail.com is not a verified Resend ' +
+        'domain, so if this value is ever the one used, the send fails and the mail reaches ' +
+        'nobody. NOTE: where this is an `env || gmail` fallback, whether it bites depends on ' +
+        'the env var being set in that environment — which this script cannot see. Verify ' +
+        'before calling it live. Prefer removing the fallback outright.');
     });
 
     // ── Rule 3 — calling the shared mailer and ignoring its result ──────────
-    if (/\bsendMail\s*\(/.test(src) && !/\.\s*ok\b/.test(src)) {
+    if (isEdge && /\bsendMail\s*\(/.test(src) && !/\.\s*ok\b/.test(src)) {
       add('ignored-mail-result', null,
         'calls sendMail() but never reads .ok anywhere in the file. The mailer never throws — ' +
         'an ignored result means a failed send is logged as success.');
     }
 
     // ── Rule 4 — new direct Resend callers must use the shared mailer ───────
-    if (/api\.resend\.com/.test(src) && !DIRECT_RESEND_ALLOWLIST.has(fn)) {
+    if (isEdge && /api\.resend\.com/.test(src) && !DIRECT_RESEND_ALLOWLIST.has(fn)) {
       add('direct-resend', null,
         'POSTs to api.resend.com directly. Use supabase/functions/_shared/mailer.ts so the send ' +
         `outcome is observable the same way everywhere. If deliberate, add "${fn}" to ` +
@@ -176,6 +227,6 @@ if (fresh.length) {
 if (fresh.length || stale.length) process.exit(1);
 
 console.log(
-  `✓ mail invariants hold across ${fnDirs.length} edge functions ` +
+  `✓ mail invariants hold across ${fnDirs.length} edge functions and ${targets.filter((t) => !t.isEdge).length} app files ` +
   `(${DIRECT_RESEND_ALLOWLIST.size} bypassing the shared mailer, ${known.length} known issue(s))`
 );
