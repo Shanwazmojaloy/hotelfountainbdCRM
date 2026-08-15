@@ -1,19 +1,27 @@
 'use client';
 
-// ReservationDetailModal — READ-ONLY full reservation view.
+// ReservationDetailModal — full reservation view, opened from Reports → Daily Movements
+// (and the post-close New Movements table). Reports fetches reservations with a trimmed
+// `cols=` projection for speed, so this modal re-reads the FULL row by id through the
+// session-gated route rather than rendering a half-populated object. Linked guests are
+// resolved the same way, each with a View Details button into GuestDetailModal.
 //
-// Opened by clicking a row in Reports → Daily Movements (and the post-close New Movements
-// table). Reports fetches reservations with a trimmed `cols=` projection for speed, so this
-// modal re-reads the FULL row by id through the session-gated route rather than rendering a
-// half-populated object. Linked guests are resolved the same way, each with a View Details
-// button into GuestDetailModal.
+// 2026-08-16: Add Charge / Record Payment / Print added at the owner's request, so the desk
+// can act on a movement without hunting the same booking down on the Reservations tab.
 //
-// It never writes — editing still lives in ReservationEditModal on the Reservations tab, so
-// the money-grade write paths stay in exactly one place.
+// This does NOT fork the money paths. It mounts the SAME AddChargeModal and
+// RecordPaymentModal that ReservationEditModal mounts, so every guard those carry — the
+// payment-may-never-exceed-outstanding clamp, the idempotency key, the folio marker rules —
+// applies here unchanged, because it is literally the same component. The old "never writes"
+// note meant no bespoke write code lives in this file, and that stays true: this screen
+// contributes no SQL of its own. Do not inline a write here to save a click.
 import { useState, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { Badge, MONO, C, bdt } from './dskit';
 import GuestDetailModal from './GuestDetailModal';
+import AddChargeModal from './AddChargeModal';
+import RecordPaymentModal from './RecordPaymentModal';
+import { printConfirmation } from '@/lib/printDocs';
 
 const MARKER_RE = /receivable|payment|settlement|advance|refund/i;
 const REAL_PAY = /payment|settlement|advance|deposit|bkash|nagad|bank\s*transfer|cash|card/i;
@@ -41,7 +49,7 @@ function Row({ label, value, sub, color }) {
   );
 }
 
-export default function ReservationDetailModal({ reservation, reservationId, txs, onClose }) {
+export default function ReservationDetailModal({ reservation, reservationId, txs, onClose, onSaved }) {
   const id = reservationId || reservation?.id;
   // A trimmed Reports row is a usable first paint, but it is NOT the full record — always refetch.
   const [res, setRes] = useState(reservation || null);
@@ -51,6 +59,15 @@ export default function ReservationDetailModal({ reservation, reservationId, txs
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [detailGuest, setDetailGuest] = useState(null);
+  const [showCharge, setShowCharge] = useState(false);
+  const [showPay, setShowPay] = useState(false);
+  // Bumped after a charge or payment lands so this modal re-reads its own figures — the
+  // balance on screen must never be the pre-write one.
+  const [reload, setReload] = useState(0);
+  // Rooms carry the rate and category the printed voucher needs. Reports' own rooms query
+  // omits room_number, which is the key printConfirmation matches on, so fetch them here.
+  const [rooms, setRooms] = useState([]);
+  const [hotelSettings, setHotelSettings] = useState(null);
 
   useEffect(() => {
     if (!id) { setLoading(false); setErr('Missing reservation.'); return; }
@@ -82,7 +99,23 @@ export default function ReservationDetailModal({ reservation, reservationId, txs
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, reload]);
+
+  // Rooms + hotel settings for the printed voucher. Both are small, both are non-fatal:
+  // printConfirmation degrades to its own fallbacks if either never resolves, so Print works
+  // regardless.
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = getSupabaseClient();
+    supabase.from('rooms').select('room_number, price, category')
+      .then(({ data }) => { if (!cancelled) setRooms(data || []); });
+    supabase.from('hotel_settings').select('key, value')
+      .then(({ data }) => {
+        if (cancelled) return;
+        setHotelSettings(Object.fromEntries((data || []).map((r) => [r.key, r.value])));
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Folio line items — same anon read + same marker filter as ReservationEditModal, so the
   // "Additional Charges" list reads identically on both screens.
@@ -97,20 +130,22 @@ export default function ReservationDetailModal({ reservation, reservationId, txs
         setCharges((data || []).filter((f) => !MARKER_RE.test(String(f.category || '') + ' ' + String(f.description || ''))));
       });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, reload]);
 
   // Payments: Reports already holds the day's transactions, so it passes them in and we skip a
   // network round trip. Standalone callers fall back to the shared trimmed projection.
+  // After a payment is recorded here, `txs` from Reports is a beat stale, so a local reload
+  // re-reads from the route instead of trusting the passed-in array.
   useEffect(() => {
     if (!id) return;
-    if (Array.isArray(txs)) { setPayments(txs.filter((t) => t.reservation_id === id && isPay(t))); return; }
+    if (Array.isArray(txs) && reload === 0) { setPayments(txs.filter((t) => t.reservation_id === id && isPay(t))); return; }
     let cancelled = false;
     fetch('/api/crm/data?resource=transactions&cols=id,type,amount,reservation_id,fiscal_day,created_at,guest_name,room_number')
       .then((r) => r.json())
       .then((j) => { if (!cancelled) setPayments((j.rows || []).filter((t) => t.reservation_id === id && isPay(t))); })
       .catch(() => { if (!cancelled) setPayments([]); });
     return () => { cancelled = true; };
-  }, [id, txs]);
+  }, [id, txs, reload]);
 
   const lbl = { fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--iv-ink3)', marginBottom: 6, display: 'block' };
   const balance = res ? dueOf(res) : 0;
@@ -206,13 +241,38 @@ export default function ReservationDetailModal({ reservation, reservationId, txs
             </>
           )}
 
-          <div className="flex justify-end gap-3 iv-foot" style={{ marginTop: 14 }}>
+          {/* Actions mirror ReservationEditModal. Disabled until the full row has loaded —
+              AddChargeModal and RecordPaymentModal both need a real reservation, and
+              RecordPaymentModal derives its outstanding-balance clamp from these figures. */}
+          <div className="flex justify-end gap-3 iv-foot" style={{ marginTop: 14, flexWrap: 'wrap' }}>
+            <button className="iv-btn iv-btn--ghost" disabled={!res} onClick={() => setShowCharge(true)}>+ Add Charge</button>
+            <button className="iv-btn iv-btn--ghost" disabled={!res} onClick={() => setShowPay(true)}>Record Payment</button>
+            <button
+              className="iv-btn iv-btn--ghost"
+              disabled={!res}
+              onClick={() => printConfirmation(res, rooms, guests[0]?.name || res?.guest_name, guests, hotelSettings)}
+            >Print</button>
             <button className="iv-btn iv-btn--ghost" onClick={onClose}>Close</button>
           </div>
         </div>
       </div>
 
       {detailGuest && <GuestDetailModal guest={detailGuest} onClose={() => setDetailGuest(null)} />}
+      {showCharge && res && (
+        <AddChargeModal
+          roomNo={(Array.isArray(res.room_ids) ? res.room_ids[0] : null) || res.room_number}
+          resId={res.id}
+          onClose={() => setShowCharge(false)}
+          onDone={() => { setShowCharge(false); setReload((n) => n + 1); onSaved?.(); }}
+        />
+      )}
+      {showPay && res && (
+        <RecordPaymentModal
+          reservation={res}
+          onClose={() => setShowPay(false)}
+          onSaved={() => { setShowPay(false); setReload((n) => n + 1); onSaved?.(); }}
+        />
+      )}
     </>
   );
 }
