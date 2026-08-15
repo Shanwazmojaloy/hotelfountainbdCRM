@@ -111,6 +111,13 @@ async function runFollowUpBot() {
           subject,
           htmlContent: buildFollowUpHtml(company, contact),
           textContent: buildFollowUpText(company, contact),
+          // Cold B2B outreach with no unsubscribe path is what turns an ignored email
+          // into a spam complaint, and complaints on this sender degrade deliverability
+          // for the guest-facing transactional mail that shares it. RFC 8058 one-click.
+          headers: {
+            'List-Unsubscribe': `<mailto:${SENDER_EMAIL}?subject=unsubscribe>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          },
         }),
       });
 
@@ -132,12 +139,24 @@ async function runFollowUpBot() {
         }),
       });
 
-      // Update last_contacted_at only (keep status = 'contacted')
+      // Update last_contacted_at only — the status stays 'contacted' no matter what.
+      //
+      // This used to write `ok ? 'contacted' : 'pending'`, so ANY transient Brevo error
+      // (500, 429 — anything but the 401 handled above) demoted a lead that had already
+      // been contacted back to 'pending'. outreach-bot runs an hour before this job and
+      // selects exactly those pending leads, so the next morning the prospect received
+      // the FIRST-CONTACT "coffee tour" intro again — every day the send kept failing.
+      // Neither template carries an unsubscribe link, so the recipient's only recourse
+      // is a spam complaint against the sender this hotel also uses for guest-facing
+      // transactional mail. Audit 2026-08-15 M-14.
+      //
+      // On failure we leave last_contacted_at untouched so the normal recency window
+      // schedules a retry, rather than rewriting the lead's position in the funnel.
       await fetch(`${RPC}/outreach_update_lead_status`, {
         method: 'POST', headers: sbH,
         body: JSON.stringify({
           p_lead_id: lead.id,
-          p_status: ok ? 'contacted' : 'pending',
+          p_status: 'contacted',
           p_last_contacted_at: ok ? new Date().toISOString() : null,
         }),
       });

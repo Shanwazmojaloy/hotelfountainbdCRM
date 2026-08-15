@@ -197,21 +197,43 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing required: lead_id, company_name' }, { status: 400 });
   }
 
-  // ── Resolve contact email if not provided ─────────────────────────────────
-  let contactEmail = payload.contact_email;
-  if (!contactEmail) {
-    const res = await sbRpc('get_lead_contact_email', { p_lead_id: payload.lead_id });
-    if (res.ok) {
-      const data = await res.json().catch(() => null) as Array<{ contact_email?: string }> | null;
-      contactEmail = Array.isArray(data) ? (data[0]?.contact_email ?? '') : '';
-    }
+  // ── CLAIM the send (atomic, once per lead) ────────────────────────────────
+  // This route emails the hotel's bKash number and EBL account 1241440007466. Two
+  // things used to be wrong at once (audit 2026-08-15 H-8 / M-16):
+  //
+  //   1. No send-once guard. intake_mark_lead_payment_pending ran AFTER the send and
+  //      its result was never read, so ceo-auditor's GET re-audit path — or any retry
+  //      of reply-intake-poll, which only marks messages \Seen after its whole loop —
+  //      re-sent banking details to the same prospect on every pass.
+  //
+  //   2. payload.contact_email won. That value originates in an SMTP `From:` header
+  //      (reply-intake), which nothing authenticates: no SPF, no DKIM, no ARC check
+  //      anywhere in this codebase. A caller could therefore choose the recipient.
+  //
+  // claim_payment_send() fixes both in one statement: UPDATE ... WHERE payment_sent_at
+  // IS NULL RETURNING contact_email. The first caller to take the row gets the address
+  // — read from the database, not the request — and everyone after gets zero rows.
+  const claimRes = await sbRpc('claim_payment_send', { p_lead_id: payload.lead_id });
+  if (!claimRes.ok) {
+    console.error('[payment-send] claim failed:', claimRes.status, await claimRes.text().catch(() => ''));
+    return NextResponse.json({ error: 'Could not claim this lead for sending' }, { status: 502 });
+  }
+  const claimRows = await claimRes.json().catch(() => null) as
+    Array<{ contact_email?: string; company_name?: string; contact_name?: string }> | null;
+  const claim = Array.isArray(claimRows) ? claimRows[0] : null;
+
+  if (!claim?.contact_email) {
+    // Zero rows means: already sent, or the lead has no address on file. Either way
+    // this is a normal outcome, not an error — and it must NOT send.
+    console.warn('[payment-send] no claim for lead', payload.lead_id, '— already sent or no contact email');
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: 'Payment instructions were already sent for this lead, or it has no contact email on file.',
+    });
   }
 
-  if (!contactEmail) {
-    return NextResponse.json({
-      error: 'No contact email found for this lead — update the lead record first',
-    }, { status: 422 });
-  }
+  const contactEmail = claim.contact_email;
 
   const planKey = (payload.plan ?? 'starter') as keyof typeof PLANS;
   const plan    = PLANS[planKey] ?? PLANS.starter;
@@ -226,7 +248,7 @@ export async function POST(req: Request) {
       subject: 'Your Lumea CRM is ready — payment details inside',
       html: buildPaymentHtml(payload, plan),
       text: [
-        `Hi ${payload.contact_name?.split(' ')[0] ?? 'there'},`,
+        `Hi ${(claim.contact_name || payload.contact_name)?.split(' ')[0] ?? 'there'},`,
         '',
         `Thank you for your interest in Lumea.`,
         '',
@@ -255,6 +277,8 @@ export async function POST(req: Request) {
 
   // ── Update lead status → payment_pending ──────────────────────────────────
   if (emailOk) {
+    // payment_sent_at was already set by the claim above; this only advances the
+    // human-facing pipeline status.
     await sbRpc('intake_mark_lead_payment_pending', { p_lead_id: payload.lead_id });
   }
 

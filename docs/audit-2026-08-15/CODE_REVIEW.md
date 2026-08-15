@@ -9,7 +9,7 @@
 
 ## Verdict
 
-**Request Changes.** The reservation-centric architecture is sound and the money primitives (`recalcResTotalServer`, `bump_paid_amount`, `businessDay`, POS RPCs) are well-built. But there are **8 critical** and **17 high** defects, concentrated in three places:
+**Request Changes.** The reservation-centric architecture is sound and the money primitives (`recalcResTotalServer`, `bump_paid_amount`, `businessDay`, POS RPCs) are well-built. But there are **8 critical** and **16 high** defects, concentrated in three places:
 
 | Cluster | Why it matters |
 |---|---|
@@ -37,7 +37,7 @@
 | Sev | Count | Theme |
 |---|---|---|
 | 🔴 Critical | 8 | tenant isolation, orphaned money, dead DB writes, unreplayable migrations |
-| 🟠 High | 17 | authz gaps, idempotency, stale client state, missing indexes, prompt injection |
+| 🟠 High | 16 | authz gaps, idempotency, stale client state, missing indexes, prompt injection |
 | 🟡 Medium | 21 | rate limiting, injection surfaces, error swallowing, config drift |
 | 🔵 Low | 9 | hygiene, dead code, type drift |
 
@@ -583,7 +583,6 @@ Every table reference in all 12 functions is unqualified, and none carries `SET 
 | H-22 | Dashboard has five uncoordinated `fetchDashboard()` triggers with no sequence guard — a slow pre-payment response overwrites post-payment figures **and persists them to localStorage** | `src/components/Dashboard.jsx:160-299` |
 | H-23 | Guest autocomplete: no debounce, no abort — results for an earlier prefix can win, attaching the **wrong guest** to a booking | `NewReservationModal.jsx:62-67` |
 | H-24 | `ADMIN_SECRET` persisted in `sessionStorage` and re-sent as a Bearer header; the UI reassures the user it is safe | `app/admin/audit/page.tsx:205-297` |
-| H-25 | `NotificationBell` toasts "Confirmation Email Sent to Guest" by POSTing to `/api/send-confirmation`, which does not exist. 404 resolves the promise, so `.catch` never fires. | `app/components/NotificationBell.tsx:110-128` |
 | H-26 | `.ilike()` on raw user email — `%`/`_` are live wildcards. `{"email":"owner%"}` locks out the owner via `note_login_failure` without knowing the address. | `login/route.ts:73`, `send-otp:111`, `activate:37` |
 | H-27 | `notifications_log.tenant_read` hardcodes Hotel Fountain's UUID for **every** `authenticated` user | `20260513_notifications_log.sql:43-50` |
 | H-28 | `outreach_log` and `notifications_log` are granted to `crm_tenant` but have no policy `crm_tenant` can match → silent empty reads / `42501` writes | `20260512:59-64`, `20260702:38-39` |
@@ -649,11 +648,14 @@ Every table reference in all 12 functions is unqualified, and none carries `SET 
 
 Reported by a dimension auditor, then disproved. Recorded so they are not re-raised.
 
+**Root cause of every retraction below: incomplete staging, not faulty reasoning.** `device_stage_files` caps at 50 files per call, so this audit staged `app/`, `src/`, `supabase/` and `db/` and nothing else. Anything outside those four trees read as "does not exist" — including the entire `pages/` directory and `scripts/`. Any future audit of this repo should enumerate the root with `device_list_dir` first and stage every top-level source directory before concluding a module is missing.
+
 | Claim | Reality |
 |---|---|
 | "`src/agents/*`, `src/services/make.ts`, `src/lib/channel/adapters/mock.ts` do not exist" | All five files exist on disk (`analyst.ts` 2,195B, `closer.ts` 3,906B, `prospector.ts` 1,781B, `make.ts` 891B, `mock.ts` 2,971B). They were simply outside the staged subset. **No build hazard.** |
 | "`@eslint/eslintrc` is missing from package.json" | Present as `^3.3.6` in devDependencies. The Vercel ESLint failure recorded on 2026-08-14 **has been fixed** — expect a backlog of newly-surfaced warnings on the first green lint run. |
 | "Neither lockfile is present" | Both `package-lock.json` (600KB) and `pnpm-lock.yaml` (319KB) exist. The real issue is that **two** lockfiles coexist — Vercel's package-manager detection is ambiguous and may install a different graph than local. |
+| **H-25** — "`/api/send-confirmation` does not exist, so the 'Confirmation Email Sent' toast is a lie" | **`pages/api/send-confirmation.ts` exists** (12,706 B). This repo runs **both** routers: `app/` for everything current, plus a single Pages-Router endpoint under `pages/`. Confirmed in the 2026-08-15 production build output — `Route (pages) ─ ƒ /api/send-confirmation`. The toast is honest and `NotificationBell` needs no change. |
 
 **Still confirmed:** `@playwright/test` is genuinely absent from `package.json` while `playwright.config.ts` imports it, and `vercel.json` genuinely contains **no `crons` key at all** — the schedules were deleted, not paused (see ARCHITECTURE.md ADR-005).
 
@@ -672,7 +674,7 @@ Reported by a dimension auditor, then disproved. Recorded so they are not re-rai
 | Two lockfiles present | ⚠️ `package-lock.json` + `pnpm-lock.yaml` | ambiguous package-manager detection on Vercel |
 | `@playwright/test` | ❌ imported by `playwright.config.ts:1`, absent from `package.json` | the E2E suite cannot be installed or run |
 | CI | ❌ no `.github/` workflows | `npm test`, `typecheck`, `lint` never run automatically; `vercel-build` runs `next build` only |
-| Test coverage | ⚠️ sole suite is `crm.logic.test.ts` (423 lines) — copied from a deleted legacy file, imports **nothing** from `src/` | `dues.js`, `businessDay.ts`, `money.ts`, `recalcResTotal*`, every route, close-day chain and POS math are untested. The copied `_resDue` reproduces the H-5 discount bug and **asserts it as correct**. |
+| Test coverage | ⚠️ sole suite is `crm.logic.test.ts` (423 lines) — copied from a deleted legacy file, imports **nothing** from `src/`. Vitest also collected 4 stale copies from `.claude/worktrees/*`, so `npm test` reported **255 = 51 × 5** (excluded 2026-08-15). | `dues.js`, `businessDay.ts`, `money.ts`, `recalcResTotal*`, every route, close-day chain and POS math are untested. The copied `_resDue` reproduces the H-5 discount bug and **asserts it as correct**. A passing run is not evidence about `src/`. |
 | `eslint.config.mjs` ignores | ⚠️ exempts `usePostPayment.ts` and `useRoomStatusSync.ts` (money hooks); third entry is a typo'd nonexistent path | will bite now that the lint step works again |
 
 ---
