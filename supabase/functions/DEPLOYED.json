@@ -1,0 +1,84 @@
+{
+  "_why": [
+    "Supabase edge functions do not deploy from git. They are pushed with the CLI or the",
+    "Management API, which means the committed source and the running source can disagree",
+    "indefinitely and nothing complains. That is exactly how the H-12 mail outage survived:",
+    "wf-checkout-alerts, wf-guest-emails and wf-seo-lead-morning had already been moved to",
+    "Resend out-of-band, the repo still showed Brevo, and the 2026-08-15 audit read the repo",
+    "and overstated the blast radius.",
+    "",
+    "This file records what was deployed, at which version, from which source bytes.",
+    "scripts/check-edge-deploy-manifest.mjs fails the build when a listed function's source",
+    "changes without its entry being updated - i.e. when you edit a function and forget to",
+    "redeploy it. Update an entry only AFTER a successful deploy.",
+    "",
+    "sha256 is computed over the file with all CR bytes removed, so it is identical on",
+    "Windows checkouts and Linux CI runners."
+  ],
+  "project_ref": "mynwfkgksqqwlqowlscj",
+  "verified": {
+    "_shared/mailer.ts": {
+      "path": "supabase/functions/_shared/mailer.ts",
+      "sha256": "978b4b02307747b7b8d8f39c188f02ab4a6861f20afaa8f1c44fae0f0e77762d",
+      "deployed_at": "2026-08-15",
+      "note": "Bundled into all five report functions. Changing this file requires redeploying every one of them."
+    },
+    "wf-morning-briefing": {
+      "path": "supabase/functions/wf-morning-briefing/index.ts",
+      "version": 34,
+      "sha256": "2ff5711dc9d5b041d29f82310a7e42492b0d356255edd08944186e83449fc47d",
+      "deployed_at": "2026-08-15",
+      "verified_by": "live invoke, workflow_runs.email_sent = true"
+    },
+    "wf-evening-report": {
+      "path": "supabase/functions/wf-evening-report/index.ts",
+      "version": 35,
+      "sha256": "f4f08778e0aa06a660cffe5b24b8507643aad9d94c301be6c2428991e37c211a",
+      "deployed_at": "2026-08-15",
+      "verified_by": "live invoke, workflow_runs.email_sent = true"
+    },
+    "wf-period-reports": {
+      "path": "supabase/functions/wf-period-reports/index.ts",
+      "version": 36,
+      "sha256": "094e1dc3ba7e1541de95ff04df625cc83a17d3aeb167ee4d89ad82c82d030b56",
+      "deployed_at": "2026-08-15",
+      "verified_by": "live invoke, workflow_runs.email_sent = true"
+    },
+    "wf-backup-verify": {
+      "path": "supabase/functions/wf-backup-verify/index.ts",
+      "version": 34,
+      "sha256": "b039e4aa43081280d6cd3cf6a965892103c66bff6c99b68a793ff62b34b8290e",
+      "deployed_at": "2026-08-15",
+      "verified_by": "live invoke, workflow_runs.email_sent = true"
+    },
+    "wf-competitor-monitor": {
+      "path": "supabase/functions/wf-competitor-monitor/index.ts",
+      "version": 34,
+      "sha256": "019523aa8f1069192847a5d23c8205e6ff17bd39c1c4ee2bcae0d30cbca341ed",
+      "deployed_at": "2026-08-15",
+      "verified_by": "live invoke, workflow_runs.email_sent = true"
+    }
+  },
+  "_unverified": [
+    "In the repo but NOT covered above - the committed source has never been confirmed",
+    "against what is running. Confirm one, then move it into \"verified\":",
+    "booking-webhook, lighthouse-summary, wf-checkout-alerts, wf-demand-forecast,",
+    "wf-guest-emails, wf-seo-lead-morning"
+  ],
+  "deployed_without_source": {
+    "_note": [
+      "Live on project mynwfkgksqqwlqowlscj with NO source in this repo (checked 2026-08-15).",
+      "23 of the 34 deployed functions. Each is code running against production data that",
+      "cannot be reviewed, diffed or restored from here. Pull each one down with",
+      "`supabase functions download <slug>` and commit it, or delete it if it is dead."
+    ],
+    "slugs": [
+      "ai-agents", "b2b-agents", "brevo-bounce-webhook", "ceo-escalation-email",
+      "check-gemini-models", "content-approval-email", "import-guests", "lead-gen-swarm",
+      "lead-reply-alert", "outreach-bot", "plan-g-upsell", "process-checkout",
+      "send-booking-email", "send-email", "send-expo-push", "send-push", "send-whatsapp",
+      "seo-geo-agent", "sync-to-sheets", "vercel-deploy", "verify-device-token",
+      "weekly-retention", "wf-flash-nudge"
+    ]
+  }
+}

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Hotel Fountain — pre-commit hook
-# Enables: scripts/guard-onedrive-truncation.sh  (file corruption guard)
-#          scripts/check-edge-allowlist.mjs      (middleware edge-404 allowlist guard)
+# Enables: scripts/guard-onedrive-truncation.sh    (file corruption guard)
+#          scripts/check-edge-allowlist.mjs        (middleware edge-404 allowlist guard)
+#          scripts/check-edge-mail-invariants.mjs  (H-12 dead-mailer ratchet)
+#          scripts/check-edge-deploy-manifest.mjs  (edge source vs what is deployed)
 # Install: git config core.hooksPath .githooks
 set -e
 TOP="$(git rev-parse --show-toplevel)"
@@ -14,5 +16,16 @@ if git diff --cached --name-only | grep -qE '^(app/|public/|middleware\.ts|verce
     node "$TOP/scripts/check-edge-allowlist.mjs"
   else
     echo "! node not found — skipping edge-allowlist guard (verify middleware.ts manually)"
+  fi
+fi
+# Supabase edge functions do not deploy from git, so the repo and prod can disagree
+# indefinitely with nothing complaining — that is how the H-12 mail outage survived
+# six weeks and how the 2026-08-15 audit came to overstate four criticals.
+if git diff --cached --name-only | grep -qE '^supabase/functions/'; then
+  if command -v node >/dev/null 2>&1; then
+    node "$TOP/scripts/check-edge-mail-invariants.mjs"
+    node "$TOP/scripts/check-edge-deploy-manifest.mjs"
+  else
+    echo "! node not found — skipping edge mail/deploy guards (verify DEPLOYED.json manually)"
   fi
 fi
