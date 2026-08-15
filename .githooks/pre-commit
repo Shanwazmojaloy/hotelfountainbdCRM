@@ -29,3 +29,29 @@ if git diff --cached --name-only | grep -qE '^supabase/functions/'; then
     echo "! node not found — skipping edge mail/deploy guards (verify DEPLOYED.json manually)"
   fi
 fi
+# Typecheck gate. 2026-08-15: 95feabe reached main carrying two TS2322 errors in
+# src/services/supabase.ts, so `pnpm run vercel-build` exited 1 and NOTHING deployed for
+# 53 minutes — while that same commit's REVOKE on leads/corporate_leads was already live
+# in Postgres. Production ran post-revoke grants against pre-revoke code the whole time.
+# `tsc --noEmit` catches exactly that class of error in under a minute, locally, before it
+# can reach main. Same conventions as the guards above: runs only when TS/TSX is staged,
+# and is warn-only when the toolchain is absent so a commit is never bricked.
+#
+# NOTE this checks the WORKING TREE, not the staged snapshot. If you commit a subset of
+# your changes it can pass on code you did not stage. That is a deliberate trade: the
+# stash-based exact check is slower and stashing has corrupted files on this F: mount
+# before (see write_tool_nul_padding). Read a pass as "the tree compiles".
+if git diff --cached --name-only | grep -qE '\.(ts|tsx)$'; then
+  if [ -x "$TOP/node_modules/.bin/tsc" ]; then
+    echo "→ typecheck (tsc --noEmit) …"
+    if ! "$TOP/node_modules/.bin/tsc" --noEmit -p "$TOP/tsconfig.json"; then
+      echo ""
+      echo "✗ typecheck FAILED — this is the exact failure that breaks the Vercel build."
+      echo "  Fix it, or override deliberately with: git commit --no-verify"
+      exit 1
+    fi
+    echo "✓ typecheck clean"
+  else
+    echo "! node_modules/.bin/tsc not found — skipping typecheck (run 'npm run typecheck' manually)"
+  fi
+fi

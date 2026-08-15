@@ -2,6 +2,7 @@
   "version": 2,
   "framework": "nextjs",
   "outputDirectory": ".next",
+  "ignoreCommand": "git rev-parse HEAD^ >/dev/null 2>&1 && git diff --quiet HEAD^ HEAD -- . ':(exclude)docs' ':(exclude)*.md'",
   "regions": [
     "iad1"
   ],
