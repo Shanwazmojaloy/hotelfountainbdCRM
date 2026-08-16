@@ -45,3 +45,7 @@ agency-master-skill.txt
 crm_live.html
 static-deploy/crm_live.html
 /.swc
+
+# Local scratch: git lock files moved aside by the Cowork device bridge
+# (device_bash cannot delete, only mv). Never commit these.
+_to_delete/
