@@ -1,0 +1,55 @@
+{
+  "name": "Growth OS — 3. Resend event webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "growth-email-events",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": { "rawBody": false }
+      },
+      "id": "hook",
+      "name": "Resend webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-460, 300],
+      "credentials": { "httpHeaderAuth": { "id": "GROWTH_HOOK", "name": "Growth OS webhook secret" } },
+      "notes": "Header-auth credential = a shared secret you also set on the Resend webhook. Without it this URL is an open write endpoint — anyone could forge a 'replied' event and poison the pipeline."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resend sends { type: 'email.delivered', data: { email_id, to, ... } }.\n// Map to our vocabulary and drop anything we do not model rather than writing junk.\nconst MAP = {\n  'email.sent': 'sent',\n  'email.delivered': 'delivered',\n  'email.opened': 'opened',\n  'email.clicked': 'clicked',\n  'email.bounced': 'bounced',\n  'email.complained': 'complained',\n  'email.delivery_delayed': null\n};\n\nconst out = [];\nfor (const item of $input.all()) {\n  const b = item.json.body || item.json;\n  const event = MAP[b.type];\n  if (!event) continue;\n  const messageId = b.data?.email_id || b.data?.id || null;\n  if (!messageId) continue;\n  out.push({ json: { event, messageId, raw: b } });\n}\nreturn out;"
+      },
+      "id": "map",
+      "name": "Map event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-220, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Attach the event to the prospect via the message_id we recorded at send time.\n-- A hard bounce or a spam complaint is terminal: stop the sequence AND set\n-- do_not_contact, because continuing to mail a complaining recipient is what\n-- actually destroys a sending domain.\nwith target as (\n  select prospect_id from public.email_events\n   where message_id = $2 and prospect_id is not null\n   order by occurred_at asc limit 1\n),\nins as (\n  insert into public.email_events (prospect_id, message_id, provider, event, payload)\n  select target.prospect_id, $2, 'resend', $1, $3::jsonb from target\n  returning prospect_id\n),\nstopped as (\n  update public.sequence_enrollments e\n     set status = 'stopped', stopped_reason = $1, next_send_at = null\n    from target\n   where e.prospect_id = target.prospect_id\n     and e.status = 'active'\n     and $1 in ('bounced','complained')\n  returning e.id\n)\nupdate public.prospects p\n   set do_not_contact = true\n  from target\n where p.id = target.prospect_id\n   and $1 in ('bounced','complained');",
+        "options": {
+          "queryReplacement": "={{ $json.event }},={{ $json.messageId }},={{ JSON.stringify($json.raw) }}"
+        }
+      },
+      "id": "store",
+      "name": "Store event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [20, 300],
+      "credentials": { "postgres": { "id": "GROWTH_PG", "name": "Growth OS Postgres" } }
+    }
+  ],
+  "connections": {
+    "Resend webhook": { "main": [[{ "node": "Map event", "type": "main", "index": 0 }]] },
+    "Map event": { "main": [[{ "node": "Store event", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "Asia/Dhaka" },
+  "pinData": {},
+  "meta": {
+    "description": "Receives Resend delivery events. Bounces and spam complaints stop the sequence and set do_not_contact — the single most important rule for keeping go.fountainbd.com deliverable."
+  }
+}

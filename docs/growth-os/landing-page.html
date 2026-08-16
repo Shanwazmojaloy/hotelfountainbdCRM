@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hotel Growth OS — Run your hotel on one system</title>
+<meta name="description" content="Reservations, check-in, housekeeping, guest ledger and nightly revenue reporting in one system. Built and run daily at Hotel Fountain, Dhaka.">
+<meta property="og:title" content="Hotel Growth OS — Run your hotel on one system">
+<meta property="og:description" content="Built by hoteliers, for hoteliers. Live every day at Hotel Fountain, Dhaka.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Bengali:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   EDIT THESE THREE LINES BEFORE PUBLISHING
+   ============================================================ */
+:root{
+  --wa-number: "8801322840799";     /* WhatsApp number for the CTA (no +) */
+}
+/* Demo booking link + email are set in the CONFIG block at the bottom of this file. */
+
+:root{
+  --iv-bg:#FAF8F3; --iv-surface:#FFFFFF; --iv-ink:#1A1815; --iv-ink-soft:#5A544B;
+  --iv-line:#EAE6DD; --iv-gold:#8B6914; --iv-gold-fill:#C8A96E; --iv-dark:#0D1117;
+  --serif:'Libre Baskerville',Georgia,serif;
+  --sans:'DM Sans',system-ui,-apple-system,sans-serif;
+  /* Noto Sans Bengali carries the Taka sign (৳); IBM Plex Mono does not, and the
+     default fallback renders it small and misaligned next to tabular figures. */
+  --mono:'IBM Plex Mono','Noto Sans Bengali',ui-monospace,monospace;
+  --ease:cubic-bezier(.4,0,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--iv-bg);color:var(--iv-ink);font-family:var(--sans);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+h1,h2,h3{font-family:var(--serif);font-weight:700;line-height:1.25;letter-spacing:-.01em}
+h1{font-size:clamp(2rem,5vw,3.4rem)}
+h2{font-size:clamp(1.5rem,3.4vw,2.3rem);margin-bottom:.6em}
+h3{font-size:1.12rem;margin-bottom:.45em}
+p{color:var(--iv-ink-soft)}
+a{color:var(--iv-gold);text-decoration:none}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--iv-gold);margin-bottom:1rem}
+section{padding:88px 0;border-top:1px solid var(--iv-line)}
+.card{background:var(--iv-surface);border:1px solid var(--iv-line);border-radius:4px;padding:2rem}
+.grid{display:grid;gap:1.25rem}
+@media(min-width:760px){.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}}
+
+/* header */
+header{position:sticky;top:0;z-index:50;background:rgba(250,248,243,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--iv-line)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:66px}
+.logo{font-family:var(--serif);font-weight:700;font-size:1.06rem;color:var(--iv-ink)}
+.logo span{color:var(--iv-gold)}
+.nav-links{display:none;gap:2rem;font-size:.92rem}
+.nav-links a{color:var(--iv-ink-soft)}
+.nav-links a:hover{color:var(--iv-gold)}
+@media(min-width:860px){.nav-links{display:flex}}
+
+/* buttons */
+.btn{display:inline-block;padding:.85rem 1.7rem;border-radius:3px;font-weight:500;font-size:.95rem;
+     transition:transform .25s var(--ease),box-shadow .25s var(--ease),background .25s var(--ease)}
+.btn-primary{background:var(--iv-dark);color:#F7F4ED;border:1px solid var(--iv-dark)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(13,17,23,.22)}
+.btn-ghost{border:1px solid var(--iv-line);color:var(--iv-ink);background:var(--iv-surface)}
+.btn-ghost:hover{border-color:var(--iv-gold-fill);transform:translateY(-2px)}
+.btn-row{display:flex;flex-wrap:wrap;gap:.85rem;margin-top:2rem}
+
+/* hero */
+.hero{padding:96px 0 76px;border-top:0}
+.hero p.lede{font-size:1.16rem;max-width:53ch;margin-top:1.2rem}
+.badge{display:inline-flex;align-items:center;gap:.55rem;border:1px solid var(--iv-line);background:var(--iv-surface);
+       border-radius:999px;padding:.4rem 1rem;font-size:.82rem;color:var(--iv-ink-soft);margin-bottom:1.6rem}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--iv-gold-fill);box-shadow:0 0 0 3px rgba(200,169,110,.25)}
+
+/* stat strip */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--iv-line);border:1px solid var(--iv-line);margin-top:3.4rem}
+@media(min-width:760px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--iv-surface);padding:1.6rem 1.4rem}
+.stat b{display:block;font-family:var(--mono);font-size:1.6rem;color:var(--iv-gold);font-weight:500;letter-spacing:-.02em}
+.stat span{font-size:.82rem;color:var(--iv-ink-soft)}
+
+/* problem list */
+.prob{border-left:2px solid var(--iv-gold-fill);padding-left:1.4rem}
+.prob h3{font-family:var(--sans);font-weight:700;font-size:1rem}
+
+/* modules */
+.mod{border:1px solid var(--iv-line);background:var(--iv-surface);padding:1.7rem;border-radius:4px;
+     transition:border-color .3s var(--ease),transform .3s var(--ease)}
+.mod:hover{border-color:var(--iv-gold-fill);transform:translateY(-3px)}
+.mod .num{font-family:var(--mono);font-size:.74rem;color:var(--iv-gold);letter-spacing:.1em}
+.mod ul{list-style:none;margin-top:.8rem;font-size:.92rem;color:var(--iv-ink-soft)}
+.mod li{padding:.28rem 0 .28rem 1.1rem;position:relative}
+.mod li:before{content:"";position:absolute;left:0;top:.85em;width:5px;height:1px;background:var(--iv-gold-fill)}
+
+/* case study */
+.case{background:var(--iv-dark);color:#EDE9E0;border-top:1px solid var(--iv-dark)}
+.case h2,.case .logo{color:#F7F4ED}
+.case p{color:#A9A296}
+.case .eyebrow{color:var(--iv-gold-fill)}
+.ba{display:grid;gap:1px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);margin-top:2.4rem}
+@media(min-width:760px){.ba{grid-template-columns:1fr 1fr}}
+.ba>div{background:var(--iv-dark);padding:1.9rem}
+.ba h3{font-family:var(--mono);font-size:.76rem;letter-spacing:.15em;text-transform:uppercase;color:var(--iv-gold-fill)}
+.ba ul{list-style:none;font-size:.95rem;color:#C7C0B4}
+.ba li{padding:.42rem 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.ba li:last-child{border-bottom:0}
+
+/* pricing */
+.price{display:flex;flex-direction:column;height:100%}
+.price.featured{border-color:var(--iv-gold-fill);box-shadow:0 0 0 1px var(--iv-gold-fill)}
+.tag{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--iv-gold);margin-bottom:.6rem}
+.amt{font-family:var(--mono);font-size:1.85rem;color:var(--iv-ink);letter-spacing:-.02em}
+.amt small{font-size:.82rem;color:var(--iv-ink-soft);font-family:var(--sans)}
+.price ul{list-style:none;margin:1.3rem 0;font-size:.93rem;color:var(--iv-ink-soft);flex:1}
+.price li{padding:.34rem 0 .34rem 1.35rem;position:relative}
+.price li:before{content:"✓";position:absolute;left:0;color:var(--iv-gold-fill);font-size:.85rem}
+.note{font-size:.83rem;color:var(--iv-ink-soft);margin-top:1.6rem;font-style:italic}
+
+/* faq */
+details{border-bottom:1px solid var(--iv-line);padding:1.15rem 0}
+summary{cursor:pointer;font-weight:500;list-style:none;display:flex;justify-content:space-between;gap:1rem}
+summary::-webkit-details-marker{display:none}
+summary:after{content:"+";color:var(--iv-gold);font-family:var(--mono);transition:transform .3s var(--ease)}
+details[open] summary:after{transform:rotate(45deg)}
+details p{margin-top:.75rem;font-size:.95rem}
+
+/* Entry animation is CSS-only and ADDITIVE on purpose. An earlier version hid every
+   block at opacity:0 and revealed it with an IntersectionObserver — which means one JS
+   error, one unsupported browser, or one screenshot bot renders a completely blank sales
+   page. Here the default state is visible; the animation only sweetens it. */
+@media (prefers-reduced-motion: no-preference){
+  section > .wrap > *{animation:rise .55s cubic-bezier(.4,0,.2,1) both}
+  section > .wrap > *:nth-child(2){animation-delay:.05s}
+  section > .wrap > *:nth-child(3){animation-delay:.10s}
+  section > .wrap > *:nth-child(4){animation-delay:.15s}
+}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* cta */
+.cta{text-align:center}
+.cta h2{max-width:20ch;margin:0 auto .8rem}
+.cta p{max-width:48ch;margin:0 auto}
+footer{border-top:1px solid var(--iv-line);padding:2.4rem 0;font-size:.85rem;color:var(--iv-ink-soft)}
+.foot{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <div class="logo">Hotel Growth <span>OS</span></div>
+    <nav class="nav-links">
+      <a href="#problem">The problem</a>
+      <a href="#system">The system</a>
+      <a href="#proof">Hotel Fountain</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+    <a class="btn btn-primary" href="#demo">Book a demo</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="badge"><span class="dot"></span> Running live at Hotel Fountain, Dhaka — every day since 2026</div>
+    <h1>Run your hotel on one system.<br>Not six registers.</h1>
+    <p class="lede">Reservations, check-in, housekeeping, the guest ledger and the nightly revenue report — in one place, on one screen, with one number for what each guest owes.</p>
+    <p class="lede">We did not build this to sell software. We built it because our own front desk needed it.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="#demo">See a 15-minute demo</a>
+      <a class="btn btn-ghost" href="#proof">Read the Hotel Fountain story</a>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>1</b><span>screen to check a guest in</span></div>
+      <div class="stat"><b>24/7</b><span>occupancy and revenue visibility</span></div>
+      <div class="stat"><b>0</b><span>manual registers to reconcile</span></div>
+      <div class="stat"><b>৳0</b><span>to see it — demos are free</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="problem">
+  <div class="wrap">
+    <div class="eyebrow">Why we built it</div>
+    <h2>Every hotel we know runs on four systems that do not talk</h2>
+    <div class="grid g3" style="margin-top:2.6rem">
+      <div class="prob">
+        <h3>The register says one thing</h3>
+        <p>Reservations live in a book, payments in a second book, extras on a slip. Three sources, three answers, and the guest is standing at the desk waiting.</p>
+      </div>
+      <div class="prob">
+        <h3>Nobody knows the real number</h3>
+        <p>Ask for today's occupancy at 4pm and you get an estimate. Ask for last month's outstanding dues and you get a week of counting.</p>
+      </div>
+      <div class="prob">
+        <h3>The owner finds out last</h3>
+        <p>By the time a problem shows up in the monthly report, it has already been a problem for four weeks.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="system">
+  <div class="wrap">
+    <div class="eyebrow">What you actually get</div>
+    <h2>Six modules. One database. No double entry.</h2>
+    <p style="max-width:56ch">Everything anchors to a reservation — so a room swap, a partial payment or an early checkout never leaves a stray balance behind.</p>
+    <div class="grid g3" style="margin-top:2.6rem">
+      <div class="mod">
+        <div class="num">01</div><h3>Front desk</h3>
+        <ul><li>Reservations and room assignment</li><li>Check-in and check-out</li><li>Walk-ins and group bookings</li><li>ID document capture</li></ul>
+      </div>
+      <div class="mod">
+        <div class="num">02</div><h3>Room matrix</h3>
+        <ul><li>Occupied · vacant · cleaning · maintenance</li><li>Live status the whole team sees</li><li>Housekeeping assignment</li><li>Due-out list every morning</li></ul>
+      </div>
+      <div class="mod">
+        <div class="num">03</div><h3>Guest CRM</h3>
+        <ul><li>Full stay history per guest</li><li>Phone, email, preferences, notes</li><li>Repeat-guest recognition</li><li>Corporate accounts</li></ul>
+      </div>
+      <div class="mod">
+        <div class="num">04</div><h3>Billing and ledger</h3>
+        <ul><li>One folio per reservation</li><li>Partial payments and discounts</li><li>Outstanding dues that reconcile</li><li>Printable invoices</li></ul>
+      </div>
+      <div class="mod">
+        <div class="num">05</div><h3>Reporting</h3>
+        <ul><li>Occupancy and ADR</li><li>Daily revenue and night audit</li><li>Outstanding dues as of any date</li><li>Owner summary by email</li></ul>
+      </div>
+      <div class="mod">
+        <div class="num">06</div><h3>Guest messaging</h3>
+        <ul><li>Booking confirmation on WhatsApp</li><li>Check-in instructions</li><li>Review request after checkout</li><li>Templates in Bangla and English</li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="proof" class="case">
+  <div class="wrap">
+    <div class="eyebrow">The proof</div>
+    <h2>Hotel Fountain, Dhaka — 24 rooms</h2>
+    <p style="max-width:58ch">We own and run Hotel Fountain. It is the first and hardest customer this system ever had: if a screen is slow or a balance is wrong, our own staff are the ones standing at the desk with a guest.</p>
+    <div class="ba">
+      <div>
+        <h3>Before</h3>
+        <ul>
+          <li>Reservations in a register, payments in a second one</li>
+          <li>Occupancy known reliably only after night audit</li>
+          <li>Outstanding dues rebuilt by hand each month</li>
+          <li>Guest history existed only in the manager's memory</li>
+          <li>Confirmations and follow-ups typed by hand, one at a time</li>
+        </ul>
+      </div>
+      <div>
+        <h3>After</h3>
+        <ul>
+          <li>One reservation record carries the room, folio and payments</li>
+          <li>Occupancy and revenue visible at any hour of the day</li>
+          <li>Dues reconcile against payments automatically</li>
+          <li>Every returning guest recognised at the desk</li>
+          <li>Confirmation and review messages sent automatically</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin-top:2rem;font-style:italic;color:#8F887C">Ask for the full written case study during your demo — including the mistakes we made building it, which is usually the more useful half.</p>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <div class="eyebrow">Pricing</div>
+    <h2>Priced for Bangladeshi hotels, not for imported software</h2>
+    <p style="max-width:56ch">Month to month. No lock-in contract. Setup and staff training are one-time and quoted before you commit.</p>
+
+    <div class="grid g3" style="margin-top:2.6rem">
+      <div class="card price">
+        <div class="tag">Starter</div>
+        <div class="amt">৳5,000 <small>/ month</small></div>
+        <ul>
+          <li>Front desk and reservations</li>
+          <li>Room matrix and housekeeping</li>
+          <li>Guest CRM</li>
+          <li>Billing and guest ledger</li>
+          <li>Core reports</li>
+          <li>Up to 30 rooms</li>
+        </ul>
+        <a class="btn btn-ghost" href="#demo">Start here</a>
+      </div>
+
+      <div class="card price featured">
+        <div class="tag">Growth — most chosen</div>
+        <div class="amt">৳15,000 <small>/ month</small></div>
+        <ul>
+          <li>Everything in Starter</li>
+          <li>WhatsApp guest messaging</li>
+          <li>Automated review requests</li>
+          <li>Nightly owner report by email</li>
+          <li>Revenue and occupancy dashboard</li>
+          <li>Up to 80 rooms</li>
+        </ul>
+        <a class="btn btn-primary" href="#demo">Book a demo</a>
+      </div>
+
+      <div class="card price">
+        <div class="tag">Managed growth</div>
+        <div class="amt">৳30,000+ <small>/ month</small></div>
+        <ul>
+          <li>Everything in Growth</li>
+          <li>Social content produced for you</li>
+          <li>Google Business management</li>
+          <li>Review response handling</li>
+          <li>Monthly performance review call</li>
+          <li>Priority support</li>
+        </ul>
+        <a class="btn btn-ghost" href="#demo">Talk to us</a>
+      </div>
+    </div>
+    <p class="note">Pilot programme: setup ৳20,000 instead of ৳50,000 for the first hotels who join and agree to give honest feedback. Limited number of slots.</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="eyebrow">Straight answers</div>
+    <h2>What owners ask us first</h2>
+    <div style="margin-top:2rem;max-width:70ch">
+      <details><summary>Will my staff actually use it?</summary><p>That is the real question, and it is why training is included rather than sold separately. The front desk screen was designed against our own staff — people who had used a paper register for years. If a screen needs explaining twice, we change the screen.</p></details>
+      <details><summary>What happens to our existing data?</summary><p>We migrate your current guest list and open reservations during setup. You keep your registers running in parallel for the first two weeks — we do not ask anyone to jump without a net.</p></details>
+      <details><summary>Do we need fast internet?</summary><p>It runs in a normal browser on a normal broadband line. No server to buy, no software to install on each machine.</p></details>
+      <details><summary>Is our guest data safe?</summary><p>Each hotel's data is isolated at the database level. Staff see only what their role allows, and deletions are restricted to admin accounts and logged.</p></details>
+      <details><summary>What if we want to leave?</summary><p>Month to month. Give us notice and we export your data in a standard format. We would rather earn the next month than trap you into it.</p></details>
+      <details><summary>Can it connect to Booking.com and Agoda?</summary><p>Channel sync is on the roadmap and partly built. We will tell you exactly what is live today rather than promise it in a demo — ask during the call.</p></details>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="cta">
+  <div class="wrap">
+    <div class="eyebrow">Next step</div>
+    <h2>Fifteen minutes, the real system, no slides</h2>
+    <p>We will open the live system, run a booking through it end to end, and show you the reports it produces. If it is not right for your hotel we will say so.</p>
+    <div class="btn-row" style="justify-content:center">
+      <a class="btn btn-primary" id="wa-cta" href="#">Message us on WhatsApp</a>
+      <a class="btn btn-ghost" id="mail-cta" href="#">Email us</a>
+    </div>
+    <p style="margin-top:1.6rem;font-size:.88rem">Or call <span class="mono" id="tel-text"></span> between 10am and 8pm.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <div>Hotel Growth OS — built and operated by the team at Hotel Fountain, Dhaka.</div>
+    <div class="mono" style="font-size:.78rem">Bangladesh · BDT pricing · <span id="year"></span></div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   CONFIG — the only block you need to edit before publishing
+   ============================================================ */
+const CONFIG = {
+  whatsapp: "8801322840799",              // no plus sign
+  email:    "shanwazahmed@fountainbd.com",
+  phoneDisplay: "+880 1322 840799",
+  waMessage: "Hi, I run a hotel and saw Hotel Growth OS. I would like to see the 15-minute demo."
+};
+
+document.getElementById('wa-cta').href =
+  "https://wa.me/" + CONFIG.whatsapp + "?text=" + encodeURIComponent(CONFIG.waMessage);
+document.getElementById('mail-cta').href =
+  "mailto:" + CONFIG.email + "?subject=" + encodeURIComponent("Demo request — Hotel Growth OS");
+document.getElementById('tel-text').textContent = CONFIG.phoneDisplay;
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// No reveal-on-scroll script by design — see the CSS note above. Nothing on this page
+// depends on JavaScript to become visible; the block below only fills in the CTA links.
+</script>
+</body>
+</html>
