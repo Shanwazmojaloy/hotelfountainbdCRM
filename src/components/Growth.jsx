@@ -25,6 +25,37 @@ function waNumber(raw) {
   return null;
 }
 
+// ── WhatsApp first-touch opener ──────────────────────────────────────────────
+// Edit the copy HERE, not in the JSX. Mirrors the voice of cold-email step 1 but
+// shorter, because WhatsApp is not email. Greeting is deliberately neutral: the
+// list includes Bandarban/Rangamati properties, so do not assume a religion.
+// Swap GREETING to 'Assalamu alaikum' if you prefer it for a given region.
+const WA_GREETING = 'Hello';
+const WA_SITE = 'growthos.fountainbd.com';
+
+function waOpener(p) {
+  const hotel = p?.hotel_name || 'your hotel';
+  // Only name the city if we actually know it — "hotels in Bangladesh asked us"
+  // reads like a mail-merge, which is exactly what we are trying not to sound like.
+  const nearby = p?.city ? ` in ${p.city}` : '';
+  return [
+    `${WA_GREETING} — I'm Shan from Hotel Fountain, a 24-room hotel in Dhaka.`,
+    '',
+    `We got tired of running our front desk across two registers, so we built our own system for it — reservations, check-in, housekeeping and the guest ledger in one place. A few hotels${nearby} asked if they could use it, so we are opening a small pilot.`,
+    '',
+    `Would 15 minutes be useful for ${hotel}? I would show you the live system, not slides.`,
+    '',
+    WA_SITE,
+  ].join('\n');
+}
+
+// opener:true prefills the first-touch pitch; otherwise a blank chat for follow-ups.
+function waLink(p, { opener = false } = {}) {
+  const n = waNumber(p?.whatsapp || p?.phone);
+  if (!n) return null;
+  return opener ? `https://wa.me/${n}?text=${encodeURIComponent(waOpener(p))}` : `https://wa.me/${n}`;
+}
+
 const STATUS_LABEL = {
   new: 'New', researching: 'Researching', contacted: 'Contacted', replied: 'Replied',
   demo_booked: 'Demo booked', demo_done: 'Demo done', proposal_sent: 'Proposal sent',
@@ -290,7 +321,8 @@ function Table({ rows, showDue, onOpen }) {
         </thead>
         <tbody>
           {rows.map((r) => {
-            const wa = waNumber(r.whatsapp || r.phone);
+            // Cold list → prefill the opener, so a touch is tap-review-send, not retype.
+            const wa = waLink(r, { opener: r.status === 'new' || r.status === 'researching' });
             return (
               <tr key={r.id} style={{ borderTop: '1px solid var(--iv-border)' }}>
                 <td style={{ ...td, fontWeight: 600 }}>{r.hotel_name}</td>
@@ -298,7 +330,7 @@ function Table({ rows, showDue, onOpen }) {
                 <td style={{ ...td, fontFamily: 'var(--iv-mono)' }}>{r.rooms || '—'}</td>
                 <td style={{ ...td, whiteSpace: 'nowrap' }}>
                   {r.phone ? <a href={`tel:${r.phone}`} className="iv-mono" style={{ fontSize: '.82rem' }}>{r.phone}</a> : <span style={{ opacity: .45 }}>no number</span>}
-                  {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, fontSize: '.78rem' }}>WA</a>}
+                  {wa && <a href={wa} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, fontSize: '.78rem' }}>WA</a>}
                   {r.email && <a href={`mailto:${r.email}`} style={{ marginLeft: 8, fontSize: '.78rem' }}>mail</a>}
                 </td>
                 <td style={td}><StatusBadge status={r.status} /></td>
@@ -355,7 +387,8 @@ function Detail({ id, onClose, onChanged, actor }) {
   }
 
   const p = data?.prospect;
-  const wa = waNumber(p?.whatsapp || p?.phone);
+  const wa = waLink(p);                          // blank chat — for a conversation already running
+  const waPitch = waLink(p, { opener: true });   // prefilled opener — for a first touch
 
   return (
     <div
@@ -392,7 +425,15 @@ function Detail({ id, onClose, onChanged, actor }) {
 
             <div style={{ display: 'grid', gap: '.4rem', fontSize: '.88rem', marginBottom: '1.5rem' }}>
               <Field label="Phone">{p.phone ? <a href={`tel:${p.phone}`} className="iv-mono">{p.phone}</a> : '—'}</Field>
-              <Field label="WhatsApp">{wa ? <a href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer">open chat</a> : '—'}</Field>
+              <Field label="WhatsApp">
+                {wa ? (
+                  <>
+                    <a href={wa} target="_blank" rel="noopener noreferrer">open chat</a>
+                    <span style={{ opacity: .35 }}> · </span>
+                    <a href={waPitch} target="_blank" rel="noopener noreferrer">send opener</a>
+                  </>
+                ) : '—'}
+              </Field>
               <Field label="Email">{p.email ? <a href={`mailto:${p.email}`}>{p.email}</a> : '—'}</Field>
               <Field label="Website">{p.website ? <a href={p.website} target="_blank" rel="noopener noreferrer">{p.website.replace(/^https?:\/\//, '')}</a> : '—'}</Field>
               <Field label="Owner">{p.owner_name || <span style={{ opacity: .5 }}>unknown — ask on the call</span>}</Field>
