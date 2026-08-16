@@ -12,210 +12,205 @@
 <link rel="icon" type="image/png" href="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Bengali:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Bengali:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* ════════════════════════════════════════════════════════════════════
-   HOTEL GROWTH OS — Maison (navy-luxe) system
-   Archetype: Luxe/Maison adapted to the brand mark — deep navy ink,
-   warm bone paper, brand gold as the ONE seal. Cormorant statements,
-   wide-tracked Jost caps (echoing the wordmark), hairlines, radius 0.
-   ═══════════════════════════════════════════════════════════════════ */
+/* HOTEL GROWTH OS v3 — Cinematic Editorial on brand navy.
+   Structure+motion: mojaloy cinematic class. Light interludes: Lumea Warm Ivory.
+   ONE accent: brand gold. Serif voice: Cormorant. Mono texture: Plex. */
 :root{
-  --navy:#13223F; --navy-2:#1A2C50; --navy-deep:#0E1A31;
-  --bone:#F5F2EA; --bone-2:#ECE7DC;
-  --ink:#16233E;            /* body on bone 12.9:1 */
-  --muted:#56607A;          /* secondary on bone 5.6:1 */
-  --bone-on-navy:#E9E4D8;   /* body on navy 11.9:1 */
-  --muted-on-navy:#9BA5BC;  /* secondary on navy 5.6:1 */
-  --gold:#C08A2E;           /* FILL / HAIRLINE / LARGE only — never body text */
-  --gold-bright:#D9A84E;    /* large display accents on navy 6.2:1 */
-  --gold-fill:#C99A3F;      /* buttons — navy text on this = 7:1 */
-  --line:1px solid rgba(22,35,62,.16);
-  --line-on-navy:1px solid rgba(233,228,216,.14);
+  --ink-0:#0B1424; --ink-1:#101B30; --ink-2:#16233C;         /* brand-navy stage */
+  --paper:#F2EFE8; --paper-70:rgba(242,239,232,.72); --paper-45:rgba(242,239,232,.5);
+  --line:rgba(242,239,232,.12);
+  --ivory:#FFFCF7; --ivory-2:#F6F2E9; --iv-line:#EAE6DD;      /* Lumea interludes */
+  --iv-ink:#141F36; --iv-mut:#5A6070;
+  --gold:#D9A84E;            /* accent as text on ink-0: 6.9:1 */
+  --gold-deep:#8B6914;       /* accent as text on ivory: 5.6:1 */
+  --gold-dim:rgba(217,168,78,.13);
   --serif:'Cormorant Garamond',Georgia,serif;
-  --sans:'Jost','DM Sans',system-ui,sans-serif;
+  --sans:'DM Sans',system-ui,sans-serif;
   --mono:'IBM Plex Mono','Noto Sans Bengali',ui-monospace,monospace;
-  --ease:cubic-bezier(0.22,1,0.36,1);      /* out-quint — reveals settle long */
-  --dur:.9s;
+  --ease:cubic-bezier(.22,1,.36,1); --ease-io:cubic-bezier(.77,0,.175,1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--bone);color:var(--ink);font-family:var(--sans);font-weight:300;
-     font-size:17px;line-height:1.7;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1140px;margin:0 auto;padding:0 28px}
-h1,h2{font-family:var(--serif);font-weight:500;line-height:1.12;letter-spacing:.005em}
-h1{font-size:clamp(2.7rem,6vw,4.7rem)}
-h2{font-size:clamp(2rem,3.8vw,3rem)}
-h1 em,h2 em{font-style:italic;color:var(--gold-bright)}
-.on-bone h2 em{color:var(--gold)} /* large serif ≥2rem: gold passes 3:1 large-text on bone */
-p{color:var(--muted)}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+body{background:var(--ink-0);color:var(--paper);font-family:var(--sans);font-weight:300;
+     font-size:17px;line-height:1.7;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+h1,h2{font-family:var(--serif);font-weight:500;line-height:1.06;letter-spacing:.004em}
+h1{font-size:clamp(3rem,8.6vw,7rem)}
+h2{font-size:clamp(2.1rem,4.4vw,3.6rem)}
+h1 em,h2 em{font-style:italic;color:var(--gold)}
+.lite h2 em{color:var(--gold-deep)}
 a{color:inherit;text-decoration:none}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.eyebrow{font-size:.72rem;font-weight:500;letter-spacing:.26em;text-transform:uppercase;
-         display:inline-flex;align-items:center;gap:16px;margin-bottom:1.4rem}
-.eyebrow::before{content:"";width:34px;height:1px;background:var(--gold)}
-section{padding:104px 0}
+.eyebrow{font-family:var(--mono);font-size:.7rem;font-weight:500;letter-spacing:.3em;
+         text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:14px;margin-bottom:1.6rem}
+.eyebrow::before{content:"";width:30px;height:1px;background:var(--gold)}
+.lite .eyebrow{color:var(--gold-deep)}.lite .eyebrow::before{background:var(--gold-deep)}
+section{position:relative}
+.pad{padding:120px 0}
 
-/* ── buttons: gold seal or hairline ghost — zero radius ─────────── */
-.btn{display:inline-block;padding:1rem 2.1rem;font-size:.78rem;font-weight:500;
-     letter-spacing:.22em;text-transform:uppercase;border-radius:0;
-     transition:background .4s var(--ease),color .4s var(--ease),border-color .4s var(--ease),transform .4s var(--ease)}
-.btn-gold{background:var(--gold-fill);color:var(--navy-deep);border:1px solid var(--gold-fill)}
-.btn-gold:hover{background:var(--gold-bright);border-color:var(--gold-bright);transform:translateY(-2px)}
-.btn-ghost{border:var(--line);color:var(--ink);background:transparent}
-.btn-ghost:hover{border-color:var(--gold);transform:translateY(-2px)}
-.on-navy .btn-ghost{border:var(--line-on-navy);color:var(--bone-on-navy)}
-.on-navy .btn-ghost:hover{border-color:var(--gold)}
-.btn-row{display:flex;flex-wrap:wrap;gap:1rem;margin-top:2.6rem}
+/* buttons */
+.btn{display:inline-block;padding:1.05rem 2.2rem;font-family:var(--mono);font-size:.72rem;font-weight:500;
+     letter-spacing:.22em;text-transform:uppercase;border-radius:2px;
+     transition:transform .5s var(--ease),background .5s var(--ease),border-color .5s var(--ease),color .5s var(--ease)}
+.btn-gold{background:var(--gold);color:#12100B;border:1px solid var(--gold)}
+.btn-gold:hover{transform:translateY(-3px);background:#E9BC66;border-color:#E9BC66}
+.btn-ghost{border:1px solid var(--line);color:var(--paper)}
+.btn-ghost:hover{border-color:var(--gold);transform:translateY(-3px)}
+.lite .btn-ghost{border-color:rgba(20,31,54,.25);color:var(--iv-ink)}
+.lite .btn-ghost:hover{border-color:var(--gold-deep)}
+.btn-row{display:flex;flex-wrap:wrap;gap:1rem;margin-top:2.8rem}
 
-/* ── header: solid navy, hairline, mark + spaced wordmark ───────── */
-header{position:fixed;inset:0 0 auto 0;z-index:60;background:rgba(14,26,49,.9);
-       backdrop-filter:blur(12px);border-bottom:var(--line-on-navy)}
-.nav{display:flex;align-items:center;justify-content:space-between;height:76px}
-.brand{display:flex;align-items:center;gap:14px}
-.brand img{height:36px;width:auto;display:block}
-.wordmark{font-size:.82rem;font-weight:600;letter-spacing:.24em;color:#fff;white-space:nowrap}
-.wordmark b{color:var(--gold-bright);font-weight:600}
-.nav-links{display:none;gap:2.4rem;font-size:.72rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase}
-.nav-links a{color:var(--muted-on-navy);transition:color .4s var(--ease)}
-.nav-links a:hover{color:var(--gold-bright)}
-@media(min-width:920px){.nav-links{display:flex}}
-.nav .btn{padding:.7rem 1.5rem}
-/* small screens: the mark carries the brand alone — an overflowing wordmark
-   forces horizontal scroll and shifts the whole page (measured at 390px) */
-@media(max-width:640px){
-  .wordmark{display:none}
-  .nav .btn{padding:.6rem 1rem;font-size:.66rem;letter-spacing:.16em;white-space:nowrap}
-  .brand img{height:32px}
-}
-body{overflow-x:hidden}
+/* header */
+header{position:fixed;inset:0 0 auto 0;z-index:80;border-bottom:1px solid var(--line);
+       background:rgba(11,20,36,.72);backdrop-filter:blur(14px)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:74px}
+.brand{display:flex;align-items:center;gap:13px}
+.brand img{height:34px;width:auto;display:block}
+.wordmark{font-family:var(--mono);font-size:.76rem;font-weight:500;letter-spacing:.26em;color:var(--paper);white-space:nowrap}
+.wordmark b{color:var(--gold);font-weight:500}
+.nav-links{display:none;gap:2.3rem;font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase}
+.nav-links a{color:var(--paper-70);transition:color .4s var(--ease)}
+.nav-links a:hover{color:var(--gold)}
+@media(min-width:940px){.nav-links{display:flex}}
+.nav .btn{padding:.68rem 1.4rem}
+@media(max-width:640px){.wordmark{display:none}.nav .btn{padding:.6rem 1rem;font-size:.6rem;letter-spacing:.16em}}
 
-/* ── hero: navy, lockup as the one loud moment ──────────────────── */
-.hero{background:
-        radial-gradient(1100px 520px at 78% 30%, rgba(192,138,46,.13), transparent 62%),
-        linear-gradient(180deg,#16264a 0%,var(--navy) 55%,var(--navy-deep) 100%);
-      color:var(--bone-on-navy);padding:196px 0 0;border-top:0}
-.hero-grid{display:grid;gap:64px;align-items:center}
-@media(min-width:920px){.hero-grid{grid-template-columns:1.05fr .95fr}}
-.hero .eyebrow{color:var(--gold-bright)}
-.hero p.lede{font-size:1.13rem;max-width:50ch;margin-top:1.5rem;color:var(--muted-on-navy)}
-.hero-art{text-align:center;padding:12px 0}
-.hero-art img{width:min(100%,520px);height:auto;filter:drop-shadow(0 30px 60px rgba(0,0,0,.45))}
-.hero-stats{margin-top:88px;border-top:var(--line-on-navy);
-            display:grid;grid-template-columns:repeat(2,1fr)}
-@media(min-width:760px){.hero-stats{grid-template-columns:repeat(4,1fr)}}
-.hstat{padding:1.9rem 1.2rem;border-right:var(--line-on-navy)}
-.hstat:last-child{border-right:0}
-.hstat b{display:block;font-family:var(--mono);font-weight:500;font-size:1.7rem;
-         color:var(--gold-bright);letter-spacing:-.02em}
-.hstat span{font-size:.78rem;letter-spacing:.08em;color:var(--muted-on-navy);text-transform:uppercase}
+/* hero */
+.hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+      padding:150px 0 60px;overflow:hidden;
+      background:radial-gradient(1200px 640px at 72% 18%,rgba(217,168,78,.12),transparent 60%),
+                 linear-gradient(180deg,#101E38 0%,var(--ink-0) 68%)}
+.hero-grid{display:grid;gap:56px;align-items:center}
+@media(min-width:960px){.hero-grid{grid-template-columns:1.15fr .85fr}}
+.hero h1{margin:0 0 1.6rem}
+.hero .split-line{display:block;overflow:hidden}
+.hero .split-line>span{display:inline-block}
+.hero p.lede{font-size:1.12rem;max-width:47ch;color:var(--paper-70)}
+.hero-art{text-align:center}
+.hero-art img{width:min(100%,480px);height:auto;filter:drop-shadow(0 34px 70px rgba(0,0,0,.55))}
+.scroll-cue{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.3em;color:var(--paper-45);text-transform:uppercase}
+.scroll-cue::after{content:"";display:block;width:1px;height:34px;background:var(--gold);margin:10px auto 0;
+  animation:cue 2s var(--ease-io) infinite}
+@keyframes cue{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}
+  55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+@media(prefers-reduced-motion:reduce){.scroll-cue::after{animation:none}}
 
-/* ── problem: bone, hairline editorial columns ──────────────────── */
-.cols{display:grid;gap:0;margin-top:3.4rem;border-top:var(--line)}
+/* marquee */
+.marquee{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+         overflow:hidden;padding:1.15rem 0;background:var(--ink-1)}
+.mq-track{display:flex;gap:3.2rem;width:max-content;will-change:transform}
+.mq-track span{font-family:var(--mono);font-size:.72rem;letter-spacing:.34em;text-transform:uppercase;
+               color:var(--paper-45);white-space:nowrap}
+.mq-track span b{color:var(--gold);font-weight:500}
+@media(prefers-reduced-motion:reduce){.mq-track{transform:none!important}}
+
+/* ivory interludes (Lumea) */
+.lite{background:var(--ivory);color:var(--iv-ink)}
+.lite p{color:var(--iv-mut)}
+.lite-2{background:var(--ivory-2)}
+.cols{display:grid;gap:0;margin-top:3.6rem;border-top:1px solid var(--iv-line)}
 @media(min-width:820px){.cols{grid-template-columns:repeat(3,1fr)}}
-.col{padding:2.4rem 2.2rem 2.4rem 0;border-bottom:var(--line)}
-@media(min-width:820px){.col{border-bottom:0;border-right:var(--line);padding:2.6rem 2.4rem}
+.col{padding:2.5rem 2.3rem 2.5rem 0;border-bottom:1px solid var(--iv-line)}
+@media(min-width:820px){.col{border-bottom:0;border-right:1px solid var(--iv-line);padding:2.7rem 2.5rem}
   .col:first-child{padding-left:0}.col:last-child{border-right:0}}
-.col .n{font-family:var(--mono);font-size:.72rem;color:var(--gold);letter-spacing:.14em}
-.col h3{font-family:var(--sans);font-weight:600;font-size:1.02rem;margin:.8rem 0 .55rem;letter-spacing:.01em}
+.col .n{font-family:var(--mono);font-size:.68rem;color:var(--gold-deep);letter-spacing:.2em}
+.col h3{font-family:var(--sans);font-weight:500;font-size:1.05rem;margin:.85rem 0 .5rem}
 .col p{font-size:.95rem}
 
-/* ── modules: bone-2 band, six sealed tiles ─────────────────────── */
-.band{background:var(--bone-2)}
-.tiles{display:grid;gap:1px;background:rgba(22,35,62,.14);border:var(--line);margin-top:3.4rem}
-@media(min-width:640px){.tiles{grid-template-columns:1fr 1fr}}
-@media(min-width:980px){.tiles{grid-template-columns:repeat(3,1fr)}}
-.tile{background:var(--bone);padding:2.3rem 2.1rem;position:relative;
-      transition:background .5s var(--ease)}
-.tile::after{content:"";position:absolute;left:0;top:0;height:2px;width:0;background:var(--gold);
-             transition:width .6s var(--ease)}
-.tile:hover::after{width:100%}
-.tile .n{font-family:var(--mono);font-size:.7rem;color:var(--gold);letter-spacing:.16em}
-.tile h3{font-family:var(--serif);font-weight:600;font-size:1.45rem;margin:.7rem 0 .8rem}
-.tile ul{list-style:none;font-size:.9rem;color:var(--muted)}
-.tile li{padding:.26rem 0 .26rem 1.15rem;position:relative}
-.tile li::before{content:"";position:absolute;left:0;top:.95em;width:6px;height:1px;background:var(--gold)}
+/* horizontal module gallery (pinned on desktop) */
+.gallery{background:linear-gradient(180deg,var(--ink-0),var(--ink-1))}
+.gal-head{padding:120px 0 46px}
+.gal-viewport{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.gal-viewport::-webkit-scrollbar{display:none}
+.gal-viewport.js-pin{overflow:hidden}
+.gal-track{display:flex;gap:22px;padding:0 max(28px,calc((100vw - 1180px)/2)) 120px;width:max-content}
+.gcard{flex:0 0 min(78vw,420px);background:var(--ink-2);border:1px solid var(--line);border-radius:6px;
+       padding:2.4rem 2.2rem;position:relative;overflow:hidden}
+.gcard::after{content:"";position:absolute;inset:auto 0 0 0;height:2px;background:var(--gold);
+              transform:scaleX(0);transform-origin:left;transition:transform .7s var(--ease)}
+.gcard:hover::after{transform:scaleX(1)}
+.gcard .n{font-family:var(--mono);font-size:.66rem;color:var(--gold);letter-spacing:.24em}
+.gcard h3{font-family:var(--serif);font-weight:500;font-size:1.9rem;margin:.9rem 0 1rem;color:var(--paper)}
+.gcard ul{list-style:none;font-size:.9rem;color:var(--paper-70)}
+.gcard li{padding:.3rem 0 .3rem 1.15rem;position:relative}
+.gcard li::before{content:"";position:absolute;left:0;top:1em;width:6px;height:1px;background:var(--gold)}
+@media(max-width:959px){.gal-track{width:auto;flex-direction:column;padding:0 28px 90px}
+  .gcard{flex:none;width:100%}}
 
-/* ── case study: navy split ─────────────────────────────────────── */
-.case{background:linear-gradient(180deg,var(--navy) 0%,var(--navy-deep) 100%);color:var(--bone-on-navy)}
-.case .eyebrow{color:var(--gold-bright)}
-.case p{color:var(--muted-on-navy)}
-.case-grid{display:grid;gap:56px;margin-top:1rem}
-@media(min-width:920px){.case-grid{grid-template-columns:.9fr 1.1fr;gap:72px}}
-.ba{border:var(--line-on-navy);display:grid}
+/* case study — navy, counters */
+.case{background:var(--ink-0);border-top:1px solid var(--line)}
+.case-grid{display:grid;gap:56px}
+@media(min-width:940px){.case-grid{grid-template-columns:.9fr 1.1fr;gap:76px}}
+.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+          border:1px solid var(--line);margin:3rem 0 0}
+.counter{background:var(--ink-0);padding:1.8rem 1.2rem;text-align:center}
+.counter b{display:block;font-family:var(--serif);font-weight:500;font-size:2.6rem;color:var(--gold);line-height:1.1}
+.counter span{font-family:var(--mono);font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--paper-45)}
+.ba{border:1px solid var(--line);display:grid}
 @media(min-width:640px){.ba{grid-template-columns:1fr 1fr}}
 .ba>div{padding:2rem 1.9rem}
-.ba>div:first-child{border-bottom:var(--line-on-navy)}
-@media(min-width:640px){.ba>div:first-child{border-bottom:0;border-right:var(--line-on-navy)}}
-.ba h3{font-family:var(--mono);font-weight:500;font-size:.72rem;letter-spacing:.22em;
-       text-transform:uppercase;color:var(--gold-bright);margin-bottom:1rem}
-.ba ul{list-style:none;font-size:.92rem;color:var(--muted-on-navy)}
-.ba li{padding:.5rem 0;border-bottom:1px solid rgba(233,228,216,.07)}
+.ba>div:first-child{border-bottom:1px solid var(--line)}
+@media(min-width:640px){.ba>div:first-child{border-bottom:0;border-right:1px solid var(--line)}}
+.ba h3{font-family:var(--mono);font-weight:500;font-size:.68rem;letter-spacing:.26em;text-transform:uppercase;
+       color:var(--gold);margin-bottom:1rem}
+.ba ul{list-style:none;font-size:.92rem;color:var(--paper-70)}
+.ba li{padding:.5rem 0;border-bottom:1px solid rgba(242,239,232,.06)}
 .ba li:last-child{border-bottom:0}
-.case .note{margin-top:2.2rem;font-family:var(--serif);font-style:italic;font-size:1.15rem;color:var(--muted-on-navy)}
+.case .note{margin-top:2rem;font-family:var(--serif);font-style:italic;font-size:1.18rem;color:var(--paper-45)}
 
-/* ── pricing: bone, sealed cards ────────────────────────────────── */
-.prices{display:grid;gap:1.4rem;margin-top:3.4rem}
-@media(min-width:920px){.prices{grid-template-columns:repeat(3,1fr)}}
-.price{border:var(--line);background:#FBF9F4;padding:2.5rem 2.3rem;display:flex;flex-direction:column;
-       transition:transform .5s var(--ease),border-color .5s var(--ease)}
-.price:hover{transform:translateY(-4px);border-color:rgba(192,138,46,.5)}
-.price.featured{border-color:var(--gold);border-top:3px solid var(--gold)}
-.price .tag{font-size:.7rem;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
-.price.featured .tag{color:var(--gold)}
-.price .amt{font-family:var(--mono);font-weight:500;font-size:2.15rem;margin-top:.9rem;letter-spacing:-.02em}
-.price .amt small{font-family:var(--sans);font-weight:300;font-size:.85rem;color:var(--muted)}
-.price ul{list-style:none;margin:1.6rem 0 2rem;font-size:.92rem;color:var(--muted);flex:1}
-.price li{padding:.38rem 0 .38rem 1.3rem;position:relative}
-.price li::before{content:"";position:absolute;left:0;top:1em;width:7px;height:1px;background:var(--gold)}
-.price .fit{font-size:.8rem;color:var(--muted);border-top:var(--line);padding-top:1.1rem;margin-bottom:1.4rem}
-.pilot{margin-top:2.8rem;border:1px solid rgba(192,138,46,.45);padding:1.6rem 2rem;
-       display:flex;flex-wrap:wrap;gap:1.4rem 3rem;align-items:baseline}
-.pilot b{font-family:var(--mono);font-weight:500;font-size:1.15rem}
-.pilot span{font-size:.85rem;color:var(--muted)}
+/* pricing (ivory) */
+.prices{display:grid;gap:1.3rem;margin-top:3.6rem}
+@media(min-width:940px){.prices{grid-template-columns:repeat(3,1fr)}}
+.price{border:1px solid var(--iv-line);background:#fffdf9;padding:2.5rem 2.3rem;border-radius:6px;
+       display:flex;flex-direction:column;transition:transform .55s var(--ease),box-shadow .55s var(--ease)}
+.price:hover{transform:translateY(-5px);box-shadow:0 24px 50px rgba(20,31,54,.08)}
+.price.featured{border-color:var(--gold-deep);box-shadow:0 0 0 1px var(--gold-deep)}
+.price .tag{font-family:var(--mono);font-size:.64rem;letter-spacing:.26em;text-transform:uppercase;color:var(--iv-mut)}
+.price.featured .tag{color:var(--gold-deep)}
+.price .amt{font-family:var(--mono);font-weight:500;font-size:2.1rem;margin-top:.9rem;letter-spacing:-.02em}
+.price .amt small{font-family:var(--sans);font-weight:300;font-size:.85rem;color:var(--iv-mut)}
+.price ul{list-style:none;margin:1.6rem 0 1.8rem;font-size:.92rem;color:var(--iv-mut);flex:1}
+.price li{padding:.36rem 0 .36rem 1.3rem;position:relative}
+.price li::before{content:"";position:absolute;left:0;top:1em;width:7px;height:1px;background:var(--gold-deep)}
+.price .fit{font-size:.8rem;color:var(--iv-mut);border-top:1px solid var(--iv-line);padding-top:1.1rem;margin-bottom:1.4rem}
+.price .btn-gold{background:var(--gold-deep);border-color:var(--gold-deep);color:#FFFCF7;text-align:center}
+.price .btn-gold:hover{background:#A37D1E;border-color:#A37D1E}
+.price .btn-ghost{text-align:center}
+.pilot{margin-top:2.8rem;border:1px dashed rgba(139,105,20,.5);border-radius:6px;padding:1.6rem 2rem;
+       display:flex;flex-wrap:wrap;gap:1.3rem 3rem;align-items:baseline}
+.pilot b{font-family:var(--mono);font-weight:500;font-size:1.12rem}
+.pilot span{font-size:.85rem;color:var(--iv-mut)}
 
-/* ── faq ────────────────────────────────────────────────────────── */
-details{border-bottom:var(--line);padding:1.35rem 0}
-summary{cursor:pointer;font-weight:500;font-size:1.02rem;list-style:none;
-        display:flex;justify-content:space-between;gap:1.5rem;letter-spacing:.01em}
+/* faq */
+details{border-bottom:1px solid var(--iv-line);padding:1.35rem 0}
+summary{cursor:pointer;font-weight:500;font-size:1.02rem;list-style:none;display:flex;justify-content:space-between;gap:1.5rem}
 summary::-webkit-details-marker{display:none}
-summary::after{content:"+";font-family:var(--mono);color:var(--gold);font-size:1.1rem;
-               transition:transform .45s var(--ease)}
+summary::after{content:"+";font-family:var(--mono);color:var(--gold-deep);transition:transform .45s var(--ease)}
 details[open] summary::after{transform:rotate(45deg)}
 details p{margin-top:.85rem;font-size:.95rem;max-width:64ch}
 
-/* ── cta band: navy, one unmissable action ──────────────────────── */
-.cta{background:
-      radial-gradient(900px 420px at 50% 0%, rgba(192,138,46,.14), transparent 65%),
-      linear-gradient(180deg,var(--navy) 0%,var(--navy-deep) 100%);
-     color:var(--bone-on-navy);text-align:center}
-.cta .eyebrow{color:var(--gold-bright);justify-content:center}
-.cta .eyebrow::after{content:"";width:34px;height:1px;background:var(--gold)}
-.cta h2{max-width:21ch;margin:0 auto .9rem}
-.cta p{max-width:52ch;margin:0 auto;color:var(--muted-on-navy)}
+/* cta */
+.cta{background:radial-gradient(900px 460px at 50% 10%,rgba(217,168,78,.14),transparent 62%),var(--ink-0);
+     text-align:center;border-top:1px solid var(--line)}
+.cta h2{max-width:20ch;margin:0 auto 1rem}
+.cta p{max-width:52ch;margin:0 auto;color:var(--paper-70)}
 .cta .btn-row{justify-content:center}
-.cta .tel{margin-top:1.8rem;font-size:.85rem;color:var(--muted-on-navy)}
+.cta .tel{margin-top:1.9rem;font-family:var(--mono);font-size:.78rem;letter-spacing:.06em;color:var(--paper-45)}
 
-/* ── footer ─────────────────────────────────────────────────────── */
-footer{background:var(--navy-deep);color:var(--muted-on-navy);padding:72px 0 44px;text-align:center}
-footer img{width:min(78%,340px);height:auto;margin-bottom:2.2rem}
-footer .rule{width:64px;height:1px;background:var(--gold);margin:0 auto 2rem}
-footer .fine{font-size:.8rem;letter-spacing:.06em}
-footer .fine a{color:var(--bone-on-navy)}
-footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-spacing:.1em}
+/* footer */
+footer{background:#081020;color:var(--paper-45);padding:76px 0 46px;text-align:center;border-top:1px solid var(--line)}
+footer img{width:min(74%,330px);height:auto;margin-bottom:2.2rem}
+footer .rule{width:60px;height:1px;background:var(--gold);margin:0 auto 2rem}
+footer .fine{font-size:.82rem}
+footer .fine a{color:var(--paper-70)}
+footer .legal{margin-top:1.5rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.22em;text-transform:uppercase}
 
-/* ── motion: additive, slow, guarded — content visible by default ─ */
-@media (prefers-reduced-motion: no-preference){
-  section .wrap>*,.hero-grid>*{animation:rise var(--dur) var(--ease) both}
-  section .wrap>*:nth-child(2){animation-delay:.08s}
-  section .wrap>*:nth-child(3){animation-delay:.16s}
-  section .wrap>*:nth-child(4){animation-delay:.24s}
-  .hero-art img{animation:bloom 1.4s var(--ease) both .15s}
-  .eyebrow::before,.cta .eyebrow::after{transform-origin:left;animation:draw 1.1s var(--ease) both .3s}
-}
-@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-@keyframes bloom{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
-@keyframes draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+/* reveal targets default VISIBLE; JS animates only under no-preference */
+.r{will-change:transform}
 </style>
 </head>
 <body>
@@ -227,58 +222,62 @@ footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-
       <span class="wordmark">HOTEL <b>GROWTH</b> OS</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
-      <a href="#problem">The problem</a>
-      <a href="#system">The system</a>
-      <a href="#proof">Hotel Fountain</a>
+      <a href="#problem">Problem</a>
+      <a href="#system">System</a>
+      <a href="#proof">Proof</a>
       <a href="#pricing">Pricing</a>
     </nav>
     <a class="btn btn-gold" href="#demo">Book a demo</a>
   </div>
 </header>
 
-<section class="hero on-navy" id="top">
+<section class="hero" id="top">
   <div class="wrap">
     <div class="hero-grid">
       <div>
-        <div class="eyebrow">Run smarter · Grow faster</div>
-        <h1>Run your hotel on <em>one system.</em><br>Not six registers.</h1>
-        <p class="lede">Reservations, check-in, housekeeping, the guest ledger and the nightly revenue report — one place, one screen, one number for what each guest owes.</p>
-        <p class="lede">We did not build this to sell software. We built it because our own front desk needed it.</p>
-        <div class="btn-row">
+        <div class="eyebrow">01 — Run smarter · Grow faster</div>
+        <h1 id="hero-h">
+          <span class="split-line"><span>Run your hotel</span></span>
+          <span class="split-line"><span>on <em>one system.</em></span></span>
+          <span class="split-line"><span>Not six registers.</span></span>
+        </h1>
+        <p class="lede r">Reservations, check-in, housekeeping, the guest ledger and the nightly revenue report — one place, one screen, one number for what each guest owes.</p>
+        <div class="btn-row r">
           <a class="btn btn-gold" href="#demo">See a 15-minute demo</a>
           <a class="btn btn-ghost" href="#proof">The Hotel Fountain story</a>
         </div>
       </div>
-      <div class="hero-art">
+      <div class="hero-art r" id="hero-art">
         <img src="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/lockup.webp" alt="Hotel Growth OS — Run smarter. Grow faster." width="1120" height="637" fetchpriority="high">
       </div>
     </div>
-    <div class="hero-stats">
-      <div class="hstat"><b>1</b><span>screen to check a guest in</span></div>
-      <div class="hstat"><b>24/7</b><span>occupancy &amp; revenue visibility</span></div>
-      <div class="hstat"><b>0</b><span>registers to reconcile</span></div>
-      <div class="hstat"><b class="mono">৳0</b><span>to see it — demos are free</span></div>
-    </div>
   </div>
+  <div class="scroll-cue">Scroll</div>
 </section>
 
-<section id="problem" class="on-bone">
-  <div class="wrap">
-    <div class="eyebrow">Why we built it</div>
-    <h2>Every hotel we know runs on <em>four systems</em> that do not talk</h2>
+<div class="marquee" aria-hidden="true">
+  <div class="mq-track" id="mq">
+    <span>Run smarter <b>·</b> Grow faster <b>·</b> One system <b>·</b> Built at Hotel Fountain, Dhaka <b>·</b> Reservation-centric <b>·</b> </span><span>Run smarter <b>·</b> Grow faster <b>·</b> One system <b>·</b> Built at Hotel Fountain, Dhaka <b>·</b> Reservation-centric <b>·</b> </span>
+  </div>
+</div>
+
+<section id="problem" class="lite">
+  <div class="wrap pad">
+    <div class="eyebrow r">02 — Why we built it</div>
+    <h2 class="r">Every hotel we know runs on <em>four systems</em> that do not talk</h2>
     <div class="cols">
-      <div class="col">
-        <div class="n">01</div>
+      <div class="col r">
+        <div class="n">/01</div>
         <h3>The register says one thing</h3>
         <p>Reservations live in a book, payments in a second book, extras on a slip. Three sources, three answers — and the guest is standing at the desk, waiting.</p>
       </div>
-      <div class="col">
-        <div class="n">02</div>
+      <div class="col r">
+        <div class="n">/02</div>
         <h3>Nobody knows the real number</h3>
         <p>Ask for today's occupancy at 4pm and you get an estimate. Ask for last month's outstanding dues and you get a week of counting.</p>
       </div>
-      <div class="col">
-        <div class="n">03</div>
+      <div class="col r">
+        <div class="n">/03</div>
         <h3>The owner finds out last</h3>
         <p>By the time a problem shows up in the monthly report, it has already been a problem for four weeks.</p>
       </div>
@@ -286,38 +285,45 @@ footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-
   </div>
 </section>
 
-<section id="system" class="band on-bone">
-  <div class="wrap">
-    <div class="eyebrow">What you actually get</div>
-    <h2>Six modules. One database. <em>No double entry.</em></h2>
-    <p style="max-width:56ch;margin-top:1rem">Everything anchors to a reservation — so a room swap, a partial payment or an early checkout never leaves a stray balance behind.</p>
-    <div class="tiles">
-      <div class="tile"><div class="n">01</div><h3>Front desk</h3>
+<section id="system" class="gallery">
+  <div class="wrap gal-head">
+    <div class="eyebrow r">03 — What you actually get</div>
+    <h2 class="r">Six modules. One database.<br><em>No double entry.</em></h2>
+    <p class="r" style="max-width:56ch;margin-top:1.2rem;color:var(--paper-70)">Everything anchors to a reservation — so a room swap, a partial payment or an early checkout never leaves a stray balance behind.</p>
+  </div>
+  <div class="gal-viewport" id="gal-vp">
+    <div class="gal-track" id="gal">
+      <div class="gcard"><div class="n">MODULE / 01</div><h3>Front desk</h3>
         <ul><li>Reservations and room assignment</li><li>Check-in and check-out</li><li>Walk-ins and group bookings</li><li>ID document capture</li></ul></div>
-      <div class="tile"><div class="n">02</div><h3>Room matrix</h3>
+      <div class="gcard"><div class="n">MODULE / 02</div><h3>Room matrix</h3>
         <ul><li>Occupied · vacant · cleaning · maintenance</li><li>Live status the whole team sees</li><li>Housekeeping assignment</li><li>Due-out list every morning</li></ul></div>
-      <div class="tile"><div class="n">03</div><h3>Guest CRM</h3>
+      <div class="gcard"><div class="n">MODULE / 03</div><h3>Guest CRM</h3>
         <ul><li>Full stay history per guest</li><li>Phone, email, preferences, notes</li><li>Repeat-guest recognition</li><li>Corporate accounts</li></ul></div>
-      <div class="tile"><div class="n">04</div><h3>Billing &amp; ledger</h3>
+      <div class="gcard"><div class="n">MODULE / 04</div><h3>Billing &amp; ledger</h3>
         <ul><li>One folio per reservation</li><li>Partial payments and discounts</li><li>Outstanding dues that reconcile</li><li>Printable invoices</li></ul></div>
-      <div class="tile"><div class="n">05</div><h3>Reporting</h3>
+      <div class="gcard"><div class="n">MODULE / 05</div><h3>Reporting</h3>
         <ul><li>Occupancy and ADR</li><li>Daily revenue and night audit</li><li>Outstanding dues as of any date</li><li>Owner summary by email</li></ul></div>
-      <div class="tile"><div class="n">06</div><h3>Guest messaging</h3>
+      <div class="gcard"><div class="n">MODULE / 06</div><h3>Guest messaging</h3>
         <ul><li>Booking confirmation on WhatsApp</li><li>Check-in instructions</li><li>Review request after checkout</li><li>Templates in Bangla and English</li></ul></div>
     </div>
   </div>
 </section>
 
-<section id="proof" class="case on-navy">
-  <div class="wrap">
-    <div class="eyebrow">The proof</div>
+<section id="proof" class="case">
+  <div class="wrap pad">
+    <div class="eyebrow r">04 — The proof</div>
     <div class="case-grid">
       <div>
-        <h2>Hotel Fountain, Dhaka — <em>24 rooms</em></h2>
-        <p style="margin-top:1.4rem;max-width:46ch">We own and run Hotel Fountain. It is the first and hardest customer this system ever had: if a screen is slow or a balance is wrong, our own staff are the ones standing at the desk with a guest.</p>
-        <p class="note">Ask for the full written case study during your demo — including the mistakes we made building it, which is usually the more useful half.</p>
+        <h2 class="r">Hotel Fountain, Dhaka.<br><em>Customer zero.</em></h2>
+        <p class="r" style="margin-top:1.4rem;max-width:46ch;color:var(--paper-70)">We own and run Hotel Fountain. It is the first and hardest customer this system ever had: if a screen is slow or a balance is wrong, our own staff are the ones standing at the desk with a guest.</p>
+        <div class="counters r">
+          <div class="counter"><b data-count="24">24</b><span>rooms live daily</span></div>
+          <div class="counter"><b data-count="6">6</b><span>modules in one db</span></div>
+          <div class="counter"><b data-count="0">0</b><span>registers left</span></div>
+        </div>
+        <p class="note r">Ask for the full written case study during your demo — including the mistakes we made building it, which is usually the more useful half.</p>
       </div>
-      <div class="ba">
+      <div class="ba r">
         <div>
           <h3>Before</h3>
           <ul>
@@ -343,14 +349,14 @@ footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-
   </div>
 </section>
 
-<section id="pricing" class="on-bone">
-  <div class="wrap">
-    <div class="eyebrow">Pricing</div>
-    <h2>Priced for Bangladeshi hotels, <em>not imported software</em></h2>
-    <p style="max-width:56ch;margin-top:1rem">Month to month. No lock-in contract. Setup and staff training are one-time and quoted before you commit.</p>
+<section id="pricing" class="lite">
+  <div class="wrap pad">
+    <div class="eyebrow r">05 — Pricing</div>
+    <h2 class="r">Priced for Bangladeshi hotels, <em>not imported software</em></h2>
+    <p class="r" style="max-width:56ch;margin-top:1rem">Month to month. No lock-in contract. Setup and staff training are one-time and quoted before you commit.</p>
 
     <div class="prices">
-      <div class="price">
+      <div class="price r">
         <div class="tag">Starter</div>
         <div class="amt mono">৳5,000 <small>/ month</small></div>
         <ul>
@@ -364,7 +370,7 @@ footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-
         <a class="btn btn-ghost" href="#demo">Start here</a>
       </div>
 
-      <div class="price featured">
+      <div class="price featured r">
         <div class="tag">Growth — most chosen</div>
         <div class="amt mono">৳15,000 <small>/ month</small></div>
         <ul>
@@ -378,7 +384,7 @@ footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-
         <a class="btn btn-gold" href="#demo">Book a demo</a>
       </div>
 
-      <div class="price">
+      <div class="price r">
         <div class="tag">Managed growth</div>
         <div class="amt mono">৳30,000+ <small>/ month</small></div>
         <ul>
@@ -393,7 +399,7 @@ footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-
       </div>
     </div>
 
-    <div class="pilot">
+    <div class="pilot r">
       <div><b class="mono">৳20,000</b> <span>pilot setup — normally <s>৳50,000</s></span></div>
       <div><b>Included</b> <span>migration &amp; staff training</span></div>
       <div><b>Any time</b> <span>cancellation, data exported</span></div>
@@ -402,11 +408,11 @@ footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-
   </div>
 </section>
 
-<section id="faq" class="band on-bone">
-  <div class="wrap">
-    <div class="eyebrow">Straight answers</div>
-    <h2>What owners ask us <em>first</em></h2>
-    <div style="margin-top:2.4rem;max-width:74ch">
+<section id="faq" class="lite lite-2">
+  <div class="wrap pad">
+    <div class="eyebrow r">06 — Straight answers</div>
+    <h2 class="r">What owners ask us <em>first</em></h2>
+    <div class="r" style="margin-top:2.4rem;max-width:74ch">
       <details><summary>Will my staff actually use it?</summary><p>That is the real question, and it is why training is included rather than sold separately. The front desk screen was designed against our own staff — people who had used a paper register for years. If a screen needs explaining twice, we change the screen.</p></details>
       <details><summary>What happens to our existing data?</summary><p>We migrate your current guest list and open reservations during setup. You keep your registers running in parallel for the first two weeks — nobody jumps without a net.</p></details>
       <details><summary>Do we need fast internet?</summary><p>It runs in a normal browser on a normal broadband line. No server to buy, no software to install on each machine.</p></details>
@@ -417,16 +423,16 @@ footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-
   </div>
 </section>
 
-<section id="demo" class="cta on-navy">
-  <div class="wrap">
-    <div class="eyebrow">Next step</div>
-    <h2>Fifteen minutes, the <em>real system,</em> no slides</h2>
-    <p>We will open the live system, run a booking through it end to end, and show you the reports it produces. If it is not right for your hotel, we will say so.</p>
-    <div class="btn-row">
+<section id="demo" class="cta">
+  <div class="wrap pad">
+    <div class="eyebrow r" style="justify-content:center">07 — Next step</div>
+    <h2 class="r">Fifteen minutes, the <em>real system,</em> no slides</h2>
+    <p class="r">We will open the live system, run a booking through it end to end, and show you the reports it produces. If it is not right for your hotel, we will say so.</p>
+    <div class="btn-row r">
       <a class="btn btn-gold" id="wa-cta" href="#">Message us on WhatsApp</a>
       <a class="btn btn-ghost" id="mail-cta" href="#">Email us</a>
     </div>
-    <p class="tel">Or call <span class="mono" id="tel-text"></span> between 10am and 8pm</p>
+    <p class="tel r">OR CALL <span id="tel-text"></span> · 10:00–20:00</p>
   </div>
 </section>
 
@@ -435,12 +441,14 @@ footer .legal{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;letter-
     <img src="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/lockup.webp" alt="Hotel Growth OS" loading="lazy" width="1120" height="637">
     <div class="rule"></div>
     <p class="fine">Built and operated by the team at <a href="https://fountainbd.com">Hotel Fountain</a>, Dhaka · Bangladesh</p>
-    <p class="legal">RUN SMARTER · GROW FASTER · BDT PRICING · <span id="year"></span></p>
+    <p class="legal">Run smarter · Grow faster · BDT pricing · <span id="year"></span></p>
   </div>
 </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
 <script>
-/* CONFIG — the only block to edit. Content never depends on JS. */
+/* CONFIG — content never depends on JS; this only fills links + adds motion. */
 const CONFIG = {
   whatsapp: "8801322840799",
   email:    "shanwazahmed@fountainbd.com",
@@ -453,6 +461,70 @@ document.getElementById('mail-cta').href =
   "mailto:" + CONFIG.email + "?subject=" + encodeURIComponent("Demo request — Hotel Growth OS");
 document.getElementById('tel-text').textContent = CONFIG.phoneDisplay;
 document.getElementById('year').textContent = new Date().getFullYear();
+
+/* Motion layer — every effect inside a reduced-motion matchMedia guard.
+   If GSAP fails to load, the page is fully usable and fully visible. */
+if (window.gsap && window.ScrollTrigger) {
+  gsap.registerPlugin(ScrollTrigger);
+  const mm = gsap.matchMedia();
+
+  mm.add("(prefers-reduced-motion: no-preference)", () => {
+    /* hero: line-mask rise (split lines are real markup — no SplitText dependency) */
+    gsap.from("#hero-h .split-line > span", {
+      yPercent: 115, duration: 1.15, ease: "expo.out", stagger: 0.09, delay: 0.1
+    });
+    gsap.from(".hero .lede, .hero .btn-row", {
+      autoAlpha: 0, y: 22, duration: 1, ease: "power3.out", stagger: 0.12, delay: 0.55
+    });
+    gsap.from("#hero-art", { autoAlpha: 0, scale: 0.94, duration: 1.4, ease: "expo.out", delay: 0.35 });
+
+    /* hero scrubs out as you leave it */
+    gsap.to(".hero .hero-grid", {
+      yPercent: -12, autoAlpha: 0.25, ease: "none",
+      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: 1 }
+    });
+
+    /* generic reveals */
+    gsap.utils.toArray(".r").filter((el) => !el.closest(".hero")).forEach((el) => {
+      gsap.from(el, {
+        autoAlpha: 0, y: 26, duration: 0.9, ease: "power3.out",
+        scrollTrigger: { trigger: el, start: "top 86%", once: true }
+      });
+    });
+
+    /* marquee — slow infinite loop */
+    gsap.to("#mq", { xPercent: -50, ease: "none", duration: 28, repeat: -1 });
+
+    /* counters */
+    gsap.utils.toArray(".counter b").forEach((el) => {
+      const target = +el.dataset.count;
+      const obj = { v: 0 };
+      gsap.to(obj, {
+        v: target, duration: 1.6, ease: "power2.out",
+        scrollTrigger: { trigger: el, start: "top 88%", once: true },
+        onUpdate: () => { el.textContent = Math.round(obj.v); }
+      });
+    });
+
+    return () => {};
+  });
+
+  /* horizontal module gallery — desktop only; mobile/reduced get the vertical stack */
+  mm.add("(min-width: 960px) and (prefers-reduced-motion: no-preference)", () => {
+    const track = document.getElementById("gal");
+    const vp = document.getElementById("gal-vp");
+    vp.classList.add("js-pin"); vp.scrollLeft = 0;
+    const getX = () => -(track.scrollWidth - document.documentElement.clientWidth);
+    const tween = gsap.to(track, {
+      x: getX, ease: "none",
+      scrollTrigger: {
+        trigger: ".gallery", start: "top top", end: () => "+=" + (-getX() + 300),
+        pin: true, scrub: 1, invalidateOnRefresh: true, anticipatePin: 1
+      }
+    });
+    return () => { vp.classList.remove("js-pin"); tween.scrollTrigger && tween.scrollTrigger.kill(); tween.kill(); gsap.set(track, { x: 0 }); };
+  });
+}
 </script>
 </body>
 </html>
