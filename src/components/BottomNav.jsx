@@ -40,6 +40,7 @@ const moreItems = [
   { href: '/crm/housekeeping', icon: 'sparkle', label: 'Housekeeping' },
   { href: '/crm/restaurant', icon: 'utensils', label: 'Restaurant' },
   { href: '/crm/reports', icon: 'trend', label: 'Reports' },
+  { href: '/crm/growth', icon: 'trend', label: 'Growth' },
   { href: '/crm/settings', icon: 'gear', label: 'Settings' },
 ];
 

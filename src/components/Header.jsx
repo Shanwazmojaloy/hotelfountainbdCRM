@@ -21,6 +21,7 @@ const TITLES = {
   '/crm/housekeeping': ['Housekeeping', 'Board'],
   '/crm/restaurant': ['Restaurant', ''],
   '/crm/reports': ['Performance', 'Reports'],
+  '/crm/growth': ['Growth', 'Pipeline'],
   '/crm/settings': ['System', 'Settings'],
 };
 
@@ -37,6 +38,9 @@ const PILLS = [
   // from Dashboard/Rooms/Reservations modals, reports cover the numbers. Route
   // /crm/billing now redirects to /crm (bookmarks safe).
   { href: '/crm/reports', icon: '▤', label: 'Reports' },
+  // Growth = OUR sales pipeline (Hotel Growth OS), not hotel ops. canAccess() only clears it
+  // for owner/admin, so this pill is invisible to every operational role.
+  { href: '/crm/growth', icon: '◎', label: 'Growth' },
   { href: '/crm/settings', icon: '⚙', label: 'Settings' },
 ];
 const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase() || '?';
