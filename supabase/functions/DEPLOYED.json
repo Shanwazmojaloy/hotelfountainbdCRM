@@ -65,7 +65,7 @@
     "In the repo but NOT covered above - the committed source has never been confirmed",
     "against what is running. Confirm one, then move it into \"verified\":",
     "booking-webhook, lighthouse-summary, wf-checkout-alerts, wf-demand-forecast,",
-    "wf-guest-emails, wf-seo-lead-morning"
+    "wf-guest-emails, "
   ],
   "deployed_without_source": {
     "_note": [
@@ -79,15 +79,19 @@
   "tracked": {
     "ai-agents": {
       "path": "supabase/functions/ai-agents/index.ts",
-      "version": 38,
-      "sha256": "d86985f0183beda104a18d98194e5f74bcd6282d11e616084322538a6bfffaf0",
-      "pulled_at": "2026-08-15"
+      "version": 43,
+      "sha256": "352646055764c90e2f03e502eca629cbbc893018149efeb4e884bb7e3e634f96",
+      "deployed_at": "2026-08-17",
+      "note": "Redeployed 2026-08-17 with thinkingConfig.thinkingBudget = 0. Same class of bug as wf-competitor-monitor: gemini-2.5-flash bills reasoning tokens against maxOutputTokens, and with no thinkingConfig the budget is dynamic, so every caller cap (200-2048 here) was being eaten by thinking. Proven live on seo-geo-agent post_gbp: 113 chars before the fix (cut mid-sentence, saved as a draft), 1052 chars complete after.",
+      "verify_jwt": false
     },
     "b2b-agents": {
       "path": "supabase/functions/b2b-agents/index.ts",
-      "version": 30,
-      "sha256": "4f0a5b2a983ee1a11de33c67e7374dcba78f6e1ec5953e9306d201424e464d8a",
-      "pulled_at": "2026-08-15"
+      "version": 35,
+      "sha256": "05a6db435f7b1cdbf4b5fb96d18925442c55ef80d583706376aae8f5f08f7d61",
+      "deployed_at": "2026-08-17",
+      "note": "Redeployed 2026-08-17 with thinkingConfig.thinkingBudget = 0. Same class of bug as wf-competitor-monitor: gemini-2.5-flash bills reasoning tokens against maxOutputTokens, and with no thinkingConfig the budget is dynamic, so every caller cap (200-2048 here) was being eaten by thinking. Proven live on seo-geo-agent post_gbp: 113 chars before the fix (cut mid-sentence, saved as a draft), 1052 chars complete after.",
+      "verify_jwt": false
     },
     "brevo-bounce-webhook": {
       "path": "supabase/functions/brevo-bounce-webhook/index.ts",
@@ -145,9 +149,11 @@
     },
     "plan-g-upsell": {
       "path": "supabase/functions/plan-g-upsell/index.ts",
-      "version": 29,
-      "sha256": "c6a2cd119085992a1f2c6e0825b04e237923fc1eb4c59bc70f2adefbdb680f85",
-      "pulled_at": "2026-08-15"
+      "version": 34,
+      "sha256": "a620dc1f1fbc03feb476065bff387377df87a191d408655370896d68aa2fb498",
+      "deployed_at": "2026-08-17",
+      "note": "Redeployed 2026-08-17 with thinkingConfig.thinkingBudget = 0. Same class of bug as wf-competitor-monitor: gemini-2.5-flash bills reasoning tokens against maxOutputTokens, and with no thinkingConfig the budget is dynamic, so every caller cap (200-2048 here) was being eaten by thinking. Proven live on seo-geo-agent post_gbp: 113 chars before the fix (cut mid-sentence, saved as a draft), 1052 chars complete after.",
+      "verify_jwt": false
     },
     "process-checkout": {
       "path": "supabase/functions/process-checkout/index.ts",
@@ -189,9 +195,11 @@
     },
     "seo-geo-agent": {
       "path": "supabase/functions/seo-geo-agent/index.ts",
-      "version": 29,
-      "sha256": "e8f2a3f63b8cf7eed6d2f445419f1c7b3c8c47290d5bb092ae3ce76f65a01df4",
-      "pulled_at": "2026-08-15"
+      "version": 34,
+      "sha256": "92d11bbeb1cf775f1080e845752c796c9bc5acdd7cd2ef6b715bc2863ebdb942",
+      "deployed_at": "2026-08-17",
+      "note": "Redeployed 2026-08-17 with thinkingConfig.thinkingBudget = 0. Same class of bug as wf-competitor-monitor: gemini-2.5-flash bills reasoning tokens against maxOutputTokens, and with no thinkingConfig the budget is dynamic, so every caller cap (200-2048 here) was being eaten by thinking. Proven live on seo-geo-agent post_gbp: 113 chars before the fix (cut mid-sentence, saved as a draft), 1052 chars complete after.",
+      "verify_jwt": false
     },
     "sync-to-sheets": {
       "path": "supabase/functions/sync-to-sheets/index.ts",
@@ -226,6 +234,20 @@
       "version": 1,
       "sha256": "757897265b4e57fde6b1a977dcf813cef420c8c0619773ced40330349a0bd2b1",
       "pulled_at": "2026-08-15"
+    },
+    "wf-seo-lead-morning": {
+      "path": "supabase/functions/wf-seo-lead-morning/index.ts",
+      "version": 53,
+      "sha256": "59c31a6cd4935e1d57f4ddb2c4778b55e304bddaed4e0f5528322e62e17aaed6",
+      "deployed_at": "2026-08-17",
+      "note": "Redeployed 2026-08-17 with thinkingConfig.thinkingBudget = 0. Same class of bug as wf-competitor-monitor: gemini-2.5-flash bills reasoning tokens against maxOutputTokens, and with no thinkingConfig the budget is dynamic, so every caller cap (200-2048 here) was being eaten by thinking. Proven live on seo-geo-agent post_gbp: 113 chars before the fix (cut mid-sentence, saved as a draft), 1052 chars complete after.",
+      "verify_jwt": false
+    },
+    "wf-seo-lead-morning/forecast.ts": {
+      "path": "supabase/functions/wf-seo-lead-morning/forecast.ts",
+      "sha256": "ccf926aaaa55c1914f1ca9cc669b3afbbf7e04561990e7f2a965a97c425d7015",
+      "deployed_at": "2026-08-17",
+      "note": "Bundled into wf-seo-lead-morning. Changing this file requires redeploying that function."
     }
   },
   "_tracked_provenance": [

@@ -36,15 +36,28 @@ async function sbPatch(table: string, filter: string, body: object) {
   await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, { method: 'PATCH', headers: H, body: JSON.stringify(body) });
 }
 
+// gemini-2.5-flash is a THINKING model: reasoning tokens bill against
+// maxOutputTokens. With no thinkingConfig the budget is dynamic and effectively
+// unbounded, so a caller asking for N tokens can get a fragment - or nothing -
+// with finishReason MAX_TOKENS. Measured live 2026-08-17: seo-geo-agent's
+// 512-token GBP post came back as 113 characters, cut mid-sentence, and was
+// saved as a draft. thinkingBudget 0 makes every caller's cap mean what it says.
+// Full write-up in supabase/functions/wf-competitor-monitor/index.ts.
+function geminiText(d: any): string {
+  const parts: Array<{ text?: string; thought?: boolean }> = d?.candidates?.[0]?.content?.parts ?? [];
+  // Concatenate EVERY non-thought part - parts[0] alone drops continuations.
+  return parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('').trim();
+}
+
 async function gemini(prompt: string, max = 600): Promise<string> {
   if (!GEMINI_KEY) return 'GEMINI_API_KEY not set';
   try {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: max, temperature: 0.6 } }) });
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: max, temperature: 0.6, thinkingConfig: { thinkingBudget: 0 } } }) });
     if (!r.ok) return `ERROR: ${r.status}`;
     const d = await r.json();
-    return d.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    return geminiText(d);
   } catch (e: any) { return `ERROR: ${e.message}`; }
 }
 
