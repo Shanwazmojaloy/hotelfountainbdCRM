@@ -53,10 +53,12 @@
     },
     "wf-competitor-monitor": {
       "path": "supabase/functions/wf-competitor-monitor/index.ts",
-      "version": 34,
-      "sha256": "019523aa8f1069192847a5d23c8205e6ff17bd39c1c4ee2bcae0d30cbca341ed",
-      "deployed_at": "2026-08-15",
-      "verified_by": "live invoke, workflow_runs.email_sent = true"
+      "version": 41,
+      "sha256": "a9f7fe0fb1483ddd99bd84ba9a0707f1d150ec05e792e1f59e26f9ba52bd6403",
+      "deployed_at": "2026-08-17",
+      "verified_by": "live dry_run invoke 2026-08-17 03:29 UTC: finishReason STOP, 921 chars, 420 thinking + 251 answer tokens, ai_truncated=false; rendered email checked end-to-end",
+      "verify_jwt": false,
+      "note": "Truncation fix. verify_jwt MUST stay false - the Vercel cron forwarder authenticates with the sb_publishable_... key, which is not a JWT. The Supabase MCP deploy tool defaults verify_jwt to TRUE; it flipped to true on v39 during this fix and was restored on v40. Always pass verify_jwt:false when redeploying this function."
     }
   },
   "_unverified": [
