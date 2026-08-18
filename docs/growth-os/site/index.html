@@ -62,6 +62,12 @@ header{position:fixed;inset:0 0 auto 0;z-index:90;border-bottom:1px solid var(--
        background:rgba(3,7,12,.82);backdrop-filter:blur(16px)}
 .nav{display:flex;align-items:center;justify-content:space-between;height:74px}
 .brand img{height:36px;width:auto;display:block}
+.brand .wordmark{display:block;font-family:var(--sans);font-weight:800;font-size:1.02rem;
+  letter-spacing:.15em;text-transform:uppercase;color:var(--bone);white-space:nowrap;
+  transition:opacity .4s var(--ease)}
+.brand .wordmark em{font-style:normal;color:var(--gold)}
+.brand:hover .wordmark{opacity:.80}
+@media(max-width:600px){.brand .wordmark{font-size:.80rem;letter-spacing:.10em}}
 .nav-links{display:none;gap:2.4rem;font-family:var(--mono);font-size:.64rem;letter-spacing:.22em;text-transform:uppercase}
 .nav-links a{color:var(--bone-70);transition:color .4s var(--ease)}
 .nav-links a:hover{color:var(--gold)}
@@ -79,12 +85,29 @@ header{position:fixed;inset:0 0 auto 0;z-index:90;border-bottom:1px solid var(--
 .hero h1 .ln{display:block;overflow:hidden}
 .hero h1 .ln>span{display:inline-block}
 .hero-art{position:relative;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center}
-.hero-art video,.hero-art img.fallback{width:100%;height:100%;object-fit:cover;border-radius:50%;
-  -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 52%,transparent 74%);
-          mask-image:radial-gradient(circle at 50% 50%,#000 52%,transparent 74%)}
-.hero-art .ring{position:absolute;inset:6%;border:1px solid var(--line);border-radius:50%;
-  transform:rotateX(74deg);pointer-events:none}
-.hero-art .ring.b{inset:14%;transform:rotateX(74deg) rotateZ(58deg);border-color:rgba(217,168,78,.22)}
+/* hero logo — the FULL lockup artwork on a continuous vertical-axis barrel roll.
+   18 Aug 2026: owner asked for the complete logo, uncropped, so the wordmark and
+   tagline that are baked into lockup-dark.webp are now shown. No CSS crop. */
+.hero-art{perspective:1400px;align-items:flex-start}
+.hero-art .glow{position:absolute;top:-4%;left:2%;right:2%;height:74%;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at 50% 46%,rgba(217,168,78,.20),rgba(217,168,78,.05) 44%,transparent 70%);
+  filter:blur(8px)}
+.hg-wrap{position:relative;width:113%;flex:0 0 auto;aspect-ratio:900/507;
+  transform-style:preserve-3d;will-change:transform;
+  opacity:0;animation:hgIn .9s var(--ease) .2s forwards, hgRoll 8s linear .2s infinite}
+.hg-wrap img{display:block;width:100%;height:auto}
+
+@keyframes hgIn{to{opacity:1}}
+/* Vertical axis (rotateY). Backface deliberately VISIBLE — the owner chose a true
+   physical spin, so the lockup reads reversed for half of each turn.
+   Linear timing on purpose: an eased loop visibly pulses at the seam. */
+@keyframes hgRoll{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}
+
+@media(max-width:1000px){.hg-wrap{width:92%}}
+
+@media(prefers-reduced-motion:reduce){
+  .hg-wrap{opacity:1;transform:none;animation:none}
+}
 .scroll-cue{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);font-family:var(--mono);
   font-size:.58rem;letter-spacing:.3em;color:var(--bone-45);text-transform:uppercase}
 
@@ -248,7 +271,7 @@ footer .legal{margin-top:1.4rem;font-family:var(--mono);font-size:.58rem;letter-
 <header>
   <div class="wrap nav">
     <a class="brand" href="#top" aria-label="Hotel Growth OS">
-      <img src="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/mark-dark.webp" alt="Hotel Growth OS" width="900" height="302">
+      <span class="wordmark">Hotel <em>Growth</em> OS</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
       <a href="#platform">Platform</a>
@@ -265,7 +288,6 @@ footer .legal{margin-top:1.4rem;font-family:var(--mono);font-size:.58rem;letter-
   <div class="wrap">
     <div class="hero-grid">
       <div>
-        <div class="eyebrow">Hotel Growth OS</div>
         <h1 id="hero-h">
           <span class="ln"><span>Run your hotel</span></span>
           <span class="ln"><span>smarter.</span></span>
@@ -278,10 +300,10 @@ footer .legal{margin-top:1.4rem;font-family:var(--mono);font-size:.58rem;letter-
         </div>
       </div>
       <div class="hero-art r" id="hero-art">
-        <div class="ring"></div><div class="ring b"></div>
-        <video id="hero-video" muted loop playsinline preload="none"
-               poster="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/hero-poster.jpg"
-               aria-hidden="true"></video>
+        <div class="glow" aria-hidden="true"></div>
+        <div class="hg-wrap">
+          <img src="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/lockup-dark.webp" alt="Hotel Growth OS" width="900" height="507" fetchpriority="high">
+        </div>
       </div>
     </div>
   </div>
