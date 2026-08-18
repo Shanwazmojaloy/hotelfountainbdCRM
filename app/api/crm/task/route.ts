@@ -53,3 +53,46 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ ok: true, id: data && data[0]?.id });
 }
+
+// PATCH /api/crm/task - status update for one task.
+//
+// Housekeeping.updateStatus() used to write this directly from the browser on the
+// anon key, with no route and no fallback. anon has never held UPDATE on
+// housekeeping_tasks, so that call returned 42501 and the component threw
+// straight into alert("Could not update task"). The board's status dropdown was
+// dead. It also meant trg_room_available_on_clean never fired, so finishing a
+// clean did not flip the room out of DIRTY.
+//
+// Status is uppercased here as well as by trg_hk_status_upper - belt and braces,
+// and it keeps the allowlist check honest.
+const HK_STATUS = new Set(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'SUPERSEDED']);
+
+export async function PATCH(req: NextRequest) {
+  if (!SB_SERVICE_KEY) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  const sess = requireSession(req);
+  if (!sess) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const TENANT = sess.tenant_id || ENV_TENANT;
+  const db = tenantScoped(tenantClient(TENANT), TENANT);
+
+  const { data: srow } = await db.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
+    return NextResponse.json({ error: 'Session expired - sign in again.' }, { status: 401 });
+  }
+
+  let body: Record<string, unknown> = {};
+  try { body = await req.json(); } catch { /* empty */ }
+  const id = typeof body.id === 'string' ? body.id.trim() : '';
+  if (!/^[0-9a-fA-F-]{36}$/.test(id)) return NextResponse.json({ error: 'Valid task id required.' }, { status: 400 });
+
+  const status = String(body.status || '').toUpperCase().replace(/-/g, '_');
+  if (!HK_STATUS.has(status)) return NextResponse.json({ error: 'Unknown status.' }, { status: 400 });
+
+  const { error } = await db.from('housekeeping_tasks')
+    .update({ status, completed_at: status === 'COMPLETED' ? new Date().toISOString() : null })
+    .eq('id', id);
+  if (error) {
+    console.error('[crm/task] status update error:', error.message);
+    return NextResponse.json({ error: 'Could not update task.' }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
+}

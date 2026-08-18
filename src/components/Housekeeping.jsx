@@ -32,10 +32,15 @@ export default function Housekeeping() {
     if (!getSnap('housekeeping')) setLoading(true); // revisits refresh silently behind cached rows
     try {
       const supabase = getSupabaseClient();
-      const [{ data: t }, { data: r }] = await Promise.all([
-        supabase.from('housekeeping_tasks').select('*').order('created_at', { ascending: false }),
+      // C3 slice 2: tasks now come from the session-gated route. `rooms` still reads
+      // direct - it has 31 consumers and gets its own slice. The route clamps to
+      // MAX_LIMIT (5000); this table is ~1k rows today.
+      const qs = new URLSearchParams({ resource: 'housekeeping_tasks', order: 'created_at.desc' });
+      const [tRes, { data: r }] = await Promise.all([
+        fetch(`/api/crm/data?${qs}`, { cache: 'no-store' }).then((x) => (x.ok ? x.json() : { rows: [] })),
         supabase.from('rooms').select('id, room_number, status'),
       ]);
+      const t = tRes.rows || [];
       setTasks(t || []);
       setRooms(r || []);
       setSnap('housekeeping', { tasks: t || [], rooms: r || [] });
@@ -49,13 +54,17 @@ export default function Housekeeping() {
   async function updateStatus(id, status) {
     setSaving(id);
     try {
-      const supabase = getSupabaseClient();
-      // DB convention is UPPERCASE_UNDERSCORE — lowercase writes broke the auto-AVAILABLE
-      // trigger and the housekeeping_dashboard view (audit MED-9, 2026-06-10).
-      const dbStatus = status.toUpperCase().replace(/-/g, '_');
-      const { error } = await supabase.from('housekeeping_tasks')
-        .update({ status: dbStatus, completed_at: status === 'completed' ? new Date().toISOString() : null }).eq('id', id);
-      if (error) throw error;
+      // C3 slice 2: this used to write DIRECTLY on the anon key, with no route and no
+      // fallback. anon has never held UPDATE on housekeeping_tasks, so it returned 42501
+      // and threw into the alert below - the status dropdown was dead, and
+      // trg_room_available_on_clean never fired, so a finished clean never took the room
+      // out of DIRTY. The route allowlists and uppercases the status.
+      const res = await fetch('/api/crm/task', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.error) throw new Error(j.error || 'Could not update task.');
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     } catch (e) {
       console.error('[Housekeeping] update error:', e);

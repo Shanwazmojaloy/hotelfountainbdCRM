@@ -34,6 +34,8 @@ const RESOURCES: Record<string, { orderCols: Set<string>; defaultOrder: string }
   // holding the publishable key. Routing it here is what lets anon SELECT on
   // workflow_runs be revoked - see supabase/migrations/20260817_revoke_anon_read_workflow_runs_s5.sql
   workflow_runs:{ orderCols: new Set(['ran_at']),                                defaultOrder: 'ran_at' },
+  // C3 slice 2 (2026-08-17). Housekeeping.jsx read this straight off the anon key.
+  housekeeping_tasks: { orderCols: new Set(['created_at']),                     defaultOrder: 'created_at' },
 };
 const ALLOWED_STATUS = new Set(['RESERVED', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'PENDING']);
 
