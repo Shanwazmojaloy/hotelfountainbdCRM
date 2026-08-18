@@ -4,7 +4,6 @@
 // workflows with their last run (from workflow_runs) and a manual "Run" trigger that POSTs
 // the matching Supabase edge function.
 import { useState, useEffect } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
 
 const BASE = 'https://mynwfkgksqqwlqowlscj.supabase.co';
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -37,9 +36,18 @@ export default function WorkflowMonitor() {
       // "most recent N rows" fetch that we reduce to latest-per-workflow client-side, so a
       // high-frequency job crowds infrequent ones out of the window and blanks their card.
       // At 50, competitor-monitor alone held 14 slots and pushed monthly/weekly reports out.
-      const { data } = await getSupabaseClient().from('workflow_runs')
-        .select('workflow_name, status, duration_ms, records_processed, ran_at').order('ran_at', { ascending: false }).limit(500);
-      setRuns(data || []);
+      // C3: read through the session-gated route, NOT the anon key. The browser has
+      // no Supabase identity (AuthGate keeps its own localStorage session), so a
+      // direct PostgREST read here was served to anyone holding the publishable key.
+      const qs = new URLSearchParams({
+        resource: 'workflow_runs',
+        cols: 'workflow_name,status,duration_ms,records_processed,ran_at',
+        order: 'ran_at.desc',
+        limit: '500',
+      });
+      const r = await fetch(`/api/crm/data?${qs}`, { cache: 'no-store' });
+      const j = r.ok ? await r.json() : { rows: [] };
+      setRuns(j.rows || []);
     } catch { /* table may be empty */ } finally { setLoading(false); }
   }
 

@@ -29,6 +29,11 @@ const RESOURCES: Record<string, { orderCols: Set<string>; defaultOrder: string }
   reservations: { orderCols: new Set(['created_at', 'check_in', 'check_out']), defaultOrder: 'created_at' },
   transactions: { orderCols: new Set(['created_at', 'fiscal_day']),            defaultOrder: 'created_at' },
   guests:       { orderCols: new Set(['name']),                                defaultOrder: 'name' },
+  // C3 slice 1 (2026-08-17). WorkflowMonitor was the ONLY reader of workflow_runs
+  // and read it straight off the anon key, so its 727 rows were readable by anyone
+  // holding the publishable key. Routing it here is what lets anon SELECT on
+  // workflow_runs be revoked - see supabase/migrations/20260817_revoke_anon_read_workflow_runs_s5.sql
+  workflow_runs:{ orderCols: new Set(['ran_at']),                                defaultOrder: 'ran_at' },
 };
 const ALLOWED_STATUS = new Set(['RESERVED', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'PENDING']);
 
