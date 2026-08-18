@@ -24,6 +24,12 @@
   --ease:cubic-bezier(.4,0,.2,1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* The [hidden] attribute is only `display:none` in the UA stylesheet, so ANY author
+   rule that sets display beats it. This page hides .screen (display:grid),
+   label (display:block) and .grid (display:grid) via [hidden] — without this rule
+   the boot spinner, both gate screens and two conditional fields are permanently
+   visible, stacked above the form. Do not remove. */
+[hidden]{display:none !important}
 html{scroll-behavior:smooth}
 body{background:var(--ink);color:var(--bone);font-family:var(--sans);font-size:16px;
      line-height:1.65;-webkit-font-smoothing:antialiased}
