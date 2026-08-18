@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setup &amp; Onboarding — Hotel Growth OS</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Hotel Growth OS onboarding — property configuration, branding and billing rules.">
+<link rel="icon" type="image/png" href="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Bengali:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* HOTEL GROWTH OS — onboarding. Obsidian & Gold, same tokens as the landing page.
+   ONE accent (gold). Manrope display, Plex Mono for data, Bengali fallback for ৳. */
+:root{
+  --ink:#03070C; --ink-1:#070C14; --ink-2:#0C121C; --card:#0A1018;
+  --line:rgba(244,242,237,.10); --line-2:rgba(244,242,237,.06);
+  --bone:#F4F2ED; --bone-70:rgba(244,242,237,.72); --bone-45:rgba(244,242,237,.46);
+  --gold:#D9A84E; --gold-hi:#EFC66F; --gold-deep:#B4832C; --gold-dim:rgba(217,168,78,.14);
+  --ok:#5BBE8A; --warn:#E0A33F; --bad:#E0684F;
+  --sans:'Manrope',system-ui,sans-serif;
+  --mono:'IBM Plex Mono','Noto Sans Bengali',ui-monospace,monospace;
+  --ease:cubic-bezier(.4,0,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--bone);font-family:var(--sans);font-size:16px;
+     line-height:1.65;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+a{color:var(--gold)}
+h1,h2{font-weight:800;letter-spacing:-.02em;line-height:1.08;text-transform:uppercase}
+h1{font-size:clamp(1.7rem,4vw,2.6rem)}
+h2{font-size:clamp(1.35rem,3vw,2rem)}
+.eyebrow{font-family:var(--mono);font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;
+         color:var(--gold);display:flex;align-items:center;gap:12px;margin-bottom:1rem}
+.eyebrow::before{content:"";width:26px;height:1px;background:var(--gold);flex:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+
+/* ── header ─────────────────────────────────────────── */
+header{position:sticky;top:0;z-index:40;background:rgba(3,7,12,.92);
+       backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:16px;height:64px}
+.hrow img{height:26px;width:auto}
+.spacer{flex:1}
+.savestate{font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;
+           color:var(--bone-45);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--bone-45);flex:none}
+.savestate[data-s="saving"] .dot{background:var(--warn);animation:pulse 1s infinite}
+.savestate[data-s="saved"]  .dot{background:var(--ok)}
+.savestate[data-s="error"]  .dot{background:var(--bad)}
+@keyframes pulse{50%{opacity:.25}}
+.linkbtn{background:none;border:none;color:var(--gold);font-family:var(--mono);font-size:.66rem;
+         letter-spacing:.14em;text-transform:uppercase;cursor:pointer;padding:6px 0;
+         border-bottom:1px solid transparent}
+.linkbtn:hover{border-bottom-color:var(--gold)}
+
+/* ── progress rail ──────────────────────────────────── */
+.rail{border-bottom:1px solid var(--line);background:var(--ink-1);overflow-x:auto;
+      scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.rail ol{display:flex;list-style:none;gap:2px;min-width:max-content;padding:10px 0}
+.rail button{background:none;border:none;cursor:pointer;color:var(--bone-45);text-align:left;
+             font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;
+             padding:8px 14px;border-top:2px solid transparent;transition:color .3s var(--ease)}
+.rail button:hover{color:var(--bone-70)}
+.rail li[aria-current="step"] button{color:var(--gold);border-top-color:var(--gold)}
+.rail li[data-done="1"] button{color:var(--bone-70)}
+.rail li[data-done="1"] button::before{content:"✓ ";color:var(--ok)}
+.bar{height:2px;background:var(--line-2)}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-deep),var(--gold-hi));
+       width:0;transition:width .5s var(--ease)}
+
+/* ── steps ──────────────────────────────────────────── */
+main{padding:clamp(28px,5vw,56px) 0 140px}
+.step{display:none}
+.step.on{display:block;animation:in .45s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.lede{color:var(--bone-70);max-width:62ch;margin-top:.7rem}
+
+.card{background:var(--card);border:1px solid var(--line);padding:clamp(20px,3.4vw,32px);
+      margin-top:26px}
+.card + .card{margin-top:16px}
+.card h3{font-size:.72rem;font-family:var(--mono);letter-spacing:.22em;text-transform:uppercase;
+         color:var(--gold);font-weight:500;margin-bottom:20px;padding-bottom:12px;
+         border-bottom:1px solid var(--line-2)}
+
+.grid{display:grid;gap:18px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.one{grid-template-columns:1fr}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.full{grid-column:1/-1}
+@media(max-width:720px){.grid,.grid.three{grid-template-columns:1fr}}
+
+label{display:block}
+.lab{font-family:var(--mono);font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;
+     color:var(--bone-45);margin-bottom:8px;display:block}
+.req{color:var(--gold)}
+.hint{font-size:.78rem;color:var(--bone-45);margin-top:6px;line-height:1.5}
+input[type=text],input[type=email],input[type=tel],input[type=url],input[type=number],
+input[type=time],select,textarea{
+  width:100%;background:var(--ink-2);border:1px solid var(--line);color:var(--bone);
+  font-family:var(--sans);font-size:.95rem;padding:.78rem .9rem;border-radius:0;
+  transition:border-color .3s var(--ease),background .3s var(--ease)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);background:#0e1622}
+input::placeholder,textarea::placeholder{color:rgba(244,242,237,.26)}
+input[type=number],input[type=time],.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+textarea{resize:vertical;min-height:96px;line-height:1.6}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--gold) 50%),
+       linear-gradient(135deg,var(--gold) 50%,transparent 50%);
+       background-position:calc(100% - 18px) 52%,calc(100% - 13px) 52%;
+       background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:2.4rem}
+select option{background:var(--ink-2);color:var(--bone)}
+input.bad,select.bad{border-color:var(--bad)}
+.err{color:var(--bad);font-size:.78rem;margin-top:6px;display:none}
+.err.on{display:block}
+
+/* money field */
+.money{position:relative}
+.money::before{content:"৳";position:absolute;left:.9rem;top:50%;transform:translateY(-50%);
+               font-family:var(--mono);color:var(--gold);pointer-events:none;font-size:.95rem}
+.money input{padding-left:2.1rem}
+
+/* choice cards */
+.tiers{display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:820px){.tiers{grid-template-columns:1fr}}
+.tier{position:relative;border:1px solid var(--line);background:var(--ink-2);padding:22px;
+      cursor:pointer;transition:border-color .35s var(--ease),background .35s var(--ease)}
+.tier:hover{border-color:rgba(217,168,78,.45)}
+.tier input{position:absolute;opacity:0;pointer-events:none}
+/* `.sel` is set by JS and is the load-bearing one; :has() is the progressive
+   enhancement. Older Android Chrome has no :has(), and a selected package tier
+   that does not LOOK selected is the worst possible failure on this page. */
+.tier.sel,.tier:has(input:checked){border-color:var(--gold);background:rgba(217,168,78,.07)}
+.tier:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
+.tier .nm{font-weight:800;text-transform:uppercase;letter-spacing:-.01em;font-size:1.05rem}
+.tier .pr{font-family:var(--mono);color:var(--gold);font-size:1.1rem;margin:.5rem 0 .3rem;
+          font-variant-numeric:tabular-nums}
+.tier .bf{font-size:.8rem;color:var(--bone-45)}
+.tier .tag{position:absolute;top:-1px;right:-1px;background:var(--gold);color:#100C04;
+           font-family:var(--mono);font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;
+           padding:4px 9px;font-weight:500}
+
+/* checkbox / radio rows */
+.opts{display:grid;gap:10px}
+.opts.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:720px){.opts.two{grid-template-columns:1fr}}
+.opt{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--line);background:var(--ink-2);
+     padding:14px 16px;cursor:pointer;transition:border-color .3s var(--ease),background .3s var(--ease)}
+.opt:hover{border-color:rgba(217,168,78,.4)}
+.opt.sel,.opt:has(input:checked){border-color:var(--gold);background:rgba(217,168,78,.07)}
+.opt:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
+.opt input{position:absolute;opacity:0;width:0;height:0}
+.box{width:17px;height:17px;border:1px solid var(--bone-45);flex:none;margin-top:3px;position:relative;
+     transition:border-color .25s var(--ease),background .25s var(--ease)}
+.opt input[type=radio] + .box{border-radius:50%}
+.opt.sel .box,.opt:has(input:checked) .box{border-color:var(--gold);background:var(--gold)}
+.opt.sel .box::after,.opt:has(input:checked) .box::after{content:"";position:absolute;inset:0;
+     background:#100C04;
+     clip-path:polygon(16% 52%,40% 74%,86% 22%,94% 32%,40% 92%,8% 60%)}
+.opt.sel.radio .box::after,.opt:has(input[type=radio]:checked) .box::after{
+     clip-path:none;border-radius:50%;inset:4px}
+.opt .t{font-size:.92rem;font-weight:600}
+.opt .d{font-size:.78rem;color:var(--bone-45);margin-top:2px}
+
+/* room matrix */
+.tbl{width:100%;border-collapse:collapse;font-size:.88rem}
+.tbl th{font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;
+        color:var(--bone-45);text-align:left;font-weight:500;padding:0 8px 10px;white-space:nowrap}
+.tbl td{padding:4px 4px;border-top:1px solid var(--line-2);vertical-align:middle}
+.tbl input,.tbl select{padding:.5rem .6rem;font-size:.86rem}
+.tbl .money::before{left:.6rem;font-size:.86rem}
+.tbl .money input{padding-left:1.7rem}
+.scroller{overflow-x:auto;margin:0 -6px;padding:0 6px}
+.scroller table{min-width:640px}
+.iconbtn{background:none;border:1px solid var(--line);color:var(--bone-45);width:30px;height:30px;
+         cursor:pointer;font-size:1rem;line-height:1;transition:all .25s var(--ease)}
+.iconbtn:hover{border-color:var(--bad);color:var(--bad)}
+tr.ooo input[data-rf="category"],tr.ooo input[data-rf="rate_bdt"]{opacity:.4}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;padding:.95rem 1.8rem;
+     font-family:var(--mono);font-size:.68rem;font-weight:500;letter-spacing:.2em;
+     text-transform:uppercase;border:1px solid transparent;cursor:pointer;
+     transition:transform .35s var(--ease),background .35s var(--ease),
+                border-color .35s var(--ease),color .35s var(--ease),opacity .2s}
+.btn-gold{background:linear-gradient(135deg,var(--gold-hi),var(--gold-deep));color:#100C04}
+.btn-gold:hover:not(:disabled){transform:translateY(-2px)}
+.btn-ghost{border-color:var(--line);color:var(--bone-70);background:transparent}
+.btn-ghost:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+.btn-sm{padding:.6rem 1.1rem;font-size:.62rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* footer nav */
+.navbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(3,7,12,.95);
+        backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+.navrow{display:flex;align-items:center;gap:14px;padding:14px 0}
+.navrow .cnt{font-family:var(--mono);font-size:.64rem;letter-spacing:.16em;color:var(--bone-45);
+             text-transform:uppercase}
+@media(max-width:560px){.navrow .cnt{display:none}}
+
+/* uploads */
+.drop{border:1px dashed rgba(244,242,237,.22);background:var(--ink-2);padding:26px;text-align:center;
+      cursor:pointer;transition:border-color .3s var(--ease),background .3s var(--ease)}
+.drop:hover,.drop.over{border-color:var(--gold);background:rgba(217,168,78,.06)}
+.drop .big{font-family:var(--mono);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;
+           color:var(--gold)}
+.drop .sm{font-size:.78rem;color:var(--bone-45);margin-top:8px}
+.filelist{list-style:none;margin-top:14px;display:grid;gap:8px}
+.filelist li{display:flex;align-items:center;gap:12px;border:1px solid var(--line);
+             background:var(--ink-2);padding:10px 14px;font-size:.85rem}
+.filelist .fn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filelist .fs{font-family:var(--mono);font-size:.7rem;color:var(--bone-45)}
+
+/* swatch */
+.swatch{display:flex;gap:10px;align-items:center}
+.swatch input[type=color]{width:46px;height:46px;padding:0;border:1px solid var(--line);
+                          background:var(--ink-2);cursor:pointer}
+
+/* review */
+.rev{display:grid;gap:0}
+.rev .r{display:grid;grid-template-columns:minmax(160px,240px) 1fr;gap:16px;padding:11px 0;
+        border-bottom:1px solid var(--line-2);font-size:.9rem}
+.rev .r:last-child{border-bottom:none}
+.rev dt{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;
+        color:var(--bone-45);padding-top:2px}
+.rev dd{color:var(--bone)}
+.rev .empty{color:rgba(244,242,237,.28);font-style:italic}
+@media(max-width:600px){.rev .r{grid-template-columns:1fr;gap:3px}}
+.editlink{float:right;font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;
+          text-transform:uppercase;background:none;border:none;color:var(--gold);cursor:pointer}
+.editlink:hover{text-decoration:underline}
+
+/* credential policy — deliberately the loudest block on the page */
+.policy{border:1px solid var(--gold);background:rgba(217,168,78,.05);padding:clamp(20px,3vw,28px);
+        margin-top:26px}
+.policy h3{font-family:var(--mono);font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+           color:var(--gold);font-weight:500;margin-bottom:16px;padding:0;border:none;
+           display:flex;align-items:center;gap:10px}
+.policy .never{font-size:1.02rem;font-weight:700;color:var(--bone);line-height:1.45}
+.policy p{color:var(--bone-70);font-size:.88rem;margin-top:12px}
+.policy .cols{display:grid;gap:0;margin-top:20px;border-top:1px solid var(--line-2)}
+.policy .row{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:16px;padding:11px 0;
+             border-bottom:1px solid var(--line-2);font-size:.86rem}
+.policy .row span:first-child{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;
+             text-transform:uppercase;color:var(--bone-45);padding-top:3px}
+.policy .row span:last-child{color:var(--bone-70)}
+@media(max-width:600px){.policy .row{grid-template-columns:1fr;gap:3px}}
+
+/* notices */
+.notice{border-left:2px solid var(--gold);background:rgba(217,168,78,.07);padding:14px 18px;
+        font-size:.88rem;color:var(--bone-70);margin-top:18px}
+.notice.bad{border-left-color:var(--bad);background:rgba(224,104,79,.09)}
+.notice ul{margin:.5rem 0 0 1.1rem}
+
+/* full-screen states */
+.screen{min-height:76vh;display:grid;place-items:center;text-align:center;padding:40px 20px}
+.screen .inner{max-width:520px}
+.screen .mark{width:56px;height:56px;border:1px solid var(--gold);color:var(--gold);
+              display:grid;place-items:center;margin:0 auto 24px;font-size:1.5rem}
+.screen p{color:var(--bone-70);margin-top:12px}
+.spin{width:26px;height:26px;border:2px solid var(--line);border-top-color:var(--gold);
+      border-radius:50%;animation:sp .8s linear infinite;margin:0 auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:88px;transform:translate(-50%,20px);z-index:60;
+       background:var(--ink-2);border:1px solid var(--gold);color:var(--bone);
+       padding:12px 20px;font-size:.86rem;opacity:0;pointer-events:none;
+       transition:opacity .3s var(--ease),transform .3s var(--ease);max-width:88vw;text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast.bad{border-color:var(--bad)}
+
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ boot / error screens ═══ -->
+<div id="boot" class="screen">
+  <div class="inner">
+    <div class="spin"></div>
+    <p class="mono" style="letter-spacing:.2em;font-size:.7rem;text-transform:uppercase;margin-top:20px">Loading your form</p>
+  </div>
+</div>
+
+<div id="gate" class="screen" hidden>
+  <div class="inner">
+    <div class="mark" id="gateIcon">!</div>
+    <h1 id="gateTitle">Link not valid</h1>
+    <p id="gateMsg"></p>
+    <p style="margin-top:26px"><a class="mono" style="font-size:.7rem;letter-spacing:.2em;text-transform:uppercase" href="https://growthos.fountainbd.com/">← Hotel Growth OS</a></p>
+  </div>
+</div>
+
+<div id="done" class="screen" hidden>
+  <div class="inner">
+    <div class="mark" style="border-color:var(--ok);color:var(--ok)">✓</div>
+    <h1>Setup details received</h1>
+    <p id="doneMsg">Thank you. We have everything we need to start building your system.</p>
+    <div class="notice" style="text-align:left;margin-top:26px">
+      <strong style="color:var(--bone)">What happens next</strong>
+      <ul>
+        <li>We build your room matrix, billing rules and staff accounts from exactly what you sent.</li>
+        <li>We come back to you within two working days to confirm anything that needs a second look.</li>
+        <li>Training is scheduled once your system is live.</li>
+      </ul>
+    </div>
+    <p style="margin-top:24px;font-size:.85rem">Something to change? Reply to the confirmation email and we will update it.</p>
+  </div>
+</div>
+
+<!-- ═══ the form ═══ -->
+<div id="app" hidden>
+
+<header>
+  <div class="wrap hrow">
+    <img src="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/mark-dark.webp" alt="Hotel Growth OS">
+    <span class="spacer"></span>
+    <span class="savestate" id="saveState" data-s="idle" aria-live="polite"><i class="dot"></i><span id="saveText">Ready</span></span>
+    <button class="linkbtn" id="emailMe" type="button">Email me this link</button>
+  </div>
+</header>
+
+<nav class="rail" aria-label="Form steps">
+  <div class="wrap"><ol id="rail"></ol></div>
+  <div class="bar"><i id="bar"></i></div>
+</nav>
+
+<main>
+<div class="wrap">
+  <form id="form" novalidate>
+
+  <!-- ─── STEP 1 ─────────────────────────────────────── -->
+  <section class="step" data-step="1" aria-labelledby="h1t">
+    <p class="eyebrow">Section 01 — About you</p>
+    <h1 id="h1t">Hotel &amp; business details</h1>
+    <p class="lede">This is who we invoice, who we call, and the name that appears across your system and your guest emails.</p>
+    <p class="lede" style="font-size:.88rem;margin-top:.6rem;color:var(--bone-45)">
+      Nothing on this form is a password. We never ask for one —
+      <a href="#" id="policyJump">here is how we get access instead</a>.</p>
+
+    <div class="card">
+      <h3>The property</h3>
+      <div class="grid">
+        <label class="full"><span class="lab">Hotel / property name <span class="req">*</span></span>
+          <input type="text" data-f="hotel_name" autocomplete="organization" placeholder="e.g. Hotel Fountain">
+          <span class="err"></span></label>
+        <label class="full"><span class="lab">Company / legal entity name</span>
+          <input type="text" data-f="legal_entity_name" placeholder="The name that should appear on invoices">
+          <span class="hint">Leave blank if it is the same as the hotel name.</span></label>
+        <label class="full"><span class="lab">Street address</span>
+          <input type="text" data-f="address_line" autocomplete="street-address" placeholder="House, road"></label>
+        <label><span class="lab">Area</span>
+          <input type="text" data-f="area" placeholder="e.g. Banani"></label>
+        <label><span class="lab">City</span>
+          <input type="text" data-f="city" autocomplete="address-level2" placeholder="e.g. Dhaka"></label>
+        <label><span class="lab">Postcode</span>
+          <input type="text" data-f="postcode" inputmode="numeric" class="num" placeholder="1213"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Primary contact</h3>
+      <div class="grid">
+        <label><span class="lab">Full name <span class="req">*</span></span>
+          <input type="text" data-f="contact_full_name" autocomplete="name">
+          <span class="err"></span></label>
+        <label><span class="lab">Designation</span>
+          <select data-f="contact_designation">
+            <option value="">Select…</option>
+            <option value="owner">Owner</option>
+            <option value="general_manager">General Manager</option>
+            <option value="operations_manager">Operations Manager</option>
+            <option value="front_office_manager">Front Office Manager</option>
+            <option value="other">Other</option>
+          </select></label>
+        <label class="full" id="desigOtherWrap" hidden><span class="lab">Please specify</span>
+          <input type="text" data-f="contact_designation_other"></label>
+        <label><span class="lab">Phone <span class="req">*</span></span>
+          <input type="tel" data-f="contact_phone" autocomplete="tel" class="num" placeholder="+8801XXXXXXXXX">
+          <span class="err"></span></label>
+        <label><span class="lab">WhatsApp number</span>
+          <input type="tel" data-f="contact_whatsapp" class="num" placeholder="If different from phone"></label>
+        <label class="full"><span class="lab">Email address <span class="req">*</span></span>
+          <input type="email" data-f="contact_email" autocomplete="email" placeholder="you@yourhotel.com">
+          <span class="hint">Your confirmation and all setup correspondence go here.</span>
+          <span class="err"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Where you already are online</h3>
+      <div class="grid">
+        <label><span class="lab">Existing website</span>
+          <input type="url" data-f="existing_website" inputmode="url" placeholder="https://…">
+          <span class="hint">Leave blank if you do not have one yet.</span></label>
+        <label><span class="lab">Google Business / Maps link</span>
+          <input type="url" data-f="google_profile_url" inputmode="url" placeholder="https://maps.app.goo.gl/…">
+          <span class="hint">Needed for the review engine and local search work.</span></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── STEP 2 ─────────────────────────────────────── -->
+  <section class="step" data-step="2" aria-labelledby="h2t">
+    <p class="eyebrow">Section 02 — Package</p>
+    <h1 id="h2t">Choose your plan</h1>
+    <p class="lede">Month to month, no lock-in. Setup and training are one-time and quoted before you commit.</p>
+
+    <div class="card">
+      <h3>Package tier <span class="req">*</span></h3>
+      <div class="tiers">
+        <label class="tier"><input type="radio" name="tier" data-f="package_tier" value="starter">
+          <span class="nm">Starter</span>
+          <span class="pr mono">৳5,000<span style="font-size:.72rem;color:var(--bone-45)"> / month</span></span>
+          <span class="bf">Best for 10–30 rooms</span></label>
+        <label class="tier"><input type="radio" name="tier" data-f="package_tier" value="growth">
+          <span class="tag">Most chosen</span>
+          <span class="nm">Growth</span>
+          <span class="pr mono">৳15,000<span style="font-size:.72rem;color:var(--bone-45)"> / month</span></span>
+          <span class="bf">Best for 30–80 rooms</span></label>
+        <label class="tier"><input type="radio" name="tier" data-f="package_tier" value="managed">
+          <span class="nm">Managed growth</span>
+          <span class="pr mono">৳30,000+<span style="font-size:.72rem;color:var(--bone-45)"> / month</span></span>
+          <span class="bf">Marketing fully hands-off</span></label>
+      </div>
+      <span class="err" id="tierErr"></span>
+    </div>
+
+    <div class="card">
+      <h3>Additional services</h3>
+      <div class="opts two">
+        <label class="opt"><input type="checkbox" data-f="addon_website"><i class="box"></i>
+          <span><span class="t">Custom website design &amp; setup</span>
+          <span class="d">Your own yourhotel.com with direct booking.</span></span></label>
+        <label class="opt"><input type="checkbox" data-f="addon_whatsapp_api"><i class="box"></i>
+          <span><span class="t">WhatsApp API token setup</span>
+          <span class="d">Needs a Meta-verified business number.</span></span></label>
+        <label class="opt"><input type="checkbox" data-f="addon_review_engine"><i class="box"></i>
+          <span><span class="t">Automated Google review engine</span>
+          <span class="d">Review requests sent after checkout.</span></span></label>
+        <label class="opt"><input type="checkbox" data-f="addon_staff_training"><i class="box"></i>
+          <span><span class="t">Staff onboarding &amp; hands-on training</span>
+          <span class="d">On-property session with your front desk.</span></span></label>
+      </div>
+      <p class="hint" style="margin-top:14px">Tick anything you want quoted. Nothing here is billed until you approve the quote.</p>
+    </div>
+  </section>
+
+  <!-- ─── STEP 3 ─────────────────────────────────────── -->
+  <section class="step" data-step="3" aria-labelledby="h3t">
+    <p class="eyebrow">Section 03 — Property</p>
+    <h1 id="h3t">Rooms &amp; outlets</h1>
+    <p class="lede">This builds your room matrix and floor plan. Get it roughly right now — we confirm every row with you before go-live.</p>
+
+    <div class="card">
+      <h3>Size</h3>
+      <div class="grid">
+        <label><span class="lab">Total number of rooms <span class="req">*</span></span>
+          <input type="number" data-f="total_rooms" min="0" max="2000" step="1" inputmode="numeric" placeholder="24">
+          <span class="err"></span></label>
+        <label><span class="lab">Number of floors</span>
+          <input type="number" data-f="total_floors" min="0" max="200" step="1" inputmode="numeric" placeholder="6"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Room matrix</h3>
+      <p class="hint" style="margin:-8px 0 18px">List each room with its floor, category and standard nightly rate. Use the generator below to add a whole floor at once, then edit individual rows.</p>
+
+      <div class="grid three" style="align-items:end;gap:12px;padding:16px;border:1px solid var(--line-2);background:var(--ink-2)">
+        <label><span class="lab">Floor</span><input type="number" id="genFloor" class="num" placeholder="3" min="0" max="200"></label>
+        <label><span class="lab">Room numbers from</span><input type="number" id="genFrom" class="num" placeholder="301"></label>
+        <label><span class="lab">To</span><input type="number" id="genTo" class="num" placeholder="310"></label>
+        <label><span class="lab">Category</span><input type="text" id="genCat" placeholder="Fountain Deluxe"></label>
+        <label><span class="lab">Nightly rate</span><span class="money"><input type="number" id="genRate" class="num" placeholder="4000" min="0" step="50"></span></label>
+        <button type="button" class="btn btn-ghost btn-sm" id="genAdd" style="height:44px">Add these rooms</button>
+      </div>
+
+      <div class="scroller" style="margin-top:20px">
+        <table class="tbl">
+          <thead><tr>
+            <th style="width:78px">Floor</th><th style="width:110px">Room no.</th>
+            <th>Category</th><th style="width:140px">Rate / night</th>
+            <th style="width:110px">Out of order</th><th style="width:40px"><span class="sr">Remove</span></th>
+          </tr></thead>
+          <tbody id="roomBody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:16px;flex-wrap:wrap">
+        <button type="button" class="btn btn-ghost btn-sm" id="roomAdd">+ Add one room</button>
+        <span class="mono" style="font-size:.66rem;letter-spacing:.14em;color:var(--bone-45);text-transform:uppercase" id="roomCount">0 rooms listed</span>
+        <span class="mono" id="roomWarn" style="font-size:.66rem;letter-spacing:.14em;color:var(--warn);text-transform:uppercase"></span>
+      </div>
+
+      <div style="margin-top:24px">
+        <span class="lab">Or upload your room list</span>
+        <div class="drop" data-kind="room_matrix" tabindex="0" role="button" aria-label="Upload room matrix file">
+          <span class="big">Drop a file or click to browse</span>
+          <span class="sm">Excel, CSV or PDF · up to 15 MB</span>
+        </div>
+        <ul class="filelist" data-list="room_matrix"></ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Point-of-sale outlets</h3>
+      <div class="opts two">
+        <label class="opt"><input type="checkbox" data-f="pos_restaurant"><i class="box"></i>
+          <span><span class="t">Restaurant / dining POS</span><span class="d">Menu, VAT and service charge.</span></span></label>
+        <label class="opt"><input type="checkbox" data-f="pos_laundry"><i class="box"></i>
+          <span><span class="t">Laundry services</span><span class="d">Charged to the guest folio.</span></span></label>
+        <label class="opt"><input type="checkbox" data-f="pos_minibar"><i class="box"></i>
+          <span><span class="t">Mini bar</span><span class="d">Per-room consumption posting.</span></span></label>
+        <label class="opt"><input type="checkbox" data-f="pos_transport"><i class="box"></i>
+          <span><span class="t">Airport transport</span><span class="d">Pickup and drop surcharges.</span></span></label>
+      </div>
+      <div class="grid" id="posRates" style="margin-top:18px" hidden>
+        <label><span class="lab">Restaurant VAT %</span>
+          <input type="number" data-f="restaurant_vat_pct" min="0" max="100" step="0.01" class="num" placeholder="5"></label>
+        <label><span class="lab">Restaurant service charge %</span>
+          <input type="number" data-f="restaurant_service_pct" min="0" max="100" step="0.01" class="num" placeholder="10"></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── STEP 4 ─────────────────────────────────────── -->
+  <section class="step" data-step="4" aria-labelledby="h4t">
+    <p class="eyebrow">Section 04 — Brand</p>
+    <h1 id="h4t">Your look</h1>
+    <p class="lede">This brands your CRM interface, your guest emails and — if you have taken the website add-on — your site.</p>
+
+    <div class="card">
+      <h3>Colour &amp; theme</h3>
+      <div class="grid">
+        <label><span class="lab">Primary accent colour</span>
+          <span class="swatch"><input type="color" id="c1" value="#d9a84e" aria-label="Pick primary colour">
+          <input type="text" data-f="brand_primary_color" placeholder="#D9A84E or 'gold'"></span>
+          <span class="hint">A hex code is ideal. A description works too.</span></label>
+        <label><span class="lab">Secondary colour</span>
+          <span class="swatch"><input type="color" id="c2" value="#0a1018" aria-label="Pick secondary colour">
+          <input type="text" data-f="brand_secondary_color" placeholder="#0A1018"></span></label>
+        <div class="full">
+          <span class="lab">Preferred theme</span>
+          <div class="opts two">
+            <label class="opt"><input type="radio" name="theme" data-f="brand_theme" value="dark"><i class="box"></i>
+              <span><span class="t">Dark mode</span><span class="d">Easier on the eyes on a night shift.</span></span></label>
+            <label class="opt"><input type="radio" name="theme" data-f="brand_theme" value="light"><i class="box"></i>
+              <span><span class="t">Light mode</span><span class="d">Better in a bright lobby.</span></span></label>
+          </div>
+        </div>
+        <label class="full"><span class="lab">Tagline / slogan</span>
+          <input type="text" data-f="tagline" placeholder="e.g. Luxury in comfort"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Logo</h3>
+      <div class="drop" data-kind="logo" tabindex="0" role="button" aria-label="Upload logo">
+        <span class="big">Drop your logo or click to browse</span>
+        <span class="sm">PNG, JPG, WEBP or SVG · highest resolution you have · up to 15 MB</span>
+      </div>
+      <ul class="filelist" data-list="logo"></ul>
+    </div>
+
+    <div class="card">
+      <h3>Photographs</h3>
+      <label><span class="lab">Photo folder link</span>
+        <input type="url" data-f="photos_url" inputmode="url" placeholder="Google Drive or Dropbox link">
+        <span class="hint">Rooms, reception, restaurant and amenities. Make sure the link is set so anyone with it can view.</span></label>
+    </div>
+  </section>
+
+  <!-- ─── STEP 5 ─────────────────────────────────────── -->
+  <section class="step" data-step="5" aria-labelledby="h5t">
+    <p class="eyebrow">Section 05 — Policies</p>
+    <h1 id="h5t">Billing &amp; house rules</h1>
+    <p class="lede">These become the automated rules in your guest folio. Get the tax percentages right — every invoice is calculated from them.</p>
+
+    <div class="card">
+      <h3>Check-in &amp; check-out</h3>
+      <div class="grid">
+        <label><span class="lab">Standard check-in time</span><input type="time" data-f="check_in_time"></label>
+        <label><span class="lab">Standard check-out time</span><input type="time" data-f="check_out_time"></label>
+        <label class="full"><span class="lab">Early check-in policy</span>
+          <textarea data-f="early_checkin_policy" placeholder="e.g. Free from 10:00 AM if the room is vacant, otherwise half rate."></textarea></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Late check-out</h3>
+      <div class="grid three">
+        <label><span class="lab">Free until</span><input type="time" data-f="late_grace_until">
+          <span class="hint">Grace period.</span></label>
+        <label><span class="lab">Part-day charge until</span><input type="time" data-f="late_partial_until"></label>
+        <label><span class="lab">Part-day amount</span>
+          <span class="money"><input type="number" data-f="late_partial_fee_bdt" min="0" step="50" class="num" placeholder="2000"></span></label>
+        <label class="full"><span class="lab">Full night charged after</span><input type="time" data-f="late_full_after" style="max-width:220px">
+          <span class="hint">Past this time the guest is charged a full night at the room rate.</span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Tax &amp; fees</h3>
+      <div class="grid">
+        <label><span class="lab">VAT %</span>
+          <input type="number" data-f="vat_pct" min="0" max="100" step="0.01" class="num" placeholder="7.5"></label>
+        <label><span class="lab">Service charge %</span>
+          <input type="number" data-f="service_charge_pct" min="0" max="100" step="0.01" class="num" placeholder="10"></label>
+      </div>
+      <div class="notice" id="taxPreview">Enter your rates and we will show a worked example.</div>
+    </div>
+
+    <div class="card">
+      <h3>Accepted payment methods</h3>
+      <div class="opts two">
+        <label class="opt"><input type="checkbox" data-f="pay_cash"><i class="box"></i>
+          <span><span class="t">Cash</span></span></label>
+        <label class="opt"><input type="checkbox" data-f="pay_mfs"><i class="box"></i>
+          <span><span class="t">bKash / Nagad / Rocket</span></span></label>
+        <label class="opt"><input type="checkbox" data-f="pay_card"><i class="box"></i>
+          <span><span class="t">Card (POS terminal)</span></span></label>
+        <label class="opt"><input type="checkbox" data-f="pay_bank"><i class="box"></i>
+          <span><span class="t">Bank transfer</span></span></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── STEP 6 ─────────────────────────────────────── -->
+  <section class="step" data-step="6" aria-labelledby="h6t">
+    <p class="eyebrow">Section 06 — Automation</p>
+    <h1 id="h6t">Reports &amp; accounts</h1>
+    <p class="lede">Who gets the nightly numbers, and who can sign in on day one.</p>
+
+    <div class="policy">
+      <h3>🔒 How we get access</h3>
+      <p class="never">We will never ask you for a password.</p>
+      <p>Not your Google, Facebook, hosting, domain, bank or email password — not on this form,
+         not on a call, not over WhatsApp. <strong style="color:var(--bone)">If anyone asks you
+         for one claiming to be us, it is not us.</strong> Nothing on this form is a credential.</p>
+      <p>When we need access to something you own, you grant it from inside your own account,
+         and you can withdraw it at any time without telling us:</p>
+      <div class="cols">
+        <div class="row"><span>Google Business</span><span>You add us as a <strong style="color:var(--bone)">Manager</strong> on your listing.</span></div>
+        <div class="row"><span>Analytics / Search Console</span><span>You add our email with a role. No password changes hands.</span></div>
+        <div class="row"><span>Facebook / Instagram</span><span>Partner access through your Business Portfolio.</span></div>
+        <div class="row"><span>Hosting / domain</span><span>A separate technical user — never your master login.</span></div>
+        <div class="row"><span>WhatsApp</span><span>Meta business authorisation, issued to us by you.</span></div>
+      </div>
+      <p style="margin-top:18px">We will walk you through each one during setup, and only for the
+         services your package actually uses. Nothing on this page needs any of it today.</p>
+    </div>
+
+    <div class="card">
+      <h3>Owner report</h3>
+      <div class="grid">
+        <label><span class="lab">Send the daily revenue report to</span>
+          <input type="email" data-f="owner_report_email" placeholder="owner@yourhotel.com">
+          <span class="err"></span></label>
+        <label><span class="lab">Delivery time</span>
+          <input type="time" data-f="owner_report_time">
+          <span class="hint">Most owners choose 21:00, after the day is settled.</span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>WhatsApp</h3>
+      <label><span class="lab">WhatsApp Business number</span>
+        <input type="tel" data-f="whatsapp_business_number" class="num" placeholder="+8801XXXXXXXXX" style="max-width:340px">
+        <span class="hint">The number that sends arrival and billing messages. Straight answer: fully automated WhatsApp needs a Meta-verified business number, which is still in progress — until then your front desk sends these with one tap.</span></label>
+    </div>
+
+    <div class="card">
+      <h3>Staff accounts to create</h3>
+      <p class="hint" style="margin:-8px 0 18px">Anyone who needs to sign in. You can add more later from inside the system.</p>
+      <div class="scroller">
+        <table class="tbl">
+          <thead><tr>
+            <th>Full name</th><th style="width:170px">Role</th><th>Email</th>
+            <th style="width:160px">Phone</th><th style="width:40px"><span class="sr">Remove</span></th>
+          </tr></thead>
+          <tbody id="staffBody"></tbody>
+        </table>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" id="staffAdd" style="margin-top:16px">+ Add a staff account</button>
+    </div>
+
+    <div class="card">
+      <h3>Anything else</h3>
+      <label><span class="lab">Notes for our team</span>
+        <textarea data-f="extra_notes" placeholder="Anything unusual about how you run the property, or anything you want us to know before we build."></textarea></label>
+    </div>
+  </section>
+
+  <!-- ─── STEP 7 ─────────────────────────────────────── -->
+  <section class="step" data-step="7" aria-labelledby="h7t">
+    <p class="eyebrow">Section 07 — Review</p>
+    <h1 id="h7t">Check &amp; submit</h1>
+    <p class="lede">Read it back once. After you submit, changes go through us rather than this form.</p>
+    <div id="reviewOut"></div>
+    <div class="notice bad" id="missingBox" hidden>
+      <strong style="color:var(--bone)">Still needed before you can submit</strong>
+      <ul id="missingList"></ul>
+    </div>
+    <div class="card" style="text-align:center">
+      <p style="color:var(--bone-70);font-size:.9rem;margin-bottom:20px">
+        By submitting you confirm these details are correct to the best of your knowledge.
+        We will contact you within two working days.</p>
+      <button type="button" class="btn btn-gold" id="submitBtn" style="min-width:260px">Submit setup details</button>
+    </div>
+  </section>
+
+  </form>
+</div>
+</main>
+
+<div class="navbar">
+  <div class="wrap navrow">
+    <button type="button" class="btn btn-ghost" id="backBtn">← Back</button>
+    <span class="spacer"></span>
+    <span class="cnt" id="stepCount"></span>
+    <button type="button" class="btn btn-gold" id="nextBtn">Continue →</button>
+  </div>
+</div>
+
+</div><!-- /#app -->
+
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="picker" hidden>
+
+<script>
+(function(){
+"use strict";
+
+var API   = "https://nqeaehcrcpakgoaawxyk.supabase.co/functions/v1/onboarding-api";
+var TOKEN = new URLSearchParams(location.search).get("t") || "";
+var STEPS = ["Hotel","Package","Property","Brand","Policies","Automation","Review"];
+var TOTAL = 7;
+
+var state = { sub:{}, rooms:[], staff:[], files:[] };
+var step = 1, dirtyScalar = false, dirtyRooms = false, dirtyStaff = false;
+var saveTimer = null, saving = false, queued = false;
+
+/* ── helpers ─────────────────────────────────────────── */
+var $  = function(s,r){ return (r||document).querySelector(s); };
+var $$ = function(s,r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function taka(n){
+  if(n===null||n===undefined||n==="") return null;
+  var v=Number(n); if(!isFinite(v)) return null;
+  return "৳"+v.toLocaleString("en-US",{maximumFractionDigits:2});
+}
+function bytes(n){ return n<1024?n+" B":n<1048576?(n/1024).toFixed(0)+" KB":(n/1048576).toFixed(1)+" MB"; }
+function hhmm(t){ return t?String(t).slice(0,5):null; }
+function toast(msg,bad){
+  var t=$("#toast"); t.textContent=msg; t.className=bad?"on bad":"on";
+  clearTimeout(t._h); t._h=setTimeout(function(){ t.className=""; },3800);
+}
+function setSave(s,txt){ var e=$("#saveState"); e.dataset.s=s; $("#saveText").textContent=txt; }
+
+function api(action, body){
+  return fetch(API+"?action="+action, {
+    method:"POST", headers:{"content-type":"application/json"},
+    body:JSON.stringify(Object.assign({token:TOKEN}, body||{}))
+  }).then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); });
+}
+
+/* ── gate screens ────────────────────────────────────── */
+function gate(icon,title,msg){
+  $("#boot").hidden=true; $("#app").hidden=true;
+  $("#gateIcon").textContent=icon; $("#gateTitle").textContent=title;
+  $("#gateMsg").textContent=msg; $("#gate").hidden=false;
+}
+var GATE = {
+  invalid_link:["!","Link not valid","This setup link is not recognised. Check you copied the whole link from your email, or ask us for a fresh one."],
+  link_expired:["⏱","Link expired","This setup link has passed its expiry date. Reply to our email and we will send you a new one — nothing you filled in is lost."],
+  link_revoked:["!","Link withdrawn","This setup link is no longer active. Please get in touch and we will issue a new one."],
+  no_token:["!","Setup link required","Open this page using the personal link we emailed you. It looks like growthos.fountainbd.com/onboarding?t=…"],
+  server_error:["!","Something went wrong","We could not load your form. Please refresh in a moment — if it keeps happening, reply to our email and we will sort it out."]
+};
+function gateBy(k){ var g=GATE[k]||GATE.server_error; gate(g[0],g[1],g[2]); }
+
+/* ── field binding ───────────────────────────────────── */
+function fieldEls(){ return $$("[data-f]"); }
+
+function applyState(){
+  fieldEls().forEach(function(el){
+    var k = el.dataset.f, v = state.sub[k];
+    if(el.type==="checkbox"){ el.checked = v===true; }
+    else if(el.type==="radio"){ el.checked = (v!=null && String(v)===el.value); }
+    else if(el.type==="time"){ el.value = hhmm(v)||""; }
+    else { el.value = (v==null?"":v); }
+  });
+  syncColorSwatches(); toggleConditionals(); paintChoices();
+  renderRooms(); renderStaff(); renderFiles(); taxPreview();
+}
+
+/* Mirror checked state onto a class. See the .sel note in the stylesheet — this
+   is what actually makes a selection visible on browsers without :has(). */
+function paintChoices(){
+  $$(".tier,.opt").forEach(function(l){
+    var i = l.querySelector("input");
+    if(!i) return;
+    l.classList.toggle("sel", i.checked);
+    if(i.type==="radio") l.classList.add("radio");
+  });
+}
+
+function collect(){
+  var out = {};
+  fieldEls().forEach(function(el){
+    var k = el.dataset.f;
+    if(el.type==="checkbox"){ out[k] = el.checked; }
+    else if(el.type==="radio"){ if(el.checked) out[k]=el.value; else if(!(k in out)) out[k]=out[k]||null; }
+    else { out[k] = el.value.trim()===""?null:el.value.trim(); }
+  });
+  return out;
+}
+
+/* ── autosave ────────────────────────────────────────── */
+function queueSave(){
+  dirtyScalar = true;
+  setSave("saving","Saving…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 1100);
+}
+
+function save(){
+  if(saving){ queued = true; return Promise.resolve(); }
+  if(!dirtyScalar && !dirtyRooms && !dirtyStaff){ return Promise.resolve(); }
+  saving = true; setSave("saving","Saving…");
+  var payload = { step: step, patch: collect() };
+  if(dirtyRooms) payload.rooms = state.rooms;
+  if(dirtyStaff) payload.staff = state.staff;
+  var hadRooms = dirtyRooms, hadStaff = dirtyStaff;
+  dirtyScalar = dirtyRooms = dirtyStaff = false;
+
+  return api("save", payload).then(function(r){
+    saving = false;
+    if(r.status === 409){ location.reload(); return; }
+    if(r.status === 422){
+      setSave("error","Check the highlighted fields");
+      (r.body.errors||[]).forEach(function(m){
+        var key = String(m).split(":")[0];
+        var el = document.querySelector('[data-f="'+key+'"]');
+        if(el){ el.classList.add("bad"); var e=el.parentElement.querySelector(".err");
+                if(e){ e.textContent = m.slice(key.length+2); e.classList.add("on"); } }
+      });
+      return;
+    }
+    if(!r.body || !r.body.ok){
+      dirtyScalar = true; dirtyRooms = dirtyRooms||hadRooms; dirtyStaff = dirtyStaff||hadStaff;
+      setSave("error","Not saved — retrying");
+      setTimeout(save, 4000); return;
+    }
+    Object.assign(state.sub, payload.patch);
+    setSave("saved","Saved");
+    if(queued){ queued=false; dirtyScalar=true; setTimeout(save,300); }
+  }).catch(function(){
+    saving=false;
+    dirtyScalar=true; dirtyRooms = dirtyRooms||hadRooms; dirtyStaff = dirtyStaff||hadStaff;
+    setSave("error","Offline — will retry");
+    setTimeout(save, 6000);
+  });
+}
+
+/* ── conditionals & live helpers ─────────────────────── */
+function toggleConditionals(){
+  var d = document.querySelector('[data-f="contact_designation"]');
+  $("#desigOtherWrap").hidden = !(d && d.value === "other");
+  var r = document.querySelector('[data-f="pos_restaurant"]');
+  $("#posRates").hidden = !(r && r.checked);
+}
+function syncColorSwatches(){
+  [["c1","brand_primary_color"],["c2","brand_secondary_color"]].forEach(function(p){
+    var picker=$("#"+p[0]), txt=document.querySelector('[data-f="'+p[1]+'"]');
+    if(!picker||!txt) return;
+    if(/^#[0-9a-fA-F]{6}$/.test(txt.value)) picker.value = txt.value.toLowerCase();
+  });
+}
+function taxPreview(){
+  var v = Number(state.sub.vat_pct)||0, s = Number(state.sub.service_charge_pct)||0;
+  var box = $("#taxPreview");
+  if(!v && !s){ box.textContent = "Enter your rates and we will show a worked example."; return; }
+  var base = 5000, sc = base*s/100, vt = (base+sc)*v/100;
+  box.innerHTML = 'On a <span class="mono">'+taka(base)+'</span> room night: service charge <span class="mono">'+
+    taka(Math.round(sc*100)/100)+'</span>, VAT <span class="mono">'+taka(Math.round(vt*100)/100)+
+    '</span>, guest pays <span class="mono" style="color:var(--gold)">'+taka(Math.round((base+sc+vt)*100)/100)+'</span>.'+
+    '<br><span style="font-size:.8rem;color:var(--bone-45)">VAT is applied after service charge. Tell us if your property does it the other way round.</span>';
+}
+
+/* ── room matrix ─────────────────────────────────────── */
+function roomRow(r,i){
+  var tr=document.createElement("tr");
+  if(r.is_out_of_order) tr.className="ooo";
+  tr.innerHTML =
+    '<td><input type="number" class="num" data-rf="floor" value="'+esc(r.floor==null?"":r.floor)+'" aria-label="Floor"></td>'+
+    '<td><input type="text" class="num" data-rf="room_number" value="'+esc(r.room_number||"")+'" aria-label="Room number" maxlength="20"></td>'+
+    '<td><input type="text" data-rf="category" value="'+esc(r.category||"")+'" placeholder="Deluxe" aria-label="Category"></td>'+
+    '<td><span class="money"><input type="number" class="num" data-rf="rate_bdt" min="0" step="50" value="'+esc(r.rate_bdt==null?"":r.rate_bdt)+'" aria-label="Nightly rate"></span></td>'+
+    '<td style="text-align:center"><input type="checkbox" data-rf="is_out_of_order" '+(r.is_out_of_order?"checked":"")+' aria-label="Out of order" style="width:17px;height:17px;accent-color:#D9A84E"></td>'+
+    '<td><button type="button" class="iconbtn" data-del="'+i+'" aria-label="Remove room '+esc(r.room_number||"")+'">×</button></td>';
+  return tr;
+}
+function updateRoomCount(){
+  var n=state.rooms.length, dec=Number(state.sub.total_rooms);
+  $("#roomCount").textContent = n+(n===1?" room listed":" rooms listed");
+  $("#roomWarn").textContent = (dec && n && n!==dec) ? "— you said "+dec+" total" : "";
+}
+function renderRooms(){
+  var b=$("#roomBody"); b.innerHTML="";
+  state.rooms.forEach(function(r,i){ b.appendChild(roomRow(r,i)); });
+  updateRoomCount();
+}
+function readRoomsFromDom(){
+  state.rooms = $$("#roomBody tr").map(function(tr){
+    var g=function(k){ return tr.querySelector('[data-rf="'+k+'"]'); };
+    return {
+      floor: g("floor").value===""?null:Number(g("floor").value),
+      room_number: g("room_number").value.trim(),
+      category: g("category").value.trim()||null,
+      rate_bdt: g("rate_bdt").value===""?null:Number(g("rate_bdt").value),
+      is_out_of_order: g("is_out_of_order").checked
+    };
+  }).filter(function(r){ return r.room_number !== ""; });
+  dirtyRooms = true;
+}
+
+/* ── staff ───────────────────────────────────────────── */
+var ROLES=[["owner","Owner"],["manager","Manager"],["front_desk","Front desk"],
+           ["accounts","Accounts"],["housekeeping","Housekeeping"]];
+function staffRow(s,i){
+  var tr=document.createElement("tr");
+  tr.innerHTML =
+    '<td><input type="text" data-sf="full_name" value="'+esc(s.full_name||"")+'" placeholder="Full name" aria-label="Staff name"></td>'+
+    '<td><select data-sf="role" aria-label="Role">'+ROLES.map(function(r){
+        return '<option value="'+r[0]+'"'+(s.role===r[0]?" selected":"")+'>'+r[1]+'</option>'; }).join("")+'</select></td>'+
+    '<td><input type="email" data-sf="email" value="'+esc(s.email||"")+'" placeholder="name@hotel.com" aria-label="Staff email"></td>'+
+    '<td><input type="tel" class="num" data-sf="phone" value="'+esc(s.phone||"")+'" placeholder="+8801…" aria-label="Staff phone"></td>'+
+    '<td><button type="button" class="iconbtn" data-sdel="'+i+'" aria-label="Remove staff row">×</button></td>';
+  return tr;
+}
+function renderStaff(){
+  var b=$("#staffBody"); b.innerHTML="";
+  state.staff.forEach(function(s,i){ b.appendChild(staffRow(s,i)); });
+}
+function readStaffFromDom(){
+  state.staff = $$("#staffBody tr").map(function(tr){
+    var g=function(k){ return tr.querySelector('[data-sf="'+k+'"]'); };
+    return { full_name:g("full_name").value.trim(), role:g("role").value,
+             email:g("email").value.trim()||null, phone:g("phone").value.trim()||null };
+  }).filter(function(s){ return s.full_name !== ""; });
+  dirtyStaff = true;
+}
+
+/* ── files ───────────────────────────────────────────── */
+function renderFiles(){
+  ["logo","room_matrix"].forEach(function(kind){
+    var ul=document.querySelector('[data-list="'+kind+'"]'); if(!ul) return;
+    var items = state.files.filter(function(f){ return f.kind===kind; });
+    ul.innerHTML = items.map(function(f){
+      return '<li><span class="fn">'+esc(f.original_name||"file")+'</span>'+
+             '<span class="fs">'+bytes(f.size_bytes||0)+'</span>'+
+             '<button type="button" class="iconbtn" data-fdel="'+esc(f.id)+'" aria-label="Remove file">×</button></li>';
+    }).join("");
+  });
+}
+function upload(kind, file){
+  if(file.size > 15*1024*1024){ toast("That file is larger than 15 MB.", true); return; }
+  setSave("saving","Uploading "+file.name+"…");
+  var fd=new FormData(); fd.append("token",TOKEN); fd.append("kind",kind); fd.append("file",file);
+  fetch(API+"?action=upload",{method:"POST",body:fd})
+    .then(function(r){ return r.json().then(function(j){ return {status:r.status,body:j}; }); })
+    .then(function(r){
+      if(!r.body.ok){ setSave("error","Upload failed"); toast(r.body.message||"That file could not be uploaded.",true); return; }
+      if(kind==="logo") state.files = state.files.filter(function(f){ return f.kind!=="logo"; });
+      state.files.push(r.body.file); renderFiles();
+      setSave("saved","Saved"); toast(file.name+" uploaded.");
+    })
+    .catch(function(){ setSave("error","Upload failed"); toast("Upload failed — check your connection.",true); });
+}
+
+/* ── review ──────────────────────────────────────────── */
+var DESIG={owner:"Owner",general_manager:"General Manager",operations_manager:"Operations Manager",
+           front_office_manager:"Front Office Manager",other:"Other"};
+var TIERS={starter:"Starter — ৳5,000 / month",growth:"Growth — ৳15,000 / month",
+           managed:"Managed growth — ৳30,000+ / month"};
+var ROLEMAP={}; ROLES.forEach(function(r){ ROLEMAP[r[0]]=r[1]; });
+
+function block(title, toStep, rows){
+  var body = rows.map(function(r){
+    var v = r[1];
+    var html = (v===null||v===undefined||v==="")
+      ? '<span class="empty">Not provided</span>'
+      : (r[2]==="mono" ? '<span class="mono">'+esc(v)+'</span>' : esc(v));
+    return '<div class="r"><dt>'+esc(r[0])+'</dt><dd>'+html+'</dd></div>';
+  }).join("");
+  return '<div class="card"><h3>'+esc(title)+
+         '<button type="button" class="editlink" data-goto="'+toStep+'">Edit</button></h3>'+
+         '<dl class="rev">'+body+'</dl></div>';
+}
+function yesList(pairs){
+  var on = pairs.filter(function(p){ return state.sub[p[0]]===true; }).map(function(p){ return p[1]; });
+  return on.length? on.join(" · ") : null;
+}
+function renderReview(){
+  var s = state.sub, out = [];
+
+  out.push(block("Hotel & contact",1,[
+    ["Hotel name", s.hotel_name],
+    ["Legal entity", s.legal_entity_name],
+    ["Address", [s.address_line,s.area,s.city,s.postcode].filter(Boolean).join(", ")||null],
+    ["Contact", s.contact_full_name],
+    ["Designation", s.contact_designation==="other" ? (s.contact_designation_other||"Other") : (DESIG[s.contact_designation]||null)],
+    ["Phone", s.contact_phone, "mono"],
+    ["WhatsApp", s.contact_whatsapp, "mono"],
+    ["Email", s.contact_email],
+    ["Website", s.existing_website],
+    ["Google profile", s.google_profile_url]
+  ]));
+
+  out.push(block("Package",2,[
+    ["Tier", TIERS[s.package_tier]||null],
+    ["Add-ons", yesList([["addon_website","Custom website"],["addon_whatsapp_api","WhatsApp API"],
+                         ["addon_review_engine","Review engine"],["addon_staff_training","Staff training"]])]
+  ]));
+
+  var roomsSummary = state.rooms.length
+    ? state.rooms.length+" rooms listed" +
+      (state.rooms.filter(function(r){return r.is_out_of_order;}).length
+        ? " ("+state.rooms.filter(function(r){return r.is_out_of_order;}).length+" out of order)" : "")
+    : null;
+  var cats = {};
+  state.rooms.forEach(function(r){ if(r.category) cats[r.category]=(cats[r.category]||0)+1; });
+  var catLine = Object.keys(cats).length
+    ? Object.keys(cats).map(function(c){ return c+" ×"+cats[c]; }).join(" · ") : null;
+  var rates = state.rooms.map(function(r){ return Number(r.rate_bdt); }).filter(function(n){ return n>0; });
+  var rateLine = rates.length
+    ? taka(Math.min.apply(null,rates))+" – "+taka(Math.max.apply(null,rates)) : null;
+
+  out.push(block("Property",3,[
+    ["Total rooms", s.total_rooms==null?null:String(s.total_rooms), "mono"],
+    ["Floors", s.total_floors==null?null:String(s.total_floors), "mono"],
+    ["Room matrix", roomsSummary],
+    ["Categories", catLine],
+    ["Rate range", rateLine, "mono"],
+    ["POS outlets", yesList([["pos_restaurant","Restaurant"],["pos_laundry","Laundry"],
+                             ["pos_minibar","Mini bar"],["pos_transport","Transport"]])],
+    ["Restaurant VAT / service", (s.restaurant_vat_pct!=null||s.restaurant_service_pct!=null)
+        ? (s.restaurant_vat_pct==null?"—":s.restaurant_vat_pct)+"% VAT · "+
+          (s.restaurant_service_pct==null?"—":s.restaurant_service_pct)+"% service" : null, "mono"],
+    ["Uploaded room list", state.files.filter(function(f){return f.kind==="room_matrix";})
+        .map(function(f){return f.original_name;}).join(", ")||null]
+  ]));
+
+  out.push(block("Brand",4,[
+    ["Primary colour", s.brand_primary_color, "mono"],
+    ["Secondary colour", s.brand_secondary_color, "mono"],
+    ["Theme", s.brand_theme? (s.brand_theme==="dark"?"Dark mode":"Light mode") : null],
+    ["Tagline", s.tagline],
+    ["Logo", state.files.filter(function(f){return f.kind==="logo";}).map(function(f){return f.original_name;})[0]||null],
+    ["Photos", s.photos_url]
+  ]));
+
+  var late = [];
+  if(s.late_grace_until) late.push("free until "+hhmm(s.late_grace_until));
+  if(s.late_partial_fee_bdt!=null) late.push(taka(s.late_partial_fee_bdt)+(s.late_partial_until?" until "+hhmm(s.late_partial_until):""));
+  if(s.late_full_after) late.push("full night after "+hhmm(s.late_full_after));
+
+  out.push(block("Policies & billing",5,[
+    ["Check-in", hhmm(s.check_in_time), "mono"],
+    ["Check-out", hhmm(s.check_out_time), "mono"],
+    ["Late check-out", late.length?late.join(" · "):null],
+    ["Early check-in", s.early_checkin_policy],
+    ["VAT", s.vat_pct==null?null:s.vat_pct+"%", "mono"],
+    ["Service charge", s.service_charge_pct==null?null:s.service_charge_pct+"%", "mono"],
+    ["Payment methods", yesList([["pay_cash","Cash"],["pay_mfs","bKash / Nagad / Rocket"],
+                                 ["pay_card","Card"],["pay_bank","Bank transfer"]])]
+  ]));
+
+  out.push(block("Automation & accounts",6,[
+    ["Daily report to", s.owner_report_email],
+    ["Report time", hhmm(s.owner_report_time), "mono"],
+    ["WhatsApp Business number", s.whatsapp_business_number, "mono"],
+    ["Staff accounts", state.staff.length
+        ? state.staff.map(function(a){ return a.full_name+" ("+(ROLEMAP[a.role]||a.role)+")"; }).join(" · ")
+        : null],
+    ["Notes", s.extra_notes]
+  ]));
+
+  $("#reviewOut").innerHTML = out.join("");
+
+  var missing = [];
+  if(!s.hotel_name) missing.push("Hotel / property name (step 1)");
+  if(!s.contact_full_name) missing.push("Primary contact name (step 1)");
+  if(!s.contact_phone) missing.push("Contact phone (step 1)");
+  if(!s.contact_email) missing.push("Contact email (step 1)");
+  if(!s.package_tier) missing.push("Package tier (step 2)");
+  if(s.total_rooms==null) missing.push("Total number of rooms (step 3)");
+  $("#missingBox").hidden = missing.length===0;
+  $("#missingList").innerHTML = missing.map(function(m){ return "<li>"+esc(m)+"</li>"; }).join("");
+  $("#submitBtn").disabled = missing.length>0;
+  return missing;
+}
+
+/* ── step navigation ─────────────────────────────────── */
+function stepComplete(n){
+  var s = state.sub;
+  if(n===1) return !!(s.hotel_name && s.contact_full_name && s.contact_phone && s.contact_email);
+  if(n===2) return !!s.package_tier;
+  if(n===3) return s.total_rooms!=null;
+  if(n===4) return !!(s.brand_theme || s.brand_primary_color || state.files.some(function(f){return f.kind==="logo";}));
+  if(n===5) return !!(s.check_in_time && s.check_out_time);
+  if(n===6) return !!s.owner_report_email || state.staff.length>0;
+  return false;
+}
+function buildRail(){
+  $("#rail").innerHTML = STEPS.map(function(t,i){
+    return '<li data-i="'+(i+1)+'"><button type="button" data-goto="'+(i+1)+'">'+
+           '<span class="mono">'+String(i+1).padStart(2,"0")+'</span> '+t+'</button></li>';
+  }).join("");
+}
+function paintRail(){
+  $$("#rail li").forEach(function(li){
+    var n = Number(li.dataset.i);
+    if(n===step) li.setAttribute("aria-current","step"); else li.removeAttribute("aria-current");
+    li.dataset.done = (n!==step && stepComplete(n)) ? "1" : "0";
+  });
+  $("#bar").style.width = (step/TOTAL*100)+"%";
+  var cur = $$("#rail li")[step-1];
+  if(cur) cur.scrollIntoView({block:"nearest",inline:"center"});
+}
+function goto(n, skipSave){
+  n = Math.max(1, Math.min(TOTAL, n));
+  var move = function(){
+    step = n;
+    $$(".step").forEach(function(s){ s.classList.toggle("on", Number(s.dataset.step)===n); });
+    paintRail();
+    $("#backBtn").style.visibility = n===1 ? "hidden" : "visible";
+    $("#nextBtn").hidden = n===TOTAL;
+    $("#stepCount").textContent = "Step "+n+" of "+TOTAL+" — "+STEPS[n-1];
+    if(n===TOTAL) renderReview();
+    window.scrollTo({top:0,behavior:"smooth"});
+    var h = $('.step[data-step="'+n+'"] h1'); if(h){ h.setAttribute("tabindex","-1"); h.focus({preventScroll:true}); }
+  };
+  if(skipSave){ move(); return; }
+  Object.assign(state.sub, collect());
+  save().then(move);
+}
+
+/* ── submit ──────────────────────────────────────────── */
+function submit(){
+  Object.assign(state.sub, collect());
+  var missing = renderReview();
+  if(missing.length){ toast("A few things are still needed.", true); return; }
+  var btn = $("#submitBtn"); btn.disabled = true; btn.textContent = "Submitting…";
+  save().then(function(){ return api("submit", { patch: collect() }); }).then(function(r){
+    if(r.body && r.body.ok){
+      window.onbeforeunload = null;
+      $("#app").hidden = true;
+      if(r.body.counts){
+        $("#doneMsg").textContent = "Thank you. We have your details — "+r.body.counts.rooms+
+          " rooms, "+r.body.counts.staff+" staff accounts and "+r.body.counts.files+
+          (r.body.counts.files===1?" file":" files")+" received.";
+      }
+      $("#done").hidden = false;
+      window.scrollTo(0,0);
+      return;
+    }
+    btn.disabled = false; btn.textContent = "Submit setup details";
+    if(r.body && r.body.error==="incomplete"){
+      $("#missingBox").hidden=false;
+      $("#missingList").innerHTML = (r.body.missing||[]).map(function(m){ return "<li>"+esc(m)+"</li>"; }).join("");
+      toast("A few things are still needed.", true);
+    } else {
+      toast("We could not submit just now. Your answers are saved — please try again.", true);
+    }
+  }).catch(function(){
+    btn.disabled=false; btn.textContent="Submit setup details";
+    toast("Connection problem. Your answers are saved — please try again.", true);
+  });
+}
+
+/* ── wiring ──────────────────────────────────────────── */
+function wire(){
+  buildRail();
+
+  document.addEventListener("input", function(e){
+    var t = e.target;
+    if(t.matches("[data-f]")){
+      t.classList.remove("bad");
+      var er=t.parentElement.querySelector(".err"); if(er) er.classList.remove("on");
+      if(t.dataset.f==="brand_primary_color"||t.dataset.f==="brand_secondary_color") syncColorSwatches();
+      if(t.dataset.f==="vat_pct"||t.dataset.f==="service_charge_pct"){
+        state.sub[t.dataset.f] = t.value===""?null:Number(t.value); taxPreview();
+      }
+      if(t.dataset.f==="total_rooms"){ state.sub.total_rooms = t.value===""?null:Number(t.value); renderRooms(); }
+      queueSave();
+    }
+    // Never re-render the table on keystroke — that would destroy focus mid-typing.
+    // Only the counter is refreshed.
+    if(t.matches("[data-rf]")){ readRoomsFromDom(); updateRoomCount(); queueSave(); }
+    if(t.matches("[data-sf]")){ readStaffFromDom(); queueSave(); }
+  });
+
+  document.addEventListener("change", function(e){
+    var t = e.target;
+    if(t.matches("[data-f]")){ toggleConditionals(); paintChoices(); queueSave(); }
+    if(t.matches('[data-rf="is_out_of_order"]')){
+      t.closest("tr").classList.toggle("ooo", t.checked); readRoomsFromDom(); queueSave();
+    }
+    if(t.matches("[data-sf]")){ readStaffFromDom(); queueSave(); }
+  });
+
+  $("#c1").addEventListener("input", function(){
+    var f=document.querySelector('[data-f="brand_primary_color"]'); f.value=this.value; queueSave(); });
+  $("#c2").addEventListener("input", function(){
+    var f=document.querySelector('[data-f="brand_secondary_color"]'); f.value=this.value; queueSave(); });
+
+  document.addEventListener("click", function(e){
+    var g = e.target.closest("[data-goto]");
+    if(g){ goto(Number(g.dataset.goto)); return; }
+    var d = e.target.closest("[data-del]");
+    if(d){ state.rooms.splice(Number(d.dataset.del),1); dirtyRooms=true; renderRooms(); queueSave(); return; }
+    var sd = e.target.closest("[data-sdel]");
+    if(sd){ state.staff.splice(Number(sd.dataset.sdel),1); dirtyStaff=true; renderStaff(); queueSave(); return; }
+    var fd = e.target.closest("[data-fdel]");
+    if(fd){
+      var id = fd.dataset.fdel;
+      api("file_delete",{file_id:id}).then(function(){
+        state.files = state.files.filter(function(f){ return f.id!==id; }); renderFiles(); toast("File removed.");
+      });
+      return;
+    }
+  });
+
+  $("#policyJump").addEventListener("click", function(e){
+    e.preventDefault(); goto(6);
+    setTimeout(function(){ var p=document.querySelector(".policy"); if(p) p.scrollIntoView({block:"center"}); }, 500);
+  });
+
+  $("#nextBtn").addEventListener("click", function(){ goto(step+1); });
+  $("#backBtn").addEventListener("click", function(){ goto(step-1); });
+  $("#submitBtn").addEventListener("click", submit);
+
+  $("#roomAdd").addEventListener("click", function(){
+    state.rooms.push({floor:null,room_number:"",category:null,rate_bdt:null,is_out_of_order:false});
+    dirtyRooms=true; renderRooms();
+    var last = $("#roomBody").lastElementChild; if(last) last.querySelector('[data-rf="room_number"]').focus();
+  });
+  $("#staffAdd").addEventListener("click", function(){
+    state.staff.push({full_name:"",role:"front_desk",email:null,phone:null});
+    dirtyStaff=true; renderStaff();
+    var last = $("#staffBody").lastElementChild; if(last) last.querySelector('[data-sf="full_name"]').focus();
+  });
+
+  $("#genAdd").addEventListener("click", function(){
+    var fl=$("#genFloor").value, from=parseInt($("#genFrom").value,10), to=parseInt($("#genTo").value,10);
+    var cat=$("#genCat").value.trim(), rate=$("#genRate").value;
+    if(!isFinite(from)){ toast("Enter the first room number.", true); return; }
+    if(!isFinite(to) || to<from) to = from;
+    if(to-from > 200){ toast("That is more than 200 rooms in one go — split it up.", true); return; }
+    var existing = {}; state.rooms.forEach(function(r){ existing[String(r.room_number).toLowerCase()]=1; });
+    var added=0;
+    for(var n=from;n<=to;n++){
+      if(existing[String(n).toLowerCase()]) continue;
+      state.rooms.push({ floor: fl===""?null:Number(fl), room_number:String(n),
+                         category:cat||null, rate_bdt: rate===""?null:Number(rate), is_out_of_order:false });
+      added++;
+    }
+    dirtyRooms=true; renderRooms(); queueSave();
+    toast(added? added+" rooms added." : "Those room numbers are already in the list.", added===0);
+    $("#genFrom").value=""; $("#genTo").value="";
+  });
+
+  /* uploads */
+  var pendingKind = null;
+  $$(".drop").forEach(function(z){
+    z.addEventListener("click", function(){ pendingKind=z.dataset.kind; $("#picker").click(); });
+    z.addEventListener("keydown", function(e){
+      if(e.key==="Enter"||e.key===" "){ e.preventDefault(); pendingKind=z.dataset.kind; $("#picker").click(); }});
+    ["dragenter","dragover"].forEach(function(ev){
+      z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.add("over"); }); });
+    ["dragleave","drop"].forEach(function(ev){
+      z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.remove("over"); }); });
+    z.addEventListener("drop", function(e){
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if(f) upload(z.dataset.kind, f);
+    });
+  });
+  $("#picker").addEventListener("change", function(){
+    if(this.files && this.files[0] && pendingKind) upload(pendingKind, this.files[0]);
+    this.value="";
+  });
+
+  $("#emailMe").addEventListener("click", function(){
+    var def = state.sub.contact_email || "";
+    var to = window.prompt("Where should we send your link back to?", def);
+    if(!to) return;
+    api("email_resume",{email:to}).then(function(r){
+      if(r.body && r.body.ok){
+        toast(r.body.mailed ? "Link sent to "+to+"." : "Copy this link to come back: "+r.body.link, !r.body.mailed);
+      } else { toast("That email address did not look right.", true); }
+    });
+  });
+
+  window.addEventListener("beforeunload", function(e){
+    if(dirtyScalar||dirtyRooms||dirtyStaff||saving){ e.preventDefault(); e.returnValue=""; }
+  });
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState==="hidden" && (dirtyScalar||dirtyRooms||dirtyStaff)) save();
+  });
+  $("#form").addEventListener("submit", function(e){ e.preventDefault(); });
+  $("#form").addEventListener("keydown", function(e){
+    if(e.key==="Enter" && e.target.tagName==="INPUT"){ e.preventDefault(); if(step<TOTAL) goto(step+1); }
+  });
+}
+
+/* ── boot ────────────────────────────────────────────── */
+if(!TOKEN){ gateBy("no_token"); return; }
+
+api("load").then(function(r){
+  if(!r.body || !r.body.ok){ gateBy(r.body && r.body.error); return; }
+  state.sub   = r.body.submission || {};
+  state.rooms = (r.body.rooms||[]).map(function(x){
+    return {floor:x.floor,room_number:x.room_number,category:x.category,
+            rate_bdt:x.rate_bdt,is_out_of_order:x.is_out_of_order}; });
+  state.staff = (r.body.staff||[]).map(function(x){
+    return {full_name:x.full_name,role:x.role,email:x.email,phone:x.phone}; });
+  state.files = r.body.files||[];
+
+  $("#boot").hidden = true;
+
+  if(state.sub.status === "submitted"){
+    $("#doneMsg").textContent = "You submitted these details on "+
+      new Date(state.sub.submitted_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})+
+      ". We are building your system.";
+    $("#done").hidden = false;
+    return;
+  }
+
+  $("#app").hidden = false;
+  wire();
+  applyState();
+  goto(Math.min(Number(state.sub.current_step)||1, 6), true);
+  setSave("saved", state.sub.last_saved_at ? "Progress restored" : "Ready");
+}).catch(function(){ gateBy("server_error"); });
+
+})();
+</script>
+</body>
+</html>
