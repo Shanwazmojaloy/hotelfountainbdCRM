@@ -50,6 +50,3 @@ static-deploy/crm_live.html
 # (device_bash cannot delete, only mv). Never commit these.
 _to_delete/
 
-# growth-os site + assets: NOT deployed from this repo (see growth_os_site_source_CORRECTION_2026_08_18)
-# real source lives in the separate growth-os-site Vercel project
-docs/growth-os/

@@ -1,0 +1,62 @@
+{
+  "name": "Growth OS — 1. Enroll prospects into the email sequence",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 3 * * 0,1,2,3,4" }
+          ]
+        }
+      },
+      "id": "trigger-enroll",
+      "name": "Every working day 09:00 Dhaka",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-460, 300],
+      "notes": "03:00 UTC = 09:00 Asia/Dhaka. Sun-Thu only: Fri/Sat is the Bangladesh weekend and cold email lands dead."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Enroll the next batch of contactable prospects.\n-- LIMIT is the warm-up throttle: raise it only on the schedule in dns-and-warmup.md.\n-- Never enrol a prospect twice (unique constraint on prospect_id+sequence_id) and never\n-- enrol one who already replied, opted out, or is already in a deal.\nwith seq as (\n  select id from public.sequences where name = 'Cold Email — BD Hotels v1' and is_active limit 1\n),\npicked as (\n  select p.id\n    from public.prospects p, seq\n   where p.email is not null\n     and p.do_not_contact = false\n     and p.status in ('new','researching')\n     and not exists (select 1 from public.sequence_enrollments e\n                      where e.prospect_id = p.id and e.sequence_id = seq.id)\n   order by p.score desc, p.rooms desc nulls last\n   limit $1\n)\ninsert into public.sequence_enrollments (prospect_id, sequence_id, current_step, status, next_send_at)\nselect picked.id, seq.id, 0, 'active', now()\n  from picked, seq\nreturning prospect_id;",
+        "options": {
+          "queryReplacement": "={{ $json.dailyCap || 20 }}"
+        }
+      },
+      "id": "enroll",
+      "name": "Enroll next batch",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-180, 300],
+      "credentials": {
+        "postgres": { "id": "GROWTH_PG", "name": "Growth OS Postgres" }
+      },
+      "notes": "dailyCap: set to 10 in warm-up week 1, 20 in week 2, 40 from week 3. Edit the pinned value on the Set node."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "enrolled", "value": "={{ $items().length }}", "type": "number" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "count",
+      "name": "Count enrolled",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [80, 300]
+    }
+  ],
+  "connections": {
+    "Every working day 09:00 Dhaka": { "main": [[{ "node": "Enroll next batch", "type": "main", "index": 0 }]] },
+    "Enroll next batch": { "main": [[{ "node": "Count enrolled", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "Asia/Dhaka" },
+  "pinData": {},
+  "meta": {
+    "description": "Feeds the cold email sequence. Picks the highest-ICP-score prospects that have a verified email address and are not already enrolled, and creates an active enrollment due immediately. The SENDER workflow (02) picks them up on its next run."
+  }
+}

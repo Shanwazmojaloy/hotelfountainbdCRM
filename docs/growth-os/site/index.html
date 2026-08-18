@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hotel Growth OS — Run smarter. Grow faster.</title>
+<meta name="description" content="The intelligent growth system connecting marketing, CRM, automation, guest engagement and revenue intelligence in one operating layer. Built and run daily at Hotel Fountain, Dhaka.">
+<meta property="og:title" content="Hotel Growth OS — Run smarter. Grow faster.">
+<meta property="og:description" content="One operating layer for the whole hotel. Built by hoteliers, proven daily at Hotel Fountain, Dhaka.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/og.jpg">
+<link rel="icon" type="image/png" href="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Bengali:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* HOTEL GROWTH OS v4 — Obsidian & Gold.
+   ONE accent: brand gold. Manrope heavy uppercase display, Plex Mono data/labels.
+   Content is never gated behind motion: everything is visible without JS. */
+:root{
+  --ink:#03070C; --ink-1:#070C14; --ink-2:#0C121C; --card:#0A1018;
+  --line:rgba(244,242,237,.10); --line-2:rgba(244,242,237,.06);
+  --bone:#F4F2ED; --bone-70:rgba(244,242,237,.72); --bone-45:rgba(244,242,237,.46);
+  --gold:#D9A84E; --gold-hi:#EFC66F; --gold-deep:#B4832C;
+  --gold-dim:rgba(217,168,78,.14);
+  --sans:'Manrope',system-ui,sans-serif;
+  --mono:'IBM Plex Mono','Noto Sans Bengali',ui-monospace,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--ink);color:var(--bone);font-family:var(--sans);font-weight:400;
+     font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.wrap{max-width:1280px;margin:0 auto;padding:0 28px}
+h1,h2,h3{font-weight:800;line-height:1.02;letter-spacing:-.02em;text-transform:uppercase}
+h1{font-size:clamp(2.6rem,6.6vw,5.4rem)}
+h2{font-size:clamp(2rem,4.6vw,3.7rem)}
+.gold{color:var(--gold)}
+a{color:inherit;text-decoration:none}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.68rem;letter-spacing:.34em;text-transform:uppercase;
+         color:var(--gold);display:flex;align-items:center;gap:14px;margin-bottom:1.8rem}
+.eyebrow::before{content:"";width:34px;height:1px;background:var(--gold);flex:none}
+.eyebrow.mid{justify-content:center}
+section{position:relative}
+.pad{padding:clamp(88px,11vw,150px) 0}
+.lede{color:var(--bone-70);font-size:1.05rem;max-width:60ch}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:.7rem;padding:1.05rem 2rem;font-family:var(--mono);
+     font-size:.7rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;
+     transition:transform .5s var(--ease),background .5s var(--ease),border-color .5s var(--ease),color .5s var(--ease)}
+.btn-gold{background:linear-gradient(135deg,var(--gold-hi),var(--gold-deep));color:#100C04;border:1px solid transparent}
+.btn-gold:hover{transform:translateY(-3px)}
+.btn-ghost{border:1px solid var(--gold);color:var(--gold);background:transparent}
+.btn-ghost:hover{background:var(--gold-dim);transform:translateY(-3px)}
+.btn-line{border-bottom:1px solid var(--gold);padding:0 0 .45rem;font-family:var(--mono);font-size:.7rem;
+          letter-spacing:.2em;text-transform:uppercase;display:inline-flex;gap:.6rem;align-items:center}
+.btn-row{display:flex;flex-wrap:wrap;gap:1.4rem;align-items:center;margin-top:2.8rem}
+
+/* header */
+header{position:fixed;inset:0 0 auto 0;z-index:90;border-bottom:1px solid var(--line-2);
+       background:rgba(3,7,12,.82);backdrop-filter:blur(16px)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:74px}
+.brand img{height:36px;width:auto;display:block}
+.brand .wordmark{display:block;font-family:var(--sans);font-weight:800;font-size:1.02rem;
+  letter-spacing:.15em;text-transform:uppercase;color:var(--bone);white-space:nowrap;
+  transition:opacity .4s var(--ease)}
+.brand .wordmark em{font-style:normal;color:var(--gold)}
+.brand:hover .wordmark{opacity:.80}
+@media(max-width:600px){.brand .wordmark{font-size:.80rem;letter-spacing:.10em}}
+.nav-links{display:none;gap:2.4rem;font-family:var(--mono);font-size:.64rem;letter-spacing:.22em;text-transform:uppercase}
+.nav-links a{color:var(--bone-70);transition:color .4s var(--ease)}
+.nav-links a:hover{color:var(--gold)}
+@media(min-width:1000px){.nav-links{display:flex}}
+.nav .btn{padding:.72rem 1.3rem;font-size:.62rem}
+@media(max-width:520px){.nav .btn{padding:.6rem .95rem;font-size:.56rem;letter-spacing:.14em}}
+
+/* hero */
+.hero{min-height:100svh;display:flex;align-items:center;padding:130px 0 70px;overflow:hidden;
+      background:radial-gradient(1100px 620px at 76% 30%,rgba(217,168,78,.13),transparent 62%),
+                 radial-gradient(800px 500px at 8% 90%,rgba(120,60,20,.14),transparent 65%),var(--ink)}
+.hero-grid{display:grid;gap:54px;align-items:center}
+@media(min-width:1000px){.hero-grid{grid-template-columns:1.05fr .95fr;gap:70px}}
+.hero h1{margin-bottom:1.9rem}
+.hero h1 .ln{display:block;overflow:hidden}
+.hero h1 .ln>span{display:inline-block}
+.hero-art{position:relative;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center}
+/* hero logo — the FULL lockup artwork on a continuous vertical-axis barrel roll.
+   18 Aug 2026: owner asked for the complete logo, uncropped, so the wordmark and
+   tagline that are baked into lockup-dark.webp are now shown. No CSS crop. */
+.hero-art{perspective:1400px;align-items:flex-start}
+.hero-art .glow{position:absolute;top:-4%;left:2%;right:2%;height:74%;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at 50% 46%,rgba(217,168,78,.20),rgba(217,168,78,.05) 44%,transparent 70%);
+  filter:blur(8px)}
+.hg-wrap{position:relative;width:113%;flex:0 0 auto;aspect-ratio:900/507;
+  transform-style:preserve-3d;will-change:transform;
+  opacity:0;animation:hgIn .9s var(--ease) .2s forwards, hgRoll 8s linear .2s infinite}
+.hg-wrap img{display:block;width:100%;height:auto}
+
+@keyframes hgIn{to{opacity:1}}
+/* Vertical axis (rotateY). Backface deliberately VISIBLE — the owner chose a true
+   physical spin, so the lockup reads reversed for half of each turn.
+   Linear timing on purpose: an eased loop visibly pulses at the seam. */
+@keyframes hgRoll{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}
+
+@media(max-width:1000px){.hg-wrap{width:92%}}
+
+@media(prefers-reduced-motion:reduce){
+  .hg-wrap{opacity:1;transform:none;animation:none}
+}
+.scroll-cue{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);font-family:var(--mono);
+  font-size:.58rem;letter-spacing:.3em;color:var(--bone-45);text-transform:uppercase}
+
+/* marquee */
+.marquee{border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2);overflow:hidden;
+         padding:1.1rem 0;background:var(--ink-1)}
+.mq-track{display:flex;gap:3rem;width:max-content}
+.mq-track span{font-family:var(--mono);font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;
+               color:var(--bone-45);white-space:nowrap}
+.mq-track b{color:var(--gold);font-weight:500}
+@media(prefers-reduced-motion:reduce){.mq-track{transform:none!important}}
+
+/* problem */
+.problem{background:var(--ink-1)}
+.chips{display:flex;flex-wrap:wrap;gap:.9rem;margin:3rem 0 3.4rem;max-width:900px}
+.chip{border:1px dashed rgba(244,242,237,.22);padding:.72rem 1.5rem;font-family:var(--mono);
+      font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--bone-45)}
+.chip:nth-child(2n){transform:rotate(-1.4deg)}
+.chip:nth-child(3n){transform:rotate(1.1deg)}
+
+/* pillars */
+.pillars{display:grid;gap:1px;background:var(--line-2);border:1px solid var(--line-2);margin-top:3.6rem}
+@media(min-width:760px){.pillars{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1080px){.pillars{grid-template-columns:repeat(5,1fr)}}
+.pillar{background:var(--ink);padding:2.4rem 1.9rem;transition:background .5s var(--ease)}
+.pillar:hover{background:var(--ink-2)}
+.pillar .n{font-family:var(--mono);font-size:.66rem;letter-spacing:.24em;color:var(--gold)}
+.pillar h3{font-size:1.12rem;margin:1.1rem 0 .7rem;letter-spacing:.02em}
+.pillar p{font-size:.9rem;color:var(--bone-70);line-height:1.65}
+
+/* product film */
+.film{background:var(--ink-1);border-top:1px solid var(--line-2)}
+.screen{margin-top:3.4rem;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+        background:var(--card);box-shadow:0 40px 90px rgba(0,0,0,.6)}
+.screen-bar{display:flex;align-items:center;gap:.5rem;padding:.8rem 1.1rem;border-bottom:1px solid var(--line-2);
+            background:rgba(255,255,255,.02)}
+.screen-bar i{width:9px;height:9px;border-radius:50%;background:rgba(244,242,237,.16);display:block}
+.screen-bar .u{margin-left:.9rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;color:var(--bone-45)}
+.screen video,.screen img{display:block;width:100%;height:auto}
+.film .cap{margin-top:1.3rem;font-family:var(--mono);font-size:.64rem;letter-spacing:.2em;
+           text-transform:uppercase;color:var(--bone-45)}
+
+/* journey rail */
+.journey{background:var(--ink);position:relative;overflow:hidden}
+.journey .flowbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.3;pointer-events:none}
+.journey .wrap{position:relative;z-index:2}
+.rail{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem 1rem;margin-top:4rem}
+@media(min-width:720px){.rail{grid-template-columns:repeat(5,1fr)}}
+@media(min-width:1080px){.rail{grid-template-columns:repeat(9,1fr);gap:1rem}}
+.step{text-align:center;position:relative}
+.step .dot{width:11px;height:11px;border-radius:50%;border:1px solid var(--gold);margin:0 auto 1.1rem;
+           background:var(--ink);position:relative;z-index:2}
+.step.on .dot{background:var(--gold);box-shadow:0 0 0 5px var(--gold-dim)}
+.step h4{font-family:var(--sans);font-weight:700;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase}
+.step p{font-family:var(--mono);font-size:.6rem;color:var(--bone-45);margin-top:.35rem;letter-spacing:.06em}
+.railline{position:absolute;top:5px;left:6%;right:6%;height:1px;background:var(--line);display:none}
+@media(min-width:1080px){.railline{display:block}.railline i{display:block;height:100%;width:0;background:var(--gold)}}
+
+/* dashboard */
+.intel{background:var(--ink-1);border-top:1px solid var(--line-2)}
+.panel{margin-top:3.6rem;border:1px solid var(--line);background:var(--card)}
+.panel-head{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center;justify-content:space-between;
+            padding:1.2rem 1.6rem;border-bottom:1px solid var(--line-2)}
+.panel-head h3{font-size:.86rem;letter-spacing:.16em}
+.panel-head .tag{font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;color:var(--gold);
+                 border:1px solid var(--gold-dim);padding:.32rem .8rem;text-transform:uppercase}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line-2)}
+@media(min-width:700px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);padding:1.7rem 1.5rem}
+.kpi .k{font-family:var(--mono);font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-45)}
+.kpi .v{font-family:var(--mono);font-weight:500;font-size:1.75rem;margin:.5rem 0 .3rem;letter-spacing:-.02em}
+.kpi .d{font-family:var(--mono);font-size:.6rem;color:var(--gold);letter-spacing:.06em}
+.kpi .d.dn{color:#7FBF8A}
+.chart{padding:2rem 1.6rem;border-top:1px solid var(--line-2)}
+.chart .lbl{font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-45)}
+.bars{display:flex;align-items:flex-end;gap:.55rem;height:170px;margin:1.5rem 0 .7rem}
+.bars i{flex:1;background:linear-gradient(180deg,var(--gold),rgba(217,168,78,.28));display:block;
+        transform-origin:bottom;height:var(--h)}
+.months{display:flex;gap:.55rem;font-family:var(--mono);font-size:.56rem;color:var(--bone-45);letter-spacing:.1em}
+.months span{flex:1;text-align:center}
+
+/* results */
+.results{background:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line-2);
+       border:1px solid var(--line-2);margin-top:3.4rem}
+@media(min-width:900px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--ink);padding:2.6rem 1.6rem;text-align:center}
+.stat b{display:block;font-family:var(--mono);font-weight:500;font-size:clamp(2.1rem,4.4vw,3.1rem);
+        color:var(--gold);letter-spacing:-.03em;line-height:1}
+.stat span{display:block;font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;
+           text-transform:uppercase;color:var(--bone-45);margin-top:.85rem}
+
+/* proof */
+.proof{background:var(--ink-1);border-top:1px solid var(--line-2)}
+.proof-grid{display:grid;gap:52px}
+@media(min-width:960px){.proof-grid{grid-template-columns:.95fr 1.05fr;gap:72px}}
+.ba{border:1px solid var(--line);display:grid}
+@media(min-width:620px){.ba{grid-template-columns:1fr 1fr}}
+.ba>div{padding:2rem 1.8rem}
+.ba>div:first-child{border-bottom:1px solid var(--line-2)}
+@media(min-width:620px){.ba>div:first-child{border-bottom:0;border-right:1px solid var(--line-2)}}
+.ba h4{font-family:var(--mono);font-weight:500;font-size:.64rem;letter-spacing:.24em;text-transform:uppercase;
+       color:var(--gold);margin-bottom:1.1rem}
+.ba ul{list-style:none;font-size:.9rem;color:var(--bone-70)}
+.ba li{padding:.55rem 0;border-bottom:1px solid var(--line-2)}
+.ba li:last-child{border-bottom:0}
+
+/* pricing */
+.pricing{background:var(--ink)}
+.prices{display:grid;gap:1.2rem;margin-top:3.6rem}
+@media(min-width:960px){.prices{grid-template-columns:repeat(3,1fr)}}
+.price{border:1px solid var(--line);background:var(--card);padding:2.5rem 2.1rem;display:flex;flex-direction:column;
+       transition:transform .55s var(--ease),border-color .55s var(--ease)}
+.price:hover{transform:translateY(-5px);border-color:rgba(217,168,78,.4)}
+.price.featured{border-color:var(--gold);background:linear-gradient(180deg,rgba(217,168,78,.07),var(--card) 45%)}
+.price .tag{font-family:var(--mono);font-size:.6rem;letter-spacing:.24em;text-transform:uppercase;color:var(--bone-45)}
+.price.featured .tag{color:var(--gold)}
+.price .amt{font-family:var(--mono);font-weight:500;font-size:2.1rem;margin-top:1rem;letter-spacing:-.03em}
+.price .amt small{font-family:var(--sans);font-weight:400;font-size:.8rem;color:var(--bone-45);letter-spacing:0}
+.price ul{list-style:none;margin:1.7rem 0 1.9rem;font-size:.9rem;color:var(--bone-70);flex:1}
+.price li{padding:.4rem 0 .4rem 1.3rem;position:relative}
+.price li::before{content:"";position:absolute;left:0;top:1.05em;width:7px;height:1px;background:var(--gold)}
+.price .fit{font-size:.78rem;color:var(--bone-45);border-top:1px solid var(--line-2);padding-top:1.1rem;margin-bottom:1.4rem}
+.price .btn{justify-content:center}
+.pilot{margin-top:2.6rem;border:1px dashed rgba(217,168,78,.4);padding:1.6rem 2rem;
+       display:flex;flex-wrap:wrap;gap:1.2rem 3rem;align-items:baseline}
+.pilot b{font-family:var(--mono);font-weight:500;font-size:1.1rem;color:var(--gold)}
+.pilot span{font-size:.85rem;color:var(--bone-45)}
+
+/* faq */
+.faq{background:var(--ink-1);border-top:1px solid var(--line-2)}
+details{border-bottom:1px solid var(--line-2);padding:1.5rem 0}
+summary{cursor:pointer;font-weight:600;font-size:1rem;list-style:none;display:flex;justify-content:space-between;gap:1.5rem}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-family:var(--mono);color:var(--gold);transition:transform .45s var(--ease)}
+details[open] summary::after{transform:rotate(45deg)}
+details p{margin-top:.9rem;font-size:.92rem;color:var(--bone-70);max-width:70ch}
+
+/* cta */
+.cta{background:radial-gradient(900px 480px at 50% 4%,rgba(217,168,78,.16),transparent 64%),var(--ink);
+     text-align:center;border-top:1px solid var(--line-2)}
+.cta h2{max-width:16ch;margin:0 auto 1.2rem}
+.cta .lede{margin:0 auto}
+.cta .btn-row{justify-content:center}
+.cta .tel{margin-top:2rem;font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;color:var(--bone-45)}
+
+/* footer */
+footer{background:#01040A;padding:70px 0 48px;text-align:center;border-top:1px solid var(--line-2);color:var(--bone-45)}
+footer img{width:min(70%,300px);height:auto;margin-bottom:1.9rem}
+footer .rule{width:56px;height:1px;background:var(--gold);margin:0 auto 1.8rem}
+footer .fine{font-size:.82rem}
+footer .fine a{color:var(--bone-70)}
+footer .legal{margin-top:1.4rem;font-family:var(--mono);font-size:.58rem;letter-spacing:.2em;text-transform:uppercase}
+
+/* reveal targets are VISIBLE by default; JS animates only under no-preference */
+.r{will-change:transform}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top" aria-label="Hotel Growth OS">
+      <span class="wordmark">Hotel <em>Growth</em> OS</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#platform">Platform</a>
+      <a href="#system">The System</a>
+      <a href="#automation">Automation</a>
+      <a href="#intelligence">Intelligence</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+    <a class="btn btn-ghost" href="#demo">Book a demo</a>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <h1 id="hero-h">
+          <span class="ln"><span>Run your hotel</span></span>
+          <span class="ln"><span>smarter.</span></span>
+          <span class="ln"><span class="gold">Grow faster.</span></span>
+        </h1>
+        <p class="lede r">The intelligent growth system connecting marketing, CRM, automation, guest engagement and revenue intelligence in one operating layer.</p>
+        <div class="btn-row r">
+          <a class="btn btn-gold" href="#demo">Book a growth demo &nbsp;→</a>
+          <a class="btn-line" href="#platform">Explore the OS &nbsp;↓</a>
+        </div>
+      </div>
+      <div class="hero-art r" id="hero-art">
+        <div class="glow" aria-hidden="true"></div>
+        <div class="hg-wrap">
+          <img src="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/lockup-dark.webp" alt="Hotel Growth OS" width="900" height="507" fetchpriority="high">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-cue">Scroll</div>
+</section>
+
+<div class="marquee" aria-hidden="true">
+  <div class="mq-track" id="mq">
+    <span>Run smarter <b>·</b> Grow faster <b>·</b> One operating layer <b>·</b> Built at Hotel Fountain, Dhaka <b>·</b> Reservation-centric <b>·</b> BDT pricing <b>·</b> </span><span>Run smarter <b>·</b> Grow faster <b>·</b> One operating layer <b>·</b> Built at Hotel Fountain, Dhaka <b>·</b> Reservation-centric <b>·</b> BDT pricing <b>·</b> </span>
+  </div>
+</div>
+
+<section id="problem" class="problem">
+  <div class="wrap pad">
+    <div class="eyebrow r">01 — The problem</div>
+    <h2 class="r">Your hotel has<br>enough tools.</h2>
+    <div class="chips r">
+      <span class="chip">Marketing</span><span class="chip">CRM</span><span class="chip">Booking</span>
+      <span class="chip">WhatsApp</span><span class="chip">Analytics</span><span class="chip">OTA</span><span class="chip">Revenue</span>
+    </div>
+    <h2 class="gold r">It needs one system.</h2>
+  </div>
+</section>
+
+<section id="platform" class="pad" style="background:var(--ink)">
+  <div class="wrap">
+    <div class="eyebrow r">02 — The OS</div>
+    <h2 class="r">One operating layer.<br><span class="gold">Every growth channel.</span></h2>
+    <p class="lede r" style="margin-top:1.4rem">Five connected disciplines, one system of record. Every guest signal flows through the same operating core — nothing is lost between tools.</p>
+    <div class="pillars">
+      <div class="pillar r"><div class="n">01</div><h3>Attract</h3><p>Campaigns, channels and demand generation in one view.</p></div>
+      <div class="pillar r"><div class="n">02</div><h3>Capture</h3><p>Every enquiry lands in the CRM — web, phone, WhatsApp, OTA.</p></div>
+      <div class="pillar r"><div class="n">03</div><h3>Convert</h3><p>Follow-up turns enquiries into confirmed direct bookings.</p></div>
+      <div class="pillar r"><div class="n">04</div><h3>Retain</h3><p>Guest engagement that brings visitors back without discounts.</p></div>
+      <div class="pillar r"><div class="n">05</div><h3>Optimize</h3><p>Revenue intelligence tunes rate, mix and spend continuously.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="system" class="film">
+  <div class="wrap pad">
+    <div class="eyebrow r">03 — The real system</div>
+    <h2 class="r">Not a mockup.<br><span class="gold">The software we run.</span></h2>
+    <p class="lede r" style="margin-top:1.4rem">This is Hotel Growth OS running at Hotel Fountain — front desk, floor plan, reservations, room setup, restaurant point of sale and the owner dashboard. Recorded from the live system, not a prototype.</p>
+    <div class="screen r">
+      <div class="screen-bar">
+        <i></i><i></i><i></i>
+        <span class="u mono">hotel growth os · live capture</span>
+      </div>
+      <video id="product-video" muted loop playsinline preload="metadata"
+             poster="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/product-poster.jpg">
+        <source src="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/product.webm" type="video/webm">
+        <source src="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/product.mp4" type="video/mp4">
+      </video>
+    </div>
+    <p class="cap r">Live capture · Hotel Fountain, Dhaka · 24 rooms</p>
+  </div>
+</section>
+
+<section id="automation" class="journey">
+  <video class="flowbg" id="flow-video" muted loop playsinline preload="none" aria-hidden="true"></video>
+  <div class="wrap pad">
+    <div class="eyebrow mid r" style="justify-content:center">04 — Automation</div>
+    <h2 class="r" style="text-align:center">From first click<br><span class="gold">to repeat guest.</span></h2>
+    <p class="lede r" style="text-align:center;margin:1.4rem auto 0">The guest journey runs itself. Every step hands off to the next automatically — no lead waits, no follow-up is forgotten.</p>
+    <div class="rail" id="rail">
+      <div class="railline"><i id="railfill"></i></div>
+      <div class="step r"><div class="dot"></div><h4>Website</h4><p>first click</p></div>
+      <div class="step r"><div class="dot"></div><h4>Lead</h4><p>captured</p></div>
+      <div class="step r"><div class="dot"></div><h4>CRM</h4><p>profiled</p></div>
+      <div class="step r"><div class="dot"></div><h4>Follow-up</h4><p>prompted</p></div>
+      <div class="step r"><div class="dot"></div><h4>Booking</h4><p>confirmed</p></div>
+      <div class="step r"><div class="dot"></div><h4>Stay</h4><p>on property</p></div>
+      <div class="step r"><div class="dot"></div><h4>Review</h4><p>requested</p></div>
+      <div class="step r"><div class="dot"></div><h4>Retention</h4><p>engaged</p></div>
+      <div class="step r"><div class="dot"></div><h4>Repeat</h4><p>returns direct</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="intelligence" class="intel">
+  <div class="wrap pad">
+    <div class="eyebrow r">05 — Revenue intelligence</div>
+    <h2 class="r">See the signal.<br><span class="gold">Act on it.</span></h2>
+    <p class="lede r" style="margin-top:1.4rem">Occupancy, rate and channel data resolve into one live picture — so pricing and marketing decisions happen in hours, not quarters.</p>
+
+    <div class="panel r">
+      <div class="panel-head">
+        <h3>Revenue Command</h3>
+        <span class="tag mono">Sample view · last 30 days</span>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="k">Occupancy</div><div class="v mono" data-count="82.4" data-suffix="%">82.4%</div><div class="d">▲ 6.2 pts</div></div>
+        <div class="kpi"><div class="k">ADR</div><div class="v mono">৳5,420</div><div class="d">▲ 8.1%</div></div>
+        <div class="kpi"><div class="k">RevPAR</div><div class="v mono">৳4,444</div><div class="d">▲ 14.9%</div></div>
+        <div class="kpi"><div class="k">Direct booking</div><div class="v mono" data-count="38.6" data-prefix="+" data-suffix="%">+38.6%</div><div class="d">▲ share of total</div></div>
+        <div class="kpi"><div class="k">OTA dependency</div><div class="v mono">−21.3%</div><div class="d dn">▼ commission paid</div></div>
+        <div class="kpi"><div class="k">Marketing ROI</div><div class="v mono">3.2×</div><div class="d">▲ blended return</div></div>
+        <div class="kpi"><div class="k">Conversion</div><div class="v mono">4.7%</div><div class="d">▲ 1.1 pts</div></div>
+        <div class="kpi"><div class="k">Repeat guests</div><div class="v mono">+24.8%</div><div class="d">▲ returning direct</div></div>
+      </div>
+      <div class="chart">
+        <div class="lbl">Direct booking revenue — trailing 12 months</div>
+        <div class="bars" id="bars">
+          <i style="--h:26%"></i><i style="--h:34%"></i><i style="--h:30%"></i><i style="--h:42%"></i>
+          <i style="--h:48%"></i><i style="--h:44%"></i><i style="--h:57%"></i><i style="--h:63%"></i>
+          <i style="--h:59%"></i><i style="--h:74%"></i><i style="--h:86%"></i><i style="--h:100%"></i>
+        </div>
+        <div class="months mono">
+          <span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span>
+          <span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="results" class="results">
+  <div class="wrap pad">
+    <div class="eyebrow r">06 — What the OS is built to move</div>
+    <h2 class="r">The numbers<br><span class="gold">we tune for.</span></h2>
+    <p class="lede r" style="margin-top:1.4rem">Target outcomes we set with every hotel we onboard, and measure with you from day one. Your baseline and your results will be your own — we report them honestly, including when they miss.</p>
+    <div class="stats">
+      <div class="stat r"><b class="mono" data-count="38.6" data-prefix="+" data-suffix="%">+38.6%</b><span>direct bookings</span></div>
+      <div class="stat r"><b class="mono" data-count="24.8" data-prefix="+" data-suffix="%">+24.8%</b><span>repeat guests</span></div>
+      <div class="stat r"><b class="mono" data-count="3.2" data-suffix="×">3.2×</b><span>marketing ROI</span></div>
+      <div class="stat r"><b class="mono" data-count="68" data-prefix="−" data-suffix="%">−68%</b><span>manual follow-up</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="proof" class="proof">
+  <div class="wrap pad">
+    <div class="eyebrow r">07 — The proof</div>
+    <div class="proof-grid">
+      <div>
+        <h2 class="r">Hotel Fountain, Dhaka.<br><span class="gold">Customer zero.</span></h2>
+        <p class="lede r" style="margin-top:1.4rem">We own and run Hotel Fountain. It is the first and hardest customer this system ever had: if a screen is slow or a balance is wrong, our own staff are the ones standing at the desk with a guest.</p>
+        <div class="stats r" style="grid-template-columns:repeat(3,1fr);margin-top:2.6rem">
+          <div class="stat" style="padding:1.7rem 1rem"><b class="mono" data-count="24">24</b><span>rooms live daily</span></div>
+          <div class="stat" style="padding:1.7rem 1rem"><b class="mono" data-count="6">6</b><span>modules, one DB</span></div>
+          <div class="stat" style="padding:1.7rem 1rem"><b class="mono" data-count="0">0</b><span>registers left</span></div>
+        </div>
+      </div>
+      <div class="ba r">
+        <div>
+          <h4>Before</h4>
+          <ul>
+            <li>Reservations in a register, payments in a second one</li>
+            <li>Occupancy known only after night audit</li>
+            <li>Dues rebuilt by hand each month</li>
+            <li>Guest history lived in the manager's memory</li>
+            <li>Every confirmation typed by hand</li>
+          </ul>
+        </div>
+        <div>
+          <h4>After</h4>
+          <ul>
+            <li>One record carries room, folio and payments</li>
+            <li>Occupancy visible at any hour</li>
+            <li>Dues reconcile automatically</li>
+            <li>Returning guests recognised at the desk</li>
+            <li>Confirmations sent for you, review requests one tap away</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing" class="pricing">
+  <div class="wrap pad">
+    <div class="eyebrow r">08 — Pricing</div>
+    <h2 class="r">Priced for Bangladeshi hotels,<br><span class="gold">not imported software.</span></h2>
+    <p class="lede r" style="margin-top:1.4rem">Month to month. No lock-in contract. Setup and staff training are one-time and quoted before you commit.</p>
+
+    <div class="prices">
+      <div class="price r">
+        <div class="tag">Starter</div>
+        <div class="amt mono">৳5,000 <small>/ month</small></div>
+        <ul>
+          <li>Front desk and reservations</li>
+          <li>Room matrix and housekeeping</li>
+          <li>Guest CRM</li>
+          <li>Billing and guest ledger</li>
+          <li>Core reports</li>
+        </ul>
+        <div class="fit">Best for 10–30 rooms</div>
+        <a class="btn btn-ghost" href="#demo">Start here</a>
+      </div>
+
+      <div class="price featured r">
+        <div class="tag">Growth — most chosen</div>
+        <div class="amt mono">৳15,000 <small>/ month</small></div>
+        <ul>
+          <li>Everything in Starter</li>
+          <li>One-tap WhatsApp guest messaging</li>
+          <li>Review requests sent automatically by email</li>
+          <li>Nightly owner report by email</li>
+          <li>Revenue and occupancy dashboard</li>
+        </ul>
+        <div class="fit">Best for 30–80 rooms</div>
+        <a class="btn btn-gold" href="#demo">Book a demo</a>
+      </div>
+
+      <div class="price r">
+        <div class="tag">Managed growth</div>
+        <div class="amt mono">৳30,000+ <small>/ month</small></div>
+        <ul>
+          <li>Everything in Growth</li>
+          <li>Social content produced for you</li>
+          <li>Google Business management</li>
+          <li>Review response handling</li>
+          <li>Monthly performance review call</li>
+        </ul>
+        <div class="fit">Best for owners without a marketing team</div>
+        <a class="btn btn-ghost" href="#demo">Talk to us</a>
+      </div>
+    </div>
+
+    <div class="pilot r">
+      <div><b class="mono">৳20,000</b> <span>pilot setup — normally <s>৳50,000</s></span></div>
+      <div><b>Included</b> <span>migration &amp; staff training</span></div>
+      <div><b>Any time</b> <span>cancellation, data exported</span></div>
+      <span style="flex-basis:100%;font-style:italic">Limited pilot slots, in exchange for honest feedback and a testimonial once you are running.</span>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="faq">
+  <div class="wrap pad">
+    <div class="eyebrow r">09 — Straight answers</div>
+    <h2 class="r">What owners<br><span class="gold">ask us first.</span></h2>
+    <div class="r" style="margin-top:2.6rem;max-width:76ch">
+      <details><summary>Will my staff actually use it?</summary><p>That is the real question, and it is why training is included rather than sold separately. The front desk screen was designed against our own staff — people who had used a paper register for years. If a screen needs explaining twice, we change the screen.</p></details>
+      <details><summary>What happens to our existing data?</summary><p>We migrate your current guest list and open reservations during setup. You keep your registers running in parallel for the first two weeks — nobody jumps without a net.</p></details>
+      <details><summary>Do we need fast internet?</summary><p>It runs in a normal browser on a normal broadband line. No server to buy, no software to install on each machine.</p></details>
+      <details><summary>How does the WhatsApp messaging work?</summary><p>Straight answer: it is one tap, not a robot. Booking confirmations go out by email automatically, and your front desk sends WhatsApp confirmations, check-in details and review requests from the guest record with a single tap — the message is written for them. Fully automated WhatsApp needs a Meta-verified business number, which we are working through; we will tell you when it is live rather than bill you for it now.</p></details>
+      <details><summary>Is our guest data safe?</summary><p>Each hotel's data is isolated at the database level. Staff see only what their role allows, and deletions are restricted to admin accounts and logged.</p></details>
+      <details><summary>What if we want to leave?</summary><p>Month to month. Give us notice and we export your data in a standard format. We would rather earn the next month than trap you into it.</p></details>
+      <details><summary>Can it connect to Booking.com and Agoda?</summary><p>Channel sync is on the roadmap and partly built. We will tell you exactly what is live today rather than promise it in a demo — ask during the call.</p></details>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="cta">
+  <div class="wrap pad">
+    <div class="eyebrow mid r" style="justify-content:center">10 — Next step</div>
+    <h2 class="r">Run smarter.<br><span class="gold">Grow faster.</span></h2>
+    <p class="lede r">Build a hotel growth engine that works while your team focuses on the guest. Fifteen minutes, the real system, no slides.</p>
+    <div class="btn-row r">
+      <a class="btn btn-gold" id="wa-cta" href="#">Message us on WhatsApp &nbsp;→</a>
+      <a class="btn btn-ghost" id="mail-cta" href="#">Email us</a>
+    </div>
+    <p class="tel r">Or call <span id="tel-text"></span> · 10:00–20:00</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <img src="https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/lockup-dark.webp" alt="Hotel Growth OS" loading="lazy" width="900" height="507">
+    <div class="rule"></div>
+    <p class="fine">Built and operated by the team at <a href="https://fountainbd.com">Hotel Fountain</a>, Dhaka · Bangladesh</p>
+    <p class="legal">Run smarter · Grow faster · BDT pricing · <span id="year"></span></p>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script>
+/* CONFIG — content never depends on JS; this only fills links and adds motion. */
+const CONFIG = {
+  whatsapp: "8801768880806",
+  email:    "shanwazahmed@fountainbd.com",
+  phoneDisplay: "+880 1768 880806",
+  waMessage: "Hi, I run a hotel and saw Hotel Growth OS. I would like to see the 15-minute demo.",
+  cdn: "https://nqeaehcrcpakgoaawxyk.supabase.co/storage/v1/object/public/brand/"
+};
+document.getElementById('wa-cta').href =
+  "https://wa.me/" + CONFIG.whatsapp + "?text=" + encodeURIComponent(CONFIG.waMessage);
+document.getElementById('mail-cta').href =
+  "mailto:" + CONFIG.email + "?subject=" + encodeURIComponent("Demo request — Hotel Growth OS");
+document.getElementById('tel-text').textContent = CONFIG.phoneDisplay;
+document.getElementById('year').textContent = new Date().getFullYear();
+
+/* Ambient video: only loaded on a wide screen, with motion allowed, and not on a
+   metered/slow connection. Poster carries the frame everywhere else. */
+(function ambient(){
+  const okMotion = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const wide = matchMedia('(min-width: 900px)').matches;
+  const c = navigator.connection || {};
+  const cheapData = c.saveData || /2g|slow-2g|3g/.test(c.effectiveType || '');
+  if (!okMotion || !wide || cheapData) return;
+  [['hero-video','hero-loop'],['flow-video','flow-loop']].forEach(([id,name])=>{
+    const v = document.getElementById(id); if(!v) return;
+    const s1 = document.createElement('source'); s1.src = CONFIG.cdn+name+'.webm'; s1.type='video/webm';
+    const s2 = document.createElement('source'); s2.src = CONFIG.cdn+name+'.mp4';  s2.type='video/mp4';
+    v.append(s1,s2); v.preload='auto'; v.load();
+    v.play().catch(()=>{});
+  });
+})();
+
+/* Product film: play only while on screen, so it never burns data in the background. */
+(function filmPlayback(){
+  const v = document.getElementById('product-video'); if(!v) return;
+  if (!('IntersectionObserver' in window)) { v.setAttribute('controls','') ; return; }
+  new IntersectionObserver((es)=>es.forEach(e=>{
+    if (e.isIntersecting) { v.play().catch(()=>v.setAttribute('controls','')); }
+    else v.pause();
+  }),{threshold:.25}).observe(v);
+})();
+
+/* Motion layer — every effect inside a reduced-motion guard.
+   If GSAP fails to load, the page is fully usable and fully visible. */
+if (window.gsap && window.ScrollTrigger) {
+  gsap.registerPlugin(ScrollTrigger);
+  const mm = gsap.matchMedia();
+
+  mm.add("(prefers-reduced-motion: no-preference)", () => {
+    gsap.from("#hero-h .ln > span", { yPercent: 112, duration: 1.1, ease: "expo.out", stagger: .09, delay: .1 });
+    gsap.from(".hero .lede, .hero .btn-row", { autoAlpha: 0, y: 22, duration: 1, ease: "power3.out", stagger: .12, delay: .5 });
+    gsap.from("#hero-art", { autoAlpha: 0, scale: .92, duration: 1.5, ease: "expo.out", delay: .3 });
+    gsap.to(".hero .hero-grid", {
+      yPercent: -10, autoAlpha: .3, ease: "none",
+      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: 1 }
+    });
+
+    /* generic reveals — hero excluded, it has dedicated intros */
+    gsap.utils.toArray(".r").filter(el => !el.closest(".hero")).forEach(el => {
+      gsap.from(el, {
+        autoAlpha: 0, y: 26, duration: .9, ease: "power3.out",
+        scrollTrigger: { trigger: el, start: "top 88%", once: true }
+      });
+    });
+
+    gsap.to("#mq", { xPercent: -50, ease: "none", duration: 30, repeat: -1 });
+
+    /* chart bars grow */
+    gsap.from("#bars i", {
+      scaleY: 0, transformOrigin: "bottom", duration: 1.1, ease: "power3.out", stagger: .06,
+      scrollTrigger: { trigger: "#bars", start: "top 85%", once: true }
+    });
+
+    /* journey rail draws, dots light in sequence */
+    gsap.to("#railfill", {
+      width: "100%", ease: "none",
+      scrollTrigger: { trigger: "#rail", start: "top 78%", end: "bottom 60%", scrub: .8 }
+    });
+    gsap.utils.toArray("#rail .step").forEach((s, i) => {
+      ScrollTrigger.create({
+        trigger: "#rail", start: "top 72%", once: true,
+        onEnter: () => gsap.delayedCall(i * .14, () => s.classList.add("on"))
+      });
+    });
+
+    /* counters — respects prefix/suffix and decimal precision */
+    gsap.utils.toArray("[data-count]").forEach(el => {
+      const target = parseFloat(el.dataset.count);
+      const dp = (el.dataset.count.split(".")[1] || "").length;
+      const pre = el.dataset.prefix || "", suf = el.dataset.suffix || "";
+      const o = { v: 0 };
+      gsap.to(o, {
+        v: target, duration: 1.6, ease: "power2.out",
+        scrollTrigger: { trigger: el, start: "top 90%", once: true },
+        onUpdate: () => { el.textContent = pre + o.v.toFixed(dp) + suf; }
+      });
+    });
+
+    return () => {};
+  });
+}
+</script>
+</body>
+</html>
