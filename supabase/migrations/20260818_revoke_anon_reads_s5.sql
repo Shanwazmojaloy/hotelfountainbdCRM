@@ -1,0 +1,31 @@
+-- S-5: take anon off workflow_runs and housekeeping_tasks entirely.
+--
+-- These are the two tables the C3 read migration finished. Both SPA readers now
+-- go through /api/crm/data, which is session-gated (requireSession + staff.session_v)
+-- and runs as crm_tenant, so revoking anon costs the app nothing.
+--
+-- Consumer audit performed BEFORE applying (this is the step S-3 skipped):
+--   workflow_runs
+--     src/components/WorkflowMonitor.jsx:43   -> /api/crm/data  (C3 slice 1, 02d7a10)
+--     wf-backup-verify, wf-competitor-monitor, wf-evening-report, wf-morning-briefing,
+--     wf-period-reports, wf-checkout-alerts, wf-seo-lead-morning
+--                                             -> SUPABASE_SERVICE_ROLE_KEY, all writes
+--   housekeeping_tasks
+--     src/components/Housekeeping.jsx:38      -> /api/crm/data  (C3 slice 2, 5e2cb3a)
+--     src/components/TaskFormModal.jsx        -> POST /api/crm/task; the direct-insert
+--                                                fallback is already dead (S-2 took INSERT)
+--     app/admin/audit/page.tsx:134            -> string compare on audit_logs.table, not a read
+--     wf-backup-verify, sync-to-sheets        -> SUPABASE_SERVICE_ROLE_KEY
+--   No reference in public/ or any root HTML.
+--
+-- Verified live before applying: both screens render, and a real status-dropdown
+-- click on room 303 wrote IN_PROGRESS then PENDING through /api/crm/task.
+--
+-- REVOKE ALL, not just SELECT. anon still held TRUNCATE, REFERENCES and TRIGGER here
+-- from the schema-default grant; S-2 only took INSERT/UPDATE/DELETE. TRUNCATE is not
+-- reachable through PostgREST, but it has no business being granted.
+--
+-- crm_tenant and service_role are untouched and keep SELECT.
+
+REVOKE ALL ON TABLE public.workflow_runs      FROM anon;
+REVOKE ALL ON TABLE public.housekeeping_tasks FROM anon;

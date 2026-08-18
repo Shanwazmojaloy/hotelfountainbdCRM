@@ -1,11 +1,10 @@
 'use client';
 
 // TaskFormModal — WRITE flow: add a housekeeping task. Mirrors legacy AddTaskModal.
-// Non-money. Inserts into housekeeping_tasks (status=pending). RLS-scoped client.
+// Non-money. Writes ONLY through POST /api/crm/task (session-gated, service role).
+// No direct Supabase client here - anon holds no privilege on housekeeping_tasks (S-5).
 import { useState } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
 
-const TENANT = '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const TASK_TYPES = ['Standard Clean', 'Deep Clean', 'Turndown', 'VIP Turndown', 'Inspection', 'Extra Towels', 'Maintenance', 'AC Repair', 'Plumbing'];
 
 export default function TaskFormModal({ rooms = [], onClose, onSaved }) {
@@ -27,19 +26,14 @@ export default function TaskFormModal({ rooms = [], onClose, onSaved }) {
         body: JSON.stringify({ room_number: f.room_number, task_type: f.task_type, priority: f.priority, assignee: f.assignee, scheduled_time: f.scheduled_time, notes: f.notes }),
       });
       if (r.status === 401) {
-        // Transition: this browser's session predates the secure cookie — fall back to the
-        // direct insert (still allowed until anon INSERT is revoked). Re-login to use the enforced path.
-        const supabase = getSupabaseClient();
-        const { error } = await supabase.from('housekeeping_tasks').insert({
-          room_number: f.room_number, task_type: f.task_type, priority: f.priority,
-          assignee: f.assignee?.trim() || null, scheduled_time: f.scheduled_time || null,
-          notes: f.notes?.trim() || null, status: 'PENDING', department: 'Housekeeping', tenant_id: TENANT,
-        });
-        if (error) throw error;
-      } else {
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || j.error) throw new Error(j.error || 'Could not create task.');
+        // The direct-insert fallback that used to live here is gone. S-2 (2026-08-17)
+        // revoked anon INSERT on housekeeping_tasks, so it could only ever surface a raw
+        // "permission denied for table housekeeping_tasks" to a staff member whose session
+        // had expired. Say the actual thing instead.
+        throw new Error('Your session has expired. Please sign out and sign in again.');
       }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) throw new Error(j.error || 'Could not create task.');
       onSaved?.();
       onClose?.();
     } catch (e) {
