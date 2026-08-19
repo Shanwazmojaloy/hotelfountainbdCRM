@@ -48,8 +48,8 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
   const [more, setMore] = useState(false);
-  const items = navItems.filter((item) => canAccess(user?.role, item.href));
-  const extras = moreItems.filter((item) => canAccess(user?.role, item.href));
+  const items = navItems.filter((item) => canAccess(user?.role, item.href, user?.tenant_id));
+  const extras = moreItems.filter((item) => canAccess(user?.role, item.href, user?.tenant_id));
   const moreActive = extras.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
 
   // Close the sheet whenever the route changes.

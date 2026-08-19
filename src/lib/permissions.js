@@ -42,11 +42,34 @@ const ROLE_ROUTES = {
   housekeeping:          ['/crm/housekeeping', '/crm/rooms'],
 };
 
-export function canAccess(role, path) {
+// ── PLATFORM routes — ours, not the customer's ───────────────────────────────
+// These are Hotel Growth OS business surfaces, not hotel operations:
+//   /crm/growth       our sales pipeline (prospects, scores, our notes on them)
+//   /crm/subscribers  who is paying, who is blocked, across every tenant
+//
+// Role is NOT a sufficient gate for them. demo_provision() gives every demo and
+// every future customer an OWNER-role account, so a role-only check cleared these
+// for the entire customer base. Access requires the HOME tenant as well.
+//
+// This is the display layer. The real boundary is server-side: app/api/growth
+// re-checks the signed cookie's tenant_id and 404s anyone else.
+const PLATFORM_ROUTES = ['/crm/growth', '/crm/subscribers'];
+export const HOME_TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+
+// A missing tenantId means a legacy session predating tenant binding, which can only be
+// ours — every customer session is newer. Matches the fallback used in the API routes.
+export const isPlatformOwner = (role, tenantId) =>
+  isOwnerAdmin(role) && (tenantId || HOME_TENANT_ID) === HOME_TENANT_ID;
+
+export function canAccess(role, path, tenantId) {
+  const p0 = String(path || '').split('?')[0].replace(/\/$/, '') || '/crm';
+  if (PLATFORM_ROUTES.some((a) => p0 === a || p0.startsWith(a + '/'))) {
+    return isPlatformOwner(role, tenantId);
+  }
   if (isOwnerAdmin(role)) return true;
   const allowed = ROLE_ROUTES[norm(role)];
   if (!allowed) return path === '/crm'; // unknown role (e.g. accountant) -> Dashboard only (fail safe)
-  const p = String(path || '').split('?')[0].replace(/\/$/, '') || '/crm';
+  const p = p0;
   return allowed.some((a) => (a === '/crm' ? p === '/crm' : p === a || p.startsWith(a + '/')));
 }
 

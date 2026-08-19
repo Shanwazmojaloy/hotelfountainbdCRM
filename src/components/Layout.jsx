@@ -20,9 +20,9 @@ function RouteGuard({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   useEffect(() => {
-    if (user && pathname && !canAccess(user.role, pathname)) router.replace(homeRoute(user.role));
+    if (user && pathname && !canAccess(user.role, pathname, user.tenant_id)) router.replace(homeRoute(user.role));
   }, [user, pathname, router]);
-  if (user && pathname && !canAccess(user.role, pathname)) {
+  if (user && pathname && !canAccess(user.role, pathname, user.tenant_id)) {
     return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iv-ink3)', fontSize: 13 }}>Redirecting…</div>;
   }
   return children;

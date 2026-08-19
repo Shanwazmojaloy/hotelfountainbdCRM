@@ -179,7 +179,7 @@ export default function Header() {
   }, [canBook, pathname]);
 
   const [t0, t1] = titleFor(pathname);
-  const visiblePills = PILLS.filter((p) => canAccess(user?.role, p.href));
+  const visiblePills = PILLS.filter((p) => canAccess(user?.role, p.href, user?.tenant_id));
 
   return (
     <div className="iv-topbar" style={{ height: 62, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 14px', gap: 8, position: 'sticky', top: 0, zIndex: 20 }}>

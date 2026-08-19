@@ -30,7 +30,7 @@ export default function Sidebar() {
   const role = user?.role;
 
   // RBAC: keep only links this role may open, then drop any section header left empty.
-  const visibleNav = NAV.filter((n) => n.sect || canAccess(role, n.href)).filter((n, i, arr) => {
+  const visibleNav = NAV.filter((n) => n.sect || canAccess(role, n.href, user?.tenant_id)).filter((n, i, arr) => {
     if (!n.sect) return true;
     const next = arr[i + 1];
     return next && !next.sect; // section kept only if a real link follows it

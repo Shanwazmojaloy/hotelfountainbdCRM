@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest, NextFetchEvent } from 'next/server';
 
-// Default is the domain this project is actually deployed on. It used to be
-// 'lumea.app', which we do not own and which no host here ends with — so
-// extractSlug() never matched and EVERY <slug>.fountainbd.com fell through to
-// DEFAULT_SLUG. With a wildcard domain attached that is not a 404, it is a
-// LEAK: a demo subdomain would have served Hotel Fountain's CRM. The env var
-// still wins if set; this only fixes the unset case.
-const APEX_DOMAIN = process.env.NEXT_PUBLIC_APEX_DOMAIN || 'fountainbd.com';
+// Tenants live at <slug>.lumea.fountainbd.com — this MUST match the deployed
+// NEXT_PUBLIC_APEX_DOMAIN (set 2026-05-30, all environments). The old default
+// was 'lumea.app', which we do not own and which no host here ends with, so if
+// the env var were ever dropped extractSlug() would match nothing and EVERY
+// tenant subdomain would silently fall back to DEFAULT_SLUG — i.e. serve Hotel
+// Fountain's CRM under another property's hostname. Keeping the default equal
+// to the deployed value makes that failure impossible instead of invisible.
+const APEX_DOMAIN = process.env.NEXT_PUBLIC_APEX_DOMAIN || 'lumea.fountainbd.com';
 const DEFAULT_SLUG = process.env.NEXT_PUBLIC_TENANT_SLUG || 'hotelfountainbd';
 const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/^https?:\/\//, '');
 

@@ -35,12 +35,31 @@ const PROSPECT_COLS =
 // from permissions.js so this route cannot be widened by an unrelated RBAC change.
 const ALLOWED_ROLES = new Set(['owner', 'admin']);
 
+// PLATFORM GATE — role is not enough, and this is not theoretical.
+//
+// Every tenant provisioned by demo_provision() gets an owner-role staff account. Role
+// alone therefore cleared this route for EVERY demo and every future customer: a prospect
+// could open /crm/growth and read — and write, and delete — the entire Hotel Growth OS
+// pipeline, including their own record, their score, our notes on them, and every
+// competitor hotel we are chasing. Found 2026-08-19, before the first demo went out.
+//
+// This pipeline belongs to ONE tenant: ours. Not "owners", not "paying customers" — ours.
+const HOME_TENANT = ENV_TENANT;
+
 async function auth(req: NextRequest) {
   const sess = requireSession(req);
   if (!sess) return { error: NextResponse.json({ error: 'Not authenticated' }, { status: 401 }) };
 
   const role = String(sess.role || '').trim().toLowerCase();
   if (!ALLOWED_ROLES.has(role)) return { error: NextResponse.json({ error: 'Not permitted.' }, { status: 403 }) };
+
+  // Missing tenant_id means a legacy cookie minted before tenant binding shipped, which can
+  // only be ours — every demo/customer session is newer than that and always carries one.
+  // Same fallback the TENANT line below already uses, so this cannot lock the owner out.
+  // Answer 404, not 403: a customer should not learn the route exists.
+  if ((sess.tenant_id || ENV_TENANT) !== HOME_TENANT) {
+    return { error: NextResponse.json({ error: 'Not found.' }, { status: 404 }) };
+  }
 
   if (!growthConfigured()) {
     return { error: NextResponse.json({ error: 'Growth database is not configured on this deployment.' }, { status: 503 }) };
