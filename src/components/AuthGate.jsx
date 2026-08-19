@@ -214,15 +214,15 @@ export default function AuthGate({ children }) {
       <div style={{ minHeight: '100vh', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: WALNUT, position: 'relative', overflow: 'hidden', fontFamily: sans }}>
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 55% at 18% 22%, rgba(124,58,183,.32), transparent 62%), radial-gradient(ellipse 60% 60% at 80% 88%, rgba(178,84,32,.3), transparent 60%)' }} />
         <div style={{ background: PARCH, border: '1px solid rgba(255,255,255,.1)', borderRadius: 20, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)', textAlign: 'center' }}>
-          {/* Lumea lockup — 160px (vs 186 on sign-in): this card carries more copy below,
-              so the mark yields to the "Your 5 days are up" headline. */}
+          {/* Hotel Growth OS lockup — 172px (vs 200 on sign-in): this card carries more
+              copy below, so the mark yields to the "Your 5 days are up" headline. */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
             <img
-              src="/lumea-logo.png"
-              alt="Lumea — Smarter operations. Better growth."
-              width={160}
-              height={103}
-              style={{ width: 160, height: 'auto', objectFit: 'contain' }}
+              src="/hotel-growth-os-logo.png"
+              alt="Hotel Growth OS — Run smarter. Grow faster."
+              width={172}
+              height={93}
+              style={{ width: 172, height: 'auto', objectFit: 'contain' }}
             />
           </div>
           <div style={{ fontSize: 8, color: TX3, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 16 }}>Trial Complete</div>
@@ -253,15 +253,17 @@ export default function AuthGate({ children }) {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'repeating-linear-gradient(0deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px)' }} />
 
       <div style={{ background: PARCH, border: '1px solid rgba(255,255,255,.1)', borderRadius: 20, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)' }}>
-        {/* Lumea lockup — mark + wordmark + tagline. 186px keeps the tagline legible
-            (~8px cap height) without pushing the form below the fold on a 360px viewport. */}
+        {/* Hotel Growth OS lockup — HG mark + wordmark + tagline. 200px (up from the
+            Lumea mark's 186) because this lockup is wider than it is tall (1.845:1) and
+            its "RUN SMARTER. GROW FASTER." line is proportionally smaller — 200px keeps
+            that line legible while staying inside the 336px card content width. */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
           <img
-            src="/lumea-logo.png"
-            alt="Lumea — Smarter operations. Better growth."
-            width={186}
-            height={119}
-            style={{ width: 186, height: 'auto', objectFit: 'contain' }}
+            src="/hotel-growth-os-logo.png"
+            alt="Hotel Growth OS — Run smarter. Grow faster."
+            width={200}
+            height={108}
+            style={{ width: 200, height: 'auto', objectFit: 'contain' }}
           />
         </div>
 
