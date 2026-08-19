@@ -21,6 +21,7 @@ export const maxDuration = 15;
 const ENV_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 const HOME_TENANT = ENV_TENANT;
 const ALLOWED_ROLES = new Set(['owner', 'admin']);
+const PLATFORM_OWNER_EMAIL = 'ahmedshanwaz5@gmail.com';
 
 // Card prices. sub_rate_bdt overrides these per tenant when a deal is negotiated.
 const PLAN_RATE: Record<string, number> = { starter: 5000, growth: 15000, full: 30000 };
@@ -44,9 +45,17 @@ async function auth(req: NextRequest) {
 
   // Honour Logout All Devices.
   const home = tenantScoped(sb, HOME_TENANT);
-  const { data: srow } = await home.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  const { data: srow } = await home.from('staff').select('session_v, email').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return { error: NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 }) };
+  }
+
+  // Owner rule 2026-08-19: ONE person, not a role and not a tenant. This screen lists
+  // every other hotel's plan, rate and payment state — a manager hired at Hotel Fountain
+  // has no business reading a competitor's billing. Re-read from `staff` by session id;
+  // the client's copy of the address only hides a nav pill.
+  if (String(srow[0].email || '').trim().toLowerCase() !== PLATFORM_OWNER_EMAIL) {
+    return { error: NextResponse.json({ error: 'Not found.' }, { status: 404 }) };
   }
   return { sb, sess };
 }

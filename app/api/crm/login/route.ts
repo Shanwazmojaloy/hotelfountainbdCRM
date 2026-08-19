@@ -141,7 +141,10 @@ export async function POST(req: NextRequest) {
           // hotel's name on their own system.
           const res = NextResponse.json({
             ok: true,
-            session: { ...sess, name: u.name, hotel_name: TENANT_CFG.hotel_name, hotel_city: TENANT_CFG.hotel_city },
+            // email is returned so the nav can hide the PLATFORM sections, which are
+            // locked to ONE person rather than to a role. Display only — /api/growth and
+            // /api/crm/subscribers re-read the address from `staff` by session id.
+            session: { ...sess, name: u.name, email: email.trim().toLowerCase(), hotel_name: TENANT_CFG.hotel_name, hotel_city: TENANT_CFG.hotel_city },
           });
           res.headers.set('Set-Cookie', sessionCookieHeader(signSession(sess)));
           return res;

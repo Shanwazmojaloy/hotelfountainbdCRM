@@ -34,6 +34,7 @@ const PROSPECT_COLS =
 // Owner/admin only. isOwnerAdmin is duplicated here as a literal set rather than imported
 // from permissions.js so this route cannot be widened by an unrelated RBAC change.
 const ALLOWED_ROLES = new Set(['owner', 'admin']);
+const PLATFORM_OWNER_EMAIL = 'ahmedshanwaz5@gmail.com';
 
 // PLATFORM GATE — role is not enough, and this is not theoretical.
 //
@@ -68,9 +69,17 @@ async function auth(req: NextRequest) {
   // Honour Logout All Devices — the cookie's session_v must still match the hotel DB.
   const TENANT = sess.tenant_id || ENV_TENANT;
   const hotel = tenantScoped(tenantClient(TENANT), TENANT);
-  const { data: srow } = await hotel.from('staff').select('session_v').eq('id', sess.id).limit(1);
+  const { data: srow } = await hotel.from('staff').select('session_v, email').eq('id', sess.id).limit(1);
   if (!srow || !srow[0] || (srow[0].session_v || 1) !== sess.session_v) {
     return { error: NextResponse.json({ error: 'Session expired — sign in again.' }, { status: 401 }) };
+  }
+
+  // Owner rule 2026-08-19: this pipeline belongs to ONE person, not to a role and not to
+  // a tenant. Hotel Fountain will hire managers and may add a second owner-role account;
+  // neither should read our prospects. The address is re-read from `staff` by session id,
+  // never taken from the request — the client copy is for hiding a nav pill, nothing more.
+  if (String(srow[0].email || '').trim().toLowerCase() !== PLATFORM_OWNER_EMAIL) {
+    return { error: NextResponse.json({ error: 'Not found.' }, { status: 404 }) };
   }
 
   const db = growthDb();

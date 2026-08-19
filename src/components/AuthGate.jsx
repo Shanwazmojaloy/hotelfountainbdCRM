@@ -68,7 +68,7 @@ export default function AuthGate({ children }) {
       return;
     }
     if (saved?.id) {
-      const optimistic = { id: saved.id, name: saved.name, role: saved.role, tenant_id: saved.tenant_id, hotel_name: saved.hotel_name, hotel_city: saved.hotel_city };
+      const optimistic = { id: saved.id, name: saved.name, role: saved.role, email: saved.email, tenant_id: saved.tenant_id, hotel_name: saved.hotel_name, hotel_city: saved.hotel_city };
       _authCache = optimistic; setUser(optimistic); setStatus('in');
       validateSession(saved);
     } else {
@@ -120,7 +120,7 @@ export default function AuthGate({ children }) {
         return;
       }
       if (r.ok) {
-        const u = { id: saved.id, name: saved.name, role: saved.role, session_v: saved.session_v, tenant_id: saved.tenant_id, hotel_name: saved.hotel_name, hotel_city: saved.hotel_city };
+        const u = { id: saved.id, name: saved.name, role: saved.role, email: saved.email, session_v: saved.session_v, tenant_id: saved.tenant_id, hotel_name: saved.hotel_name, hotel_city: saved.hotel_city };
         _authCache = u; setUser(u);
       }
     } catch { /* transient/offline — keep the optimistic session, don't bounce the user to login */ }
@@ -130,7 +130,7 @@ export default function AuthGate({ children }) {
     // tenant_id is persisted so the nav can hide PLATFORM-only sections (Growth,
     // Subscriber Access) from customer tenants. Display only — the API re-checks the
     // signed cookie, so editing this in localStorage buys nothing.
-    localStorage.setItem('lumea_session', JSON.stringify({ id: s.id, session_v: s.session_v || 1, name: s.name, role: s.role, tenant_id: s.tenant_id, hotel_name: s.hotel_name, hotel_city: s.hotel_city }));
+    localStorage.setItem('lumea_session', JSON.stringify({ id: s.id, session_v: s.session_v || 1, name: s.name, role: s.role, email: s.email, tenant_id: s.tenant_id, hotel_name: s.hotel_name, hotel_city: s.hotel_city }));
     _authCache = s; setUser(s); setStatus('in'); setPw(''); setActPw(''); setActOtp('');
   }
 

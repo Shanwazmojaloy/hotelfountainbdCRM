@@ -20,9 +20,9 @@ function RouteGuard({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   useEffect(() => {
-    if (user && pathname && !canAccess(user.role, pathname, user.tenant_id)) router.replace(homeRoute(user.role));
+    if (user && pathname && !canAccess(user.role, pathname, user.tenant_id, user.email)) router.replace(homeRoute(user.role));
   }, [user, pathname, router]);
-  if (user && pathname && !canAccess(user.role, pathname, user.tenant_id)) {
+  if (user && pathname && !canAccess(user.role, pathname, user.tenant_id, user.email)) {
     return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iv-ink3)', fontSize: 13 }}>Redirecting…</div>;
   }
   return children;
@@ -31,28 +31,26 @@ function RouteGuard({ children }) {
 // (Keep-warm pinger removed 2026-07-31 same-day: /crm pages are now STATIC shells —
 // CDN-served, no page function to keep warm. See app/crm/layout.tsx.)
 
-// Access banner — the ONLY warning a client gets before writes stop.
+// Access banner — the ONLY warning a SUBSCRIBER gets before writes stop.
 //
 // Without it the first signal of an unpaid invoice is a save failing on the 10th, which
 // reads as the product being broken rather than the bill being due. State comes from the
 // session ping (already running every 2 min), so this costs no extra polling.
 //
-// Deliberately not dismissible: it is dismissed by paying, or by the clock running out.
+// DEMOS ARE DELIBERATELY SILENT (owner rule, 2026-08-19). A prospect evaluating the
+// product sees no countdown, no invoice notice, nothing — until they choose to subscribe.
+// A trial that nags is a trial that feels like a bill. The only touch a demo ever gets is
+// the "Trial Complete" card at the moment it ends, which is a sales moment, not a warning.
+// `platform_open_month()` already excludes demos from invoicing for the same reason.
+//
+// Not dismissible: it is dismissed by paying, or by the clock running out.
 function AccessBanner() {
   const { access } = useAuth();
   if (!access || !access.state) return null;
-
-  const days = access.demo_expires_at
-    ? Math.ceil((new Date(access.demo_expires_at).getTime() - Date.now()) / 86400000)
-    : null;
+  if (access.kind === 'demo') return null; // silent for the whole trial, by design
 
   let tone = null; let text = null;
-  if (access.kind === 'demo' && access.state === 'active' && days !== null && days <= 2) {
-    tone = 'warn';
-    text = days <= 0
-      ? 'Your trial ends today. Everything you have set up is kept for 30 days.'
-      : `Your trial ends in ${days} day${days === 1 ? '' : 's'}. Everything you set up is kept for 30 days.`;
-  } else if (access.state === 'due_soon') {
+  if (access.state === 'due_soon') {
     tone = 'warn';
     text = 'This month’s invoice is unpaid. From the 10th the system becomes read-only until it is settled — no data is deleted.';
   } else if (access.state === 'past_due') {
