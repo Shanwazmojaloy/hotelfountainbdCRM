@@ -237,6 +237,20 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     return NextResponse.redirect(url, 301);
   }
 
+  // ── Lumea marketing host RETIRED (owner decision 2026-08-19) ─────────────────
+  // lumea.fountainbd.com served a second Lumea pitch page, superseded by
+  // growthos.fountainbd.com. Retired here rather than by detaching the domain in
+  // Vercel, because a detached host answers DEPLOYMENT_NOT_FOUND — an ugly dead
+  // end for anything already linking to it. A 301 keeps those links working and
+  // consolidates the SEO signal onto one Lumea origin instead of two.
+  //
+  // EXACT hostname match ONLY. This host is also NEXT_PUBLIC_APEX_DOMAIN, so every
+  // tenant lives at <slug>.lumea.fountainbd.com — a suffix match here would redirect
+  // every customer's CRM to a marketing page. Do not loosen it to endsWith().
+  if (hostname === 'lumea.fountainbd.com' || hostname === 'www.lumea.fountainbd.com') {
+    return NextResponse.redirect('https://growthos.fountainbd.com/', 301);
+  }
+
   // ── EDGE 404 — route allowlist (2026-07-31) ─────────────────────────────────
   // Scanner bots probe hundreds of INVENTED paths (a careers scraper alone hit 123
   // distinct ones: /jobs, /praca, /saiyou, /carriere…). Every miss used to render
