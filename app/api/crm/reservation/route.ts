@@ -246,7 +246,7 @@ export async function POST(req: NextRequest) {
       const datesChanged = String(checkIn || '').slice(0, 10) !== String(prev.check_in || '').slice(0, 10)
         || String(checkOut || '').slice(0, 10) !== String(prev.check_out || '').slice(0, 10);
       const roomsChanged = JSON.stringify([...newRoomNos].sort()) !== JSON.stringify([...oldRoomNos].sort());
-      if (datesChanged || roomsChanged) await recalcResTotalServer(supabase, id);
+      if (datesChanged || roomsChanged) await recalcResTotalServer(supabase, id, TENANT);
 
       // Admin change-notification (house rule 2026-07-01): email the owner a before/after
       // diff of this edit. STAFF-ONLY — skip when an admin (owner/manager/admin) made the

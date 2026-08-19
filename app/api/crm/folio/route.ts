@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         added_by_id: sess.id, added_by_name: addedByName,
       });
       if (error) throw error;
-      await recalcResTotalServer(supabase, resId);
+      await recalcResTotalServer(supabase, resId, TENANT);
       return NextResponse.json({ ok: true });
     }
     if (action === 'delete') {
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       if (!id) return NextResponse.json({ error: 'Missing folio id.' }, { status: 400 });
       const { error } = await db.from('folios').delete().eq('id', id);
       if (error) throw error;
-      if (resId) await recalcResTotalServer(supabase, resId);
+      if (resId) await recalcResTotalServer(supabase, resId, TENANT);
       return NextResponse.json({ ok: true });
     }
     return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });

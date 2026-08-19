@@ -241,7 +241,7 @@ export async function POST(req: NextRequest) {
         throw rErr;
       }
       // Re-sync the reservation's canonical total AFTER the atomic ROOM charge landed.
-      if (orderType === 'ROOM' && resId) await recalcResTotalServer(supabase, resId);
+      if (orderType === 'ROOM' && resId) await recalcResTotalServer(supabase, resId, tenant);
       return NextResponse.json({ ok: true, order: rpcRes });
     }
 
@@ -268,7 +268,7 @@ export async function POST(req: NextRequest) {
       // reverse the room-charge folio line first, then recalc the reservation total
       if (ord.folio_id) {
         await db.from('folios').delete().eq('id', ord.folio_id);
-        if (ord.reservation_id) await recalcResTotalServer(supabase, ord.reservation_id);
+        if (ord.reservation_id) await recalcResTotalServer(supabase, ord.reservation_id, tenant);
       }
       const { error } = await db.from('restaurant_orders')
         .update({ payment_status: 'VOID', status: 'VOID', folio_id: null, voided_by_id: sess.id, voided_reason: s(body.reason) })
