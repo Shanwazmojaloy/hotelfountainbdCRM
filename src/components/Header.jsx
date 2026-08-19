@@ -186,14 +186,33 @@ export default function Header() {
 
   return (
     <div className="iv-topbar" style={{ height: 62, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 14px', gap: 8, position: 'sticky', top: 0, zIndex: 20 }}>
-      {/* Brand mark — company gold crest (owner request 2026-07-04) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, marginRight: 4 }}>
-        <img src="/logo-crest.png" alt="Hotel Fountain" style={{ height: 40, width: 'auto', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 8px rgba(200,169,110,.35))' }} />
-        <div className="hidden lg:block" style={{ lineHeight: 1.05 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--iv-ink)', whiteSpace: 'nowrap' }}>Hotel Fountain</div>
-          <div style={{ fontSize: 8, letterSpacing: '.18em', color: 'var(--iv-ink3)', textTransform: 'uppercase', marginTop: 2 }}>Luxury In Comfort</div>
-        </div>
-      </div>
+      {/* Brand mark — company gold crest (owner request 2026-07-04).
+          TENANT-AWARE since 2026-08-19: this was hardcoded "Hotel Fountain / Luxury In
+          Comfort" for EVERY tenant, so a demo client signed in and saw our hotel's name
+          and crest on their own CRM. The crest is Hotel Fountain's property and is not
+          shipped to other tenants; they get a monogram of their own name instead. */}
+      {(() => {
+        const isHome = !user?.hotel_name || user.hotel_name === 'Hotel Fountain';
+        const mark = String(user?.hotel_name || 'Hotel Fountain').trim().split(/\s+/).slice(0, 2)
+          .map((w) => w[0] || '').join('').toUpperCase();
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, marginRight: 4 }}>
+            {isHome ? (
+              <img src="/logo-crest.png" alt="Hotel Fountain" style={{ height: 40, width: 'auto', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 8px rgba(200,169,110,.35))' }} />
+            ) : (
+              <div aria-hidden style={{ height: 36, width: 36, borderRadius: 10, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'rgba(223,255,69,.12)', border: '1px solid rgba(223,255,69,.35)', color: '#DFFF45', fontWeight: 700, fontSize: 13, letterSpacing: '.02em' }}>{mark}</div>
+            )}
+            <div className="hidden lg:block" style={{ lineHeight: 1.05 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--iv-ink)', whiteSpace: 'nowrap' }}>
+                {user?.hotel_name || 'Hotel Fountain'}
+              </div>
+              <div style={{ fontSize: 8, letterSpacing: '.18em', color: 'var(--iv-ink3)', textTransform: 'uppercase', marginTop: 2 }}>
+                {isHome ? 'Luxury In Comfort' : (user?.hotel_city || 'Hotel Growth OS')}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Pill nav — desktop. Text labels (owner request 2026-07-04), no glyph icons. */}
       <nav className="hidden md:flex" style={{ alignItems: 'center', gap: 5, flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', padding: '2px 0' }}>

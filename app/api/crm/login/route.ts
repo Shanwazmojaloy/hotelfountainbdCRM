@@ -135,7 +135,14 @@ export async function POST(req: NextRequest) {
       }
 
       const sess = { id: u.id, role: u.role, session_v: u.session_v || 1, tenant_id: u.tenant_id };
-          const res = NextResponse.json({ ok: true, session: { ...sess, name: u.name } });
+          // hotel_name/city ride on the RESPONSE only, never the signed cookie — they are
+          // branding, not authority, and the cookie stays minimal. Without them the CRM
+          // header rendered "Hotel Fountain" for every tenant, so a demo client saw our
+          // hotel's name on their own system.
+          const res = NextResponse.json({
+            ok: true,
+            session: { ...sess, name: u.name, hotel_name: TENANT_CFG.hotel_name, hotel_city: TENANT_CFG.hotel_city },
+          });
           res.headers.set('Set-Cookie', sessionCookieHeader(signSession(sess)));
           return res;
     } catch (e: unknown) {

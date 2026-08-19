@@ -56,7 +56,7 @@ export default function AuthGate({ children }) {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem('lumea_session') || 'null'); } catch { /* ignore */ }
     if (saved?.id) {
-      const optimistic = { id: saved.id, name: saved.name, role: saved.role, tenant_id: saved.tenant_id };
+      const optimistic = { id: saved.id, name: saved.name, role: saved.role, tenant_id: saved.tenant_id, hotel_name: saved.hotel_name, hotel_city: saved.hotel_city };
       _authCache = optimistic; setUser(optimistic); setStatus('in');
       validateSession(saved);
     } else {
@@ -104,7 +104,7 @@ export default function AuthGate({ children }) {
         return;
       }
       if (r.ok) {
-        const u = { id: saved.id, name: saved.name, role: saved.role, session_v: saved.session_v, tenant_id: saved.tenant_id };
+        const u = { id: saved.id, name: saved.name, role: saved.role, session_v: saved.session_v, tenant_id: saved.tenant_id, hotel_name: saved.hotel_name, hotel_city: saved.hotel_city };
         _authCache = u; setUser(u);
       }
     } catch { /* transient/offline — keep the optimistic session, don't bounce the user to login */ }
@@ -114,7 +114,7 @@ export default function AuthGate({ children }) {
     // tenant_id is persisted so the nav can hide PLATFORM-only sections (Growth,
     // Subscriber Access) from customer tenants. Display only — the API re-checks the
     // signed cookie, so editing this in localStorage buys nothing.
-    localStorage.setItem('lumea_session', JSON.stringify({ id: s.id, session_v: s.session_v || 1, name: s.name, role: s.role, tenant_id: s.tenant_id }));
+    localStorage.setItem('lumea_session', JSON.stringify({ id: s.id, session_v: s.session_v || 1, name: s.name, role: s.role, tenant_id: s.tenant_id, hotel_name: s.hotel_name, hotel_city: s.hotel_city }));
     _authCache = s; setUser(s); setStatus('in'); setPw(''); setActPw(''); setActOtp('');
   }
 
@@ -171,7 +171,8 @@ export default function AuthGate({ children }) {
   }
 
   // ── logged-out: design-system ivory login on a walnut field ──
-  const eyebrow = mode === 'signin' ? 'Staff Portal' : 'Staff Activation';
+  // Eyebrow ("Staff Portal" / "Staff Activation") + its hairline divider were removed
+  // on 2026-08-20 — the Lumea lockup now carries the brand line above the title.
   const title = mode === 'signin' ? ['Welcome', 'Back']
     : actStep === 1 ? ['Activate', 'Account'] : ['Verify &', 'Finish'];
 
@@ -197,8 +198,16 @@ export default function AuthGate({ children }) {
       <div style={{ minHeight: '100vh', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: WALNUT, position: 'relative', overflow: 'hidden', fontFamily: sans }}>
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 55% at 18% 22%, rgba(124,58,183,.32), transparent 62%), radial-gradient(ellipse 60% 60% at 80% 88%, rgba(178,84,32,.3), transparent 60%)' }} />
         <div style={{ background: PARCH, border: '1px solid rgba(255,255,255,.1)', borderRadius: 20, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
-            <img src="/fountain-logo.png" alt="Hotel Growth OS" style={{ width: 96, height: 'auto', objectFit: 'contain' }} />
+          {/* Lumea lockup — 160px (vs 186 on sign-in): this card carries more copy below,
+              so the mark yields to the "Your 5 days are up" headline. */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <img
+              src="/lumea-logo.png"
+              alt="Lumea — Smarter operations. Better growth."
+              width={160}
+              height={103}
+              style={{ width: 160, height: 'auto', objectFit: 'contain' }}
+            />
           </div>
           <div style={{ fontSize: 8, color: TX3, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 16 }}>Trial Complete</div>
           <div style={{ fontFamily: serif, fontSize: 24, fontWeight: 700, color: TX, lineHeight: 1.15, letterSpacing: '-.01em' }}>
@@ -228,15 +237,16 @@ export default function AuthGate({ children }) {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'repeating-linear-gradient(0deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(148,163,184,.05) 0px, rgba(148,163,184,.05) 1px, transparent 1px, transparent 40px)' }} />
 
       <div style={{ background: PARCH, border: '1px solid rgba(255,255,255,.1)', borderRadius: 20, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)' }}>
-        {/* logo */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
-          <img src="/fountain-logo.png" alt="Hotel Fountain" style={{ width: 96, height: 'auto', objectFit: 'contain' }} />
-        </div>
-        {/* eyebrow divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, justifyContent: 'center' }}>
-          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,transparent,rgba(255,255,255,.18))' }} />
-          <span style={{ fontSize: 8, color: TX3, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 500, whiteSpace: 'nowrap' }}>{eyebrow}</span>
-          <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg,rgba(255,255,255,.18),transparent)' }} />
+        {/* Lumea lockup — mark + wordmark + tagline. 186px keeps the tagline legible
+            (~8px cap height) without pushing the form below the fold on a 360px viewport. */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
+          <img
+            src="/lumea-logo.png"
+            alt="Lumea — Smarter operations. Better growth."
+            width={186}
+            height={119}
+            style={{ width: 186, height: 'auto', objectFit: 'contain' }}
+          />
         </div>
 
         {/* step dots (activation) */}
@@ -249,8 +259,8 @@ export default function AuthGate({ children }) {
           </div>
         )}
 
-        {/* title */}
-        <div style={{ fontFamily: serif, fontSize: 24, fontWeight: 700, color: TX, textAlign: 'center', lineHeight: 1.1, letterSpacing: '-.01em' }}>
+        {/* title — stepped down 24→19 so the lockup, not the heading, leads the hierarchy */}
+        <div style={{ fontFamily: serif, fontSize: 19, fontWeight: 700, color: TX, textAlign: 'center', lineHeight: 1.15, letterSpacing: '-.01em' }}>
           {title[0]} <em style={{ fontStyle: 'normal', color: GOLD, fontWeight: 700 }}>{title[1]}</em>
         </div>
 
