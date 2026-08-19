@@ -58,6 +58,15 @@ export default function AuthGate({ children }) {
     if (_authCache) return;
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem('lumea_session') || 'null'); } catch { /* ignore */ }
+    // A session stored before tenant_id/hotel_name were persisted cannot be rendered
+    // correctly: the header falls back to "Hotel Fountain" and the platform pills read as
+    // present. One re-login repopulates both. Cheaper than guessing, and it only happens
+    // once per browser. The HttpOnly cookie is untouched, so this is a UI re-hydrate.
+    if (saved?.id && !saved.tenant_id) {
+      try { localStorage.removeItem('lumea_session'); } catch { /* ignore */ }
+      setStatus('out');
+      return;
+    }
     if (saved?.id) {
       const optimistic = { id: saved.id, name: saved.name, role: saved.role, tenant_id: saved.tenant_id, hotel_name: saved.hotel_name, hotel_city: saved.hotel_city };
       _authCache = optimistic; setUser(optimistic); setStatus('in');

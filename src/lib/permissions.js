@@ -56,10 +56,19 @@ const ROLE_ROUTES = {
 const PLATFORM_ROUTES = ['/crm/growth', '/crm/subscribers'];
 export const HOME_TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
 
-// A missing tenantId means a legacy session predating tenant binding, which can only be
-// ours — every customer session is newer. Matches the fallback used in the API routes.
+// FAILS CLOSED on a missing tenantId, and that differs from the API routes ON PURPOSE.
+//
+// The routes read tenant_id from the SIGNED cookie, where absent can only mean a legacy
+// session predating tenant binding — ours. This function reads the localStorage blob,
+// where absent also happens to a CUSTOMER whose session was stored before hotel_name and
+// tenant_id were persisted. With a permissive fallback that customer saw the Growth and
+// Subscriber Access pills (caught 2026-08-19 on a demo tenant with a stale session).
+//
+// No data leaked — /api/growth and /api/crm/subscribers re-check the cookie and 404 —
+// but a customer must not see tabs naming a system they are not part of. The cost of
+// failing closed is that a stale session loses the pills until the next sign-in.
 export const isPlatformOwner = (role, tenantId) =>
-  isOwnerAdmin(role) && (tenantId || HOME_TENANT_ID) === HOME_TENANT_ID;
+  isOwnerAdmin(role) && !!tenantId && tenantId === HOME_TENANT_ID;
 
 export function canAccess(role, path, tenantId) {
   const p0 = String(path || '').split('?')[0].replace(/\/$/, '') || '/crm';
