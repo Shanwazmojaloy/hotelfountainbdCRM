@@ -5,7 +5,15 @@ import UiFonts from '../components/UiFonts';
 
 // Staff CRM must never appear in search. robots.txt disallows /crm, but a page-level
 // noindex is the authoritative directive (blocks indexing even of leaked/linked URLs).
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+// Title is generic on purpose: /crm is served to EVERY tenant, so inheriting the root
+// layout's "Hotel Fountain — Dhaka's Finest Luxury Hotel" put our hotel's name in a
+// client's browser tab and window switcher. It cannot be per-tenant here — this tree is
+// a static shell with no headers() read (see the note below), and adding one would turn
+// the whole CRM back into a cold-bootable function.
+export const metadata: Metadata = {
+  title: 'Lumea — Hotel Growth OS',
+  robots: { index: false, follow: false },
+};
 // STATIC SHELL (owner decision 2026-07-31): /crm left the strict nonce-CSP set
 // (middleware STRICT_PREFIXES) so these pages can STATICALLY PRERENDER — CDN-served,
 // no page function, no ~20s Hobby cold boot. Do NOT re-add `dynamic='force-dynamic'`

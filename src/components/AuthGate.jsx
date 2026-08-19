@@ -9,7 +9,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { clearSnaps } from '@/lib/snap';
 
-const AuthContext = createContext({ user: null, signOut: () => {} });
+const AuthContext = createContext({ user: null, signOut: () => {}, access: null });
 export const useAuth = () => useContext(AuthContext);
 
 // Modern SaaS palette (literals — AuthGate renders outside .crm-root).
@@ -31,6 +31,9 @@ export default function AuthGate({ children }) {
   // Set only when /api/crm/login answers 403 demo_expired — a valid password on a
   // dead trial. Never persisted: a reload returns to the normal sign-in card.
   const [demoEnded, setDemoEnded] = useState(null);
+  // Demo / subscription clock, refreshed by the session ping below. Null for the home
+  // tenant, which is neither — the route short-circuits it before any DB call.
+  const [access, setAccess] = useState(null);
 
   const [mode, setMode] = useState('signin'); // signin | activate
   const [email, setEmail] = useState('');
@@ -75,7 +78,11 @@ export default function AuthGate({ children }) {
     const ping = async () => {
       try {
         const r = await fetch('/api/crm/session', { method: 'GET', cache: 'no-store' });
-        if (r.status === 401 && alive) signOut();
+        if (r.status === 401 && alive) return signOut();
+        if (r.ok && alive) {
+          const j = await r.json().catch(() => null);
+          if (j && 'access' in j) setAccess(j.access || null);
+        }
       } catch { /* offline/transient - keep the session */ }
     };
     ping();
@@ -167,7 +174,7 @@ export default function AuthGate({ children }) {
     return <div style={{ minHeight: '100vh', background: PARCH, display: 'flex', alignItems: 'center', justifyContent: 'center', color: TX3, fontFamily: mono, letterSpacing: '.2em', fontSize: 12 }} />;
   }
   if (status === 'in') {
-    return <AuthContext.Provider value={{ user, signOut }}>{children}</AuthContext.Provider>;
+    return <AuthContext.Provider value={{ user, signOut, access }}>{children}</AuthContext.Provider>;
   }
 
   // ── logged-out: design-system ivory login on a walnut field ──
@@ -269,7 +276,7 @@ export default function AuthGate({ children }) {
             <p style={subText}>Sign in with your email and password.</p>
             <div style={fieldWrap}>
               <label style={labelSt}>Work Email</label>
-              <input style={inputSt} onFocus={onFocus} onBlur={onBlur} type="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(''); }} placeholder="you@hotelfountain.com" autoComplete="username" />
+              <input style={inputSt} onFocus={onFocus} onBlur={onBlur} type="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(''); }} placeholder="you@yourhotel.com" autoComplete="username" />
             </div>
             <div style={fieldWrap}>
               <label style={labelSt}>Password</label>
@@ -290,7 +297,7 @@ export default function AuthGate({ children }) {
             <p style={subText}>Enter your work email — we&apos;ll send a 6-digit code to verify it&apos;s you.</p>
             <div style={fieldWrap}>
               <label style={labelSt}>Work Email</label>
-              <input style={inputSt} onFocus={onFocus} onBlur={onBlur} type="email" value={actEmail} onChange={(e) => { setActEmail(e.target.value); setActErr(''); }} placeholder="you@hotelfountain.com" autoFocus />
+              <input style={inputSt} onFocus={onFocus} onBlur={onBlur} type="email" value={actEmail} onChange={(e) => { setActEmail(e.target.value); setActErr(''); }} placeholder="you@yourhotel.com" autoFocus />
             </div>
             {actErr && errBox(actErr)}
             <button style={goldBtn(actBusy)} disabled={actBusy} onClick={requestOtp}>{actBusy ? 'Sending…' : 'Send Code'}</button>

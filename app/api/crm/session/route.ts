@@ -22,6 +22,15 @@ const sessCache = new Map<string, { v: number; ts: number }>();
 const HEARTBEAT_MS = 60_000;
 const lastBeat = new Map<string, number>();
 
+// Access state (demo clock / subscription clock) rides on this poll rather than getting
+// its own timer — every open tab already hits this route every 2 min, so a banner needs
+// no new traffic. Cached PER TENANT for 60s, so N tabs cost one RPC a minute, not N.
+// The home tenant short-circuits before any DB call: it is neither a demo nor a
+// subscriber, and it is most of the traffic.
+const HOME_TENANT = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+const ACCESS_TTL_MS = 60_000;
+const accessCache = new Map<string, { a: unknown; ts: number }>();
+
 export async function GET(req: NextRequest) {
   const sess = requireSession(req);
   if (!sess) return NextResponse.json({ ok: false, error: 'No session' }, { status: 401 });
@@ -49,7 +58,29 @@ export async function GET(req: NextRequest) {
       try { await supabase.from('staff').update({ last_seen_at: new Date().toISOString() }).eq('id', sess.id); } catch { /* non-fatal */ }
     }
   }
-  const res = NextResponse.json({ ok: true });
+  // Access state for the in-app banner. Best-effort: a failure here must never break the
+  // session refresh, so it falls through to no banner rather than throwing.
+  let access: unknown = null;
+  const tid = sess.tenant_id || HOME_TENANT;
+  if (SB_SERVICE_KEY && tid !== HOME_TENANT) {
+    const cachedA = accessCache.get(tid);
+    if (cachedA && Date.now() - cachedA.ts < ACCESS_TTL_MS) {
+      access = cachedA.a;
+    } else {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sb: any = createClient(SB_URL, SB_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+        const { data } = await sb.rpc('tenant_access_state', { p_tenant_id: tid });
+        if (data) {
+          access = data;
+          if (accessCache.size > 500) accessCache.clear();
+          accessCache.set(tid, { a: data, ts: Date.now() });
+        }
+      } catch { /* non-fatal — no banner is better than a broken session refresh */ }
+    }
+  }
+
+  const res = NextResponse.json({ ok: true, access });
   // Preserve tenant_id on refresh — dropping it silently rebinds the session to the env
   // fallback tenant on every route (harmless single-tenant, cross-tenant bug at tenant #2).
   res.headers.set('Set-Cookie', sessionCookieHeader(signSession({ id: sess.id, role: sess.role, session_v: sess.session_v, tenant_id: sess.tenant_id })));
