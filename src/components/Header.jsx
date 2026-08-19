@@ -41,6 +41,9 @@ const PILLS = [
   // Growth = OUR sales pipeline (Hotel Growth OS), not hotel ops. canAccess() only clears it
   // for owner/admin, so this pill is invisible to every operational role.
   { href: '/crm/growth', icon: '◎', label: 'Growth' },
+  // Subscriber Access = who is paying, across every tenant. PLATFORM route: canAccess()
+  // requires the home tenant, not merely an owner role — see permissions.js.
+  { href: '/crm/subscribers', icon: '❖', label: 'Subscriber Access' },
   { href: '/crm/settings', icon: '⚙', label: 'Settings' },
 ];
 const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase() || '?';
