@@ -57,6 +57,14 @@ export interface TenantConfig {
   // Per-tenant Google Sheets backup destination — NULL = none (home tenant falls
   // back to env SHEETS_BACKUP_ID in the sheets-backup route)
   sheets_backup_id:     string | null;
+
+  // Time-boxed demo trial. demo_expires_at NULL = a real customer, never expires.
+  // Populated by demo_provision(); enforced in app/api/crm/login/route.ts.
+  // NOTE: getTenantBySlug caches for 60s, so expiry can lag by up to a minute.
+  demo_expires_at:      string | null;
+  demo_locked_at:       string | null;
+  demo_prospect_id:     string | null;
+  demo_created_by:      string | null;
 }
 
 // Secret keys that may live in Supabase Vault (Phase B). Vault values only fill
@@ -214,6 +222,11 @@ function buildEnvFallback(): TenantConfig {
     office_ips:          null,
     remote_roles:        null,
     sheets_backup_id:    process.env.SHEETS_BACKUP_ID || null,
+    // The env fallback only ever builds the HOME tenant, which is never a demo.
+    demo_expires_at:     null,
+    demo_locked_at:      null,
+    demo_prospect_id:    null,
+    demo_created_by:     null,
   };
 }
 

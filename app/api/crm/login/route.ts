@@ -60,8 +60,10 @@ export async function POST(req: NextRequest) {
       // slug only). No session exists yet at login, so the host is the tenant authority.
       // Unknown subdomain throws → sign-in against a nonexistent property fails cleanly.
       let TENANT: string;
+      let TENANT_CFG: Awaited<ReturnType<typeof getTenantFromHeaders>>;
       try {
-              TENANT = (await getTenantFromHeaders(req.headers)).id;
+              TENANT_CFG = await getTenantFromHeaders(req.headers);
+              TENANT = TENANT_CFG.id;
       } catch {
               return NextResponse.json({ error: 'Unknown property.' }, { status: 404 });
       }
@@ -98,6 +100,27 @@ export async function POST(req: NextRequest) {
           }
           if (u.activated === false) {
                   return NextResponse.json({ error: 'Account not activated yet — activate via the staff portal first.' }, { status: 403 });
+          }
+
+          // ── Demo trial gate ────────────────────────────────────────────────────
+          // A tenant with demo_expires_at set is a time-boxed trial. Checked AFTER
+          // the password verifies, so only someone holding valid credentials ever
+          // learns the trial ended — it is never an enumeration oracle.
+          //
+          // TENANT is host-resolved and cached for 60s in lib/tenant.ts, so a demo
+          // can stay reachable for up to a minute past its expiry. That is fine:
+          // 120h is the promise, not 120h to the second.
+          const isExpiredDemo = !!TENANT_CFG.demo_expires_at && (
+                  !!TENANT_CFG.demo_locked_at ||
+                  new Date(TENANT_CFG.demo_expires_at).getTime() <= Date.now()
+          );
+          if (isExpiredDemo) {
+                  return NextResponse.json({
+                          error:      'Your 5-day demo has ended.',
+                          code:       'demo_expired',
+                          hotel_name: TENANT_CFG.hotel_name,
+                          expired_at: TENANT_CFG.demo_expires_at,
+                  }, { status: 403 });
           }
 
           // Successful auth — clear any failed-attempt / lockout state.

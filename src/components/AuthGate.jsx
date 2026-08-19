@@ -28,6 +28,9 @@ let _authCache = null;
 export default function AuthGate({ children }) {
   const [status, setStatus] = useState(_authCache ? 'in' : 'checking'); // checking | in | out
   const [user, setUser] = useState(_authCache);
+  // Set only when /api/crm/login answers 403 demo_expired — a valid password on a
+  // dead trial. Never persisted: a reload returns to the normal sign-in card.
+  const [demoEnded, setDemoEnded] = useState(null);
 
   const [mode, setMode] = useState('signin'); // signin | activate
   const [email, setEmail] = useState('');
@@ -119,6 +122,13 @@ export default function AuthGate({ children }) {
     try {
       const r = await fetch('/api/crm/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), password: pw }) });
       const j = await r.json().catch(() => ({}));
+      // Demo trial over: the credentials were correct, the clock was not. Show the
+      // contact screen instead of a generic error — this is a sales moment.
+      if (r.status === 403 && j.code === 'demo_expired') {
+        setPw('');
+        setDemoEnded({ hotel: j.hotel_name || '', at: j.expired_at || null });
+        return;
+      }
       if (!r.ok || !j.ok) throw new Error(j.error || 'Sign-in failed.');
       applySession(j.session);
     } catch (e2) { setErr(e2.message || String(e2)); } finally { setBusy(false); }
@@ -171,6 +181,41 @@ export default function AuthGate({ children }) {
   const linkBtn = { background: 'none', border: 'none', cursor: 'pointer', fontFamily: sans, fontSize: 12, letterSpacing: 0, color: GOLD, textTransform: 'none', fontWeight: 600, padding: 0 };
   const subText = { textAlign: 'center', fontSize: 12, color: TX2, lineHeight: 1.5, margin: '8px 0 20px' };
   const errBox = (t) => <div style={{ marginTop: 10, marginBottom: 4, fontSize: 11, color: '#FF6B6B', fontFamily: sans }}>{t}</div>;
+
+  // ── demo trial ended: contact screen, not an error ──
+  // Placed AFTER the style consts above — they are `const`, so referencing them
+  // from an earlier return would hit the temporal dead zone.
+  // No pricing on this screen on purpose. Its only job is to get a reply.
+  if (demoEnded) {
+    const waHref = 'https://wa.me/8801768880806?text=' + encodeURIComponent(
+      `Hi Shan — our Hotel Growth OS demo${demoEnded.hotel ? ` for ${demoEnded.hotel}` : ''} has ended. We would like to talk about continuing.`
+    );
+    return (
+      <div style={{ minHeight: '100vh', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: WALNUT, position: 'relative', overflow: 'hidden', fontFamily: sans }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 55% at 18% 22%, rgba(124,58,183,.32), transparent 62%), radial-gradient(ellipse 60% 60% at 80% 88%, rgba(178,84,32,.3), transparent 60%)' }} />
+        <div style={{ background: PARCH, border: '1px solid rgba(255,255,255,.1)', borderRadius: 20, padding: '40px 42px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1, boxShadow: '0 40px 100px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+            <img src="/fountain-logo.png" alt="Hotel Growth OS" style={{ width: 96, height: 'auto', objectFit: 'contain' }} />
+          </div>
+          <div style={{ fontSize: 8, color: TX3, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 16 }}>Trial Complete</div>
+          <div style={{ fontFamily: serif, fontSize: 24, fontWeight: 700, color: TX, lineHeight: 1.15, letterSpacing: '-.01em' }}>
+            Your 5 days are <em style={{ fontStyle: 'normal', color: GOLD, fontWeight: 700 }}>up</em>
+          </div>
+          <p style={{ ...subText, marginTop: 12 }}>
+            {demoEnded.hotel ? `${demoEnded.hotel}'s ` : 'Your '}demo has ended. Your password still works — only the clock stopped.
+          </p>
+          <p style={{ fontSize: 12, color: TX2, lineHeight: 1.5, margin: '0 0 22px' }}>
+            Everything you set up is kept for <strong style={{ color: TX }}>30 days</strong>. Pick up where you left off rather than starting again.
+          </p>
+          <a href={waHref} target="_blank" rel="noreferrer" style={{ ...goldBtn(false), textDecoration: 'none', marginTop: 0 }}>
+            Talk to Shan on WhatsApp
+          </a>
+          <div style={{ fontFamily: mono, fontSize: 11, color: TX3, marginTop: 14, letterSpacing: '.04em' }}>+880 1768 880806</div>
+          <button onClick={() => { setDemoEnded(null); setErr(''); }} style={{ ...linkBtn, marginTop: 18 }}>Back to sign in</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: WALNUT, position: 'relative', overflow: 'hidden', fontFamily: sans }}>
