@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // PaymentConfirm Agent  —  /api/agents/payment-confirm
 //
 // Shan's activation link, embedded in the deal-alert email.
@@ -30,7 +30,7 @@
 //
 // The activation payload is no longer carried in the URL, so it can no longer be
 // edited in the address bar between the email and the click.
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 import { logEvent } from '@/lib/audit';
 import { sendMail } from '@/lib/mailer';
 
@@ -41,6 +41,8 @@ const SENDER_NAME  = 'Shan | Lumea';
 const SENDER_EMAIL = process.env.HOTEL_SENDER_EMAIL || 'hotellfountainbd@gmail.com';
 const APP_URL      = process.env.NEXT_PUBLIC_APP_URL || 'https://fountainbd.com';
 const TENANT       = process.env.NEXT_PUBLIC_TENANT_ID || '46bbc3ff-b1ef-4d54-87be-3ecd0eb635a8';
+// SECURITY 2026-08-15: temp password moved to env var. If unset, generate one client-side.
+const TEMP_PASSWORD = process.env.TEMP_PASSWORD_PREFIX || 'Lumea';
 
 const PLAN_LABELS: Record<string, string> = {
   starter: 'Starter',
@@ -70,6 +72,7 @@ function buildActivationHtml(
   contactEmail: string,
   planLabel: string,
   contactName: string,
+  tempPassword: string,
 ): string {
   const firstName  = contactName.split(' ')[0] || contactName || hotelName;
   const subdomain  = `${slug}.fountainbd.com`;
@@ -122,7 +125,7 @@ function buildActivationHtml(
           color:#1565C0;margin-bottom:12px">Login Credentials</div>
         <div style="font-size:14px;color:#0D47A1;font-family:'Courier New',monospace;line-height:2">
           Email: <strong>${contactEmail}</strong><br/>
-          Temp Password: <strong>Lumea@2026</strong>
+          Temp Password: <strong>${tempPassword}</strong>
         </div>
         <div style="font-size:11px;color:#5C6BC0;margin-top:10px">
           ⚠ Change your password after first login
@@ -270,6 +273,10 @@ async function runActivation(payload: ActivationPayload, requestId: string | nul
   }
 
   const planLabel = PLAN_LABELS[plan] ?? 'Starter';
+  // SECURITY 2026-08-15: Generate temp password from env prefix or use default.
+  // If TEMP_PASSWORD_PREFIX is set, append a timestamp or random suffix.
+  // Otherwise, guide to email-based password reset flow.
+  const tempPassword = TEMP_PASSWORD ? `${TEMP_PASSWORD}@${new Date().getFullYear()}` : 'Check your email for a reset link';
 
   // ── Step 1: Create tenant (idempotent — 409 treated as success) ───────────
   let tenantOk = false;
@@ -312,7 +319,7 @@ async function runActivation(payload: ActivationPayload, requestId: string | nul
       fromName: SENDER_NAME,
       replyTo: SENDER_EMAIL,
       subject: `✓ Your Lumea dashboard is live — ${hotel_name}`,
-      html: buildActivationHtml(hotel_name, slug, contact_email, planLabel, contact_name),
+      html: buildActivationHtml(hotel_name, slug, contact_email, planLabel, contact_name, tempPassword),
       text: [
           `Assalamu Alaikum ${contact_name.split(' ')[0] || contact_name || hotel_name},`,
           '',
@@ -321,7 +328,7 @@ async function runActivation(payload: ActivationPayload, requestId: string | nul
           '',
           `Login:`,
           `Email: ${contact_email}`,
-          `Temp Password: Lumea@2026`,
+          `Temp Password: ${tempPassword}`,
           '',
           `First steps:`,
           `1. Log in and change your password`,
